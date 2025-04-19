@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRef, useState, useEffect } from 'react';
-
+import { useRef, useState, useEffect, ChangeEvent } from 'react';
 const TABS = ['My Businesses', 'My Items', 'My Posts', 'Settings'];
 const ITEMS_PER_PAGE = 5;
 
