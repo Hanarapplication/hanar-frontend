@@ -4,11 +4,39 @@ import { useParams } from 'next/navigation';
 import { useState, useRef } from 'react';
 import { FaUpload, FaTrash } from 'react-icons/fa';
 
+interface MenuItem {
+  name: string;
+  price: string;
+  description: string;
+}
+
+interface MenuCategory {
+  [categoryName: string]: MenuItem[];
+}
+
+interface FormData {
+  name: string;
+  category: string;
+  address: string;
+  hours: string;
+  description: string;
+  whatsapp: string;
+  phone: string;
+  email: string;
+  logo: File | string;
+  images: File[];
+  isRestaurant: boolean;
+  menu: MenuCategory;
+  instagram: string;
+  facebook: string;
+  tiktok: string;
+}
+
 export default function EditBusinessPage() {
   const { slug } = useParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormData>({
     name: 'Bolani House',
     category: 'Afghan Restaurant',
     address: '123 Kabul St, Toronto, ON',
@@ -28,19 +56,19 @@ export default function EditBusinessPage() {
     tiktok: '',
   });
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleLogoChange = (e) => {
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setForm((prev) => ({ ...prev, logo: file }));
     }
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     setForm((prev) => ({ ...prev, images: files }));
   };
@@ -48,11 +76,14 @@ export default function EditBusinessPage() {
   const addCategory = () => {
     const newKey = prompt('Enter new category name:');
     if (newKey && !form.menu[newKey]) {
-      setForm((prev) => ({ ...prev, menu: { ...prev.menu, [newKey]: [] } }));
+      setForm((prev) => ({
+        ...prev,
+        menu: { ...prev.menu, [newKey]: [] },
+      }));
     }
   };
 
-  const addItem = (cat) => {
+  const addItem = (cat: string) => {
     setForm((prev) => ({
       ...prev,
       menu: {
@@ -62,7 +93,7 @@ export default function EditBusinessPage() {
     }));
   };
 
-  const handleMenuChange = (cat, i, field, value) => {
+  const handleMenuChange = (cat: string, i: number, field: keyof MenuItem, value: string) => {
     setForm((prev) => ({
       ...prev,
       menu: {
@@ -74,7 +105,7 @@ export default function EditBusinessPage() {
     }));
   };
 
-  const removeItem = (cat, i) => {
+  const removeItem = (cat: string, i: number) => {
     setForm((prev) => ({
       ...prev,
       menu: {
@@ -84,7 +115,7 @@ export default function EditBusinessPage() {
     }));
   };
 
-  const removeCategory = (cat) => {
+  const removeCategory = (cat: string) => {
     const { [cat]: removedCategory, ...restOfMenu } = form.menu;
     setForm((prev) => ({ ...prev, menu: restOfMenu }));
   };
@@ -221,12 +252,12 @@ export default function EditBusinessPage() {
                   </div>
                   <div className="space-y-3">
                     {items.map((item, i) => (
-                      <div key={`${cat}-${i}`} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+                      <div key={`<span class="math-inline">\{cat\}\-</span>{i}`} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
                         <div>
-                          <label htmlFor={`${cat}-${i}-name`} className="block text-gray-700 text-sm font-medium mb-1">Item Name</label>
+                          <label htmlFor={`<span class="math-inline">\{cat\}\-</span>{i}-name`} className="block text-gray-700 text-sm font-medium mb-1">Item Name</label>
                           <input
                             type="text"
-                            id={`${cat}-${i}-name`}
+                            id={`<span class="math-inline">\{cat\}\-</span>{i}-name`}
                             placeholder="Item Name"
                             value={item.name}
                             onChange={(e) => handleMenuChange(cat, i, 'name', e.target.value)}
@@ -234,10 +265,10 @@ export default function EditBusinessPage() {
                           />
                         </div>
                         <div>
-                          <label htmlFor={`${cat}-${i}-price`} className="block text-gray-700 text-sm font-medium mb-1">Price</label>
+                          <label htmlFor={`<span class="math-inline">\{cat\}\-</span>{i}-price`} className="block text-gray-700 text-sm font-medium mb-1">Price</label>
                           <input
                             type="text"
-                            id={`${cat}-${i}-price`}
+                            id={`<span class="math-inline">\{cat\}\-</span>{i}-price`}
                             placeholder="Price"
                             value={item.price}
                             onChange={(e) => handleMenuChange(cat, i, 'price', e.target.value)}
@@ -246,9 +277,9 @@ export default function EditBusinessPage() {
                         </div>
                         <div className="flex gap-3 items-center">
                           <div className="flex-1">
-                            <label htmlFor={`${cat}-${i}-description`} className="block text-gray-700 text-sm font-medium mb-1">Description</label>
+                            <label htmlFor={`<span class="math-inline">\{cat\}\-</span>{i}-description`} className="block text-gray-700 text-sm font-medium mb-1">Description</label>
                             <textarea
-                              id={`${cat}-${i}-description`}
+                              id={`<span class="math-inline">\{cat\}\-</span>{i}-description`}
                               placeholder="Description"
                               value={item.description}
                               onChange={(e) => handleMenuChange(cat, i, 'description', e.target.value)}
@@ -267,12 +298,10 @@ export default function EditBusinessPage() {
               ))}
             </div>
           </div>
-        )}
-
-        <div className="mt-6">
-          <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-md focus:outline-none focus:shadow-outline transition duration-150">Save Changes</button>
-        </div>
+        )}<div className="mt-6">
+        <button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-md focus:outline-none focus:shadow-outline transition duration-150">Save Changes</button>
       </div>
     </div>
-  );
+  </div>
+);
 }
