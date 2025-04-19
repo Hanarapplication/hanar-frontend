@@ -20,20 +20,20 @@ export default function MobileTopNav() {
   ];
 
   return (
-    <nav className="sticky top-14 left-0 right-0 z-40 bg-gradient-to-r from-blue-400 to-blue-500 sm:hidden transition-all">
-      <div className="flex justify-around items-center py-2 px-2">
+    <nav className="sticky top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 sm:hidden transition-shadow duration-200">
+      <div className="flex justify-around items-center py-3 px-4 shadow-sm">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center text-xs transition-transform duration-150 ease-out active:scale-110 ${
-                isActive ? 'text-white scale-110' : 'text-white/80 hover:text-white'
+              className={`flex flex-col items-center text-gray-600 transition-colors duration-200 focus:outline-none ${
+                isActive ? 'text-blue-600' : 'hover:text-blue-500'
               }`}
             >
-              <div className="text-xl">{item.icon}</div>
-              <span className="text-[11px] font-semibold mt-1">{item.label}</span>
+              <div className={`text-xl ${isActive ? 'text-blue-600' : ''}`}>{item.icon}</div>
+              <span className={`text-xs font-medium mt-1 ${isActive ? 'text-blue-600' : ''}`}>{item.label}</span>
             </Link>
           );
         })}

@@ -16,8 +16,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-white text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
-        <DarkModeProvider>
+
+<body className="dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
+<DarkModeProvider>
           {/* 📍 Location prompt */}
           <LocationPromptModal />
 

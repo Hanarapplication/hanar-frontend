@@ -9,9 +9,7 @@ import {
 
 export default function BusinessProfilePage() {
   const { slug } = useParams();
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   const business = {
     name: 'Bolani House',
@@ -39,187 +37,116 @@ export default function BusinessProfilePage() {
         {
           name: 'Bolani',
           price: '$6.99',
-          description: 'Stuffed flatbread with potatoes and herbs.',
-          image: 'https://source.unsplash.com/400x300/?bolani'
+          description: 'Stuffed flatbread with potatoes and leeks.'
         },
         {
-          name: 'Samosa',
-          price: '$4.50',
-          description: 'Fried pastry with savory filling.',
-          image: 'https://source.unsplash.com/400x300/?samosa'
-        }
-      ],
-      Mains: [
-        {
-          name: 'Mantu',
-          price: '$9.49',
-          description: 'Beef dumplings topped with yogurt and lentils.',
-          image: 'https://source.unsplash.com/400x300/?mantu'
-        },
-        {
-          name: 'Kabob Plate',
-          price: '$11.99',
-          description: 'Grilled kabobs with rice and naan.',
-          image: 'https://source.unsplash.com/400x300/?kabob'
-        }
-      ],
-      Drinks: [
-        {
-          name: 'Doogh',
-          price: '$2.99',
-          description: 'Chilled yogurt drink with mint.',
-          image: 'https://source.unsplash.com/400x300/?yogurt-drink'
-        },
-        {
-          name: 'Black Tea',
-          price: '$1.99',
-          description: 'Traditional Afghan chai with cardamom.',
-          image: 'https://source.unsplash.com/400x300/?afghan-tea'
+          name: 'Mantoo',
+          price: '$8.99',
+          description: 'Steamed dumplings filled with spiced ground beef and onions.'
         }
       ]
-    }
+    },
+    tags: ['halal', 'family-friendly', 'delivery'],
+    reviews: [],
+    ownerIdentity: '@BolaniHouse'
   };
 
-  const toggleCategory = (category: string) => {
-    setExpandedCategory(expandedCategory === category ? null : category);
-  };
+  const nextImage = () => setSelectedIndex((selectedIndex + 1) % business.images.length);
+  const prevImage = () => setSelectedIndex((selectedIndex - 1 + business.images.length) % business.images.length);
 
-  const nextImage = () => {
-    if (selectedIndex !== null) {
-      setSelectedIndex((selectedIndex + 1) % business.images.length);
-    }
-  };
-
-  const prevImage = () => {
-    if (selectedIndex !== null) {
-      setSelectedIndex((selectedIndex - 1 + business.images.length) % business.images.length);
-    }
-  };
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      <div className="bg-white p-6 rounded-xl shadow-lg border space-y-6">
+    <div className="p-4 bg-[#fef6f3] rounded-xl max-w-4xl mx-auto shadow-lg">
+      {/* Slider Gallery */}
+      <div className="relative mb-6 rounded-lg overflow-hidden h-60">
+        <img
+          src={business.images[selectedIndex]}
+          alt={`Slide ${selectedIndex + 1}`}
+          className="w-full h-full object-cover rounded-lg"
+        />
+        <button onClick={prevImage} className="absolute top-1/2 left-2 transform -translate-y-1/2 bg-white rounded-full shadow p-1">
+          <FaArrowLeft />
+        </button>
+        <button onClick={nextImage} className="absolute top-1/2 right-2 transform -translate-y-1/2 bg-white rounded-full shadow p-1">
+          <FaArrowRight />
+        </button>
+      </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <img src={business.logo} alt="Logo" className="w-16 h-16 rounded object-cover border" />
-            <div>
-              <h1 className="text-xl font-bold text-[#a93226]">{business.name}</h1>
-              <p className="text-sm text-gray-500">{business.category}</p>
-              <a href={business.mapUrl} target="_blank" className="text-sm text-blue-600 hover:underline">
-                {business.address}
-              </a>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              if (navigator.share) {
-                navigator.share({
-                  title: business.name,
-                  url: window.location.href,
-                }).catch(() => {});
-              } else {
-                navigator.clipboard.writeText(window.location.href)
-                  .then(() => alert('Link copied to clipboard!'))
-                  .catch(() => alert('Failed to copy link.'));
-              }
-            }}
-            title="Share"
-            className="text-blue-600 hover:text-blue-800 text-2xl"
-          >
-            <FaShareAlt />
-          </button>
+      {/* Name + Category + Tags */}
+      <h1 className="text-3xl font-bold text-[#333] mb-1">{business.name}</h1>
+      <p className="text-[#777] italic mb-3">{business.category}</p>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {business.tags.map((tag, i) => (
+          <span key={i} className="bg-[#ede7f6] text-sm text-[#333] rounded-full px-3 py-1 shadow-sm">#{tag}</span>
+        ))}
+      </div>
+
+      {/* Description + Info */}
+      <div className="bg-white rounded-lg p-4 shadow-md mb-4">
+        <p className="mb-2 text-[#444]">{business.description}</p>
+        <p className="text-sm text-[#555] mb-2">🕒 {business.hours}</p>
+
+        {/* Embedded Map */}
+        <div className="mb-2">
+          <iframe
+            src={business.mapUrl + '&output=embed'}
+            width="100%"
+            height="120"
+            className="rounded-md"
+            allowFullScreen
+            loading="lazy"
+            title="map"
+          ></iframe>
         </div>
+      </div>
 
-        {/* About */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-800 mb-1">About Us</h2>
-          <p className="text-gray-700">{business.description}</p>
-        </div>
+      {/* Contact Info */}
+      <div className="bg-white rounded-lg p-4 shadow-md mb-4 space-y-1 text-sm text-[#444]">
+        <p>📞 {business.phone}</p>
+        <p>💬 WhatsApp: {business.whatsapp}</p>
+        <p>✉️ {business.email}</p>
+        <p>🌐 <a href={business.website} className="text-blue-500 underline">Website</a></p>
+      </div>
 
-        {/* Gallery */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-800 mb-2">Gallery</h2>
-          <div className="grid grid-cols-3 gap-4">
-            {business.images.map((img, i) => (
-              <img key={i} src={img} onClick={() => setSelectedIndex(i)}
-                className="rounded-md cursor-pointer h-28 object-cover w-full border hover:opacity-90" />
-            ))}
-          </div>
+      {/* Social Links + Share */}
+      <div className="flex flex-wrap gap-4 text-sm text-gray-700 mb-6 items-center">
+        <a href={business.instagram} className="flex items-center gap-2 hover:underline"><FaInstagram />Instagram</a>
+        <a href={business.facebook} className="flex items-center gap-2 hover:underline"><FaFacebook />Facebook</a>
+        <a href={business.tiktok} className="flex items-center gap-2 hover:underline"><FaTiktok />TikTok</a>
+        <button
+          className="ml-auto bg-[#ede7f6] px-3 py-1 rounded-full text-sm flex items-center gap-1 hover:bg-[#dcd1f2]"
+          onClick={() => navigator.share ? navigator.share({ title: business.name, url: window.location.href }) : navigator.clipboard.writeText(window.location.href)}
+        >
+          <FaShareAlt /> Share
+        </button>
+      </div>
 
-          {selectedIndex !== null && (
-            <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center">
-              <button onClick={() => setSelectedIndex(null)} className="absolute top-4 right-6 text-white text-2xl"><FaTimes /></button>
-              <button onClick={prevImage} className="absolute left-6 text-white text-2xl"><FaArrowLeft /></button>
-              <img src={business.images[selectedIndex]} className="max-w-full max-h-[90vh] rounded shadow-lg" />
-              <button onClick={nextImage} className="absolute right-6 text-white text-2xl"><FaArrowRight /></button>
-            </div>
-          )}
-        </div>
-
-        {/* Menu */}
-        {business.isRestaurant && (
-          <div>
-            <h2 className="text-lg font-bold text-gray-800 mb-3">Menu</h2>
-            <div className="border rounded-lg overflow-hidden">
-              <button onClick={() => setMenuOpen(!menuOpen)}
-                className="w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 font-semibold flex justify-between">
-                <span>View Menu</span>
-                <span>{menuOpen ? '▲' : '▼'}</span>
-              </button>
-              {menuOpen && (
-                <div className="bg-white px-4 py-2 space-y-2">
-                  {Object.entries(business.menu).map(([category, items]) => (
-                    <div key={category}>
-                      <button onClick={() => toggleCategory(category)}
-                        className="w-full text-left font-semibold py-2 text-[#a93226] hover:underline flex justify-between">
-                        <span>{category}</span>
-                        <span>{expandedCategory === category ? '−' : '+'}</span>
-                      </button>
-                      {expandedCategory === category && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-                          {items.map((item, idx) => (
-                            <div key={idx} className="border rounded-lg shadow-sm flex bg-white">
-                              <img src={item.image} alt={item.name} className="w-24 h-24 object-cover flex-shrink-0" />
-                              <div className="p-3 flex flex-col justify-between">
-                                <div className="flex justify-between">
-                                  <h3 className="font-medium text-gray-800">{item.name}</h3>
-                                  <span className="text-sm font-semibold text-[#a93226]">{item.price}</span>
-                                </div>
-                                <p className="text-sm text-gray-600">{item.description}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+      {/* Menu if Restaurant */}
+      {business.isRestaurant && (
+        <div className="bg-white rounded-lg p-4 shadow-md mb-6">
+          <h2 className="text-xl font-semibold mb-3 text-[#333]">Menu</h2>
+          {Object.entries(business.menu).map(([category, items]) => (
+            <div key={category} className="mb-4">
+              <h3 className="font-bold text-[#444] mb-1">{category}</h3>
+              {(items as any[]).map((item, i) => (
+                <div key={i} className="text-sm text-gray-800 border-b border-gray-100 py-1">
+                  <strong>{item.name}</strong> – {item.price}<br />
+                  <span className="text-gray-600">{item.description}</span>
                 </div>
-              )}
+              ))}
             </div>
-          </div>
-        )}
-
-        {/* Contact Info */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
-          <div><p className="font-medium">📍 Address</p><a href={business.mapUrl} target="_blank" className="text-blue-600 hover:underline">{business.address}</a></div>
-          <div><p className="font-medium">📞 Phone</p><a href={`tel:${business.phone}`} className="text-blue-600 hover:underline">{business.phone}</a></div>
-          <div><p className="font-medium">📱 WhatsApp</p><a href={`https://wa.me/${business.whatsapp.replace(/\D/g, '')}`} target="_blank" className="text-green-600 hover:underline">{business.whatsapp}</a></div>
-          <div><p className="font-medium">📧 Email</p><a href={`mailto:${business.email}`} className="text-purple-600 hover:underline">{business.email}</a></div>
+          ))}
         </div>
+      )}
 
-        {/* Social Icons */}
-        <div className="flex gap-6 text-3xl mt-6">
-          {business.instagram && <a href={business.instagram} target="_blank" className="text-pink-600 hover:scale-110 transition-transform"><FaInstagram /></a>}
-          {business.facebook && <a href={business.facebook} target="_blank" className="text-blue-700 hover:scale-110 transition-transform"><FaFacebook /></a>}
-          {business.tiktok && <a href={business.tiktok} target="_blank" className="text-black hover:scale-110 transition-transform"><FaTiktok /></a>}
-          {business.website && <a href={business.website} target="_blank" className="text-gray-800 hover:scale-110 hover:text-[#a93226] transition-transform"><FaGlobe /></a>}
-        </div>
+      {/* Owner Identity (for community linking) */}
+      <div className="text-sm text-[#666] italic mb-4">
+        Posts by this business in the community: <span className="text-blue-600">{business.ownerIdentity}</span>
+      </div>
 
-        {/* Footer */}
-        <div className="text-sm text-center text-gray-400 pt-6 border-t mt-6">
-          &copy; {new Date().getFullYear()} {business.name} — Powered by Hanar
-        </div>
+      {/* Reviews Placeholder */}
+      <div className="bg-white rounded-lg p-4 shadow-md">
+        <h2 className="text-lg font-bold text-[#333] mb-1">Reviews</h2>
+        <p className="text-gray-500 italic">Coming soon...</p>
       </div>
     </div>
   );

@@ -1,13 +1,15 @@
-// components/Navbar.tsx
 'use client';
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { FaMapMarkerAlt, FaUser, FaBell } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaBell, FaBars } from 'react-icons/fa';
+import { usePathname } from 'next/navigation';
+import MobileMenu from './MobileMenu'; // ✅ Import the side menu
 
 export default function Navbar() {
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const coords = localStorage.getItem('userCoords');
@@ -17,10 +19,10 @@ export default function Navbar() {
         .then((res) => res.json())
         .then((data) => {
           const city =
-            data.address.city ||
-            data.address.town ||
-            data.address.village ||
-            data.address.state ||
+            data.address?.city ||
+            data.address?.town ||
+            data.address?.village ||
+            data.address?.state ||
             data.display_name;
           setLocationLabel(city);
         })
@@ -35,50 +37,53 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white h-14 flex items-center justify-between px-4 sticky top-0 z-50 transition-all relative shadow-sm border-b border-gray-200">
-      {/* 📍 Location (left) */}
-      <button
-        onClick={resetLocation}
-        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 transition max-w-[130px]"
-      >
-        <FaMapMarkerAlt size={18} />
-        <span className="truncate">{locationLabel || 'Set Location'}</span>
-      </button>
+    <>
+      <nav className="bg-white h-16 flex items-center justify-between px-4 sticky top-0 z-50 transition-all relative border-b border-gray-100">
+        {/* 🔰 Logo (left) */}
+        <div className="flex items-center">
+          <Link href="/" className="focus:outline-none">
+            <img
+              src="/hanar.logo.png"
+              alt="Hanar Logo"
+              className="h-10 w-auto transition-transform transform hover:scale-105 focus:scale-105"
+            />
+          </Link>
+        </div>
 
-      {/* 🟡 Centered Logo */}
-      <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-        <Link href="/">
-          <img
-            src="/logo.gif"
-            alt="Hanar Logo"
-            className="h-10 w-auto"
-          />
-        </Link>
-      </div>
+        {/* ➡️ Right-side Interactive Elements */}
+        <div className="flex items-center gap-6 sm:gap-8"> {/* Increased gap here */}
+          {/* 📍 Location */}
+          <button
+            onClick={resetLocation}
+            className="group flex items-center gap-1 text-sm text-gray-600 hover:text-blue-700 focus:outline-none transition-colors duration-200 max-w-[140px]"
+          >
+            <FaMapMarkerAlt size={16} className="text-blue-500 group-hover:text-blue-700" />
+            <span className="truncate">{locationLabel || 'Set Location'}</span>
+          </button>
 
-      {/* 👤 Dashboard + 🔔 Notifications + ☰ Menu (right) */}
-      <div className="flex items-center gap-4 sm:gap-6">
-        <Link href="/dashboard">
-          <FaUser className="text-purple-600 text-lg hover:text-purple-800 transition cursor-pointer" />
-        </Link>
+          {/* 🔔 Notifications */}
+          <Link href="/notifications" className="relative focus:outline-none">
+            <div className="relative group">
+              <FaBell className="text-gray-600 text-xl group-hover:text-blue-700 transition-colors duration-200 cursor-pointer" /> {/* Increased size to text-xl */}
+              <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full shadow-sm">
+                3
+              </span>
+            </div>
+          </Link>
 
-        <Link href="/notifications">
-          <div className="relative group">
-            <FaBell className="text-blue-600 text-lg group-hover:animate-wiggle transition cursor-pointer" />
-            <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-sm">
-              3
-            </span>
-          </div>
-        </Link>
+          {/* ☰ Mobile Menu Toggle */}
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="text-gray-600 hover:text-rose-700 transition-colors duration-200 text-2xl focus:outline-none sm:hidden"
+            aria-label="Toggle Menu"
+          >
+            <FaBars />
+          </button>
+        </div>
+      </nav>
 
-        {/* ☰ Menu Toggle (optional) */}
-        <button
-          onClick={() => setMenuOpen(true)}
-          className="text-rose-600 hover:text-rose-800 transition text-xl sm:hidden"
-        >
-          ☰
-        </button>
-      </div>
-    </nav>
+      {/* ✅ Drawer connection (REQUIRED for toggle to work) */}
+      <MobileMenu isOpen={menuOpen} setIsOpen={setMenuOpen} />
+    </>
   );
 }
