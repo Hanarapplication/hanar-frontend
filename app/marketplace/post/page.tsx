@@ -5,35 +5,19 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 
-const mockItems = [
-  {
-    id: 1,
-    slug: 'honda-civic-2020',
-    title: 'Honda Civic 2020',
-    price: 13500,
-    location: 'Dallas, TX',
-    lat: 32.7767,
-    lon: -96.7970,
-    image: 'https://source.unsplash.com/400x300/?car',
-    condition: 'Used',
-    category: 'Vehicles',
-    date: '2025-04-10',
-  },
-  {
-    id: 2,
-    slug: 'iphone-13',
-    title: 'iPhone 13',
-    price: 700,
-    location: 'Los Angeles, CA',
-    lat: 34.0522,
-    lon: -118.2437,
-    image: 'https://source.unsplash.com/400x300/?iphone',
-    condition: 'New',
-    category: 'Electronics',
-    date: '2025-04-09',
-  },
-  // Add more mock items as needed
-];
+interface Item {
+  id: string;
+  slug: string;
+  title: string;
+  price: number;
+  location: string;
+  lat: number;
+  lon: number;
+  image: string;
+  condition: 'New' | 'Used';
+  category: string;
+  date: string;
+}
 
 function getDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 3958.8;
@@ -41,42 +25,40 @@ function getDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2;
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
 
 export default function MarketplacePage() {
+  const [items, setItems] = useState<Item[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [radius, setRadius] = useState(50);
   const [visibleCount, setVisibleCount] = useState(6);
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
 
-  // ✅ Load saved location from localStorage on page load
   useEffect(() => {
     const stored = localStorage.getItem('userCoords');
-    if (stored) {
-      setUserCoords(JSON.parse(stored));
-    }
+    if (stored) setUserCoords(JSON.parse(stored));
+
+    fetch('http://localhost:5000/api/marketplace/list')
+      .then((res) => res.json())
+      .then((data) => setItems(data.items || []));
   }, []);
 
-  const toggleFavorite = (id: number) => {
+  const toggleFavorite = (id: string) => {
     setFavorites((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]));
   };
 
-  // ✅ Filter logic
-  let filteredItems = mockItems.filter((item) => {
-    const match = item.title.toLowerCase().includes(searchTerm.toLowerCase());
-    return match;
-  });
+  let filteredItems = items.filter((item) =>
+    item.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (userCoords) {
-    filteredItems = filteredItems.filter((item) => {
-      return getDistanceMiles(userCoords.lat, userCoords.lon, item.lat, item.lon) <= radius;
-    });
+    filteredItems = filteredItems.filter((item) =>
+      getDistanceMiles(userCoords.lat, userCoords.lon, item.lat, item.lon) <= radius
+    );
   }
 
   return (
@@ -93,10 +75,12 @@ export default function MarketplacePage() {
         className="w-full p-2 border rounded-md mb-4"
       />
 
-      {/* Item Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {filteredItems.slice(0, visibleCount).map((item) => (
-          <div key={item.id} className="relative group border rounded-xl shadow hover:shadow-lg bg-white overflow-hidden">
+          <div
+            key={item.id}
+            className="relative group border rounded-xl shadow hover:shadow-lg bg-white overflow-hidden"
+          >
             <Link href={`/marketplace/${item.slug}`}>
               <Image
                 src={item.image}
@@ -109,11 +93,13 @@ export default function MarketplacePage() {
                 <h3 className="font-semibold text-lg">{item.title}</h3>
                 <p className="text-green-600 font-medium">${item.price}</p>
                 <p className="text-sm text-gray-500">{item.location}</p>
-                <span className={`text-xs inline-block mt-1 px-2 py-1 rounded-full ${
-                  item.condition === 'New'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-yellow-100 text-yellow-700'
-                }`}>
+                <span
+                  className={`text-xs inline-block mt-1 px-2 py-1 rounded-full ${
+                    item.condition === 'New'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-yellow-100 text-yellow-700'
+                  }`}
+                >
                   {item.condition}
                 </span>
               </div>
@@ -132,14 +118,12 @@ export default function MarketplacePage() {
         ))}
       </div>
 
-      {/* No Results */}
       {filteredItems.length === 0 && (
         <p className="text-center text-gray-500 mt-6">
           😔 No items found near your location. Try changing search or distance.
         </p>
       )}
 
-      {/* Show More */}
       {filteredItems.length > visibleCount && (
         <div className="text-center mt-6">
           <button

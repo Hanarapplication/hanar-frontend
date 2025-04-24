@@ -3,6 +3,7 @@ import './globals.css';
 import LocationPromptModal from '@/components/LocationPrompt';
 import MobileTopNav from '@/components/MobileTopNav';
 import { DarkModeProvider } from '@/context/DarkModeContext';
+import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
   title: 'Hanar',
@@ -16,20 +17,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-
-<body className="dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
-<DarkModeProvider>
-          {/* 📍 Location prompt */}
+      <body className="dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
+        <DarkModeProvider>
           <LocationPromptModal />
-
-          {/* 🧭 Top navbar */}
           <Navbar />
-
-          {/* 📱 Mobile navigation bar just under Navbar */}
           <MobileTopNav />
-
-          {/* 📄 Page content */}
           <main>{children}</main>
+
+          {/* ✅ Toast Notifications */}
+          <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
         </DarkModeProvider>
       </body>
     </html>

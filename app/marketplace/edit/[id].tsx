@@ -3,57 +3,46 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-const mockItem = {
-  id: 1,
-  title: 'Used iPhone 12 - Excellent Condition',
-  price: '400',
-  description: 'This iPhone 12 is in perfect working order, minor scratches on the edges.',
-  category: 'Phones/Gadgets',
-  location: 'Frisco, TX',
-  contact: {
-    whatsapp: '+1234567890',
-    phone: '+19876543210',
-    email: 'seller@example.com',
-  },
-  images: [
-    'https://source.unsplash.com/600x400/?iphone',
-    'https://source.unsplash.com/600x400/?smartphone',
-  ],
-};
-
-export default function EditItemPage({ params }) {
+export default function EditItemPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const [form, setForm] = useState(null);
-  const [previewImages, setPreviewImages] = useState([]);
+  const [form, setForm] = useState<any>(null);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
 
   useEffect(() => {
-    setForm(mockItem);
-    setPreviewImages(mockItem.images || []);
-  }, []);
+    // Fetch item from backend
+    fetch(`http://localhost:5000/api/marketplace/${params.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setForm(data.item);
+        setPreviewImages(data.item?.imageUrls || []);
+      });
+  }, [params.id]);
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     if (name.startsWith('contact.')) {
       const key = name.split('.')[1];
-      setForm((prev) => ({
+      setForm((prev: any) => ({
         ...prev,
         contact: { ...prev.contact, [key]: value },
       }));
     } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
+      setForm((prev: any) => ({ ...prev, [name]: value }));
     }
   };
 
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
     const previews = files.map((file) => URL.createObjectURL(file));
     setPreviewImages(previews);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Submitted form:', form);
-    alert('Changes saved!');
+
+    // You can wire this up with PUT /api/marketplace/:id
+    console.log('Saving changes...', form);
+    alert('Changes saved (simulated)!');
     router.push(`/marketplace/${form.id}`);
   };
 
@@ -86,7 +75,6 @@ export default function EditItemPage({ params }) {
           rows={4}
           className="w-full border px-4 py-2 rounded"
         />
-
         <input
           name="category"
           value={form.category}
@@ -105,21 +93,21 @@ export default function EditItemPage({ params }) {
         <h2 className="font-semibold mt-4">Contact Info</h2>
         <input
           name="contact.whatsapp"
-          value={form.contact.whatsapp}
+          value={form.contact?.whatsapp || ''}
           onChange={handleChange}
           placeholder="WhatsApp Number"
           className="w-full border px-4 py-2 rounded"
         />
         <input
           name="contact.phone"
-          value={form.contact.phone}
+          value={form.contact?.phone || ''}
           onChange={handleChange}
           placeholder="Phone Number"
           className="w-full border px-4 py-2 rounded"
         />
         <input
           name="contact.email"
-          value={form.contact.email}
+          value={form.contact?.email || ''}
           onChange={handleChange}
           placeholder="Email"
           className="w-full border px-4 py-2 rounded"

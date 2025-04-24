@@ -1,14 +1,45 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [clicked, setClicked] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setClicked(true);
-    setTimeout(() => setClicked(false), 600);
+    setError('');
+
+    try {
+      const res = await fetch('http://localhost:5000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Login failed');
+        setClicked(false);
+        return;
+      }
+
+      // ✅ Save token
+      localStorage.setItem('hanarToken', data.token);
+
+      // ✅ Optional: redirect to dashboard or home
+      router.push('/dashboard'); // Change this path if needed
+    } catch (err) {
+      setError('Network error. Please try again.');
+    } finally {
+      setClicked(false);
+    }
   };
 
   return (
@@ -26,6 +57,8 @@ export default function LoginPage() {
             <input
               type="email"
               id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="you@example.com"
               className="mt-1 w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -39,17 +72,22 @@ export default function LoginPage() {
             <input
               type="password"
               id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               required
               placeholder="••••••••"
               className="mt-1 w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
-            {/* ✅ Forgot Password Link */}
             <div className="mt-2 text-right">
               <a href="/forgot-password" className="text-sm text-blue-600 hover:underline">
                 Forgot password?
               </a>
             </div>
           </div>
+
+          {error && (
+            <p className="text-red-600 text-sm text-center font-medium">{error}</p>
+          )}
 
           <button
             type="submit"
