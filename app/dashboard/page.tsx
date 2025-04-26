@@ -1,201 +1,153 @@
 'use client';
 
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { useRef, useState, useEffect, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
+import toast from 'react-hot-toast';
 
-const TABS = ['My Businesses', 'My Items', 'My Posts', 'Settings'];
 const ITEMS_PER_PAGE = 5;
-
-const mockBusinesses = Array.from({ length: 23 }, (_, i) => ({
-  id: i + 1,
-  name: `Business ${i + 1}`,
-  category: ['Restaurant', 'Grocery Store', 'Salon'][i % 3],
-  image: `https://source.unsplash.com/100x100/?business,${i}`,
-}));
-
-const mockItems = Array.from({ length: 17 }, (_, i) => ({
-  id: i + 1,
-  name: `Item ${i + 1}`,
-  category: ['Electronics', 'Clothing', 'Books'][i % 3],
-  image: `https://source.unsplash.com/100x100/?item,product,${i}`,
-}));
-
-const mockPosts = Array.from({ length: 31 }, (_, i) => ({
-  id: i + 1,
-  author: `@User_${i % 5 + 1}`,
-  title: `Question about ${['local events', 'best practices', 'new regulations'][i % 3]} in Frisco`,
-  body: 'Lorem ipsum dolor sit amet...',
-}));
+const TABS = ['My Businesses', 'My Items', 'My Posts', 'Settings'];
+const ADMIN_TABS = ['Admin Panel', ...TABS];
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState('My Businesses');
-  const [bio, setBio] = useState('"Helping the community one step at a time."');
-  const [tempBio, setTempBio] = useState(bio);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const [showPosts, setShowPosts] = useState(true);
-  const [showBusinesses, setShowBusinesses] = useState(true);
+  const [activeTab, setActiveTab] = useState('My Businesses');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  const [businesses, setBusinesses] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
+
+  const [pendingBusinesses, setPendingBusinesses] = useState<any[]>([]);
+
+  const [username, setUsername] = useState('');
+  const [bio, setBio] = useState('');
+  const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('hanarToken');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      const session = data?.session;
 
-    fetch('http://localhost:5000/api/me', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .then(() => setLoading(false))
-      .catch(() => {
-        localStorage.removeItem('hanarToken');
-        router.push('/login');
-      });
-  }, [router]);
-
-  useEffect(() => {
-    const savedPrefs = JSON.parse(localStorage.getItem("visibilityPrefs_mehdiToronto") || '{}');
-    if (savedPrefs.showPosts !== undefined) setShowPosts(savedPrefs.showPosts);
-    if (savedPrefs.showBusinesses !== undefined) setShowBusinesses(savedPrefs.showBusinesses);
+      if (session) {
+        setUser(session.user);
+      }
+      setLoading(false);
+    };
+    checkSession();
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("visibilityPrefs_mehdiToronto", JSON.stringify({ showPosts, showBusinesses }));
-  }, [showPosts, showBusinesses]);
-
-  useEffect(() => setCurrentPage(1), [activeTab]);
-
-  useEffect(() => {
-    switch (activeTab) {
-      case 'My Businesses': setTotalItems(mockBusinesses.length); break;
-      case 'My Items': setTotalItems(mockItems.length); break;
-      case 'My Posts': setTotalItems(mockPosts.length); break;
-      default: setTotalItems(0);
+    if (user) {
+      fetchProfile();
+      fetchMockData();
+      if (isAdmin()) fetchPendingBusinesses();
     }
-  }, [activeTab]);
+  }, [user]);
 
-  const handleApplyChanges = () => setBio(tempBio);
-  const triggerImageUpload = () => fileInputRef.current?.click();
-  const slugify = (name: string) => name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+  const isAdmin = () => user?.email === 'admin@yourdomain.com';
+
+  const fetchProfile = async () => {
+    const { data } = await supabase.from('Profiles').select('*').eq('id', user.id).single();
+    if (data) {
+      setUsername(data.username || generateUsername(user.email));
+      setBio(data.bio || '');
+    } else {
+      setUsername(generateUsername(user.email));
+    }
+  };
+
+  const generateUsername = (email: string) => {
+    const base = email.split('@')[0];
+    const random = Math.floor(1000 + Math.random() * 9000);
+    return `${base}${random}`;
+  };
+
+  const fetchMockData = () => {
+    const mockBusinesses = Array.from({ length: 10 }, (_, i) => ({ id: i + 1, name: `Business ${i+1}`, category: 'Restaurant' }));
+    const mockItems = Array.from({ length: 8 }, (_, i) => ({ id: i + 1, name: `Item ${i+1}`, category: 'Electronics' }));
+    const mockPosts = Array.from({ length: 15 }, (_, i) => ({ id: i + 1, title: `Post ${i+1}`, body: 'Lorem ipsum dolor sit amet...' }));
+
+    setBusinesses(mockBusinesses);
+    setItems(mockItems);
+    setPosts(mockPosts);
+  };
+
+  const fetchPendingBusinesses = async () => {
+    const { data } = await supabase.from('Businesses').select('*').eq('approved', false);
+    if (data) setPendingBusinesses(data);
+  };
+
+  const approveBusiness = async (id: string) => {
+    await supabase.from('Businesses').update({ approved: true }).eq('id', id);
+    fetchPendingBusinesses();
+  };
+
+  const rejectBusiness = async (id: string) => {
+    await supabase.from('Businesses').delete().eq('id', id);
+    fetchPendingBusinesses();
+  };
+
+  const handleProfileSave = async () => {
+    if (!username) {
+      toast.error('Username cannot be empty.');
+      return;
+    }
+
+    const { data: exists } = await supabase.from('Profiles').select('*').eq('username', username).single();
+    if (exists && exists.id !== user.id) {
+      toast.error('Username already taken.');
+      return;
+    }
+
+    let profilePicUrl = null;
+    if (profilePicFile) {
+      const { data, error } = await supabase.storage.from('profile-pictures').upload(`public/${Date.now()}-${profilePicFile.name}`, profilePicFile);
+      if (data) {
+        profilePicUrl = data.path;
+      } else {
+        toast.error('Profile picture upload failed.');
+      }
+    }
+
+    await supabase.from('Profiles').upsert({
+      id: user.id,
+      username,
+      bio,
+      profile_picture: profilePicUrl
+    });
+
+    toast.success('Profile updated!');
+  };
+
   const handlePageChange = (newPage: number) => setCurrentPage(newPage);
-  const getPaginatedItems = (items: any[]) => items.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  const renderPagination = (total: number) => {
-    const pageCount = Math.ceil(total / ITEMS_PER_PAGE);
-    if (pageCount <= 1) return null;
-    return (
-      <div className="flex justify-center mt-4">
-        {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
-          <button key={p} onClick={() => handlePageChange(p)} className={`px-3 py-1 mx-1 rounded ${currentPage === p ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700'}`}>
-            {p}
-          </button>
-        ))}
-      </div>
-    );
-  };
+  const getPaginatedItems = (items: any[]) => items.slice((currentPage-1)*ITEMS_PER_PAGE, currentPage*ITEMS_PER_PAGE);
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'My Businesses':
-        return showBusinesses ? (
-          <>
-            {getPaginatedItems(mockBusinesses).map((biz) => (
-              <div key={biz.id} className="flex flex-col sm:flex-row justify-between border p-4 rounded-lg shadow bg-indigo-50">
-                <div className="flex items-center gap-4 mb-2 sm:mb-0">
-                  <img src={biz.image} alt={biz.name} className="w-16 h-16 rounded-md object-cover" />
-                  <div>
-                    <p className="font-semibold text-gray-800">{biz.name}</p>
-                    <p className="text-sm text-gray-500 italic">{biz.category}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Link href={`/business/${slugify(biz.name)}`} className="text-sm px-3 py-1 rounded border border-indigo-300 text-indigo-600 hover:bg-indigo-100">View</Link>
-                  <Link href={`/dashboard/business/${slugify(biz.name)}`} className="text-sm px-3 py-1 rounded border border-teal-300 text-teal-600 hover:bg-teal-100">Edit</Link>
-                  <button className="text-sm px-3 py-1 rounded border border-red-300 text-red-600 hover:bg-red-100">Delete</button>
-                </div>
-              </div>
-            ))}
-            {renderPagination(totalItems)}
-            <div className="pt-4">
-              <Link href="/add-business" className="inline-block px-4 py-2 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700">+ Add New Business</Link>
-            </div>
-          </>
-        ) : null;
-
-      case 'My Items':
-        return (
-          <>
-            {getPaginatedItems(mockItems).map((item) => (
-              <div key={item.id} className="flex justify-between border p-4 rounded-lg shadow bg-indigo-50">
-                <div className="flex items-center gap-4">
-                  <img src={item.image} alt={item.name} className="w-16 h-16 rounded-md object-cover" />
-                  <div>
-                    <p className="font-semibold text-gray-800">{item.name}</p>
-                    <p className="text-sm text-gray-500 italic">{item.category}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {renderPagination(totalItems)}
-            <div className="pt-4">
-              <Link href="/marketplace/new" className="inline-block px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700">
-                + Add New Item
-              </Link>
-            </div>
-          </>
-        );
-
-      case 'My Posts':
-        return showPosts ? getPaginatedItems(mockPosts).map((post) => (
-          <div key={post.id} className="flex flex-col border p-4 rounded-lg shadow bg-indigo-50">
-            <p className="text-sm text-gray-500 italic">Posted as {post.author}</p>
-            <p className="font-semibold text-gray-800 mt-1">{post.title}</p>
-          </div>
-        )) : null;
-
-      case 'Settings':
-        return (
-          <div className="text-gray-700 space-y-6">
-            <textarea value={tempBio} onChange={(e) => setTempBio(e.target.value)} rows={3} className="w-full border border-gray-300 p-2 rounded-md" />
-            <button onClick={triggerImageUpload} className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-md">Choose New Photo</button>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={showPosts} onChange={() => setShowPosts(p => !p)} />
-              Show My Community Posts
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={showBusinesses} onChange={() => setShowBusinesses(p => !p)} />
-              Show My Business Listings
-            </label>
-            <button onClick={handleApplyChanges} className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Apply Changes</button>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
+  if (loading) return <div className="flex justify-center items-center min-h-screen">Loading...</div>;
+  if (!user) {
+    router.push('/login');
+    return null;
+  }
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-semibold text-gray-900 mb-4">My Dashboard</h1>
-      <div className="bg-white shadow rounded-lg overflow-hidden">
+      <h1 className="text-2xl font-semibold mb-4">Dashboard</h1>
+      <div className="bg-white shadow rounded-lg">
         <nav className="border-b">
           <ul className="flex space-x-4 px-4">
-            {TABS.map((tab) => (
-              <li key={tab} className="-mb-px">
+            {(isAdmin() ? ADMIN_TABS : TABS).map((tab) => (
+              <li key={tab}>
                 <button
                   onClick={() => setActiveTab(tab)}
-                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-indigo-600 hover:border-indigo-300'}`}
+                  className={`py-4 px-2 text-sm font-medium ${activeTab === tab ? 'border-b-2 border-indigo-600 text-indigo-600' : 'text-gray-500 hover:text-indigo-600'}`}
                 >
                   {tab}
                 </button>
@@ -204,7 +156,54 @@ export default function DashboardPage() {
           </ul>
         </nav>
         <div className="p-4">
-          {loading ? <p>Loading...</p> : renderContent()}
+          {activeTab === 'My Businesses' && (
+            <div>
+              {getPaginatedItems(businesses).map((b) => (
+                <div key={b.id} className="border rounded p-2 mb-2">{b.name}</div>
+              ))}
+            </div>
+          )}
+          {activeTab === 'My Items' && (
+            <div>
+              {getPaginatedItems(items).map((item) => (
+                <div key={item.id} className="border rounded p-2 mb-2">{item.name}</div>
+              ))}
+            </div>
+          )}
+          {activeTab === 'My Posts' && (
+            <div>
+              {getPaginatedItems(posts).map((post) => (
+                <div key={post.id} className="border rounded p-2 mb-2">{post.title}</div>
+              ))}
+            </div>
+          )}
+          {activeTab === 'Settings' && (
+            <div className="space-y-4">
+              <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" className="w-full border p-2 rounded" />
+              <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Bio" className="w-full border p-2 rounded" />
+              <label className="block">
+                <span className="text-sm">Upload Profile Picture</span>
+                <input type="file" className="mt-1 block w-full" onChange={(e) => setProfilePicFile(e.target.files?.[0] || null)} />
+              </label>
+              <button onClick={handleProfileSave} className="bg-indigo-600 text-white px-4 py-2 rounded">Save Profile</button>
+            </div>
+          )}
+          {activeTab === 'Admin Panel' && isAdmin() && (
+            <div className="space-y-4">
+              {pendingBusinesses.map((biz) => (
+                <div key={biz.id} className="flex justify-between items-center border rounded p-4">
+                  <div>
+                    <h3 className="font-bold">{biz.business_name}</h3>
+                    <p className="text-sm text-gray-500">{biz.category}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => approveBusiness(biz.id)} className="bg-green-500 text-white px-2 py-1 rounded">Approve</button>
+                    <button onClick={() => rejectBusiness(biz.id)} className="bg-red-500 text-white px-2 py-1 rounded">Reject</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <input type="file" ref={fileInputRef} className="hidden" />

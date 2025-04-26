@@ -1,95 +1,185 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { slugify } from '@/components/utils/slugify';
+import { supabase } from '@/lib/supabaseClient';
+import toast from 'react-hot-toast';
 
 export default function RegisterBusiness() {
+  const router = useRouter();
   const [images, setImages] = useState<File[]>([]);
-  const [isRestaurant, setIsRestaurant] = useState(false);
+  const [cars, setCars] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [menuFile, setMenuFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [form, setForm] = useState({
+    business_name: '',
+    description: '',
+    category: '',
+    phone: '',
+    email: '',
+    whatsapp: '',
+    website: '',
+    hours: '',
+    address: {
+      street: '',
+      city: '',
+      state: '',
+      zip: '',
+    }
+  });
+
+  const isRestaurantOrCatering = form.category.toLowerCase() === 'restaurant' || form.category.toLowerCase() === 'catering';
+  const isCarDealership = form.category.toLowerCase() === 'car dealership';
+  const isProductBusiness = ['boutique', 'furniture', 'electronics', 'tool rental'].includes(form.category.toLowerCase());
+
+  const handleBusinessImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const selected = Array.from(e.target.files).slice(0, 3);
-      setImages(selected);
+      setImages(Array.from(e.target.files).slice(0, 3));
+    }
+  };
+
+  const handleMenuFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setMenuFile(e.target.files[0]);
+    }
+  };
+
+  const handleCarAdd = () => {
+    setCars([...cars, { title: '', description: '', price: '', year: '', mileage: '', condition: 'Used', images: [] }]);
+  };
+
+  const handleProductAdd = () => {
+    setProducts([...products, { title: '', description: '', price: '', images: [] }]);
+  };
+
+  const handleCarChange = (index: number, field: string, value: any) => {
+    const updatedCars = [...cars];
+    updatedCars[index][field] = value;
+    setCars(updatedCars);
+  };
+
+  const handleProductChange = (index: number, field: string, value: any) => {
+    const updatedProducts = [...products];
+    updatedProducts[index][field] = value;
+    setProducts(updatedProducts);
+  };
+
+  const handleCarImageChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const selected = Array.from(e.target.files).slice(0, 4);
+      const updatedCars = [...cars];
+      updatedCars[index].images = selected;
+      setCars(updatedCars);
+    }
+  };
+
+  const handleProductImageChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const selected = Array.from(e.target.files).slice(0, 4);
+      const updatedProducts = [...products];
+      updatedProducts[index].images = selected;
+      setProducts(updatedProducts);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target;
+    if (id.startsWith('address_')) {
+      const key = id.split('_')[1];
+      setForm(prev => ({ ...prev, address: { ...prev.address, [key]: value } }));
+    } else {
+      setForm(prev => ({ ...prev, [id]: value }));
+    }
+  };
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    const slug = slugify(form.business_name);
+
+    try {
+      let businessImageUrls: string[] = [];
+      for (const image of images) {
+        const filePath = `businesses/${slug}/${Date.now()}-${image.name}`;
+        const { data, error } = await supabase.storage.from('business-images').upload(filePath, image);
+        if (error) throw error;
+        const publicUrl = supabase.storage.from('business-images').getPublicUrl(filePath).data.publicUrl;
+        if (publicUrl) businessImageUrls.push(publicUrl);
+      }
+
+      let carsData = [];
+      if (isCarDealership) {
+        for (const car of cars) {
+          let carImageUrls: string[] = [];
+          for (const image of car.images) {
+            const filePath = `businesses/${slug}/cars/${Date.now()}-${image.name}`;
+            const { data, error } = await supabase.storage.from('business-images').upload(filePath, image);
+            if (error) throw error;
+            const publicUrl = supabase.storage.from('business-images').getPublicUrl(filePath).data.publicUrl;
+            if (publicUrl) carImageUrls.push(publicUrl);
+          }
+          carsData.push({ ...car, images: carImageUrls });
+        }
+      }
+
+      let productsData = [];
+      if (isProductBusiness) {
+        for (const product of products) {
+          let productImageUrls: string[] = [];
+          for (const image of product.images) {
+            const filePath = `businesses/${slug}/products/${Date.now()}-${image.name}`;
+            const { data, error } = await supabase.storage.from('business-images').upload(filePath, image);
+            if (error) throw error;
+            const publicUrl = supabase.storage.from('business-images').getPublicUrl(filePath).data.publicUrl;
+            if (publicUrl) productImageUrls.push(publicUrl);
+          }
+          productsData.push({ ...product, images: productImageUrls });
+        }
+      }
+
+      let menuUrl = '';
+      if (isRestaurantOrCatering && menuFile) {
+        const filePath = `businesses/${slug}/menu-${Date.now()}.pdf`;
+        const { data, error } = await supabase.storage.from('business-images').upload(filePath, menuFile);
+        if (error) throw error;
+        menuUrl = supabase.storage.from('business-images').getPublicUrl(filePath).data.publicUrl || '';
+      }
+
+      const businessData = {
+        business_name: form.business_name,
+        slug: slug,
+        description: form.description,
+        category: form.category,
+        phone: form.phone,
+        email: form.email,
+        whatsapp: form.whatsapp,
+        website: form.website,
+        hours: form.hours,
+        address: form.address,
+        images: businessImageUrls,
+        menu_url: menuUrl || null,
+        cars: isCarDealership ? carsData : null,
+        products: isProductBusiness ? productsData : null,
+        isRestaurantOrCatering,
+      };
+
+      const { error } = await supabase.from('Businesses').insert([businessData]);
+
+      if (error) throw error;
+
+      toast.success('Business registered successfully!');
+      router.push(`/business/${slug}`);
+    } catch (error: any) {
+      console.error(error.message);
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50 p-6">
-      <div className="max-w-3xl mx-auto bg-white shadow-lg rounded-xl p-6 space-y-6">
-        <h1 className="text-3xl font-bold text-indigo-700">Register Your Business</h1>
-
-        {/* Business Info */}
-        <div className="space-y-3">
-          <input type="text" placeholder="Business Name" className="w-full p-2 border rounded" required />
-          <textarea placeholder="Business Description" className="w-full p-2 border rounded" required />
-          <input type="text" placeholder="Category (e.g. Restaurant, Salon...)" className="w-full p-2 border rounded" required />
-        </div>
-
-        {/* Contact Info */}
-        <div className="space-y-3">
-          <h2 className="text-xl font-semibold">Contact Info</h2>
-          <input type="text" placeholder="Phone Number (optional)" className="w-full p-2 border rounded" />
-          <input type="email" placeholder="Email (optional)" className="w-full p-2 border rounded" />
-          <input type="text" placeholder="WhatsApp Link (optional)" className="w-full p-2 border rounded" />
-          <input type="text" placeholder="Website or Social Media (optional)" className="w-full p-2 border rounded" />
-        </div>
-
-        {/* Hours */}
-        <div className="space-y-2">
-          <h2 className="text-xl font-semibold">Hours of Operation</h2>
-          <input type="text" placeholder="Monday - Friday: 9am - 5pm (optional)" className="w-full p-2 border rounded" />
-        </div>
-
-        {/* Address */}
-        <div className="space-y-2">
-          <h2 className="text-xl font-semibold">Address</h2>
-          <input type="text" placeholder="Street Address" className="w-full p-2 border rounded" required />
-          <input type="text" placeholder="City" className="w-full p-2 border rounded" required />
-          <input type="text" placeholder="State" className="w-full p-2 border rounded" required />
-          <input type="text" placeholder="Zip Code" className="w-full p-2 border rounded" required />
-        </div>
-
-        {/* Upload Images */}
-        <div className="space-y-2">
-          <h2 className="text-xl font-semibold">Upload up to 3 Images</h2>
-          <label className="inline-block bg-indigo-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-indigo-700">
-            Choose Images
-            <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" />
-          </label>
-          <div className="flex gap-2 mt-2 flex-wrap">
-            {images.map((img, i) => (
-              <p key={i} className="text-sm text-gray-600">{img.name}</p>
-            ))}
-          </div>
-        </div>
-
-        {/* Restaurant Menu */}
-        <div className="space-y-2">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={isRestaurant}
-              onChange={() => setIsRestaurant(!isRestaurant)}
-            />
-            This is a restaurant
-          </label>
-          {isRestaurant && (
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold">Upload Menu (PDF or List)</h2>
-              <label className="inline-block bg-indigo-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-indigo-700">
-                Upload Menu
-                <input type="file" accept=".pdf" className="hidden" />
-              </label>
-              <textarea placeholder="Or list dishes here..." className="w-full p-2 border rounded" />
-            </div>
-          )}
-        </div>
-
-        {/* Submit */}
-        <button className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition">
-          Submit Business
-        </button>
-      </div>
-    </div>
+    <div>Register Business Page (Form Inputs Coming Here)</div>
   );
 }

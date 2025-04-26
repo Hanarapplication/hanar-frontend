@@ -1,83 +1,136 @@
-export const translations = {
-  en: {
-    login: 'Login',
-    contact: 'Contact Us',
-    help: 'Help',
+const translations = {
+  "en": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "faq": "FAQ / Help",
+    "contact": "Contact Us",
+    "settings": "Settings",
+    "changeLanguage": "Change Language",
+    "login": "Log In",
+    "logout": "Log Out",
+    "menu": "Menu"
   },
-  fa: {
-    login: 'ورود',
-    contact: 'تماس با ما',
-    help: 'راهنما',
+  "ar": {
+    "home": "الرئيسية",
+    "dashboard": "لوحة التحكم",
+    "faq": "الأسئلة الشائعة / المساعدة",
+    "contact": "اتصل بنا",
+    "settings": "الإعدادات",
+    "changeLanguage": "تغيير اللغة",
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "menu": "القائمة"
   },
-  ku: {
-    login: 'چوونەژوورەوە',
-    contact: 'پەیوەندیمان پێوە بکە',
-    help: 'یارمەتی',
+  "fa": {
+    "home": "خانه",
+    "dashboard": "داشبورد",
+    "faq": "سوالات متداول / کمک",
+    "contact": "تماس با ما",
+    "settings": "تنظیمات",
+    "changeLanguage": "تغییر زبان",
+    "login": "ورود",
+    "logout": "خروج",
+    "menu": "منو"
   },
-  ar: {
-    login: 'تسجيل الدخول',
-    contact: 'اتصل بنا',
-    help: 'مساعدة',
+  "zh": {
+    "home": "首页",
+    "dashboard": "仪表板",
+    "faq": "常见问题 / 帮助",
+    "contact": "联系我们",
+    "settings": "设置",
+    "changeLanguage": "切换语言",
+    "login": "登录",
+    "logout": "退出登录",
+    "menu": "菜单"
   },
-  fr: {
-    login: 'Connexion',
-    contact: 'Contactez-nous',
-    help: 'Aide',
+  "es": {
+    "home": "Inicio",
+    "dashboard": "Tablero",
+    "faq": "Ayuda / Preguntas frecuentes",
+    "contact": "Contáctenos",
+    "settings": "Configuraciones",
+    "changeLanguage": "Cambiar idioma",
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión",
+    "menu": "Menú"
   },
-  es: {
-    login: 'Iniciar sesión',
-    contact: 'Contáctenos',
-    help: 'Ayuda',
+  "ru": {
+    "home": "Главная",
+    "dashboard": "Панель",
+    "faq": "Вопросы и помощь",
+    "contact": "Связаться с нами",
+    "settings": "Настройки",
+    "changeLanguage": "Сменить язык",
+    "login": "Войти",
+    "logout": "Выйти",
+    "menu": "Меню"
   },
-  de: {
-    login: 'Anmelden',
-    register: 'Registrieren',
-    contact: 'Kontakt',
-    help: 'Hilfe',
+  "tr": {
+    "home": "Ana Sayfa",
+    "dashboard": "Gösterge Paneli",
+    "faq": "SSS / Yardım",
+    "contact": "Bize Ulaşın",
+    "settings": "Ayarlar",
+    "changeLanguage": "Dili Değiştir",
+    "login": "Giriş Yap",
+    "logout": "Çıkış Yap",
+    "menu": "Menü"
   },
-  ru: {
-    login: 'Войти',
-    contact: 'Связаться с нами',
-    help: 'Помощь',
+  "ps": {
+    "home": "کور",
+    "dashboard": "ډشبورډ",
+    "faq": "مرسته / پوښتنې",
+    "contact": "موږ سره اړیکه ونیسئ",
+    "settings": "ترتیبات",
+    "changeLanguage": "ژبه بدل کړئ",
+    "login": "ننوتل",
+    "logout": "وتل",
+    "menu": "مینو"
   },
-  zh: {
-    login: '登录',
-    contact: '联系我们',
-    help: '帮助'
+  "ko": {
+    "home": "홈",
+    "dashboard": "대시보드",
+    "faq": "도움말 / FAQ",
+    "contact": "문의하기",
+    "settings": "설정",
+    "changeLanguage": "언어 변경",
+    "login": "로그인",
+    "logout": "로그아웃",
+    "menu": "메뉴"
   },
-  it: {
-    login: 'Accesso',
-    contact: 'Contattaci',
-    help: 'Aiuto',
+  "fr": {
+    "home": "Accueil",
+    "dashboard": "Tableau de bord",
+    "faq": "Aide / FAQ",
+    "contact": "Nous contacter",
+    "settings": "Paramètres",
+    "changeLanguage": "Changer de langue",
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "menu": "Menu"
   },
-  hi: {
-    login: 'लॉग इन करें',
-    contact: 'संपर्क करें',
-    help: 'मदद',
+  "de": {
+    "home": "Startseite",
+    "dashboard": "Dashboard",
+    "faq": "Hilfe / FAQ",
+    "contact": "Kontaktieren Sie uns",
+    "settings": "Einstellungen",
+    "changeLanguage": "Sprache ändern",
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "menu": "Menü"
   },
-  ur: {
-    login: 'لاگ ان کریں',
-    contact: 'ہم سے رابطہ کریں',
-    help: 'مدد',
-  },
-  tr: {
-    login: 'Giriş Yap',
-    contact: 'Bize Ulaşın',
-    help: 'Yardım',
-  },
-  pt: {
-    login: 'Entrar',
-    contact: 'Contate-Nos',
-    help: 'Ajuda',
-  },
-  ja: {
-    login: 'ログイン',
-    contact: 'お問い合わせ',
-    help: 'ヘルプ',
-  },
-  ko: {
-    login: '로그인',
-    contact: '문의하기',
-    help: '도움말',
+   "kurdi": {
+    home: "ماڵەوە",
+    dashboard: "داشبۆرد",
+    faq: "یارمەتیدان / پرسیار",
+    contact: "پەیوەندی بەمان پێوە بکە",
+    settings: "دانەکان",
+    changeLanguage: "گۆڕینی زمان",
+    login: "چوونەژوورەوە",
+    logout: "دەرچوون",
+    menu: "لیستی داڕێژە"
   },
 };
+
+export default translations;

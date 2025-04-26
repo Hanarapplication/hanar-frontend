@@ -1,0 +1,160 @@
+const authTranslations = {
+  "en": {
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "name": "Full Name",
+    "register": "Register",
+    "alreadyHaveAccount": "Already have an account?",
+    "dontHaveAccount": "Don't have an account?",
+    "loginHere": "Log in here",
+    "registerHere": "Register here",
+    "login": "Log In"
+  },
+  "ar": {
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "name": "الاسم الكامل",
+    "register": "إنشاء حساب",
+    "alreadyHaveAccount": "هل لديك حساب؟",
+    "dontHaveAccount": "ليس لديك حساب؟",
+    "loginHere": "تسجيل الدخول من هنا",
+    "registerHere": "إنشاء حساب من هنا",
+    "login": "تسجيل الدخول"
+  },
+  "fa": {
+    "email": "ایمیل",
+    "password": "رمز عبور",
+    "confirmPassword": "تأیید رمز عبور",
+    "name": "نام کامل",
+    "register": "ثبت‌نام",
+    "alreadyHaveAccount": "قبلاً حساب دارید؟",
+    "dontHaveAccount": "حساب کاربری ندارید؟",
+    "loginHere": "از اینجا وارد شوید",
+    "registerHere": "از اینجا ثبت‌نام کنید",
+    "login": "ورود"
+  },
+  "zh": {
+    "email": "电子邮箱",
+    "password": "密码",
+    "confirmPassword": "确认密码",
+    "name": "全名",
+    "register": "注册",
+    "alreadyHaveAccount": "已有账号？",
+    "dontHaveAccount": "没有账号？",
+    "loginHere": "在这里登录",
+    "registerHere": "在这里注册",
+    "login": "登录"
+  },
+  "es": {
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "name": "Nombre completo",
+    "register": "Registrarse",
+    "alreadyHaveAccount": "¿Ya tienes una cuenta?",
+    "dontHaveAccount": "¿No tienes una cuenta?",
+    "loginHere": "Inicia sesión aquí",
+    "registerHere": "Regístrate aquí",
+    "login": "Iniciar sesión"
+  },
+  "ru": {
+    "email": "Электронная почта",
+    "password": "Пароль",
+    "confirmPassword": "Подтвердите пароль",
+    "name": "Полное имя",
+    "register": "Зарегистрироваться",
+    "alreadyHaveAccount": "Уже есть аккаунт?",
+    "dontHaveAccount": "Нет аккаунта?",
+    "loginHere": "Войти здесь",
+    "registerHere": "Зарегистрироваться здесь",
+    "login": "Вход"
+  },
+  "tr": {
+    "email": "E-posta",
+    "password": "Şifre",
+    "confirmPassword": "Şifreyi Onayla",
+    "name": "Tam Ad",
+    "register": "Kayıt Ol",
+    "alreadyHaveAccount": "Zaten hesabınız var mı?",
+    "dontHaveAccount": "Hesabınız yok mu?",
+    "loginHere": "Buradan giriş yap",
+    "registerHere": "Buradan kayıt ol",
+    "login": "Giriş Yap"
+  },
+  "ps": {
+    "email": "برېښنالیک",
+    "password": "پټنوم",
+    "confirmPassword": "پټنوم تائید کړئ",
+    "name": "بشپړ نوم",
+    "register": "راجستر",
+    "alreadyHaveAccount": "ایا حساب لرئ؟",
+    "dontHaveAccount": "حساب نه لرئ؟",
+    "loginHere": "دلته ننوځه",
+    "registerHere": "دلته راجستر شه",
+    "login": "ننوتل"
+  },
+  "ko": {
+    "email": "이메일",
+    "password": "비밀번호",
+    "confirmPassword": "비밀번호 확인",
+    "name": "전체 이름",
+    "register": "회원가입",
+    "alreadyHaveAccount": "이미 계정이 있으신가요?",
+    "dontHaveAccount": "계정이 없으신가요?",
+    "loginHere": "여기서 로그인",
+    "registerHere": "여기서 가입",
+    "login": "로그인"
+  },
+  "fr": {
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "name": "Nom complet",
+    "register": "S'inscrire",
+    "alreadyHaveAccount": "Vous avez déjà un compte ?",
+    "dontHaveAccount": "Vous n'avez pas de compte ?",
+    "loginHere": "Connectez-vous ici",
+    "registerHere": "Inscrivez-vous ici",
+    "login": "Connexion"
+  },
+  "de": {
+    "email": "E-Mail",
+    "password": "Passwort",
+    "confirmPassword": "Passwort bestätigen",
+    "name": "Vollständiger Name",
+    "register": "Registrieren",
+    "alreadyHaveAccount": "Bereits ein Konto?",
+    "dontHaveAccount": "Noch kein Konto?",
+    "loginHere": "Hier einloggen",
+    "registerHere": "Hier registrieren",
+    "login": "Anmelden"
+  },
+  "ku": {
+    "email": "ئیمەیڵ",
+    "password": "وشەی نهێنی",
+    "confirmPassword": "دووبارە کردنەوەی وشەی نهێنی",
+    "name": "ناوی تەواو",
+    "register": "خۆتۆمارکردن",
+    "alreadyHaveAccount": "پێشتر هەژمارت هەیە؟",
+    "dontHaveAccount": "هەژمار نیت؟",
+    "loginHere": "لەوێ بچۆ ژوورەوە",
+    "registerHere": "لەوێ خۆتۆماربە",
+    "login": "چوونەژوورەوە"
+  },
+  "kmr": {
+    "email": "E-nameyê",
+    "password": "Şîfre",
+    "confirmPassword": "Şîfreya piştrast bike",
+    "name": "Navê tevahî",
+    "register": "Tomar bibe",
+    "alreadyHaveAccount": "Hesabê te heye?",
+    "dontHaveAccount": "Tu hesabê te tune ye?",
+    "loginHere": "Li vir têkeve",
+    "registerHere": "Li vir tomar bibe",
+    "login": "Têketin"
+  }
+};
+
+export default authTranslations;

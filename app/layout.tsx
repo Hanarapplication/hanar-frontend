@@ -5,7 +5,9 @@ import LocationPromptModal from '@/components/LocationPrompt'
 import MobileTopNav from '@/components/MobileTopNav'
 import { DarkModeProvider } from '@/context/DarkModeContext'
 import { Toaster } from 'react-hot-toast'
-import ClientRedirectTracker from '@/components/ClientRedirectTracker' // New
+import ClientRedirectTracker from '@/components/ClientRedirectTracker'
+import HanarAIWidget from '@/components/HanarAIWidget'
+import { LanguageProvider } from '@/context/LanguageContext';
 
 export const metadata = {
   title: 'Hanar',
@@ -20,15 +22,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
-        <DarkModeProvider>
-          <LocationPromptModal />
-          <Navbar />
-          <MobileTopNav />
-          <ClientRedirectTracker /> {/* ✅ Injects client-side logic */}
-          <main>{children}</main>
-          <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
-        </DarkModeProvider>
+        <LanguageProvider>
+          <DarkModeProvider>
+            <LocationPromptModal />
+            <Navbar />
+            <MobileTopNav />
+            <ClientRedirectTracker />
+            <main>{children}</main>
+            <HanarAIWidget /> {/* ✅ Add Chat Widget Globally */}
+            <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
+          </DarkModeProvider>
+        </LanguageProvider>
       </body>
     </html>
   )
-}
+} 

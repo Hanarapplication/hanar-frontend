@@ -6,10 +6,16 @@ import {
   FaQuestionCircle,
   FaPhone,
   FaLanguage,
-  FaThLarge, // ✅ Add this for Dashboard icon
+  FaThLarge,
   FaHome,
   FaCog,
+  FaSignOutAlt,
+  FaSignInAlt
 } from 'react-icons/fa';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
+import { useLanguage } from '@/context/LanguageContext'; // NEW
 
 export default function MobileMenu({
   isOpen,
@@ -18,6 +24,24 @@ export default function MobileMenu({
   isOpen: boolean;
   setIsOpen: (value: boolean) => void;
 }) {
+  const [loggedIn, setLoggedIn] = useState(false);
+  const { lang, setLang } = useLanguage(); // NEW
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setLoggedIn(!!data?.session);
+    };
+    checkSession();
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setIsOpen(false);
+    router.push('/login');
+  };
+
   return (
     <>
       {/* Overlay */}
@@ -28,13 +52,12 @@ export default function MobileMenu({
         onClick={() => setIsOpen(false)}
       />
 
-      {/* Drawer Panel (right side) */}
+      {/* Drawer Panel */}
       <aside
         className={`fixed top-0 right-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform duration-300 ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <span className="font-semibold text-lg text-gray-800">Menu</span>
           <button
@@ -46,7 +69,6 @@ export default function MobileMenu({
           </button>
         </div>
 
-        {/* Menu Links */}
         <nav className="flex flex-col px-4 py-4 text-sm text-gray-700 space-y-3">
           <Link
             href="/"
@@ -93,9 +115,44 @@ export default function MobileMenu({
             <span>Settings</span>
           </Link>
 
-          <button className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none">
+          <div className="flex items-center gap-2">
             <FaLanguage className="text-gray-500" />
-            <span>Change Language</span>
+            <select value={lang} onChange={(e) => setLang(e.target.value)}>
+  <option value="en">🇺🇸 English</option>
+  <option value="ar">🇸🇦 Arabic</option>
+  <option value="fa">🇮🇷 Farsi</option>
+  <option value="zh">🇨🇳 Chinese</option>
+  <option value="es">🇪🇸 Spanish</option>
+  <option value="ru">🇷🇺 Russian</option>
+  <option value="tr">🇹🇷 Turkish</option>
+  <option value="ps">🇦🇫 Pashto</option>
+  <option value="ko">🇰🇷 Korean</option>
+  <option value="fr">🇫🇷 French</option>
+  <option value="de">🇩🇪 German</option>
+  <option value="auto">🌍 Auto</option>
+</select>
+
+          </div>
+
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              if (loggedIn) handleLogout();
+              else router.push('/login');
+            }}
+            className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none mt-2"
+          >
+            {loggedIn ? (
+              <>
+                <FaSignOutAlt className="text-gray-500" />
+                <span>Log Out</span>
+              </>
+            ) : (
+              <>
+                <FaSignInAlt className="text-gray-500" />
+                <span>Log In</span>
+              </>
+            )}
           </button>
         </nav>
       </aside>
