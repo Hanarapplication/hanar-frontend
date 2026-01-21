@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { FaMapMarkerAlt, FaBell, FaBars } from 'react-icons/fa';
 import { usePathname } from 'next/navigation';
-import MobileMenu from './MobileMenu'; // ✅ Import the side menu
+import MobileMenu from './MobileMenu';
 
 export default function Navbar() {
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
@@ -39,20 +39,22 @@ export default function Navbar() {
   return (
     <>
       <nav className="bg-white h-16 flex items-center justify-between px-4 sticky top-0 z-50 transition-all relative border-b border-gray-100">
-        {/* 🔰 Logo (left) */}
+        {/* Logo */}
         <div className="flex items-center">
           <Link href="/" className="focus:outline-none">
             <img
               src="/hanar.logo.png"
               alt="Hanar Logo"
+              width={100}
+  height={100}
               className="h-10 w-auto transition-transform transform hover:scale-105 focus:scale-105"
             />
           </Link>
         </div>
 
-        {/* ➡️ Right-side Interactive Elements */}
-        <div className="flex items-center gap-6 sm:gap-8"> {/* Increased gap here */}
-          {/* 📍 Location */}
+        {/* Right side */}
+        <div className="flex items-center gap-6 sm:gap-8">
+          {/* Location */}
           <button
             onClick={resetLocation}
             className="group flex items-center gap-1 text-sm text-gray-600 hover:text-blue-700 focus:outline-none transition-colors duration-200 max-w-[140px]"
@@ -61,20 +63,20 @@ export default function Navbar() {
             <span className="truncate">{locationLabel || 'Set Location'}</span>
           </button>
 
-          {/* 🔔 Notifications */}
+          {/* Notifications */}
           <Link href="/notifications" className="relative focus:outline-none">
             <div className="relative group">
-              <FaBell className="text-gray-600 text-xl group-hover:text-blue-700 transition-colors duration-200 cursor-pointer" /> {/* Increased size to text-xl */}
+              <FaBell className="text-gray-600 text-xl group-hover:text-blue-700 transition-colors duration-200 cursor-pointer" />
               <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full shadow-sm">
                 3
               </span>
             </div>
           </Link>
 
-          {/* ☰ Mobile Menu Toggle */}
+          {/* Mobile Menu Toggle */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="text-gray-600 hover:text-rose-700 transition-colors duration-200 text-2xl focus:outline-none sm:hidden"
+            className="text-gray-600 hover:text-rose-700 transition-colors duration-200 text-2xl focus:outline-none"
             aria-label="Toggle Menu"
           >
             <FaBars />
@@ -82,7 +84,7 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* ✅ Drawer connection (REQUIRED for toggle to work) */}
+      {/* Mobile Menu Drawer */}
       <MobileMenu isOpen={menuOpen} setIsOpen={setMenuOpen} />
     </>
   );

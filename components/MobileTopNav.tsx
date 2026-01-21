@@ -8,19 +8,22 @@ import {
   FaComments,
   FaShoppingCart,
 } from 'react-icons/fa';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 
 export default function MobileTopNav() {
   const pathname = usePathname();
+  const { lang } = useLanguage();
 
   const navItems = [
-    { href: '/', icon: <FaHome />, label: 'Home' },
-    { href: '/community', icon: <FaComments />, label: 'Community' },
-    { href: '/marketplace', icon: <FaShoppingCart />, label: 'Marketplace' },
-    { href: '/businesses', icon: <FaStore />, label: 'Businesses' },
+    { href: '/', icon: <FaHome />, label: t(lang, 'Home') },
+    { href: '/community', icon: <FaComments />, label: t(lang, 'Community') },
+    { href: '/marketplace', icon: <FaShoppingCart />, label: t(lang, 'Marketplace') },
+    { href: '/businesses', icon: <FaStore />, label: t(lang, 'Businesses') },
   ];
 
   return (
-    <nav className="sticky top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 sm:hidden transition-shadow duration-200">
+    <nav className="sticky top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 transition-shadow duration-200">
       <div className="flex justify-around items-center py-3 px-4 shadow-sm">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
@@ -32,8 +35,10 @@ export default function MobileTopNav() {
                 isActive ? 'text-blue-600' : 'hover:text-blue-500'
               }`}
             >
-              <div className={`text-xl ${isActive ? 'text-blue-600' : ''}`}>{item.icon}</div>
-              <span className={`text-xs font-medium mt-1 ${isActive ? 'text-blue-600' : ''}`}>{item.label}</span>
+              <div className={`text-xl ${isActive ? 'text-red-700' : ''}`}>{item.icon}</div>
+              <span className={`text-xs font-medium mt-1 ${isActive ? 'text-red-700' : ''}`}>
+                {item.label}
+              </span>
             </Link>
           );
         })}

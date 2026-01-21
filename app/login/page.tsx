@@ -15,13 +15,47 @@ export default function LoginPage() {
     e.preventDefault();
     setClicked(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-    if (error) {
-      toast.error(error.message);
+    if (signInError) {
+      toast.error(signInError.message);
       setClicked(false);
+      return;
+    }
+
+    // ✅ Fetch session and role info
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user?.id;
+
+    if (!userId) {
+      toast.error('Failed to retrieve user session.');
+      setClicked(false);
+      return;
+    }
+
+    // Fetch business/organization info for this user
+    const { data: profile, error: roleError } = await supabase
+      .from('registeredaccounts')
+      .select('business, organization')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (roleError || !profile) {
+      toast.error('Failed to load user profile.');
+      setClicked(false);
+      return;
+    }
+
+    // ✅ Redirect based on account type (use the correct dashboard paths!)
+    toast.success('Login successful!');
+    if (profile.business) {
+      router.push('/business/dashboard');
+    } else if (profile.organization) {
+      router.push('/organization/dashboard');
     } else {
-      toast.success('Login successful!');
       router.push('/dashboard');
     }
   };
@@ -35,7 +69,9 @@ export default function LoginPage() {
 
         <form className="space-y-5" onSubmit={handleLogin}>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email address</label>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              Email address
+            </label>
             <input
               type="email"
               id="email"
@@ -48,7 +84,9 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              Password
+            </label>
             <input
               type="password"
               id="password"
@@ -62,7 +100,9 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className={`w-full py-2 rounded-md text-white font-semibold transition-transform duration-300 transform ${clicked ? 'scale-95 bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+            className={`w-full py-2 rounded-md text-white font-semibold transition-transform duration-300 transform ${
+              clicked ? 'scale-95 bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'
+            }`}
             disabled={clicked}
           >
             {clicked ? 'Logging in...' : 'Login'}

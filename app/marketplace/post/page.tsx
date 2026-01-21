@@ -1,139 +1,249 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { FaHeart, FaRegHeart } from 'react-icons/fa';
+import { useEffect, useState, useRef } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { useRouter } from 'next/navigation';
 
-interface Item {
-  id: string;
-  slug: string;
-  title: string;
-  price: number;
-  location: string;
-  lat: number;
-  lon: number;
-  image: string;
-  condition: 'New' | 'Used';
-  category: string;
-  date: string;
-}
+export default function PostItemPage() {
+  const router = useRouter();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [usedSlots, setUsedSlots] = useState(0);
+  const [isBusiness, setIsBusiness] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
+  const [showPhone, setShowPhone] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [form, setForm] = useState({
+    title: '',
+    price: '',
+    location: '',
+    category: '',
+    condition: 'Used',
+    contact: {
+      phone: '',
+      whatsapp: '',
+      email: '',
+    },
+    make: '',
+    model: '',
+    year: '',
+    mileage: '',
+    description: '',
+    imageUrls: [] as string[],
+  });
 
-function getDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 3958.8;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-export default function MarketplacePage() {
-  const [items, setItems] = useState<Item[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
-  const [radius, setRadius] = useState(50);
-  const [visibleCount, setVisibleCount] = useState(6);
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const isVehicleCategory = [
+    'vehicle', 'car', 'motorcycle', 'bike', 'automobile', 'cars',
+    'boat', 'tractor', 'airplane', 'helicopter', 'yatch', 'av',
+    'truck', 'semi', 'semi truck', '18 wheeler', 'trailer',
+    'atv', 'motor bike', 'off road bike'
+  ].some((keyword) => form.category.toLowerCase().includes(keyword));
 
   useEffect(() => {
-    const stored = localStorage.getItem('userCoords');
-    if (stored) setUserCoords(JSON.parse(stored));
+    const enforceAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/login?redirect=/marketplace/post');
+        return;
+      }
+    };
+    enforceAuth();
+    const checkPostLimit = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) return;
+      setUserId(user.id);
 
-    fetch('http://localhost:5000/api/marketplace/list')
-      .then((res) => res.json())
-      .then((data) => setItems(data.items || []));
+      const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      const { count } = await supabase
+        .from('marketplace_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', firstOfMonth);
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('has_business')
+        .eq('id', user.id)
+        .single();
+
+      setUsedSlots(count || 0);
+      setIsBusiness(profile?.has_business || false);
+      if ((count || 0) >= 3 && !profile?.has_business) {
+        setLimitReached(true);
+      }
+    };
+    checkPostLimit();
   }, []);
 
-  const toggleFavorite = (id: string) => {
-    setFavorites((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]));
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    if (name.startsWith('contact.')) {
+      const key = name.split('.')[1];
+      setForm((prev) => ({ ...prev, contact: { ...prev.contact, [key]: value } }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
-  let filteredItems = items.filter((item) =>
-    item.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const resizeImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const canvas = document.createElement('canvas');
+      const reader = new FileReader();
 
-  if (userCoords) {
-    filteredItems = filteredItems.filter((item) =>
-      getDistanceMiles(userCoords.lat, userCoords.lon, item.lat, item.lon) <= radius
-    );
-  }
+      reader.onload = (e) => {
+        if (!e.target?.result) return;
+        img.src = e.target.result as string;
+        img.onload = () => {
+          const maxSize = 1024;
+          const scale = Math.min(maxSize / img.width, maxSize / img.height);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const resized = new File([blob], file.name, { type: file.type });
+              resolve(resized);
+            }
+          }, file.type);
+        };
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const limit = /(vehicle|car|motorcycle|bike|automobile|cars|boat|tractor|airplane|helicopter|yatch|av|truck|semi|semi truck|18 wheeler|trailer|atv|motor bike|off road bike)/i.test(form.category) ? 5 : 2;
+    const fileList = Array.from(files);
+    if (fileList.length + form.imageUrls.length > limit) {
+      alert(`Max ${limit} images allowed.`);
+      return;
+    }
+
+    setUploading(true);
+    const newUrls: string[] = [];
+    const newPreviews: string[] = [];
+
+    for (const file of fileList) {
+      const resized = await resizeImage(file);
+      const filename = `${Date.now()}-${file.name}`;
+      const { data, error } = await supabase.storage.from('marketplace-images').upload(filename, resized);
+      if (error) {
+        alert('Upload failed');
+        continue;
+      }
+      const { publicUrl } = supabase.storage.from('marketplace-images').getPublicUrl(filename).data;
+      newUrls.push(publicUrl);
+      newPreviews.push(URL.createObjectURL(resized));
+    }
+
+    setForm((prev) => ({ ...prev, imageUrls: [...prev.imageUrls, ...newUrls] }));
+    setImagePreviews((prev) => [...prev, ...newPreviews]);
+    setUploading(false);
+  };
+
+  const removeImage = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      imageUrls: prev.imageUrls.filter((_, i) => i !== index),
+    }));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userId) return alert('Not logged in');
+    if (limitReached && !isBusiness) return alert('Limit reached');
+
+    const { error } = await supabase.from('marketplace_items').insert({
+      user_id: userId,
+      ...form,
+      price: parseFloat(form.price),
+    });
+
+    if (error) {
+      alert('Failed to post');
+    } else {
+      alert('Posted!');
+      router.push('/marketplace');
+    }
+  };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Marketplace</h1>
-      </div>
+    <div className="max-w-xl mx-auto px-4 py-8 sm:px-6 bg-white rounded-lg shadow-md">
+      <h1 className="text-xl sm:text-2xl font-bold mb-4">Post an Item for Sale</h1>
 
-      <input
-        type="text"
-        placeholder="Search items..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="w-full p-2 border rounded-md mb-4"
-      />
+      <p className="text-sm text-gray-600 mb-4">
+        {isBusiness ? 'Unlimited posts' : `Used ${usedSlots}/3 this month`}
+      </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {filteredItems.slice(0, visibleCount).map((item) => (
-          <div
-            key={item.id}
-            className="relative group border rounded-xl shadow hover:shadow-lg bg-white overflow-hidden"
-          >
-            <Link href={`/marketplace/${item.slug}`}>
-              <Image
-                src={item.image}
-                alt={item.title}
-                width={400}
-                height={300}
-                className="w-full h-48 object-cover"
-              />
-              <div className="p-3 space-y-1">
-                <h3 className="font-semibold text-lg">{item.title}</h3>
-                <p className="text-green-600 font-medium">${item.price}</p>
-                <p className="text-sm text-gray-500">{item.location}</p>
-                <span
-                  className={`text-xs inline-block mt-1 px-2 py-1 rounded-full ${
-                    item.condition === 'New'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-yellow-100 text-yellow-700'
-                  }`}
-                >
-                  {item.condition}
-                </span>
-              </div>
-            </Link>
-            <button
-              onClick={() => toggleFavorite(item.id)}
-              className="absolute top-3 right-3 text-white bg-black/40 rounded-full p-1 hover:bg-black/60"
-            >
-              {favorites.includes(item.id) ? (
-                <FaHeart className="text-red-500" />
-              ) : (
-                <FaRegHeart className="text-white" />
-              )}
-            </button>
-          </div>
-        ))}
-      </div>
-
-      {filteredItems.length === 0 && (
-        <p className="text-center text-gray-500 mt-6">
-          😔 No items found near your location. Try changing search or distance.
-        </p>
-      )}
-
-      {filteredItems.length > visibleCount && (
-        <div className="text-center mt-6">
-          <button
-            onClick={() => setVisibleCount(visibleCount + 6)}
-            className="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600"
-          >
-            Show More
-          </button>
+      {limitReached && !isBusiness && (
+        <div className="bg-yellow-100 p-3 rounded mb-4 text-sm">
+          Limit reached. <a href="/register-business" className="text-blue-600 underline">Upgrade</a> to post more.
         </div>
       )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <input name="title" placeholder="Title" value={form.title} onChange={handleChange} className="w-full border px-3 py-2 rounded" required />
+        <input name="price" type="number" placeholder="Price" value={form.price} onChange={handleChange} className="w-full border px-3 py-2 rounded" required />
+        <input name="location" placeholder="Location" value={form.location} onChange={handleChange} className="w-full border px-3 py-2 rounded" required />
+        <input name="category" placeholder="Category" value={form.category} onChange={handleChange} className="w-full border px-3 py-2 rounded" required />
+
+        <select name="condition" value={form.condition} onChange={handleChange} className="w-full border px-3 py-2 rounded">
+          <option value="Used">Used</option>
+          <option value="New">New</option>
+        </select>
+
+        {isVehicleCategory && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input name="make" placeholder="Make (optional)" value={form.make} onChange={handleChange} className="border px-3 py-2 rounded" />
+            <input name="model" placeholder="Model (optional)" value={form.model} onChange={handleChange} className="border px-3 py-2 rounded" />
+            <input name="year" placeholder="Year (optional)" value={form.year} onChange={handleChange} className="border px-3 py-2 rounded" />
+            <input name="mileage" placeholder="Mileage (optional)" value={form.mileage} onChange={handleChange} className="border px-3 py-2 rounded" />
+          </div>
+        )}
+
+        <textarea name="description" placeholder="Description (optional)" value={form.description} onChange={handleChange} className="w-full border px-3 py-2 rounded" />
+
+        <div>
+          <label className="text-sm font-medium">Upload Images</label>
+          <input type="file" multiple accept="image/*" onChange={handleImageUpload} ref={fileInputRef} className="block mt-1" />
+          <p className="text-xs text-gray-500">{form.category.toLowerCase() === 'vehicle' ? 'Up to 5 images' : 'Up to 2 images'}</p>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {imagePreviews.map((src, i) => (
+              <div key={i} className="relative w-20 h-20">
+                <img src={src} className="object-cover w-full h-full rounded" alt="preview" />
+                <button type="button" onClick={() => removeImage(i)} className="absolute top-0 right-0 text-xs bg-red-500 text-white rounded-full px-1">✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="font-medium">Contact Info</label>
+          <div className="flex gap-2 items-center">
+            <input name="contact.phone" placeholder="Phone" value={form.contact.phone} onChange={handleChange} type={showPhone ? 'text' : 'password'} className="w-full border px-3 py-2 rounded" />
+            {!showPhone && <button type="button" onClick={() => setShowPhone(true)} className="text-blue-600 text-sm">Show</button>}
+          </div>
+          <input name="contact.whatsapp" placeholder="WhatsApp" value={form.contact.whatsapp} onChange={handleChange} className="w-full border px-3 py-2 rounded" />
+          <input name="contact.email" placeholder="Email" value={form.contact.email} onChange={handleChange} className="w-full border px-3 py-2 rounded" />
+        </div>
+
+        <button
+          type="submit"
+          disabled={uploading || (limitReached && !isBusiness)}
+          className={`w-full py-3 rounded-md text-white font-semibold transition ${
+            uploading || (limitReached && !isBusiness) ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'
+          }`}
+        >
+          {uploading ? 'Uploading...' : 'Post Item'}
+        </button>
+      </form>
     </div>
   );
 }

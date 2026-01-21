@@ -10,12 +10,14 @@ import {
   FaHome,
   FaCog,
   FaSignOutAlt,
-  FaSignInAlt
+  FaSignInAlt,
 } from 'react-icons/fa';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-import { useLanguage } from '@/context/LanguageContext'; // NEW
+import { useLanguage } from '@/context/LanguageContext';
+import { supportedLanguages } from '@/utils/languages';
+import { t } from '@/utils/translations';
 
 export default function MobileMenu({
   isOpen,
@@ -25,14 +27,29 @@ export default function MobileMenu({
   setIsOpen: (value: boolean) => void;
 }) {
   const [loggedIn, setLoggedIn] = useState(false);
-  const { lang, setLang } = useLanguage(); // NEW
+  const [userRole, setUserRole] = useState<'individual' | 'business' | 'organization' | null>(null);
+  const { lang, setLang } = useLanguage();
   const router = useRouter();
 
   useEffect(() => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
-      setLoggedIn(!!data?.session);
+      const user = data?.session?.user;
+      setLoggedIn(!!user);
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from('registeredaccounts')
+          .select('business, organization')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (profile?.business) setUserRole('business');
+        else if (profile?.organization) setUserRole('organization');
+        else setUserRole('individual');
+      }
     };
+
     checkSession();
   }, []);
 
@@ -59,12 +76,8 @@ export default function MobileMenu({
         }`}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <span className="font-semibold text-lg text-gray-800">Menu</span>
-          <button
-            onClick={() => setIsOpen(false)}
-            className="focus:outline-none"
-            aria-label="Close Menu"
-          >
+          <span className="font-semibold text-lg text-gray-800">{t(lang, 'menu')}</span>
+          <button onClick={() => setIsOpen(false)} className="focus:outline-none" aria-label="Close Menu">
             <FaTimes className="text-gray-600 hover:text-gray-800 transition" />
           </button>
         </div>
@@ -76,16 +89,22 @@ export default function MobileMenu({
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >
             <FaHome className="text-gray-500" />
-            <span>Home</span>
+            <span>{t(lang, 'Home')}</span>
           </Link>
 
           <Link
-            href="/dashboard"
+            href={
+              userRole === 'business'
+                ? '/business-dashboard'
+                : userRole === 'organization'
+                ? '/organization-dashboard'
+                : '/dashboard'
+            }
             onClick={() => setIsOpen(false)}
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >
             <FaThLarge className="text-gray-500" />
-            <span>Dashboard</span>
+            <span>{t(lang, 'dashboard')}</span>
           </Link>
 
           <Link
@@ -94,7 +113,7 @@ export default function MobileMenu({
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >
             <FaQuestionCircle className="text-gray-500" />
-            <span>FAQ / Help</span>
+            <span>{t(lang, 'faq')}</span>
           </Link>
 
           <Link
@@ -103,7 +122,7 @@ export default function MobileMenu({
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >
             <FaPhone className="text-gray-500" />
-            <span>Contact Us</span>
+            <span>{t(lang, 'contact')}</span>
           </Link>
 
           <Link
@@ -112,26 +131,22 @@ export default function MobileMenu({
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >
             <FaCog className="text-gray-500" />
-            <span>Settings</span>
+            <span>{t(lang, 'settings')}</span>
           </Link>
 
           <div className="flex items-center gap-2">
             <FaLanguage className="text-gray-500" />
-            <select value={lang} onChange={(e) => setLang(e.target.value)}>
-  <option value="en">🇺🇸 English</option>
-  <option value="ar">🇸🇦 Arabic</option>
-  <option value="fa">🇮🇷 Farsi</option>
-  <option value="zh">🇨🇳 Chinese</option>
-  <option value="es">🇪🇸 Spanish</option>
-  <option value="ru">🇷🇺 Russian</option>
-  <option value="tr">🇹🇷 Turkish</option>
-  <option value="ps">🇦🇫 Pashto</option>
-  <option value="ko">🇰🇷 Korean</option>
-  <option value="fr">🇫🇷 French</option>
-  <option value="de">🇩🇪 German</option>
-  <option value="auto">🌍 Auto</option>
-</select>
-
+            <select
+              value={lang}
+              onChange={(e) => setLang(e.target.value)}
+              className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none w-full"
+            >
+              {supportedLanguages.map(({ code, name, emoji }) => (
+                <option key={code} value={code}>
+                  {emoji} {name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <button
@@ -145,12 +160,12 @@ export default function MobileMenu({
             {loggedIn ? (
               <>
                 <FaSignOutAlt className="text-gray-500" />
-                <span>Log Out</span>
+                <span>{t(lang, 'logout')}</span>
               </>
             ) : (
               <>
                 <FaSignInAlt className="text-gray-500" />
-                <span>Log In</span>
+                <span>{t(lang, 'login')}</span>
               </>
             )}
           </button>

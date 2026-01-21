@@ -24,13 +24,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #e3f2fd;  /* Soft baby blue */
+    --background: #e3f2fde3;  /* Soft baby blue */
     --foreground: #171717;
   }
 }
 
 body {
-  background-color: #e3f2fd !important;
+  background-color: #f7faff3b !important;
   color: #171717;
   font-family: Arial, Helvetica, sans-serif;
 }

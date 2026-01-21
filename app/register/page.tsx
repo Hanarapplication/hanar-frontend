@@ -1,160 +1,215 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
-import toast from 'react-hot-toast'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react';
+import toast from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 export default function RegisterPage() {
-  const [clicked, setClicked] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [agreed, setAgreed] = useState(false)
+  const [role, setRole] = useState<'individual' | 'business' | 'organization'>('individual');
+  const [clicked, setClicked] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [form, setForm] = useState({
-    name: '',
+    fullName: '',
+    businessName: '',
+    organizationName: '',
     email: '',
     password: '',
     confirmPassword: '',
-  })
-  const router = useRouter()
+  });
+
+  const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((prev) => ({ ...prev, [e.target.id]: e.target.value }))
-  }
-
-  const getStrengthScore = (password: string) => {
-    let score = 0
-    if (password.length >= 8) score++
-    if (/[A-Z]/.test(password)) score++
-    if (/[0-9]/.test(password)) score++
-    if (/[^A-Za-z0-9]/.test(password)) score++
-    return score
-  }
-
-  const isStrongPassword = (password: string) => getStrengthScore(password) === 4
+    setForm((prev) => ({ ...prev, [e.target.id]: e.target.value }));
+  };
 
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    if (!agreed) {
-      toast.error('You must agree to the Terms and Privacy Policy.')
-      return
+    if (!agreed) return toast.error('You must agree to the Terms and Privacy Policy.');
+    if (form.password !== form.confirmPassword) return toast.error('Passwords do not match.');
+    if (!strongPassword(form.password)) {
+      return toast.error('Password must include uppercase, number, special character & 8+ chars.');
     }
 
-    if (form.password !== form.confirmPassword) {
-      toast.error('Passwords do not match.')
-      return
-    }
-
-    if (!isStrongPassword(form.password)) {
-      toast.error('Password must include uppercase, lowercase, number & special char.')
-      return
-    }
-
-    if (!supabase) {
-      toast.error('Supabase client not available.')
-      return
-    }
+    const name =
+      role === 'business'
+        ? form.businessName
+        : role === 'organization'
+        ? form.organizationName
+        : form.fullName;
 
     try {
-      setClicked(true)
+      setClicked(true);
 
-      const { error } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
-        options: {
-          data: { name: form.name },
-        },
-      })
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          fullName: form.fullName,
+          email: form.email,
+          password: form.password,
+          role,
+        }),
+      });
 
-      if (error) throw new Error(error.message)
+      const data = await res.json().catch(() => null);
 
-      toast.success('Registration successful! Please check your email to confirm.')
-      router.push('/login')
+      if (!res.ok || !data) {
+        console.error('Registration failed:', data);
+        return toast.error(data?.error || 'Registration failed. Try again.');
+      }
+
+      toast.success(`Welcome, @${data.username || name}!`);
+
+      if (data.role === 'business') {
+        router.push('/business/onboard');
+      } else if (data.role === 'organization') {
+        router.push('/organization/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: any) {
-      toast.error(err.message)
+      toast.error(err.message || 'Unexpected error');
     } finally {
-      setClicked(false)
+      setClicked(false);
     }
-  }
+  };
 
-  const handleOAuthLogin = async (provider: 'google') => {
-    if (!supabase) {
-      toast.error('Supabase client not available.')
-      return
-    }
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-
-    if (error) {
-      toast.error(error.message)
-    }
-  }
+  const strongPassword = (pass: string) => {
+    return (
+      pass.length >= 8 && /[A-Z]/.test(pass) && /[0-9]/.test(pass) && /[^A-Za-z0-9]/.test(pass)
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 space-y-6">
-        <div>
-          <h2 className="text-3xl font-semibold text-gray-800 text-center">Create Your Hanar Account</h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <a href="/login" className="font-medium text-indigo-600 hover:text-indigo-500">sign in to your account</a>
-          </p>
-        </div>
+        <h2 className="text-3xl font-semibold text-center text-gray-800">Create Your Hanar Account</h2>
+
         <form className="space-y-4" onSubmit={handleRegister}>
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700">Full Name</label>
-            <input id="name" type="text" required className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 sm:text-sm" value={form.name} onChange={handleChange} />
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Register As:</label>
+            <div className="flex gap-4">
+              <label><input type="radio" value="individual" checked={role === 'individual'} onChange={() => setRole('individual')} /> Individual</label>
+              <label><input type="radio" value="business" checked={role === 'business'} onChange={() => setRole('business')} /> Business</label>
+              <label><input type="radio" value="organization" checked={role === 'organization'} onChange={() => setRole('organization')} /> Organization</label>
+            </div>
           </div>
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email address</label>
-            <input id="email" type="email" required className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 sm:text-sm" value={form.email} onChange={handleChange} />
-          </div>
+          {role === 'individual' && (
+            <input
+              id="fullName"
+              type="text"
+              required
+              placeholder="Full Name"
+              value={form.fullName}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border rounded-md text-sm"
+            />
+          )}
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
-            <input id="password" type={showPassword ? 'text' : 'password'} required className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 sm:text-sm" value={form.password} onChange={handleChange} />
-          </div>
+          {role === 'business' && (
+            <>
+              <input
+                id="fullName"
+                type="text"
+                required
+                placeholder="Your Name (Owner)"
+                value={form.fullName}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border rounded-md text-sm"
+              />
+              <input
+                id="businessName"
+                type="text"
+                required
+                placeholder="Business Name"
+                value={form.businessName}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border rounded-md text-sm"
+              />
+            </>
+          )}
 
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">Confirm Password</label>
-            <input id="confirmPassword" type={showPassword ? 'text' : 'password'} required className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 sm:text-sm" value={form.confirmPassword} onChange={handleChange} />
-          </div>
+          {role === 'organization' && (
+            <>
+              <input
+                id="fullName"
+                type="text"
+                required
+                placeholder="Your Name (Representative)"
+                value={form.fullName}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border rounded-md text-sm"
+              />
+              <input
+                id="organizationName"
+                type="text"
+                required
+                placeholder="Organization Name"
+                value={form.organizationName}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border rounded-md text-sm"
+              />
+            </>
+          )}
 
-          <div className="flex items-start">
-            <input id="agreed" type="checkbox" className="h-4 w-4 text-indigo-600 border-gray-300 rounded" checked={agreed} onChange={() => setAgreed(!agreed)} />
-            <label htmlFor="agreed" className="ml-2 text-sm text-gray-700">
-              I agree to the <a href="/terms" className="text-indigo-600 hover:underline">Terms</a> and <a href="/privacy" className="text-indigo-600 hover:underline">Privacy Policy</a>
-            </label>
-          </div>
+          <input
+            id="email"
+            type="email"
+            required
+            placeholder="Email"
+            value={form.email}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border rounded-md text-sm"
+          />
 
-          <button type="submit" disabled={clicked} className={`w-full py-2 px-4 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 ${clicked ? 'scale-95' : ''}`}>
+          <input
+            id="password"
+            type={showPassword ? 'text' : 'password'}
+            required
+            placeholder="Password"
+            value={form.password}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border rounded-md text-sm"
+          />
+          <input
+            id="confirmPassword"
+            type={showPassword ? 'text' : 'password'}
+            required
+            placeholder="Confirm Password"
+            value={form.confirmPassword}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border rounded-md text-sm"
+          />
+
+          <label className="flex items-start space-x-2 text-sm">
+            <input
+              id="agreed"
+              type="checkbox"
+              className="mt-1"
+              checked={agreed}
+              onChange={() => setAgreed(!agreed)}
+            />
+            <span className="text-gray-700">
+              I agree to the{' '}
+              <a href="/terms" className="text-indigo-600 hover:underline">Terms</a> and{' '}
+              <a href="/privacy" className="text-indigo-600 hover:underline">Privacy Policy</a>
+            </span>
+          </label>
+
+          <button
+            type="submit"
+            disabled={clicked}
+            className={`w-full py-2 px-4 text-white font-medium rounded-md ${clicked ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+          >
             {clicked ? 'Registering...' : 'Create Account'}
           </button>
         </form>
-
-        <div className="mt-6">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or continue with</span>
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <button onClick={() => handleOAuthLogin('google')} className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-500 bg-white hover:bg-gray-50">
-              Continue with Google
-            </button>
-          </div>
-        </div>
       </div>
     </div>
-  )
+  );
 }
