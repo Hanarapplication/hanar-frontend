@@ -2162,22 +2162,3 @@ export default function EditBusinessPage() {
   );
 }
 
-// Basic App component to render EditBusinessPage for demonstration
-export function App() {
-  // In a real Next.js environment, useRouter and useParams are automatically available.
-  // These mocks are for demonstration purposes in a non-Next.js isolated environment.
-  // If you are running this in a Next.js project, you can remove these mock definitions.
-  // const MockRouter = {
-  //   push: (path: string) => console.log(`Navigating to: ${path}`),
-  // };
-  // const MockParams = {
-  //   slug: 'example-business-slug', // Replace with a real slug from your Supabase 'businesses' table if testing
-  // };
-
-  // const useRouter = () => MockRouter;
-  // const useParams = () => MockParams;
-
-  return (
-    <EditBusinessPage />
-  );
-}
