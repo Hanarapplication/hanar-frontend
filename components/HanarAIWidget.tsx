@@ -1,4 +1,5 @@
-// ✅ FINAL VERSION - HanarAIWidget.tsx with location detection
+// ✅ HanarAIWidget.tsx (temporarily disabled)
+// Keeps the file/imports stable, but renders nothing.
 
 'use client';
 
@@ -8,7 +9,13 @@ import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+// Toggle this back to true when you're ready to re-enable HanarAI.
+const ENABLE_HANAR_AI_WIDGET = false;
+
 export default function HanarAIWidget() {
+  // ✅ Hard-disable (invisible) for now
+  if (!ENABLE_HANAR_AI_WIDGET) return null;
+
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -39,9 +46,16 @@ export default function HanarAIWidget() {
       navigator.geolocation.getCurrentPosition(async (pos) => {
         const { latitude, longitude } = pos.coords;
         try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+          );
           const data = await res.json();
-          const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || 'your area';
+          const city =
+            data.address?.city ||
+            data.address?.town ||
+            data.address?.village ||
+            data.address?.county ||
+            'your area';
           setLocation(city);
         } catch {
           setLocation('your area');
