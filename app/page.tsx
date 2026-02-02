@@ -147,7 +147,7 @@ export default function Home() {
         <section className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-800">Featured Businesses</h2>
-            <LiveRefreshLink href="/businesses" className="inline-flex items-center bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-full px-3 py-2 transition-colors">
+            <LiveRefreshLink href="/businesses" className="inline-flex items-center bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white text-sm font-medium rounded-full px-3 py-2 transition-colors shadow-sm">
               View All <svg className="ml-2 -mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
             </LiveRefreshLink>
           </div>
@@ -187,7 +187,7 @@ export default function Home() {
         <section className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-800">Trending Items</h2>
-            <LiveRefreshLink href="/marketplace" className="inline-flex items-center bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-full px-3 py-2 transition-colors">
+            <LiveRefreshLink href="/marketplace" className="inline-flex items-center bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-sm font-medium rounded-full px-3 py-2 transition-colors shadow-sm">
               Browse Marketplace <svg className="ml-2 -mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
             </LiveRefreshLink>
           </div>
