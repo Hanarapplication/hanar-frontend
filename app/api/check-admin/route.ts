@@ -1,36 +1,38 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-const supabase = createClient(
+export const runtime = 'nodejs';
+
+const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
 );
 
 export async function POST(req: Request) {
   try {
-    const { email } = await req.json();
+    const { user_id, email } = await req.json();
 
-    // ✅ Validate input
-    if (!email || typeof email !== 'string') {
-      console.error("❌ Missing or invalid email in request.");
-      return NextResponse.json({ allowed: false, message: 'Missing or invalid email' }, { status: 400 });
+    // Prefer user_id (best). Fallback to email if you must.
+    const safeUserId = typeof user_id === 'string' ? user_id.trim() : '';
+    const safeEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+    if (!safeUserId && !safeEmail) {
+      return NextResponse.json(
+        { allowed: false, message: 'Missing user_id or email' },
+        { status: 400 }
+      );
     }
 
-    // ✅ Query admin role safely
-    const { data, error } = await supabase
-      .from('adminaccounts')
-      .select('role')
-      .eq('email', email.toLowerCase())
-      .maybeSingle(); // ✅ avoids crash if no row found
+    const query = supabaseAdmin.from('adminaccounts').select('role, user_id, email');
 
-    console.log('📨 Email received in check-admin:', email);
-    console.log('🔍 Supabase result:', data);
-    console.log('❌ Supabase error:', error);
+    const { data, error } = safeUserId
+      ? await query.eq('user_id', safeUserId).maybeSingle()
+      : await query.eq('email', safeEmail).maybeSingle();
 
-    // ✅ Check result
-    if (error || !data || !data.role) {
+    if (error || !data?.role) {
       return NextResponse.json(
-        { allowed: false, message: 'Not an admin or role missing' },
+        { allowed: false, message: 'Not an admin' },
         { status: 403 }
       );
     }
@@ -49,9 +51,11 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ allowed: true, role: data.role });
-
   } catch (err) {
     console.error('🔥 API error in check-admin:', err);
-    return NextResponse.json({ allowed: false, message: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { allowed: false, message: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }

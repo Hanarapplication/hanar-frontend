@@ -15,6 +15,8 @@ export async function POST(req: Request) {
         body,
         created_at,
         author,
+        author_type,
+        username,
         image,
         likes_post,
         replies,

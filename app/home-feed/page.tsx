@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import LiveRefreshLink from '@/components/LiveRefreshLink';
+import LiveRefreshLink from '@/components/LiveRefreshLink';
 
 // Mock Data
 const featuredBusinesses = [
@@ -74,21 +76,21 @@ export default function HomeFeedPage() {
           <div key={idx} className="bg-white rounded-lg shadow-md p-4">
 
             {post.type === 'business' && (
-              <Link href="/businesses" className="block">
+              <LiveRefreshLink href="/businesses" className="block">
                 <img src={post.image} alt={post.name} className="w-full h-48 object-cover rounded-md" />
                 <h3 className="text-lg font-semibold mt-2">{post.name}</h3>
                 <p className="text-sm text-gray-600">{post.category}</p>
                 <div className="text-xs text-gray-400 mt-1">{post.fakeViews} views ❤️</div>
-              </Link>
+              </LiveRefreshLink>
             )}
 
             {post.type === 'item' && (
-              <Link href="/marketplace" className="block">
+              <LiveRefreshLink href="/marketplace" className="block">
                 <img src={post.image} alt={post.title} className="w-full h-48 object-cover rounded-md" />
                 <h3 className="text-lg font-semibold mt-2">{post.title}</h3>
                 <p className="text-green-600 font-bold">{post.price}</p>
                 <div className="text-xs text-gray-400 mt-1">{post.fakeViews} views ❤️</div>
-              </Link>
+              </LiveRefreshLink>
             )}
 
             {post.type === 'community' && (

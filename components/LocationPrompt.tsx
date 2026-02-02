@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function LocationPromptModal() {
   const [showModal, setShowModal] = useState(false);
@@ -24,6 +25,34 @@ export default function LocationPromptModal() {
     }
   }, []);
 
+  const persistLocation = async (
+    lat: number,
+    lon: number,
+    meta?: { city?: string | null; state?: string | null; zip?: string | null; source?: string }
+  ) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token || '';
+      await fetch('/api/user-location', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({
+          lat,
+          lng: lon,
+          city: meta?.city ?? null,
+          state: meta?.state ?? null,
+          zip: meta?.zip ?? null,
+          source: meta?.source ?? null,
+        }),
+      });
+    } catch {
+      // Ignore persistence failures
+    }
+  };
+
   const handleAllow = () => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -33,6 +62,12 @@ export default function LocationPromptModal() {
         };
         localStorage.setItem('userCoords', JSON.stringify(coords));
         localStorage.setItem('hasSeenLocationPrompt', 'true');
+        persistLocation(coords.lat, coords.lon, {
+          source: 'gps',
+        });
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('location:updated', { detail: { ...coords, source: 'gps' } }));
+        }
         setShowModal(false);
       },
       () => {
@@ -45,16 +80,46 @@ export default function LocationPromptModal() {
     if (!zipCity) return alert(t('pleaseEnterZip'));
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(zipCity)}`
+        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(zipCity)}`
       );
       const data = await res.json();
       if (data.length > 0) {
+        const address = data[0].address || {};
         const coords = {
           lat: parseFloat(data[0].lat),
           lon: parseFloat(data[0].lon),
         };
+        const zipValue = address.postcode || (/^\d{3,10}$/.test(zipCity.trim()) ? zipCity.trim() : null);
+        const cityValue =
+          address.city ||
+          address.town ||
+          address.village ||
+          (zipValue ? null : zipCity.trim());
+        const stateValue = address.state || null;
+        const label =
+          data[0].display_name ||
+          data[0].name ||
+          zipCity;
         localStorage.setItem('userCoords', JSON.stringify(coords));
         localStorage.setItem('hasSeenLocationPrompt', 'true');
+        persistLocation(coords.lat, coords.lon, {
+          city: cityValue,
+          state: stateValue,
+          zip: zipValue,
+          source: zipValue ? 'zip' : 'city',
+        });
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('location:updated', {
+            detail: {
+              ...coords,
+              label,
+              city: cityValue,
+              state: stateValue,
+              zip: zipValue,
+              source: zipValue ? 'zip' : 'city',
+            },
+          }));
+        }
         setShowModal(false);
       } else {
         alert(t('notFound'));

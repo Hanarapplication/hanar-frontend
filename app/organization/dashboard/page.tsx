@@ -4,24 +4,31 @@ import { useEffect, useState, ChangeEvent, FormEvent, FC } from 'react';
 import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Heart, Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 // --- TYPE DEFINITIONS ---
 type OrgProfile = {
+  id?: string;
   user_id: string;
-  organization_name: string;
-  banner_url?: string;
-  logo_url?: string;
-  mission?: string;
-  address?: string;
-  socials?: any;
+  username: string;
+  email: string;
+  full_name: string;
+  banner_url?: string | null;
+  logo_url?: string | null;
+  mission?: string | null;
+  address?: string | null;
+  socials?: {
+    website?: string;
+    facebook?: string;
+    instagram?: string;
+  } | null;
   contact_info?: {
     phone?: string;
     whatsapp?: string;
     email?: string;
-  };
-  email?: string;
-  username?: string;
-  full_name?: string;
+  } | null;
+  created_at?: string;
+  updated_at?: string;
 };
 
 type Post = {
@@ -31,6 +38,7 @@ type Post = {
   image: string | null;
   author: string;
   user_id: string;
+  org_id?: string;
   created_at: string;
   likes_post: number;
   deleted: boolean;
@@ -61,7 +69,7 @@ type CommentSort = 'newest' | 'popular';
 type NotificationType = {
   id: number;
   message: string;
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'info';
 };
 
 // Add new type for modal state
@@ -93,10 +101,18 @@ const Spinner: FC<{ size?: number; className?: string }> = ({ size = 24, classNa
 );
 
 const Notification: FC<NotificationType & { onDismiss: () => void }> = ({ message, type, onDismiss }) => (
-  <div className={`p-4 rounded-lg shadow-lg max-w-sm w-full bg-white border-l-4 ${type === 'success' ? 'border-green-500' : 'border-red-500'}`}>
+  <div
+    className={`p-4 rounded-lg shadow-lg max-w-sm w-full bg-white border-l-4 ${
+      type === 'success' ? 'border-green-500' : type === 'info' ? 'border-blue-500' : 'border-red-500'
+    }`}
+  >
     <div className="flex items-start">
       <div className="flex-1">
-        <p className={`text-sm font-medium ${type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+        <p
+          className={`text-sm font-medium ${
+            type === 'success' ? 'text-green-800' : type === 'info' ? 'text-blue-800' : 'text-red-800'
+          }`}
+        >
           {message}
         </p>
       </div>
@@ -154,6 +170,25 @@ export default function OrganizationDashboard() {
   const [deletingComment, setDeletingComment] = useState<{ [key: string]: boolean }>({});
   const [userLikedPosts, setUserLikedPosts] = useState<Set<string>>(new Set());
   const [userLikedComments, setUserLikedComments] = useState<Set<string>>(new Set());
+  const [followerCount, setFollowerCount] = useState<number>(0);
+  const [favorites, setFavorites] = useState<Array<{
+    id: string;
+    business_name: string | null;
+    slug: string | null;
+    category: string | null;
+    logo_url?: string | null;
+    address?: { city?: string; state?: string } | null;
+  }>>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(true);
+  const [followedOrgs, setFollowedOrgs] = useState<Array<{
+    user_id: string;
+    full_name: string | null;
+    username: string | null;
+    logo_url?: string | null;
+  }>>([]);
+  const [followedOrgsLoading, setFollowedOrgsLoading] = useState(true);
+  const [favoritesOpen, setFavoritesOpen] = useState(false);
+  const [followedOrgsOpen, setFollowedOrgsOpen] = useState(false);
 
   // Add form state for profile editing
   const [form, setForm] = useState({
@@ -174,12 +209,13 @@ export default function OrganizationDashboard() {
   const router = useRouter();
   
   const ORG_STORAGE = {
-      banner: 'avatars',
-      logo: 'avatars',
-      post: 'community-uploads',
+    bucket: 'organizations',
+    logoFolder: 'logo',
+    bannerFolder: 'banner',
+    postFolder: 'posts'
   };
 
-  const addNotification = (message: string, type: 'success' | 'error') => {
+  const addNotification = (message: string, type: 'success' | 'error' | 'info') => {
     const id = Date.now();
     setNotifications(prev => [...prev, { id, message, type }]);
   };
@@ -188,7 +224,7 @@ export default function OrganizationDashboard() {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
   
-  // Fetch Organization Profile from registeredaccounts table
+  // Fetch Organization Profile from organizations table
   useEffect(() => {
     async function loadProfile() {
       setLoading(true);
@@ -199,16 +235,15 @@ export default function OrganizationDashboard() {
           return;
         }
         let { data, error } = await supabase
-          .from('registeredaccounts')
+          .from('organizations')
           .select('*')
           .eq('user_id', user.id)
-          .eq('organization', true)
           .single();
         if (error) throw error;
         if (data) {
           setProfile(data);
           setForm({
-            full_name: data.organization_name || '',
+            full_name: data.full_name || '',
             username: data.username || '',
             email: data.email || '',
             mission: data.mission || '',
@@ -235,6 +270,79 @@ export default function OrganizationDashboard() {
     }
     loadProfile();
   }, [router]);
+
+  useEffect(() => {
+    const loadFollowers = async () => {
+      if (!profile?.user_id) return;
+      const { count } = await supabase
+        .from('follows')
+        .select('id', { count: 'exact', head: true })
+        .eq('following_id', profile.user_id);
+      setFollowerCount(count || 0);
+    };
+
+    loadFollowers();
+  }, [profile?.user_id]);
+
+  useEffect(() => {
+    const loadFavoritesAndOrgs = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setFavorites([]);
+          setFollowedOrgs([]);
+          return;
+        }
+
+        const { data: favoriteRows, error: favoritesError } = await supabase
+          .from('business_favorites')
+          .select('business_id')
+          .eq('user_id', user.id);
+
+        if (favoritesError) throw favoritesError;
+
+        const businessIds = (favoriteRows || []).map((row: { business_id: string }) => row.business_id);
+        if (businessIds.length === 0) {
+          setFavorites([]);
+        } else {
+          const { data, error } = await supabase
+            .from('businesses')
+            .select('id, business_name, slug, category, logo_url, address')
+            .in('id', businessIds);
+
+          if (error) throw error;
+          setFavorites((data as any[]) || []);
+        }
+
+        const { data: followRows, error: followError } = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', user.id);
+
+        if (followError) throw followError;
+
+        const orgOwnerIds = (followRows || []).map((row: { following_id: string }) => row.following_id);
+        if (orgOwnerIds.length === 0) {
+          setFollowedOrgs([]);
+        } else {
+          const { data: orgData, error: orgError } = await supabase
+            .from('organizations')
+            .select('user_id, full_name, username, logo_url')
+            .in('user_id', orgOwnerIds);
+
+          if (orgError) throw orgError;
+          setFollowedOrgs((orgData as any[]) || []);
+        }
+      } catch (err) {
+        console.error('Failed to load favorites/organizations', err);
+      } finally {
+        setFavoritesLoading(false);
+        setFollowedOrgsLoading(false);
+      }
+    };
+
+    loadFavoritesAndOrgs();
+  }, []);
 
   // Load user liked posts from localStorage
   useEffect(() => {
@@ -351,103 +459,106 @@ export default function OrganizationDashboard() {
       }
   }, [postImage]);
 
-  const handleSave = async () => {
-    console.log('handleSave called');
-    console.log('Current profile:', profile);
-    console.log('Current form state:', form);
+  const handleSave = async (e?: FormEvent) => {
+    e?.preventDefault();
 
     if (!profile?.user_id) {
-      console.error("Missing user_id — cannot save.");
+      addNotification('Missing profile user_id. Please re-login.', 'error');
       return;
     }
 
-    let logo_url = form.logo_url;
-    let banner_url = form.banner_url;
+    setSavingProfile(true);
 
-    // Upload new images if selected
-    const uploadFile = async (file: File, pathPrefix: string) => {
-      console.log(`Uploading file for ${pathPrefix}...`, file);
-      const filePath = `${profile.user_id}/${pathPrefix}-${Date.now()}`;
-      const { data, error } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
-      if (error) {
-        console.error(`Error uploading ${pathPrefix}:`, error);
-        throw new Error(`Error uploading ${pathPrefix}: ${error.message}`);
-      }
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(data.path);
-      console.log(`Uploaded ${pathPrefix}, publicUrl:`, publicUrl);
-      return publicUrl;
+    let logo_url = form.logo_url || '';
+    let banner_url = form.banner_url || '';
+
+    const uploadFile = async (file: File, folder: string) => {
+      // IMPORTANT: must be ORG UUID (organizations.id), NOT user_id
+      const orgId = profile.id;
+      if (!orgId) throw new Error('Missing organization id (organizations.id).');
+
+      const safeName = file.name.replace(/\s+/g, '-');
+      const filePath = `${orgId}/${folder}/${Date.now()}-${safeName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(ORG_STORAGE.bucket)
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from(ORG_STORAGE.bucket)
+        .getPublicUrl(filePath);
+
+      return urlData.publicUrl;
     };
 
     try {
-      if (logoFile) logo_url = await uploadFile(logoFile, 'logo');
-      if (bannerFile) banner_url = await uploadFile(bannerFile, 'banner');
-    } catch (err) {
-      console.error('Image upload failed:', err);
-      return;
-    }
+      if (logoFile) logo_url = await uploadFile(logoFile, ORG_STORAGE.logoFolder);
+      if (bannerFile) banner_url = await uploadFile(bannerFile, ORG_STORAGE.bannerFolder);
 
-    const updatedProfile = {
-      user_id: profile.user_id, // primary key for your upsert
-      full_name: form.full_name,
-      username: form.username,
-      email: form.email,
-      mission: form.mission,
-      address: form.address,
-      banner_url,
-      logo_url,
-      contact_info: {
-        phone: form.phone,
+      const updatedProfile = {
+        user_id: profile.user_id,
+        full_name: form.full_name,
+        username: form.username,
         email: form.email,
-        whatsapp: form.whatsapp,
-      },
-      socials: {
-        instagram: form.instagram,
-        facebook: form.facebook,
-        website: form.website,
-      },
-      updated_at: new Date().toISOString(),
-    };
+        mission: form.mission,
+        address: form.address,
+        banner_url,
+        logo_url,
+        contact_info: {
+          phone: form.phone,
+          email: form.email,
+          whatsapp: form.whatsapp,
+        },
+        socials: {
+          instagram: form.instagram,
+          facebook: form.facebook,
+          website: form.website,
+        },
+        updated_at: new Date().toISOString(),
+      };
 
-    console.log("Upsert payload:", updatedProfile);
+      const { error } = await supabase
+        .from('organizations')
+        .upsert([updatedProfile], { onConflict: 'user_id' });
 
-    // NOTE: organizations.user_id must have a unique constraint for onConflict to work!
-    const { data, error } = await supabase
-      .from("organizations")
-      .upsert([updatedProfile], { onConflict: "user_id" });
+      if (error) throw error;
 
-    // Improved debugging
-    console.log('Upsert result:', { data, error });
-
-    if (error) {
-      console.error("Save failed:", error);
-    } else {
-      console.log("Profile saved:", data);
-      // Fetch the updated profile from organizations
       const { data: fresh, error: fetchError } = await supabase
         .from('organizations')
         .select('*')
         .eq('user_id', profile.user_id)
         .single();
-      if (fetchError) {
-        console.error('Error fetching updated profile:', fetchError);
-      } else if (fresh) {
-        console.log('Fetched updated profile:', fresh); // DEBUG
-        setProfile(fresh);
-        setForm({
-          full_name: fresh.full_name || '',
-          username: fresh.username || '',
-          email: fresh.email || '',
-          mission: fresh.mission || '',
-          address: fresh.address || '',
-          banner_url: fresh.banner_url || '',
-          logo_url: fresh.logo_url || '',
-          phone: fresh.contact_info?.phone || '',
-          whatsapp: fresh.contact_info?.whatsapp || '',
-          instagram: fresh.socials?.instagram || '',
-          facebook: fresh.socials?.facebook || '',
-          website: fresh.socials?.website || '',
-        });
-      }
+
+      if (fetchError) throw fetchError;
+
+      setProfile(fresh);
+      setForm({
+        full_name: fresh.full_name || '',
+        username: fresh.username || '',
+        email: fresh.email || '',
+        mission: fresh.mission || '',
+        address: fresh.address || '',
+        banner_url: fresh.banner_url || '',
+        logo_url: fresh.logo_url || '',
+        phone: fresh.contact_info?.phone || '',
+        whatsapp: fresh.contact_info?.whatsapp || '',
+        instagram: fresh.socials?.instagram || '',
+        facebook: fresh.socials?.facebook || '',
+        website: fresh.socials?.website || '',
+      });
+
+      // clear local files after success
+      setLogoFile(null);
+      setBannerFile(null);
+
+      addNotification('Profile saved successfully.', 'success');
+    } catch (err: any) {
+      console.error('Save failed:', err);
+      addNotification(err?.message || 'Save failed.', 'error');
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -526,10 +637,11 @@ export default function OrganizationDashboard() {
       if (postImage) {
         console.log('Uploading image...');
         const fileExt = postImage.name.split('.').pop();
-        const fileName = `${user.id}/post-${Date.now()}.${fileExt}`;
+        const orgId = profile.id || profile.user_id;
+        const fileName = `${orgId}/${ORG_STORAGE.postFolder}/post-${Date.now()}.${fileExt}`;
         
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('community-images')
+          .from(ORG_STORAGE.bucket)
           .upload(fileName, postImage);
 
         if (uploadError) {
@@ -538,7 +650,7 @@ export default function OrganizationDashboard() {
         }
 
         const { data: { publicUrl } } = supabase.storage
-          .from('community-images')
+          .from(ORG_STORAGE.bucket)
           .getPublicUrl(fileName);
 
         imageUrl = publicUrl;
@@ -549,8 +661,9 @@ export default function OrganizationDashboard() {
         title: postPreview.title,
         body: postPreview.body,
         image: imageUrl,
-        author: profile.organization_name,
+        author: profile.full_name,
         user_id: user.id,
+        org_id: profile.id,
         created_at: new Date().toISOString(),
         likes_post: 0,
         deleted: false,
@@ -647,7 +760,7 @@ export default function OrganizationDashboard() {
         post_id: postId,
         user_id: user.id,
         username: profile.username || '',
-        author: profile.organization_name || '',
+        author: profile.full_name || '',
         identity: 'author',
         text: commentContent[postId].trim(),
         created_at: new Date().toISOString(),
@@ -994,7 +1107,7 @@ export default function OrganizationDashboard() {
             </label>
             <div className="absolute left-6 sm:left-10 -bottom-12 flex items-end gap-4">
                 <div className="relative w-28 h-28 sm:w-32 sm:h-32">
-                    <div className="w-full h-full rounded-full bg-slate-200 shadow-lg border-4 border-slate-50 overflow-hidden">
+                    <div className="w-full h-full rounded-lg bg-slate-200 shadow-lg border-4 border-slate-50 overflow-hidden">
                         <img
                             src={logoPreview || profile.logo_url || 'https://placehold.co/150/e2e8f0/e2e8f0'}
                             className="w-full h-full object-cover"
@@ -1009,13 +1122,50 @@ export default function OrganizationDashboard() {
                     </label>
                 </div>
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">{profile.full_name}</h1>
+                    <h1 className="mt-72 text-2xl sm:text-3xl font-bold text-slate-800">{profile.full_name}</h1>
                     <p className="text-sm text-slate-500 flex items-center gap-2">
                       <Building className="w-4 h-4"/>
                       Organization
                     </p>
+                    <p className="text-xs text-slate-500 mt-1">Followers: {followerCount}</p>
                 </div>
             </div>
+        </div>
+
+        <div className="mb-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {profile.username ? (
+            <Link
+              href={`/organization/${profile.username}`}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              View Profile
+            </Link>
+          ) : (
+            <button
+              onClick={() => addNotification('Please set a username to view your public profile.', 'info')}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              View Profile
+            </button>
+          )}
+          <Link
+            href="/community/post"
+            className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            Post to Community
+          </Link>
+          <button
+            onClick={() => addNotification('Event promotion coming soon.', 'info')}
+            className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            Promote Event / Message
+          </button>
+          <button
+            onClick={() => addNotification('Member notifications coming soon.', 'info')}
+            className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            Send Notification to Members
+          </button>
         </div>
 
         {/* --- Main Content Grid --- */}
@@ -1102,7 +1252,7 @@ export default function OrganizationDashboard() {
 
              <Card>
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-slate-800">Posts</h2>
+                  <h2 className="text-xl font-bold text-slate-800">Announcements</h2>
                   <div className="flex gap-2">
                     <button 
                       onClick={() => setModal({ isOpen: true, type: 'create-post' })}
@@ -1338,6 +1488,133 @@ export default function OrganizationDashboard() {
                       </Card>
                     ))}
                   </div>
+                )}
+              </Card>
+
+              <Card>
+                <button
+                  type="button"
+                  onClick={() => setFavoritesOpen((prev) => !prev)}
+                  className="flex w-full items-center justify-between gap-4 text-left"
+                >
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">Favorite Businesses</h2>
+                    <span className="text-sm text-slate-500">{favorites.length} total</span>
+                  </div>
+                  <span className="text-sm text-slate-500">{favoritesOpen ? 'Hide' : 'Show'}</span>
+                </button>
+
+                {favoritesOpen && (
+                  <>
+                    {favoritesLoading ? (
+                      <div className="mt-4 text-slate-500">Loading favorites...</div>
+                    ) : favorites.length === 0 ? (
+                      <div className="mt-4 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-slate-500">
+                        No favorites yet.
+                      </div>
+                    ) : (
+                      <div className="mt-5 grid gap-3">
+                        {favorites.map((biz) => (
+                          <button
+                            key={biz.id}
+                            onClick={() => biz.slug && router.push(`/business/${biz.slug}`)}
+                            className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                          >
+                            <div className="h-11 w-11 rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+                              {biz.logo_url ? (
+                                <img
+                                  src={biz.logo_url}
+                                  alt={biz.business_name || 'Business'}
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.src = 'https://placehold.co/44x44/94a3b8/ffffff?text=Logo';
+                                    e.currentTarget.onerror = null;
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-500">
+                                  Logo
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold text-slate-900">
+                                {biz.business_name || 'Business'}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {biz.address?.city || ''}{biz.address?.state ? `, ${biz.address.state}` : ''}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </Card>
+
+              <Card>
+                <button
+                  type="button"
+                  onClick={() => setFollowedOrgsOpen((prev) => !prev)}
+                  className="flex w-full items-center justify-between gap-4 text-left"
+                >
+                  <div>
+                    <h2 className="text-lg font-semibold text-indigo-900">Following Organizations</h2>
+                    <span className="text-sm text-indigo-700">{followedOrgs.length} total</span>
+                  </div>
+                  <span className="text-sm text-indigo-700">{followedOrgsOpen ? 'Hide' : 'Show'}</span>
+                </button>
+
+                {followedOrgsOpen && (
+                  <>
+                    {followedOrgsLoading ? (
+                      <div className="mt-4 text-indigo-700">Loading organizations...</div>
+                    ) : followedOrgs.length === 0 ? (
+                      <div className="mt-4 rounded-2xl border border-dashed border-indigo-200 p-6 text-center text-indigo-700">
+                        No organizations followed yet.
+                      </div>
+                    ) : (
+                      <div className="mt-5 grid gap-3">
+                        {followedOrgs.map((org) => (
+                          <button
+                            key={org.user_id}
+                            onClick={() => org.username && router.push(`/organization/${org.username}`)}
+                            className="group flex items-center gap-3 rounded-2xl border border-indigo-100 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md"
+                          >
+                            <div className="h-11 w-11 rounded-xl overflow-hidden border border-indigo-100 bg-indigo-100">
+                              {org.logo_url ? (
+                                <img
+                                  src={org.logo_url}
+                                  alt={org.full_name || 'Organization'}
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.src = 'https://placehold.co/44x44/94a3b8/ffffff?text=Org';
+                                    e.currentTarget.onerror = null;
+                                  }}
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-indigo-700">
+                                  Org
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold text-indigo-900">
+                                {org.full_name || 'Organization'}
+                              </p>
+                              <p className="text-xs text-indigo-700">
+                                {org.username ? `@${org.username}` : ''}
+                              </p>
+                            </div>
+                            <span className="ml-auto rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
+                              Organization
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </Card>
           </div>

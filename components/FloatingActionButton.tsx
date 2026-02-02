@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FaStore,
@@ -12,7 +11,6 @@ import {
 
 export default function FloatingActionButton() {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
   const fabRef = useRef<HTMLDivElement>(null);
 
   const navOptions = [
@@ -24,7 +22,7 @@ export default function FloatingActionButton() {
 
   const handleNav = (url: string) => {
     setOpen(false);
-    router.push(url);
+    window.location.href = url;
   };
 
   useEffect(() => {

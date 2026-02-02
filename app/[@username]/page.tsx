@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function PublicProfilePage() {
   const { username } = useParams();
@@ -23,15 +24,35 @@ export default function PublicProfilePage() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data } = await supabase.from('Profiles').select('*').eq('username', username).single();
-      if (data) setProfile(data);
-      setLoading(false);
+      if (!username) return;
+      setLoading(true);
+      const handle = String(username).replace(/^@/, '');
+
+      try {
+        const res = await fetch(`/api/handles/resolve?handle=${encodeURIComponent(handle)}`);
+        const result = await res.json();
+
+        if (res.ok && result?.type === 'organization') {
+          router.replace(`/organization/${handle}`);
+          return;
+        }
+
+        if (res.ok && result?.type === 'business') {
+          router.replace(`/business/${handle}`);
+          return;
+        }
+
+        const { data } = await supabase.from('Profiles').select('*').eq('username', handle).single();
+        if (data) setProfile(data);
+      } catch (error) {
+        console.error('Handle resolution failed:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    if (username) {
-      fetchProfile();
-    }
-  }, [username]);
+    fetchProfile();
+  }, [username, router]);
 
   useEffect(() => {
     if (profile && currentUser) {
@@ -41,7 +62,7 @@ export default function PublicProfilePage() {
 
   const checkIfFollowing = async () => {
     const { data } = await supabase
-      .from('Follows')
+      .from('follows')
       .select('*')
       .eq('follower_id', currentUser.id)
       .eq('following_id', profile.id)
@@ -79,7 +100,11 @@ export default function PublicProfilePage() {
         alt="Profile Picture"
         className="w-24 h-24 rounded-full object-cover mb-4"
       />
-      <h1 className="text-2xl font-bold">@{profile.username}</h1>
+      <h1 className="text-2xl font-bold">
+        <Link href={`/profile/${profile.username}`} className="text-indigo-600 hover:underline">
+          @{profile.username}
+        </Link>
+      </h1>
       <p className="text-gray-600 mt-2">{profile.bio || 'No bio yet.'}</p>
       {currentUser && currentUser.id !== profile.id && (
         <button

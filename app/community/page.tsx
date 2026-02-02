@@ -13,6 +13,8 @@ interface Post {
   title: string;
   body: string;
   author: string;
+  author_type?: string | null;
+  username?: string | null;
   created_at: string;
   image?: string;
   likes_post?: number;
@@ -146,8 +148,27 @@ export default function CommunityFeedPage() {
                 <div>
                   <h2 className="text-xl font-semibold mb-2">{post.title}</h2>
                   <p className="text-gray-600 line-clamp-2">{post.body}</p>
-                  <div className="flex items-center gap-4 mt-4 text-sm text-gray-500">
-                    <span>{post.author}</span>
+                  <div className="flex items-center gap-3 mt-4 text-sm text-gray-500">
+                    {post.author_type === 'organization' && post.username ? (
+                      <Link href={`/organization/${post.username}`} className="text-indigo-600 hover:underline">
+                        @{post.username}
+                      </Link>
+                    ) : post.author_type === 'business' && post.username ? (
+                      <Link href={`/business/${post.username}`} className="text-indigo-600 hover:underline">
+                        @{post.username}
+                      </Link>
+                    ) : post.username ? (
+                      <Link href={`/profile/${post.username}`} className="text-indigo-600 hover:underline">
+                        @{post.username}
+                      </Link>
+                    ) : (
+                      <span>{post.author}</span>
+                    )}
+                    {post.author_type === 'organization' && (
+                      <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600">
+                        Organization
+                      </span>
+                    )}
                     <span>•</span>
                     <span>
                       {formatDistanceToNow(new Date(post.created_at), {

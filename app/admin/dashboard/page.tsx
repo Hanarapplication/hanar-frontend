@@ -53,6 +53,7 @@ useEffect(() => {
 
   const navItems = [
     { label: 'Business Approvals', path: '/admin/approvals' },
+    { label: 'Notification Requests', path: '/admin/notification-requests' },
     { label: 'Marketplace Listings', path: '/admin/marketplace' },
     { label: 'Community Posts', path: '/admin/community' },
     { label: 'Support Tickets', path: '/admin/support' },

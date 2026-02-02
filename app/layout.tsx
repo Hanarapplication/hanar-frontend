@@ -35,7 +35,19 @@ export default function RootLayout({
             <ClientRedirectTracker />
             <main>{children}</main>
             <HanarAIWidget />
-            <Toaster position="top-center" toastOptions={{ duration: 4000 }} />
+            <Toaster
+              position="top-center"
+              toastOptions={{
+                duration: 4000,
+                className:
+                  'rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 text-white shadow-2xl',
+                style: { padding: '12px 16px' },
+                iconTheme: {
+                  primary: '#ffffff',
+                  secondary: '#4f46e5',
+                },
+              }}
+            />
           </DarkModeProvider>
         </LanguageProvider>
       </body>

@@ -48,7 +48,10 @@ export default function OwnerAdminPage() {
         </button>
 
         {/* Review Business Notifications */}
-        <button className="bg-purple-600 text-white px-4 py-3 rounded-lg shadow hover:bg-purple-700 transition">
+        <button
+          onClick={() => router.push('/admin/notification-requests')}
+          className="bg-purple-600 text-white px-4 py-3 rounded-lg shadow hover:bg-purple-700 transition"
+        >
           🔔 Review Business Notification Requests
         </button>
 

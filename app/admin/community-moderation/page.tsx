@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
+import Link from 'next/link';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -56,7 +57,22 @@ export default function AdminCommunityModerationPage() {
             <div className="flex justify-between">
               <div>
                 <h2 className="text-lg font-semibold">{post.title}</h2>
-                <p className="text-sm text-gray-600">@{post.author} — {format(new Date(post.created_at), 'PPpp')}</p>
+                <p className="text-sm text-gray-600">
+                  {post.author_type === 'organization' && post.username ? (
+                    <Link href={`/organization/${post.username}`} className="text-indigo-600 hover:underline">
+                      @{post.username}
+                    </Link>
+                  ) : post.author_type === 'business' && post.username ? (
+                    <Link href={`/business/${post.username}`} className="text-indigo-600 hover:underline">
+                      @{post.username}
+                    </Link>
+                  ) : (
+                    <Link href={`/profile/${post.author}`} className="text-indigo-600 hover:underline">
+                      @{post.author}
+                    </Link>
+                  )}
+                  <span> — {format(new Date(post.created_at), 'PPpp')}</span>
+                </p>
               </div>
               <button
                 onClick={() => handleDeletePost(post.id)}
@@ -73,7 +89,12 @@ export default function AdminCommunityModerationPage() {
                 {post.replies.map((reply: any) => (
                   <div key={reply.id} className="text-sm text-gray-700 mt-2">
                     <div className="flex justify-between">
-                      <span>@{reply.author}: {reply.text}</span>
+                      <span>
+                        <Link href={`/profile/${reply.author}`} className="text-indigo-600 hover:underline">
+                          @{reply.author}
+                        </Link>
+                        : {reply.text}
+                      </span>
                       <button
                         onClick={() => handleDeleteReply(reply.id)}
                         className="text-xs text-red-500 hover:underline"

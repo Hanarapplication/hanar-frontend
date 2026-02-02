@@ -5,12 +5,15 @@ import { supabase } from "@/lib/supabaseClient";
 import { formatDistanceToNow } from "date-fns";
 import { XMarkIcon, CheckIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 interface Post {
   id: string;
   title: string;
   body: string;
   author: string;
+  author_type?: string | null;
+  username?: string | null;
   created_at: string;
   is_deleted?: boolean;
   is_reviewed?: boolean;
@@ -134,7 +137,20 @@ export default function AdminCommunityModeration() {
                 <h2 className="font-semibold text-lg">{post.title}</h2>
                 <p className="text-sm text-gray-600 line-clamp-2">{post.body}</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  @{post.author} • {formatDistanceToNow(new Date(post.created_at))} ago
+                  {post.author_type === "organization" && post.username ? (
+                    <Link href={`/organization/${post.username}`} className="text-indigo-600 hover:underline">
+                      @{post.username}
+                    </Link>
+                  ) : post.author_type === "business" && post.username ? (
+                    <Link href={`/business/${post.username}`} className="text-indigo-600 hover:underline">
+                      @{post.username}
+                    </Link>
+                  ) : (
+                    <Link href={`/profile/${post.author}`} className="text-indigo-600 hover:underline">
+                      @{post.author}
+                    </Link>
+                  )}
+                  <span> • {formatDistanceToNow(new Date(post.created_at))} ago</span>
                 </p>
               </div>
               <input

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import LiveRefreshLink from '@/components/LiveRefreshLink';
 import {
   FaTimes,
   FaQuestionCircle,
@@ -32,6 +33,13 @@ export default function MobileMenu({
   const router = useRouter();
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedUserType = localStorage.getItem('userType');
+      if (storedUserType === 'business' || storedUserType === 'organization' || storedUserType === 'individual') {
+        setUserRole(storedUserType);
+      }
+    }
+
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
       const user = data?.session?.user;
@@ -44,9 +52,13 @@ export default function MobileMenu({
           .eq('user_id', user.id)
           .maybeSingle();
 
-        if (profile?.business) setUserRole('business');
-        else if (profile?.organization) setUserRole('organization');
-        else setUserRole('individual');
+        let nextRole: 'business' | 'organization' | 'individual' = 'individual';
+        if (profile?.business) nextRole = 'business';
+        else if (profile?.organization) nextRole = 'organization';
+        setUserRole(nextRole);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('userType', nextRole);
+        }
       }
     };
 
@@ -55,6 +67,10 @@ export default function MobileMenu({
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    // Clear user type from localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('userType');
+    }
     setIsOpen(false);
     router.push('/login');
   };
@@ -83,21 +99,21 @@ export default function MobileMenu({
         </div>
 
         <nav className="flex flex-col px-4 py-4 text-sm text-gray-700 space-y-3">
-          <Link
+          <LiveRefreshLink
             href="/"
             onClick={() => setIsOpen(false)}
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >
             <FaHome className="text-gray-500" />
             <span>{t(lang, 'Home')}</span>
-          </Link>
+          </LiveRefreshLink>
 
           <Link
             href={
               userRole === 'business'
                 ? '/business-dashboard'
                 : userRole === 'organization'
-                ? '/organization-dashboard'
+                ? '/organization/dashboard'
                 : '/dashboard'
             }
             onClick={() => setIsOpen(false)}

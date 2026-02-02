@@ -1,11 +1,16 @@
 //This API route is responsible for creating a new community post
 
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(req: Request) {
   try {
-    const { title, body, tags, lang, image, author, user_id } = await req.json();
+    const { title, body, tags, lang, image, author, user_id, org_id, author_type, username } = await req.json();
 
     // ✅ Validate required fields
     if (!title || typeof title !== 'string' || title.trim().length < 3 || title.length > 100) {
@@ -25,7 +30,7 @@ export async function POST(req: Request) {
     }
 
     // ✅ Insert into Supabase
-    const { error } = await supabase.from('community_posts').insert([
+    const { error } = await supabaseAdmin.from('community_posts').insert([
       {
         title: title.trim(),
         body: body.trim(),
@@ -34,6 +39,9 @@ export async function POST(req: Request) {
         language: lang || 'en',
         author: author || 'Anonymous',
         user_id,
+        org_id: org_id || null,
+        author_type: author_type || null,
+        username: username || null,
         likes_post: 0, // ✅ correct column name
       },
     ]);

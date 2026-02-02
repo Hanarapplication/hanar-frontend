@@ -145,8 +145,22 @@ export default function RegisterBusinessPage() {
     // Generate a slug from the business name for a friendly URL
     const slug = form.business_name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
+    // Free plan defaults (from business_plans table)
+    // These must be set during INSERT to satisfy check constraints
+    const freePlanDefaults = {
+      max_gallery_images: 1,
+      max_menu_items: 0,
+      max_retail_items: 0,
+      max_car_listings: 0,
+      allow_social_links: false,
+      allow_whatsapp: false,
+      allow_promoted: false,
+      allow_reviews: false,
+      allow_qr: false,
+    };
+
     // Insert business data into the 'businesses' table
-    const { data, error: dbError } = await supabase.from('businesses').insert({
+    const { data: businessData, error: dbError } = await supabase.from('businesses').insert({
       business_name: form.business_name,
       description: form.description,
       category: form.business_type,
@@ -170,12 +184,30 @@ export default function RegisterBusinessPage() {
       status: 'inactive', // Default status for new submissions
       business_status: 'pending', // Default business status for new submissions
       owner_id: user.id, // --- NEW: Store the owner's ID ---
-    });
+      plan: 'free', // Set default plan
+      plan_selected_at: null, // Not selected until user confirms
+      // ✅ Free plan limits - set during INSERT to satisfy check constraints
+      ...freePlanDefaults,
+    }).select('id').single();
 
     if (dbError) {
       setError(`Database error: ${dbError.message}`);
       console.error('Supabase DB Insert Error:', dbError);
     } else {
+      // ✅ Apply free plan limits after business creation to satisfy check constraints
+      if (businessData?.id) {
+        const { error: planErr } = await supabase.rpc('apply_business_plan', {
+          p_business_id: businessData.id,
+          p_plan: 'free',
+          p_years: 1,
+        });
+
+        if (planErr) {
+          console.error('Failed to apply free plan limits:', planErr);
+          // Don't fail registration if plan application fails, but log it
+          // The user can still select a plan later
+        }
+      }
       setSuccess(true); // Indicate successful submission
       console.log('Business data successfully inserted into DB.');
       // Reset form fields after successful submission

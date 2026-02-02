@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import LiveRefreshLink from '@/components/LiveRefreshLink';
 import { usePathname } from 'next/navigation';
 import {
   FaHome,
@@ -28,7 +28,7 @@ export default function MobileTopNav() {
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
-            <Link
+            <LiveRefreshLink
               key={item.href}
               href={item.href}
               className={`flex flex-col items-center text-gray-600 transition-colors duration-200 focus:outline-none ${
@@ -39,7 +39,7 @@ export default function MobileTopNav() {
               <span className={`text-xs font-medium mt-1 ${isActive ? 'text-red-700' : ''}`}>
                 {item.label}
               </span>
-            </Link>
+            </LiveRefreshLink>
           );
         })}
       </div>

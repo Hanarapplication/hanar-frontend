@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import LiveRefreshLink from '@/components/LiveRefreshLink';
 import { FaHeart, FaShareAlt } from 'react-icons/fa';
 
 const mockItem = {
@@ -103,9 +104,9 @@ const [item, setItem] = useState<ItemType | null>(null);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
-      <Link href="/marketplace" className="text-blue-500 underline block mb-4">
+      <LiveRefreshLink href="/marketplace" className="text-blue-500 underline block mb-4">
         ← Back to Marketplace
-      </Link>
+      </LiveRefreshLink>
 
       <div className="bg-white shadow-md rounded-2xl overflow-hidden p-4">
         {/* Top Info Box */}

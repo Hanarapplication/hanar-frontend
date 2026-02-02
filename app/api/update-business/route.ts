@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { cookies } from 'next/headers';
 import { createServerActionClient } from '@supabase/auth-helpers-nextjs';
+import { getLatLonFromAddress } from '@/lib/getLatLonFromAddress';
 
 export async function POST(req: Request) {
   try {
@@ -74,6 +75,32 @@ export async function POST(req: Request) {
           updates[field] = [];
         } else {
           updates[field] = null; // Or appropriate default for objects/scalars
+        }
+      }
+    }
+
+    const buildAddressString = (address: any) => {
+      if (!address) return '';
+      if (typeof address === 'string') return address.trim();
+      const parts = [
+        address.street,
+        address.city,
+        address.state,
+        address.zip,
+        address.country,
+      ]
+        .map((part: any) => (typeof part === 'string' ? part.trim() : ''))
+        .filter(Boolean);
+      return parts.join(', ');
+    };
+
+    if (updates.address) {
+      const addressString = buildAddressString(updates.address);
+      if (addressString) {
+        const coords = await getLatLonFromAddress(addressString);
+        if (coords) {
+          updates.lat = coords.lat;
+          updates.lon = coords.lon;
         }
       }
     }

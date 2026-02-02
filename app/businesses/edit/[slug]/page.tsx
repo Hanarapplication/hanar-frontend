@@ -46,6 +46,64 @@ const generateUUID = (): string => {
   });
 };
 
+const normalizeNumberString = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/[^0-9.]/g, '').trim();
+};
+
+const normalizeNumericInput = (value: string, allowDecimal: boolean): string => {
+  const normalized = value.replace(/[^0-9.]/g, '');
+  if (!allowDecimal) {
+    return normalized.replace(/\./g, '');
+  }
+  const [head, ...rest] = normalized.split('.');
+  return rest.length ? `${head}.${rest.join('')}` : head;
+};
+
+const SUPABASE_STORAGE_URL_PREFIX =
+  `${process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://halgcyrumpbvlkzagfgy.supabase.co'}/storage/v1/object/public/`;
+
+const normalizeBusinessCategory = (value?: string | null): string => {
+  const normalized = (value || '').trim().toLowerCase();
+  if (['other', 'something_else'].includes(normalized)) return 'something_else';
+  if (['retail', 'retails'].includes(normalized)) return 'Retail';
+  if (['restaurant'].includes(normalized)) return 'Restaurant';
+  if (['car dealership', 'car_dealership'].includes(normalized)) return 'Car Dealership';
+  return value || '';
+};
+
+const isRetailCategory = (value?: string | null): boolean => {
+  const normalized = normalizeBusinessCategory(value);
+  return normalized === 'Retail' || normalized === 'something_else';
+};
+
+const extractStoragePath = (value: string, buckets: string[]): string => {
+  if (!value) return '';
+  if (value.startsWith('http')) {
+    for (const bucket of buckets) {
+      const prefix = `${SUPABASE_STORAGE_URL_PREFIX}${bucket}/`;
+      if (value.startsWith(prefix)) {
+        return value.slice(prefix.length);
+      }
+    }
+    return value;
+  }
+  return value;
+};
+
+const formatNumberWithCommas = (value: string | number | null | undefined): string => {
+  const normalized = normalizeNumberString(value);
+  if (!normalized) return '';
+  const [whole, decimal] = normalized.split('.');
+  const withCommas = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return decimal ? `${withCommas}.${decimal}` : withCommas;
+};
+
+const formatCurrencyDisplay = (value: string | number | null | undefined): string => {
+  const formatted = formatNumberWithCommas(value);
+  return formatted ? `$${formatted}` : '';
+};
+
 /**
  * Helper to ensure images arrays are structured with { file: File | null, preview: string, id: string }
  * Each image now gets a unique ID for better management, especially for deletions
@@ -65,8 +123,6 @@ interface ImageFileObject {
  * @returns {string} The public URL for the image or a placeholder if invalid.
  */
 const getImageUrl = (image: any, bucketType: 'menu_item' | 'retail_item' | 'car_listing' | 'gallery_image') => {
-  // Base URL for Supabase storage (replace with your actual Supabase project URL)
-  const SUPABASE_STORAGE_URL_PREFIX = "https://halgcyrumpbvlkzagfgy.supabase.co/storage/v1/object/public/";
 
   let bucketName: string;
   switch (bucketType) {
@@ -91,23 +147,22 @@ const getImageUrl = (image: any, bucketType: 'menu_item' | 'retail_item' | 'car_
   if (image && image.isNew && image.preview) {
     return image.preview;
   }
+  const buildPublicUrl = (path: string) => {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    if (path.startsWith(`${bucketName}/`)) {
+      return `${SUPABASE_STORAGE_URL_PREFIX}${path}`;
+    }
+    return `${SUPABASE_STORAGE_URL_PREFIX}${bucketName}/${path}`;
+  };
   // If it's an existing URL from the DB, it might be a string or an object with 'preview'
   if (typeof image === 'string') {
-    // If it's already a full URL (http/https), return as is
-    if (image.startsWith('http')) {
-      return image;
-    }
-    // If it's a path within the bucket, construct the full URL
-    return `${SUPABASE_STORAGE_URL_PREFIX}${bucketName}/${image}`;
+    return buildPublicUrl(image);
   }
   // If it's an object from DB (like {id, preview, file: null, isNew: false})
   if (image && image.preview) {
     // If image.preview is already a full URL, return as is
-    if (image.preview.startsWith('http')) {
-      return image.preview;
-    }
-    // If image.preview is a path within the bucket, construct the full URL
-    return `${SUPABASE_STORAGE_URL_PREFIX}${bucketName}/${image.preview}`;
+    return buildPublicUrl(image.preview);
   }
   // Fallback if no valid image source is found
   return 'https://placehold.co/300x200/cccccc/333333?text=Image+Missing';
@@ -126,37 +181,20 @@ function SortableItem({ id, children }: { id: string; children: React.ReactNode 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    cursor: 'grab', // Visual cue for draggable items
-    touchAction: 'none', // Prevents default browser touch actions like scrolling
   };
 
-  // Clone the children and add drag listeners only to the main content
-  const childrenWithDragHandlers = React.Children.map(children, (child) => {
-    if (React.isValidElement(child)) {
-      // Find the delete button and exclude it from drag handlers
-      const modifiedChild = React.cloneElement(child as React.ReactElement<{ children?: React.ReactNode }>, {
-        children: React.Children.map((child as React.ReactElement<{ children?: React.ReactNode }>).props.children, (grandChild) => {
-          if (React.isValidElement(grandChild) && 
-              grandChild.type === 'button' && 
-              (grandChild.props as any).title?.includes('Remove')) {
-            // Don't add drag handlers to the delete button
-            return grandChild;
-          }
-          // Add drag handlers to other elements
-          return React.cloneElement(grandChild as React.ReactElement<any>, {
-            ...attributes,
-            ...listeners,
-          });
-        }),
-      });
-      return modifiedChild;
-    }
-    return child;
-  });
-
   return (
-    <div ref={setNodeRef} style={style}>
-      {childrenWithDragHandlers}
+    <div ref={setNodeRef} style={style} className="relative">
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        className="absolute left-2 top-2 z-10 rounded-md border border-slate-200 bg-white/90 px-2 py-1 text-xs font-medium text-slate-600 shadow-sm hover:bg-white dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200"
+        aria-label="Drag to reorder"
+      >
+        Drag
+      </button>
+      {children}
     </div>
   );
 }
@@ -170,17 +208,18 @@ function SortableItem({ id, children }: { id: string; children: React.ReactNode 
  * @param {string} props.message - The main content message of the modal.
  * @param {function} props.onClose - Callback function to be executed when the modal is closed.
 */
-function CustomModal({ isOpen, title, message, onClose, onConfirm }: { 
+function CustomModal({ isOpen, title, message, onClose, onConfirm, backdropClassName = '' }: { 
   isOpen: boolean; 
   title: string; 
   message: string; 
   onClose: () => void;
   onConfirm: () => void;
+  backdropClassName?: string;
 }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 font-inter">
+    <div className={`fixed inset-0 bg-black/20 backdrop-blur-md flex items-center justify-center z-50 p-4 font-inter ${backdropClassName}`}>
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full transform transition-all duration-300 scale-100 opacity-100 text-gray-800 dark:text-gray-200">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold">{title}</h3>
@@ -455,12 +494,53 @@ export default function EditBusinessPage() {
     message: string;
     onConfirm?: () => void;
   }>({ isOpen: false, title: '', message: '' });
+  const [categoryChangeModal, setCategoryChangeModal] = useState<{
+    isOpen: boolean;
+    nextValue: string;
+  }>({ isOpen: false, nextValue: '' });
   const [isSubmitting, setSubmitting] = useState(false);
 
   // Store the original business ID after fetching to use for dynamic content
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false); // State to track auth readiness
   const [userId, setUserId] = useState<string | null>(null); // User ID for Supabase RLS context if needed for paths
+  
+  // Plan limits from business plan
+  const [planLimits, setPlanLimits] = useState<{
+    max_gallery_images: number;
+    max_menu_items: number;
+    max_retail_items: number;
+    max_car_listings: number;
+  }>({
+    max_gallery_images: 5, // Default fallback
+    max_menu_items: 0, // Default fallback
+    max_retail_items: 0, // Default fallback
+    max_car_listings: 0, // Default fallback
+  });
+  
+  // Plan status information
+  const [planStatus, setPlanStatus] = useState<{
+    plan: string | null;
+    plan_expires_at: string | null;
+  }>({
+    plan: null,
+    plan_expires_at: null,
+  });
+  
+  // Plan feature flags
+  const [planFeatures, setPlanFeatures] = useState<{
+    allow_social_links: boolean;
+    allow_whatsapp: boolean;
+    allow_promoted: boolean;
+    allow_reviews: boolean;
+    allow_qr: boolean;
+  }>({
+    allow_social_links: false,
+    allow_whatsapp: false,
+    allow_promoted: false,
+    allow_reviews: false,
+    allow_qr: false,
+  });
 
   // Ref for the logo file input to clear its value programmatically.
   // This is the correct and standard way to declare a ref for an HTMLInputElement.
@@ -471,7 +551,7 @@ export default function EditBusinessPage() {
     { value: 'Restaurant', label: 'Restaurant', icon: '🍽️' },
     { value: 'Car Dealership', label: 'Car Dealership', icon: '🚗' },
     { value: 'Retail', label: 'Retail (Clothing, Electronics, etc.)', icon: '🛍️' },
-    { value: 'something_else', label: 'Other', icon: '❓' }, // Ensure 'something_else' is an option
+    { value: 'something_else', label: 'Other / Service', icon: '❓' }, // Ensure 'something_else' is an option
   ];
 
   // --- Supabase Auth and User ID Effect ---
@@ -501,7 +581,7 @@ export default function EditBusinessPage() {
       if (!slug || !authReady) return; // Don't fetch if slug or auth is not available yet
 
       try {
-        // Fetch main business data from 'businesses' table
+        // Fetch main business data from 'businesses' table, including plan limits
         const { data: businessData, error: businessError } = await supabase
           .from('businesses')
           .select('*')
@@ -511,17 +591,40 @@ export default function EditBusinessPage() {
         if (businessError) {
           console.error('Error fetching business:', businessError);
           setModal({ isOpen: true, title: 'Error', message: `Failed to load business: ${businessError.message}`, onConfirm: () => {} });
-          router.push('/dashboard'); // Redirect to dashboard on error
+          router.push('/business-dashboard'); // Redirect to business dashboard on error
           return;
         }
 
         if (!businessData) {
           setModal({ isOpen: true, title: 'Not Found', message: 'Business not found.', onConfirm: () => {} });
-          router.push('/dashboard');
+          router.push('/business-dashboard');
           return;
         }
 
         setBusinessId(businessData.id); // Store the Supabase 'id' for the business
+
+        // Set plan limits from business data
+        setPlanLimits({
+          max_gallery_images: businessData.max_gallery_images ?? 5,
+          max_menu_items: businessData.max_menu_items ?? 0,
+          max_retail_items: businessData.max_retail_items ?? 0,
+          max_car_listings: businessData.max_car_listings ?? 0,
+        });
+        
+        // Set plan status information
+        setPlanStatus({
+          plan: businessData.plan || 'free',
+          plan_expires_at: businessData.plan_expires_at || null,
+        });
+        
+        // Set plan feature flags
+        setPlanFeatures({
+          allow_social_links: businessData.allow_social_links ?? false,
+          allow_whatsapp: businessData.allow_whatsapp ?? false,
+          allow_promoted: businessData.allow_promoted ?? false,
+          allow_reviews: businessData.allow_reviews ?? false,
+          allow_qr: businessData.allow_qr ?? false,
+        });
 
         // Helper to ensure images arrays are structured with { file: File | null, preview: string, id: string }
         // Each image now gets a unique ID for better management, especially for deletions
@@ -550,7 +653,12 @@ export default function EditBusinessPage() {
           if (menuError) {
             console.error('Error fetching menu items:', menuError);
           } else {
-            menuItemsFromDb = (menuData || []).map((item: any) => ({
+            const sortedMenuData = (menuData || []).slice().sort((a: any, b: any) => {
+              const aTime = new Date(a.created_at || 0).getTime();
+              const bTime = new Date(b.created_at || 0).getTime();
+              return bTime - aTime;
+            });
+            menuItemsFromDb = sortedMenuData.map((item: any) => ({
               id: item.id,
               name: item.name || '',
               description: item.description || '',
@@ -566,6 +674,39 @@ export default function EditBusinessPage() {
               _isDeleted: false,
               _isHiding: false,
             }));
+
+          if (menuItemsFromDb.length > 0) {
+            const menuItemIds = menuItemsFromDb.map((item) => item.id).filter(Boolean);
+            const { data: menuPhotos, error: menuPhotosError } = await supabase
+              .from('menu_item_photos')
+              .select('menu_item_id, storage_path, sort_order')
+              .in('menu_item_id', menuItemIds)
+              .order('sort_order', { ascending: true });
+
+            if (menuPhotosError) {
+              console.error('Error fetching menu item photos:', menuPhotosError);
+            } else if (menuPhotos && menuPhotos.length > 0) {
+              const photosById = menuPhotos.reduce((acc: Record<string, { storage_path: string; sort_order: number }[]>, photo) => {
+                if (!acc[photo.menu_item_id]) acc[photo.menu_item_id] = [];
+                acc[photo.menu_item_id].push(photo);
+                return acc;
+              }, {});
+
+              menuItemsFromDb = menuItemsFromDb.map((item) => {
+                const photos = photosById[item.id] || [];
+                if (!photos.length) return item;
+                return {
+                  ...item,
+                  images: photos.map((photo) => ({
+                    id: generateUUID(),
+                    file: null,
+                    preview: photo.storage_path,
+                    isNew: false,
+                  })),
+                };
+              });
+            }
+          }
           }
         }
 
@@ -580,7 +721,12 @@ export default function EditBusinessPage() {
           if (carError) {
             console.error('Error fetching car listings from dealerships table:', carError);
           } else {
-            carListingsFromDb = (carData || []).map((item: any) => ({
+            const sortedCarData = (carData || []).slice().sort((a: any, b: any) => {
+              const aTime = new Date(a.created_at || 0).getTime();
+              const bTime = new Date(b.created_at || 0).getTime();
+              return bTime - aTime;
+            });
+            carListingsFromDb = sortedCarData.map((item: any) => ({
               id: item.id,
               title: item.title || '',
               price: item.price !== null && item.price !== undefined ? String(item.price) : '',
@@ -597,7 +743,7 @@ export default function EditBusinessPage() {
         }
 
         let retailItemsFromDb: RetailItem[] = [];
-        if ((businessData.category === 'Retail' || businessData.category === 'something_else') && businessData.id) {
+        if (isRetailCategory(businessData.category) && businessData.id) {
             const { data: retailData, error: retailError } = await supabase
               .from('retail_items')
               .select('*')
@@ -607,7 +753,12 @@ export default function EditBusinessPage() {
             if (retailError) {
                 console.error('Error fetching retail items:', retailError);
             } else {
-                retailItemsFromDb = (retailData || []).map((item: any) => ({
+                const sortedRetailData = (retailData || []).slice().sort((a: any, b: any) => {
+                  const aTime = new Date(a.created_at || 0).getTime();
+                  const bTime = new Date(b.created_at || 0).getTime();
+                  return bTime - aTime;
+                });
+                retailItemsFromDb = sortedRetailData.map((item: any) => ({
                     id: item.id,
                     name: item.name || '',
                     price: item.price !== null && item.price !== undefined ? String(item.price) : '',
@@ -619,12 +770,45 @@ export default function EditBusinessPage() {
                     _isHiding: false,
                 }));
             }
+
+            if (retailItemsFromDb.length > 0) {
+              const retailItemIds = retailItemsFromDb.map((item) => item.id).filter(Boolean);
+              const { data: retailPhotos, error: retailPhotosError } = await supabase
+                .from('retail_item_photos')
+                .select('retail_item_id, storage_path, sort_order')
+                .in('retail_item_id', retailItemIds)
+                .order('sort_order', { ascending: true });
+
+              if (retailPhotosError) {
+                console.error('Error fetching retail item photos:', retailPhotosError);
+              } else if (retailPhotos && retailPhotos.length > 0) {
+                const photosById = retailPhotos.reduce((acc: Record<string, { storage_path: string; sort_order: number }[]>, photo) => {
+                  if (!acc[photo.retail_item_id]) acc[photo.retail_item_id] = [];
+                  acc[photo.retail_item_id].push(photo);
+                  return acc;
+                }, {});
+
+                retailItemsFromDb = retailItemsFromDb.map((item) => {
+                  const photos = photosById[item.id] || [];
+                  if (!photos.length) return item;
+                  return {
+                    ...item,
+                    images: photos.map((photo) => ({
+                      id: generateUUID(),
+                      file: null,
+                      preview: photo.storage_path,
+                      isNew: false,
+                    })),
+                  };
+                });
+              }
+            }
         }
 
         setForm({
           business_name: businessData.business_name || '',
           description: businessData.description || '',
-          category: businessData.category || '',
+          category: normalizeBusinessCategory(businessData.category),
           phone: businessData.phone || '',
           email: businessData.email || '',
           whatsapp: businessData.whatsapp || '',
@@ -668,7 +852,7 @@ export default function EditBusinessPage() {
       } catch (error: any) {
         console.error('Error in fetchBusinessData:', error);
         setModal({ isOpen: true, title: 'Error', message: error.message || 'An unexpected error occurred while loading business data.', onConfirm: () => {} });
-        router.push('/dashboard');
+        router.push('/business-dashboard');
       }
     }
 
@@ -678,18 +862,25 @@ export default function EditBusinessPage() {
   }, [slug, router, authReady]);
 
 
+  const applyCategoryChange = (nextCategory: string) => {
+    setForm((prevForm: any) => {
+      const newForm = { ...prevForm };
+      newForm.category = nextCategory;
+      if (nextCategory !== 'Restaurant') newForm.menu = [];
+      if (nextCategory !== 'Car Dealership') newForm.carListings = [];
+      if (!isRetailCategory(nextCategory)) newForm.retailItems = [];
+      return newForm;
+    });
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
 
     if (name === 'category') {
-      setForm((prevForm: any) => {
-        const newForm = { ...prevForm, [name]: value };
-        // Clear dynamic sections if category changes
-        if (value !== 'Restaurant') newForm.menu = [];
-        if (value !== 'Car Dealership') newForm.carListings = [];
-        if (value !== 'Retail' && value !== 'something_else') newForm.retailItems = [];
-        return newForm;
-      });
+      const normalizedNext = normalizeBusinessCategory(value);
+      const normalizedCurrent = normalizeBusinessCategory(form.category);
+      if (normalizedNext === normalizedCurrent) return;
+      setCategoryChangeModal({ isOpen: true, nextValue: normalizedNext });
       return;
     }
 
@@ -715,6 +906,12 @@ export default function EditBusinessPage() {
   async function uploadFile(file: File, fileType: 'logo' | 'gallery' | 'menu_item' | 'retail_item' | 'car_listing', dynamicItemId?: string): Promise<string> {
     if (!businessId) throw new Error("Business ID is missing for file upload context. Cannot upload files.");
 
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError) throw new Error(`Failed to get user: ${authError.message}`);
+    if (!authData?.user) throw new Error("Not logged in");
+
+    const userIdForPath = authData.user.id;
+
     let bucketName: string;
     let filePath: string;
 
@@ -722,29 +919,29 @@ export default function EditBusinessPage() {
       case 'car_listing':
         if (!dynamicItemId) throw new Error("Car Item ID is required for car listing image upload.");
         bucketName = 'car-listings';
-        filePath = `${businessId}/${dynamicItemId}/${Date.now()}-${file.name}`;
+        filePath = `${userIdForPath}/car-listings/${dynamicItemId}/${Date.now()}-${file.name}`;
         console.log(`[uploadFile] Attempting to upload to bucket: ${bucketName}, path: ${filePath}`);
         break;
       case 'menu_item':
         if (!dynamicItemId) throw new Error("Menu Item ID is required for menu item image upload.");
         bucketName = 'restaurant-menu';
-        filePath = `${businessId}/${dynamicItemId}/${Date.now()}-${file.name}`;
+        filePath = `${userIdForPath}/restaurant_menu/${dynamicItemId}/${Date.now()}-${file.name}`;
         console.log(`[uploadFile] Attempting to upload to bucket: ${bucketName}, path: ${filePath}`);
         break;
       case 'retail_item':
         if (!dynamicItemId) throw new Error("Retail Item ID is required for retail item image upload.");
         bucketName = 'retail-items';
-        filePath = `${businessId}/${dynamicItemId}/${Date.now()}-${file.name}`;
+        filePath = `${userIdForPath}/retail-items/${dynamicItemId}/${Date.now()}-${file.name}`;
         console.log(`[uploadFile] Attempting to upload to bucket: ${bucketName}, path: ${filePath}`);
         break;
       case 'logo':
         bucketName = 'business-uploads';
-        filePath = `${businessId}/logos/${Date.now()}-${file.name}`;
+        filePath = `${userIdForPath}/business-uploads/logos/${Date.now()}-${file.name}`;
         console.log(`[uploadFile] Attempting to upload to bucket: ${bucketName}, path: ${filePath}`);
         break;
       case 'gallery':
         bucketName = 'business-uploads';
-        filePath = `${businessId}/gallerys/${Date.now()}-${file.name}`;
+        filePath = `${userIdForPath}/business-uploads/gallerys/${Date.now()}-${file.name}`;
         console.log(`[uploadFile] Attempting to upload to bucket: ${bucketName}, path: ${filePath}`);
         break;
       default:
@@ -775,6 +972,64 @@ export default function EditBusinessPage() {
     return publicUrlData.publicUrl;
   }
 
+  const uploadMenuItemImages = async (
+    files: File[],
+    menuItemId: string,
+    startIndex = 0
+  ): Promise<string[]> => {
+    if (!files.length) return [];
+
+    const bucket = 'restaurant-menu';
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not logged in");
+    const uploadedPaths: string[] = [];
+
+    for (let i = 0; i < files.length; i += 1) {
+      const file = files[i];
+      const filePath = `${user.id}/restaurant_menu/${menuItemId}/${Date.now()}-${startIndex + i}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file, { upsert: false });
+
+      if (uploadError) {
+        throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+      }
+
+      uploadedPaths.push(filePath);
+    }
+
+    return uploadedPaths;
+  };
+
+  const uploadRetailItemImages = async (
+    files: File[],
+    retailItemId: string,
+    startIndex = 0
+  ): Promise<string[]> => {
+    if (!files.length) return [];
+
+    const bucket = 'retail-items';
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not logged in");
+    const uploadedPaths: string[] = [];
+
+    for (let i = 0; i < files.length; i += 1) {
+      const file = files[i];
+      const filePath = `${user.id}/retail-items/${retailItemId}/${Date.now()}-${startIndex + i}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file, { upsert: false });
+
+      if (uploadError) {
+        throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+      }
+
+      uploadedPaths.push(filePath);
+    }
+
+    return uploadedPaths;
+  };
+
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -795,9 +1050,10 @@ export default function EditBusinessPage() {
       ...(form.images || []).filter((img: ImageFileObject) => img.file instanceof File), // Filter only new files
     ];
     const newTotal = currentCombinedImages.length + files.length;
+    const maxAllowed = planLimits.max_gallery_images;
 
-    if (newTotal > 5) {
-      setModal({ isOpen: true, title: 'Upload Limit Exceeded', message: `You can upload a maximum of 5 gallery images. You are trying to add ${files.length} new images, which would exceed the limit.`, onConfirm: () => {} });
+    if (newTotal > maxAllowed) {
+      setModal({ isOpen: true, title: 'Upload Limit Exceeded', message: `Your plan allows a maximum of ${maxAllowed} gallery images. You currently have ${currentCombinedImages.length} images and are trying to add ${files.length} more, which would exceed your plan limit.`, onConfirm: () => {} });
       e.target.value = ''; // Clear the file input
       return;
     }
@@ -883,6 +1139,17 @@ export default function EditBusinessPage() {
   };
 
   const addMenuItem = () => {
+    const currentCount = form.menu.length;
+    if (currentCount >= planLimits.max_menu_items) {
+      setModal({ 
+        isOpen: true, 
+        title: 'Plan Limit Reached', 
+        message: `Your plan allows a maximum of ${planLimits.max_menu_items} menu items. You currently have ${currentCount} items. Please upgrade your plan to add more items.`, 
+        onConfirm: () => {} 
+      });
+      return;
+    }
+    
     setForm((prevForm) => ({
       ...prevForm,
       menu: [
@@ -947,6 +1214,17 @@ export default function EditBusinessPage() {
   };
 
   const addCarListing = () => {
+    const currentCount = form.carListings.length;
+    if (currentCount >= planLimits.max_car_listings) {
+      setModal({ 
+        isOpen: true, 
+        title: 'Plan Limit Reached', 
+        message: `Your plan allows a maximum of ${planLimits.max_car_listings} car listings. You currently have ${currentCount} listings. Please upgrade your plan to add more listings.`, 
+        onConfirm: () => {} 
+      });
+      return;
+    }
+    
     setForm((prevForm) => ({
       ...prevForm,
       carListings: [
@@ -983,8 +1261,9 @@ export default function EditBusinessPage() {
         const currentImages = updatedItem.images || [];
         const newTotal = currentImages.length + newFiles.length;
 
-        if (newTotal > 8) { // Max 8 pictures per retail item
-          setModal({ isOpen: true, title: 'Upload Limit Exceeded', message: `You can upload a maximum of 8 images per retail item. You are trying to add ${newFiles.length} new images, which would exceed the limit.`, onConfirm: () => {} });
+        const maxRetailImages = Math.max(1, planLimits.max_gallery_images || 0);
+        if (newTotal > maxRetailImages) {
+          setModal({ isOpen: true, title: 'Upload Limit Exceeded', message: `Your plan allows a maximum of ${maxRetailImages} images per retail item. You are trying to add ${newFiles.length} new images, which would exceed the limit.`, onConfirm: () => {} });
           return prevForm;
         }
 
@@ -1019,6 +1298,17 @@ export default function EditBusinessPage() {
   };
 
   const addRetailItem = () => {
+    const currentCount = form.retailItems.length;
+    if (currentCount >= planLimits.max_retail_items) {
+      setModal({ 
+        isOpen: true, 
+        title: 'Plan Limit Reached', 
+        message: `Your plan allows a maximum of ${planLimits.max_retail_items} retail items. You currently have ${currentCount} items. Please upgrade your plan to add more items.`, 
+        onConfirm: () => {} 
+      });
+      return;
+    }
+    
     setForm((prevForm) => ({
       ...prevForm,
       retailItems: [
@@ -1068,6 +1358,17 @@ export default function EditBusinessPage() {
       setSubmitting(false);
       return;
     }
+    if (form.description.length > 120) {
+      setModal({
+        isOpen: true,
+        title: 'Description Too Long',
+        message: 'Please keep the business description at 120 characters or less.',
+        onConfirm: () => {},
+      });
+      setIsSaving(false);
+      setSubmitting(false);
+      return;
+    }
 
     try {
       // 1. Upload Logo if changed
@@ -1113,7 +1414,6 @@ export default function EditBusinessPage() {
         logo_url: uploadedLogoUrl,
         images: finalGalleryUrls,
         slug: form.slug,
-        owner_id: userId,
       };
 
       console.log('Updating main business entry with data:', updateData);
@@ -1172,26 +1472,24 @@ export default function EditBusinessPage() {
           const menuItemId = item.id;
           console.log(`Processing menu item ${item._isNew ? 'new' : 'existing'}:`, menuItemId, item.name);
 
-          const newImageFiles = item.images.filter((img: ImageFileObject) => img.file instanceof File);
-          const uploadedNewImagesUrls = await Promise.all(
-            newImageFiles.map(async (img: ImageFileObject) => await uploadFile(img.file as File, 'menu_item', menuItemId))
-          );
-
-          // Get existing image URLs (not new uploads)
-          const existingImageUrls = item.images
+          const existingImagePaths = item.images
             .filter((img: ImageFileObject) => !img.isNew)
-            .map((img: ImageFileObject) => img.preview) // Get preview URL for existing
+            .map((img: ImageFileObject) => extractStoragePath(img.preview, ['restaurant_menu', 'restaurant-menu']))
             .filter(Boolean);
 
-          // Combine existing and new image URLs
-          const finalImageUrls = [...existingImageUrls, ...uploadedNewImagesUrls];
+          const newImageFiles = item.images
+            .filter((img: ImageFileObject) => img.file instanceof File)
+            .map((img: ImageFileObject) => img.file as File);
+
+          const uploadedPaths = await uploadMenuItemImages(newImageFiles, menuItemId, existingImagePaths.length);
+          const finalImagePaths = [...existingImagePaths, ...uploadedPaths];
 
           const menuItemData: { [key: string]: any } = {
             business_id: businessId,
             name: item.name || '',
             description: item.description || '',
-            price: parseFloat(item.price) || 0,
-            image_url: finalImageUrls[0] || null, // Assuming only one image is stored in DB for simplicity based on schema
+            price: parseFloat(normalizeNumberString(item.price)) || 0,
+            image_url: finalImagePaths[0] || null, // Keep first image for legacy display
             category: item.category || '',
           };
 
@@ -1218,10 +1516,31 @@ export default function EditBusinessPage() {
               }
             }
           }
+
+          const { error: deletePhotosError } = await supabase
+            .from('menu_item_photos')
+            .delete()
+            .eq('menu_item_id', menuItemId);
+
+          if (deletePhotosError) {
+            throw new Error(`Failed to reset menu item photos: ${deletePhotosError.message}`);
+          }
+
+          if (finalImagePaths.length > 0) {
+            const photoRows = finalImagePaths.map((path, idx) => ({
+              menu_item_id: menuItemId,
+              storage_path: path,
+              sort_order: idx,
+            }));
+            const { error: insertPhotosError } = await supabase.from('menu_item_photos').insert(photoRows);
+            if (insertPhotosError) {
+              throw new Error(`Failed to save menu item photos: ${insertPhotosError.message}`);
+            }
+          }
         });
         await Promise.all(upsertMenuPromises);
         console.log('All menu items processed.');
-      } else if (form.category === 'Retail' || form.category === 'something_else') {
+      } else if (isRetailCategory(form.category)) {
         const retailItemsToProcess = form.retailItems || [];
         console.log('Processing retail items:', retailItemsToProcess);
 
@@ -1253,33 +1572,40 @@ export default function EditBusinessPage() {
           } else {
             console.log('Successfully deleted retail items:', idsToDelete);
           }
+
+          const { error: deleteRetailPhotosError } = await supabase
+            .from('retail_item_photos')
+            .delete()
+            .in('retail_item_id', idsToDelete);
+          if (deleteRetailPhotosError) {
+            console.error('Error deleting retail item photos:', deleteRetailPhotosError);
+            throw new Error(`Failed to delete retail item photos: ${deleteRetailPhotosError.message}`);
+          }
         }
 
         const upsertRetailPromises = retailItemsToProcess.map(async (item: RetailItem) => {
           const retailItemId = item.id;
           console.log(`Processing retail item ${item._isNew ? 'new' : 'existing'}:`, retailItemId, item.name);
 
-          const newImageFiles = item.images.filter((img: ImageFileObject) => img.file instanceof File);
-          const uploadedNewImagesUrls = await Promise.all(
-            newImageFiles.map(async (img: ImageFileObject) => await uploadFile(img.file as File, 'retail_item', retailItemId))
-          );
-
-          // Get existing image URLs (not new uploads)
-          const existingImageUrls = item.images
+          const existingImagePaths = item.images
             .filter((img: ImageFileObject) => !img.isNew)
-            .map((img: ImageFileObject) => img.preview)
+            .map((img: ImageFileObject) => extractStoragePath(img.preview, ['retail-items', 'retail_items']))
             .filter(Boolean);
 
-          // Combine existing and new image URLs
-          const finalImageUrls = [...existingImageUrls, ...uploadedNewImagesUrls];
+          const newImageFiles = item.images
+            .filter((img: ImageFileObject) => img.file instanceof File)
+            .map((img: ImageFileObject) => img.file as File);
+
+          const uploadedPaths = await uploadRetailItemImages(newImageFiles, retailItemId, existingImagePaths.length);
+          const finalImagePaths = [...existingImagePaths, ...uploadedPaths];
 
           const retailItemData: { [key: string]: any } = {
             business_id: businessId,
             name: item.name || '',
             description: item.description || '',
-            price: parseFloat(item.price) || 0,
+            price: parseFloat(normalizeNumberString(item.price)) || 0,
             category: item.category || '',
-            images: finalImageUrls, // Store all images in the 'images' array
+            images: finalImagePaths, // Store storage paths in the 'images' array
           };
 
           if (item._isNew) {
@@ -1303,6 +1629,27 @@ export default function EditBusinessPage() {
               } else {
                 console.log('Successfully updated retail item:', item.id);
               }
+            }
+          }
+
+          const { error: deleteRetailPhotosError } = await supabase
+            .from('retail_item_photos')
+            .delete()
+            .eq('retail_item_id', retailItemId);
+
+          if (deleteRetailPhotosError) {
+            throw new Error(`Failed to reset retail item photos: ${deleteRetailPhotosError.message}`);
+          }
+
+          if (finalImagePaths.length > 0) {
+            const photoRows = finalImagePaths.map((path, idx) => ({
+              retail_item_id: retailItemId,
+              storage_path: path,
+              sort_order: idx,
+            }));
+            const { error: insertRetailPhotosError } = await supabase.from('retail_item_photos').insert(photoRows);
+            if (insertRetailPhotosError) {
+              throw new Error(`Failed to save retail item photos: ${insertRetailPhotosError.message}`);
             }
           }
         });
@@ -1363,9 +1710,9 @@ export default function EditBusinessPage() {
           const carListingData: { [key: string]: any } = {
             business_id: businessId,
             title: item.title || '',
-            price: parseFloat(item.price) || 0,
-            year: parseInt(item.year) || null,
-            mileage: parseFloat(item.mileage) || null,
+            price: parseFloat(normalizeNumberString(item.price)) || 0,
+            year: parseInt(normalizeNumberString(item.year), 10) || null,
+            mileage: parseFloat(normalizeNumberString(item.mileage)) || null,
             condition: item.condition || '',
             description: item.description || '',
             images: finalImageUrls, // Store all images in the 'images' array
@@ -1530,6 +1877,9 @@ export default function EditBusinessPage() {
   }
 
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const descriptionLimit = 120;
+  const descriptionCount = form.description.length;
+  const isDescriptionTooLong = descriptionCount > descriptionLimit;
 
   // Combine existing and new gallery images for display, ensuring unique 'id' for each image object
   const combinedGalleryImages: ImageFileObject[] = [
@@ -1549,6 +1899,18 @@ export default function EditBusinessPage() {
       />
 
       <CustomModal
+        isOpen={categoryChangeModal.isOpen}
+        title="Change business category?"
+        message="Changing your category will clear any items that don't belong to the new category. Are you sure you want to continue?"
+        onClose={() => setCategoryChangeModal({ isOpen: false, nextValue: '' })}
+        onConfirm={() => {
+          applyCategoryChange(categoryChangeModal.nextValue);
+          setCategoryChangeModal({ isOpen: false, nextValue: '' });
+        }}
+        backdropClassName="backdrop-blur-sm"
+      />
+
+      <CustomModal
         isOpen={deleteModal.isOpen}
         title="Confirm Deletion"
         message="Are you sure you want to delete this item?"
@@ -1560,6 +1922,114 @@ export default function EditBusinessPage() {
         <h1 className="text-3xl font-bold text-center mb-8 text-blue-600 dark:text-blue-400">Edit Business Details</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Plan Status Section */}
+          {planStatus.plan && (
+            <section className="p-6 border-2 border-blue-200 dark:border-blue-700 rounded-lg shadow-sm bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
+                    <Package size={24} className="text-blue-600 dark:text-blue-400" />
+                    Current Plan: <span className="text-blue-600 dark:text-blue-400 capitalize">{planStatus.plan}</span>
+                  </h2>
+                  {planStatus.plan_expires_at && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Expires: <span className="font-medium">{new Date(planStatus.plan_expires_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => router.push('/business/plan')}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 text-sm font-medium"
+                >
+                  Upgrade Plan
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-blue-200 dark:border-blue-700">
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Gallery Images</div>
+                  <div className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                    {combinedGalleryImages.length} / {planLimits.max_gallery_images}
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Menu Items</div>
+                  <div className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                    {form.menu.length} / {planLimits.max_menu_items}
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Retail Items</div>
+                  <div className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                    {form.retailItems.length} / {planLimits.max_retail_items}
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Car Listings</div>
+                  <div className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                    {form.carListings.length} / {planLimits.max_car_listings}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Plan Features */}
+              <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-700">
+                <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Plan Features:</div>
+                <div className="flex flex-wrap gap-3">
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${
+                    planFeatures.allow_social_links 
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' 
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  }`}>
+                    {planFeatures.allow_social_links ? '✓' : '✗'} Social Links
+                  </div>
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${
+                    planFeatures.allow_whatsapp 
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' 
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  }`}>
+                    {planFeatures.allow_whatsapp ? '✓' : '✗'} WhatsApp
+                  </div>
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${
+                    planFeatures.allow_promoted 
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' 
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  }`}>
+                    {planFeatures.allow_promoted ? '✓' : '✗'} Promoted
+                  </div>
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${
+                    planFeatures.allow_qr 
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' 
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                  }`}>
+                    {planFeatures.allow_qr ? '✓' : '✗'} QR Code
+                  </div>
+                  {planStatus.plan && planStatus.plan !== 'free' && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
+                      ✓ Custom Website Link
+                    </div>
+                  )}
+                  {planStatus.plan && (planStatus.plan === 'growth' || planStatus.plan === 'premium') && (
+                    <>
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
+                        ✓ Customer Notifications
+                      </div>
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
+                        ✓ Business Analytics
+                      </div>
+                    </>
+                  )}
+                  {planStatus.plan && planStatus.plan === 'premium' && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
+                      ✓ Advertising & Promotion
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* General Business Information */}
           <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
             <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Basic Information</h2>
@@ -1578,6 +2048,14 @@ export default function EditBusinessPage() {
               rows={3}
               icon={Info}
             />
+            <div className="flex items-center justify-between text-xs">
+              <span className={isDescriptionTooLong ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'}>
+                {descriptionCount}/{descriptionLimit}
+              </span>
+              {isDescriptionTooLong && (
+                <span className="text-red-600">Description exceeds 120 characters.</span>
+              )}
+            </div>
             <div>
               <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Business Category</label>
               <div className="relative">
@@ -1609,7 +2087,16 @@ export default function EditBusinessPage() {
             <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Contact Information</h2>
             <FormInput name="phone" value={form.phone} onChange={handleChange} placeholder="Phone Number" type="tel" icon={Phone} />
             <FormInput name="email" value={form.email} onChange={handleChange} placeholder="Email Address" type="email" icon={Mail} />
-            <FormInput name="whatsapp" value={form.whatsapp} onChange={handleChange} placeholder="WhatsApp Number (optional)" type="tel" icon={MessageSquare} />
+            {planFeatures.allow_whatsapp ? (
+              <FormInput name="whatsapp" value={form.whatsapp} onChange={handleChange} placeholder="WhatsApp Number (optional)" type="tel" icon={MessageSquare} />
+            ) : (
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+                  <Info size={18} />
+                  <span className="text-sm font-medium">WhatsApp is not available on your current plan. Upgrade to enable this feature.</span>
+                </div>
+              </div>
+            )}
             <FormInput name="website" value={form.website} onChange={handleChange} placeholder="Website URL" type="url" icon={ExternalLink} />
           </section>
 
@@ -1625,13 +2112,25 @@ export default function EditBusinessPage() {
           </section>
 
           {/* Social Media */}
-          <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Social Media</h2>
-            <FormInput name="facebook" value={form.facebook} onChange={handleChange} placeholder="Facebook Profile URL" icon={Facebook} />
-            <FormInput name="instagram" value={form.instagram} onChange={handleChange} placeholder="Instagram Profile URL" icon={Instagram} />
-            <FormInput name="twitter" value={form.twitter} onChange={handleChange} placeholder="Twitter/X Profile URL" icon={Twitter} />
-            <FormInput name="tiktok" value={form.tiktok} onChange={handleChange} placeholder="TikTok Profile URL" icon={Video} />
-          </section>
+          {planFeatures.allow_social_links ? (
+            <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
+              <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Social Media</h2>
+              <FormInput name="facebook" value={form.facebook} onChange={handleChange} placeholder="Facebook Profile URL" icon={Facebook} />
+              <FormInput name="instagram" value={form.instagram} onChange={handleChange} placeholder="Instagram Profile URL" icon={Instagram} />
+              <FormInput name="twitter" value={form.twitter} onChange={handleChange} placeholder="Twitter/X Profile URL" icon={Twitter} />
+              <FormInput name="tiktok" value={form.tiktok} onChange={handleChange} placeholder="TikTok Profile URL" icon={Video} />
+            </section>
+          ) : (
+            <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
+              <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Social Media</h2>
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+                  <Info size={18} />
+                  <span className="text-sm font-medium">Social media links are not available on your current plan. Upgrade to enable this feature.</span>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Business Hours */}
           <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
@@ -1692,7 +2191,12 @@ export default function EditBusinessPage() {
 
           {/* Gallery Images Upload */}
           <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Gallery Images (Max 5)</h2>
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
+              Gallery Images (Max {planLimits.max_gallery_images})
+              <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+                ({combinedGalleryImages.length} / {planLimits.max_gallery_images})
+              </span>
+            </h2>
             <input
               type="file"
               accept="image/*"
@@ -1735,11 +2239,21 @@ export default function EditBusinessPage() {
           {form.category === 'Restaurant' && (
             <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
               <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4 flex justify-between items-center">
-                Restaurant Menu Items
+                <span>
+                  Restaurant Menu Items
+                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+                    ({form.menu.length} / {planLimits.max_menu_items})
+                  </span>
+                </span>
                 <button
                   type="button"
                   onClick={addMenuItem}
-                  className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 flex items-center text-sm"
+                  disabled={form.menu.length >= planLimits.max_menu_items}
+                  className={`px-3 py-1 rounded-md transition-colors duration-200 flex items-center text-sm ${
+                    form.menu.length >= planLimits.max_menu_items
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
                 >
                   <Plus size={16} className="mr-1" /> Add Menu Item
                 </button>
@@ -1781,8 +2295,8 @@ export default function EditBusinessPage() {
                             />
                             <FormInput
                               name="price"
-                              value={item.price}
-                              onChange={(e) => handleMenuItemChange(index, 'price', e.target.value)}
+                              value={formatCurrencyDisplay(item.price)}
+                              onChange={(e) => handleMenuItemChange(index, 'price', normalizeNumericInput(e.target.value, true))}
                               placeholder="Price"
                               type="text" // Keep as text to allow flexible input like "10.99"
                               icon={DollarSign}
@@ -1864,11 +2378,21 @@ export default function EditBusinessPage() {
           {form.category === 'Car Dealership' && (
             <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
               <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4 flex justify-between items-center">
-                Car Listings
+                <span>
+                  Car Listings
+                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+                    ({form.carListings.length} / {planLimits.max_car_listings})
+                  </span>
+                </span>
                 <button
                   type="button"
                   onClick={addCarListing}
-                  className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 flex items-center text-sm"
+                  disabled={form.carListings.length >= planLimits.max_car_listings}
+                  className={`px-3 py-1 rounded-md transition-colors duration-200 flex items-center text-sm ${
+                    form.carListings.length >= planLimits.max_car_listings
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
                 >
                   <Plus size={16} className="mr-1" /> Add Car Listing
                 </button>
@@ -1902,8 +2426,8 @@ export default function EditBusinessPage() {
                             />
                             <FormInput
                               name="price"
-                              value={item.price}
-                              onChange={(e) => handleCarListingChange(index, 'price', e.target.value)}
+                              value={formatCurrencyDisplay(item.price)}
+                              onChange={(e) => handleCarListingChange(index, 'price', normalizeNumericInput(e.target.value, true))}
                               placeholder="Price (e.g., $25,000)"
                               type="text" // Keep as text to allow formatting like "$25,000"
                               icon={DollarIcon}
@@ -1918,8 +2442,8 @@ export default function EditBusinessPage() {
                             />
                             <FormInput
                               name="mileage"
-                              value={item.mileage}
-                              onChange={(e) => handleCarListingChange(index, 'mileage', e.target.value)}
+                              value={formatNumberWithCommas(item.mileage)}
+                              onChange={(e) => handleCarListingChange(index, 'mileage', normalizeNumericInput(e.target.value, false))}
                               placeholder="Mileage (e.g., 50,000 miles)"
                               type="text" // Keep as text to allow formatting like "50,000 miles"
                               icon={Gauge}
@@ -2007,14 +2531,24 @@ export default function EditBusinessPage() {
             </section>
           )}
 
-          {form.category === 'Retail' && (
+          {isRetailCategory(form.category) && (
             <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
               <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4 flex justify-between items-center">
-                Retail Items
+                <span>
+                  Retail Items
+                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+                    ({form.retailItems.length} / {planLimits.max_retail_items})
+                  </span>
+                </span>
                 <button
                   type="button"
                   onClick={addRetailItem}
-                  className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 flex items-center text-sm"
+                  disabled={form.retailItems.length >= planLimits.max_retail_items}
+                  className={`px-3 py-1 rounded-md transition-colors duration-200 flex items-center text-sm ${
+                    form.retailItems.length >= planLimits.max_retail_items
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
                 >
                   <Plus size={16} className="mr-1" /> Add Retail Item
                 </button>
@@ -2048,8 +2582,8 @@ export default function EditBusinessPage() {
                             />
                             <FormInput
                               name="price"
-                              value={item.price}
-                              onChange={(e) => handleRetailItemChange(index, 'price', e.target.value)}
+                              value={formatCurrencyDisplay(item.price)}
+                              onChange={(e) => handleRetailItemChange(index, 'price', normalizeNumericInput(e.target.value, true))}
                               placeholder="Price (e.g., $49.99)"
                               type="text" // Keep as text to allow flexible input like "49.99"
                               icon={DollarIcon}

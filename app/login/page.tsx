@@ -13,50 +13,62 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (clicked) return;
+
     setClicked(true);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      // ✅ 1) Sign in
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (signInError) {
-      toast.error(signInError.message);
+      if (signInError) {
+        toast.error(signInError.message);
+        return;
+      }
+
+      const userId = signInData.user?.id;
+      if (!userId) {
+        toast.error('Login succeeded, but user ID is missing.');
+        return;
+      }
+
+      // ✅ 2) Get account type from your table
+      // NOTE: make sure `registeredaccounts.user_id` is the auth user id (uuid)
+      const { data: profile, error: profileError } = await supabase
+        .from('registeredaccounts')
+        .select('business, organization')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (profileError) {
+        toast.error(`Failed to load account type: ${profileError.message}`);
+        return;
+      }
+
+      // ✅ 3) Determine user type and store it
+      let userType: 'business' | 'individual' | 'organization' = 'individual';
+      
+      if (profile?.business === true) {
+        userType = 'business';
+      } else if (profile?.organization === true) {
+        userType = 'organization';
+      }
+
+      // Store user type in localStorage so it's available throughout the app
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('userType', userType);
+      }
+
+      // ✅ 4) Redirect everyone to home page
+      toast.success('Login successful!');
+      router.replace('/');
+    } catch (err: any) {
+      toast.error(err?.message || 'Unexpected login error.');
+    } finally {
       setClicked(false);
-      return;
-    }
-
-    // ✅ Fetch session and role info
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData.session?.user?.id;
-
-    if (!userId) {
-      toast.error('Failed to retrieve user session.');
-      setClicked(false);
-      return;
-    }
-
-    // Fetch business/organization info for this user
-    const { data: profile, error: roleError } = await supabase
-      .from('registeredaccounts')
-      .select('business, organization')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (roleError || !profile) {
-      toast.error('Failed to load user profile.');
-      setClicked(false);
-      return;
-    }
-
-    // ✅ Redirect based on account type (use the correct dashboard paths!)
-    toast.success('Login successful!');
-    if (profile.business) {
-      router.push('/business/dashboard');
-    } else if (profile.organization) {
-      router.push('/organization/dashboard');
-    } else {
-      router.push('/dashboard');
     }
   };
 

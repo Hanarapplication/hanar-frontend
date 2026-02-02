@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
+import Link from 'next/link';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -240,7 +241,29 @@ if (error) {
     <div className="max-w-2xl mx-auto p-6 space-y-6 bg-white rounded-xl shadow">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold text-gray-900">{post.title}</h1>
-        <p className="text-sm text-gray-500">@{post.author} • {new Date(post.created_at).toLocaleDateString()}</p>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+          {post.author_type === 'organization' && post.username ? (
+            <Link href={`/organization/${post.username}`} className="text-indigo-600 hover:underline">
+              @{post.username}
+            </Link>
+          ) : post.author_type === 'business' && post.username ? (
+            <Link href={`/business/${post.username}`} className="text-indigo-600 hover:underline">
+              @{post.username}
+            </Link>
+          ) : post.username ? (
+            <Link href={`/profile/${post.username}`} className="text-indigo-600 hover:underline">
+              @{post.username}
+            </Link>
+          ) : (
+            <span>{post.author}</span>
+          )}
+          {post.author_type === 'organization' && (
+            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600">
+              Organization
+            </span>
+          )}
+          <span>• {new Date(post.created_at).toLocaleDateString()}</span>
+        </div>
       </div>
 
       {post.image && (
@@ -351,7 +374,9 @@ if (error) {
 
 </div>
 
-  <span className="text-gray-600 text-xs">@{c.username}</span>
+  <Link href={`/profile/${c.username}`} className="text-indigo-600 hover:underline text-xs">
+    @{c.username}
+  </Link>
   <span className="text-gray-400 text-xs">• {new Date(c.created_at).toLocaleDateString()}</span>
   {userSession && (
     <button

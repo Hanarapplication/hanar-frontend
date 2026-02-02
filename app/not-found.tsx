@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import LiveRefreshLink from '@/components/LiveRefreshLink';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -46,12 +47,12 @@ export default function NotFound() {
           </button>
         </form>
 
-        <Link
+        <LiveRefreshLink
           href="/"
           className="inline-block mt-2 text-sm text-blue-600 hover:underline"
         >
           ← Back to Hanar Home
-        </Link>
+        </LiveRefreshLink>
       </div>
     </div>
   );
