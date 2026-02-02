@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import LiveRefreshLink from '@/components/LiveRefreshLink';
-import LiveRefreshLink from '@/components/LiveRefreshLink';
 
 // Mock Data
 const featuredBusinesses = [
