@@ -32,13 +32,12 @@ export default function LocationPromptModal() {
   ) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const accessToken = session?.access_token;
-      if (!accessToken) return;
+      const accessToken = session?.access_token || '';
       await fetch('/api/user-location', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
           lat,
@@ -81,7 +80,7 @@ export default function LocationPromptModal() {
     if (!zipCity) return alert(t('pleaseEnterZip'));
     try {
       const res = await fetch(
-        `/api/geocode?query=${encodeURIComponent(zipCity)}&addressdetails=1`
+        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(zipCity)}`
       );
       const data = await res.json();
       if (data.length > 0) {

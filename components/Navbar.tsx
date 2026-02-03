@@ -22,13 +22,12 @@ export default function Navbar() {
     ) => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        const accessToken = session?.access_token;
-        if (!accessToken) return;
+        const accessToken = session?.access_token || '';
         await fetch('/api/user-location', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
           },
           body: JSON.stringify({
             lat,
@@ -56,7 +55,7 @@ export default function Navbar() {
         setLocationLabel(label);
         return;
       }
-      fetch(`/api/reverse-geocode?lat=${lat}&lon=${lon}`)
+      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
         .then((res) => res.json())
         .then((data) => {
           const city =
@@ -192,18 +191,17 @@ export default function Navbar() {
         const lon = pos.coords.longitude;
         localStorage.setItem('userCoords', JSON.stringify({ lat, lon }));
         supabase.auth.getSession().then(({ data: { session } }) => {
-          const accessToken = session?.access_token;
-          if (!accessToken) return;
+          const accessToken = session?.access_token || '';
           fetch('/api/user-location', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
             },
             body: JSON.stringify({ lat, lng: lon, source: 'gps' }),
           }).catch(() => {});
         });
-        fetch(`/api/reverse-geocode?lat=${lat}&lon=${lon}`)
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
           .then((res) => res.json())
           .then((data) => {
             const city =
