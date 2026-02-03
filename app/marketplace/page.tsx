@@ -17,6 +17,7 @@ function getDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number
 }
 
 export default function MarketplacePage() {
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || '';
   const [items, setItems] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
@@ -43,7 +44,9 @@ export default function MarketplacePage() {
 
   const lookupZipOrCity = async () => {
     if (!zipFallback) return;
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(zipFallback)}`);
+    const res = await fetch(
+      `/api/geocode?query=${encodeURIComponent(zipFallback)}`
+    );
     const data = await res.json();
     if (data.length > 0) {
       setTempCoords({ lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) });
@@ -77,7 +80,7 @@ export default function MarketplacePage() {
       setTempCoords(JSON.parse(saved));
     }
 
-    fetch('http://localhost:5000/api/marketplace/list')
+    fetch(`${apiBase}/api/marketplace/list`)
       .then(res => res.json())
       .then(data => setItems(data.items || []));
   }, []);

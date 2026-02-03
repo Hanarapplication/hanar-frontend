@@ -47,7 +47,7 @@ export default function HanarAIWidget() {
         const { latitude, longitude } = pos.coords;
         try {
           const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+            `/api/reverse-geocode?lat=${latitude}&lon=${longitude}`
           );
           const data = await res.json();
           const city =

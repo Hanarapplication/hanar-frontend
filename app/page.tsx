@@ -147,7 +147,7 @@ export default function Home() {
         <section className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-800">Featured Businesses</h2>
-            <LiveRefreshLink href="/businesses" className="inline-flex items-center bg-[#A93226] hover:bg-[#922B21] text-white text-sm font-medium rounded-full px-3 py-2 transition-colors shadow-sm">
+            <LiveRefreshLink href="/businesses" className="inline-flex items-center bg-blue-900 hover:bg-blue-800 text-white text-sm font-medium rounded-full px-3 py-2 transition-colors shadow-sm">
               View All <svg className="ml-2 -mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
             </LiveRefreshLink>
           </div>
@@ -217,7 +217,7 @@ continu
         <section className="bg-white rounded-lg shadow-md p-6" ref={communitySectionRef}>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-800">Top Communities</h2>
-            <Link href="/communities" className="inline-flex items-center bg-teal-500 hover:bg-teal-600 text-white text-sm font-medium rounded-full px-3 py-2 transition-colors">
+            <Link href="/communities" className="inline-flex items-center bg-blue-900 hover:bg-blue-800 text-white text-sm font-medium rounded-full px-3 py-2 transition-colors">
               View All <svg className="ml-2 -mr-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
             </Link>
           </div>

@@ -20,28 +20,29 @@ export async function POST(req: Request) {
     if (!SUPABASE_URL) throw new Error('Missing SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL');
     if (!SERVICE_ROLE_KEY) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
 
-    const supabaseServer = createRouteHandlerClient({ cookies });
     const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
     });
-    const { data: { user }, error: authError } = await supabaseServer.auth.getUser();
-    let authedUser = user;
+    const authHeader = req.headers.get('authorization') || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    let authedUser: { id: string } | null = null;
     let usedServiceRole = false;
+    let supabaseServer: ReturnType<typeof createRouteHandlerClient> | null = null;
 
-    if (!authedUser || authError) {
-      const authHeader = req.headers.get('authorization') || '';
-      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-      if (token) {
-        const { data, error } = await supabaseAdmin.auth.getUser(token);
-        if (!error) {
-          authedUser = data.user || null;
-          usedServiceRole = true;
-        }
+    if (token) {
+      const { data, error } = await supabaseAdmin.auth.getUser(token);
+      if (error || !data.user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
-    }
-
-    if (!authedUser) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      authedUser = data.user;
+      usedServiceRole = true;
+    } else {
+      supabaseServer = createRouteHandlerClient({ cookies });
+      const { data: { user }, error } = await supabaseServer.auth.getUser();
+      if (error || !user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      authedUser = user;
     }
 
     const payload = (await req.json()) as Payload;
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
     const zip = payload.zip ? String(payload.zip).trim() : null;
     const source = payload.source ? String(payload.source).trim() : null;
 
-    const writeClient = usedServiceRole ? supabaseAdmin : supabaseServer;
+    const writeClient = usedServiceRole ? supabaseAdmin : supabaseServer!;
     const { error } = await writeClient
       .from('user_locations')
       .upsert(
