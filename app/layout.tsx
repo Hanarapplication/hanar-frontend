@@ -13,6 +13,9 @@ import Script from 'next/script'; // ✅ Import Script
 export const metadata = {
   title: 'Hanar',
   description: 'Connecting immigrant businesses and marketplaces',
+  icons: {
+    icon: '/hanar-logo.png',
+  },
 };
 
 export default function RootLayout({
