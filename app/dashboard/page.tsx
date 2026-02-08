@@ -50,7 +50,7 @@ export default function DashboardPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          setFavorites([]);
+          router.replace('/login');
           return;
         }
 

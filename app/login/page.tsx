@@ -118,7 +118,7 @@ export default function LoginPage() {
 
         <a
           href="/register"
-          className="block w-full py-3 text-center rounded-lg font-semibold text-white bg-[#42b72a] hover:bg-[#36a420] transition"
+          className="block w-full py-3 text-center rounded-lg font-semibold text-white bg-indigo-500 hover:bg-indigo-600 transition"
         >
           Create new account
         </a>
