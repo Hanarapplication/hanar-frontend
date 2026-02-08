@@ -3,6 +3,7 @@
 import { useEffect, useState, ChangeEvent, FormEvent, FC } from 'react';
 import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Heart, Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { compressImage } from '@/lib/imageCompression';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -477,12 +478,22 @@ export default function OrganizationDashboard() {
       const orgId = profile.id;
       if (!orgId) throw new Error('Missing organization id (organizations.id).');
 
-      const safeName = file.name.replace(/\s+/g, '-');
+      const isLogo = folder === ORG_STORAGE.logoFolder;
+      const compressed = await compressImage(file, isLogo ? {
+        maxSizeMB: 0.25,
+        maxWidthOrHeight: 512,
+        initialQuality: 0.85,
+      } : {
+        maxSizeMB: 0.8,
+        maxWidthOrHeight: 1920,
+        initialQuality: 0.82,
+      });
+      const safeName = compressed.name.replace(/\s+/g, '-');
       const filePath = `${orgId}/${folder}/${Date.now()}-${safeName}`;
 
       const { error: uploadError } = await supabase.storage
         .from(ORG_STORAGE.bucket)
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, compressed, { upsert: true });
 
       if (uploadError) throw uploadError;
 
@@ -636,13 +647,18 @@ export default function OrganizationDashboard() {
       let imageUrl = null;
       if (postImage) {
         console.log('Uploading image...');
-        const fileExt = postImage.name.split('.').pop();
+        const compressed = await compressImage(postImage, {
+          maxSizeMB: 0.7,
+          maxWidthOrHeight: 1600,
+          initialQuality: 0.82,
+        });
+        const fileExt = compressed.name.split('.').pop();
         const orgId = profile.id || profile.user_id;
         const fileName = `${orgId}/${ORG_STORAGE.postFolder}/post-${Date.now()}.${fileExt}`;
         
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from(ORG_STORAGE.bucket)
-          .upload(fileName, postImage);
+          .upload(fileName, compressed);
 
         if (uploadError) {
           console.error('Image upload error:', uploadError);

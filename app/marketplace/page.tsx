@@ -17,6 +17,7 @@ function getDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number
 }
 
 export default function MarketplacePage() {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
   const [items, setItems] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
@@ -77,7 +78,7 @@ export default function MarketplacePage() {
       setTempCoords(JSON.parse(saved));
     }
 
-    fetch('http://localhost:5000/api/marketplace/list')
+    fetch(`${apiBaseUrl}/api/marketplace/list`)
       .then(res => res.json())
       .then(data => setItems(data.items || []));
   }, []);

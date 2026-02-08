@@ -245,6 +245,8 @@ export default function BusinessesPage() {
                   <img
                     src={biz.logo_url || `https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop`}
                     alt={biz.business_name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <button

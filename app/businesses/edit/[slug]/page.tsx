@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient'; // Import your Supabase client
+import { compressImage } from '@/lib/imageCompression';
 
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
@@ -914,34 +915,38 @@ export default function EditBusinessPage() {
 
     let bucketName: string;
     let filePath: string;
+    const compressionOptions = fileType === 'logo'
+      ? { maxSizeMB: 0.25, maxWidthOrHeight: 512, initialQuality: 0.85 }
+      : { maxSizeMB: 0.8, maxWidthOrHeight: 1600, initialQuality: 0.82 };
+    const compressed = await compressImage(file, compressionOptions);
 
     switch (fileType) {
       case 'car_listing':
         if (!dynamicItemId) throw new Error("Car Item ID is required for car listing image upload.");
         bucketName = 'car-listings';
-        filePath = `${userIdForPath}/car-listings/${dynamicItemId}/${Date.now()}-${file.name}`;
+        filePath = `${userIdForPath}/car-listings/${dynamicItemId}/${Date.now()}-${compressed.name}`;
         console.log(`[uploadFile] Attempting to upload to bucket: ${bucketName}, path: ${filePath}`);
         break;
       case 'menu_item':
         if (!dynamicItemId) throw new Error("Menu Item ID is required for menu item image upload.");
         bucketName = 'restaurant-menu';
-        filePath = `${userIdForPath}/restaurant_menu/${dynamicItemId}/${Date.now()}-${file.name}`;
+        filePath = `${userIdForPath}/restaurant_menu/${dynamicItemId}/${Date.now()}-${compressed.name}`;
         console.log(`[uploadFile] Attempting to upload to bucket: ${bucketName}, path: ${filePath}`);
         break;
       case 'retail_item':
         if (!dynamicItemId) throw new Error("Retail Item ID is required for retail item image upload.");
         bucketName = 'retail-items';
-        filePath = `${userIdForPath}/retail-items/${dynamicItemId}/${Date.now()}-${file.name}`;
+        filePath = `${userIdForPath}/retail-items/${dynamicItemId}/${Date.now()}-${compressed.name}`;
         console.log(`[uploadFile] Attempting to upload to bucket: ${bucketName}, path: ${filePath}`);
         break;
       case 'logo':
         bucketName = 'business-uploads';
-        filePath = `${userIdForPath}/business-uploads/logos/${Date.now()}-${file.name}`;
+        filePath = `${userIdForPath}/business-uploads/logos/${Date.now()}-${compressed.name}`;
         console.log(`[uploadFile] Attempting to upload to bucket: ${bucketName}, path: ${filePath}`);
         break;
       case 'gallery':
         bucketName = 'business-uploads';
-        filePath = `${userIdForPath}/business-uploads/gallerys/${Date.now()}-${file.name}`;
+        filePath = `${userIdForPath}/business-uploads/gallerys/${Date.now()}-${compressed.name}`;
         console.log(`[uploadFile] Attempting to upload to bucket: ${bucketName}, path: ${filePath}`);
         break;
       default:
@@ -950,14 +955,14 @@ export default function EditBusinessPage() {
 
     const { data, error } = await supabase.storage
       .from(bucketName)
-      .upload(filePath, file, {
+      .upload(filePath, compressed, {
         cacheControl: '3600',
         upsert: false,
       });
 
     if (error) {
       console.error(`Upload error to ${bucketName}/${filePath}:`, error);
-      throw new Error(`Failed to upload ${file.name}: ${error.message}`);
+      throw new Error(`Failed to upload ${compressed.name}: ${error.message}`);
     }
 
     const { data: publicUrlData } = supabase.storage
@@ -965,10 +970,10 @@ export default function EditBusinessPage() {
       .getPublicUrl(data.path);
 
     if (!publicUrlData?.publicUrl) {
-      throw new Error(`Failed to get public URL for ${file.name}`);
+      throw new Error(`Failed to get public URL for ${compressed.name}`);
     }
 
-    console.log(`[uploadFile] Successfully uploaded ${file.name} to ${publicUrlData.publicUrl}`);
+    console.log(`[uploadFile] Successfully uploaded ${compressed.name} to ${publicUrlData.publicUrl}`);
     return publicUrlData.publicUrl;
   }
 
@@ -986,13 +991,18 @@ export default function EditBusinessPage() {
 
     for (let i = 0; i < files.length; i += 1) {
       const file = files[i];
-      const filePath = `${user.id}/restaurant_menu/${menuItemId}/${Date.now()}-${startIndex + i}-${file.name}`;
+      const compressed = await compressImage(file, {
+        maxSizeMB: 0.8,
+        maxWidthOrHeight: 1600,
+        initialQuality: 0.82,
+      });
+      const filePath = `${user.id}/restaurant_menu/${menuItemId}/${Date.now()}-${startIndex + i}-${compressed.name}`;
       const { error: uploadError } = await supabase.storage
         .from(bucket)
-        .upload(filePath, file, { upsert: false });
+        .upload(filePath, compressed, { upsert: false });
 
       if (uploadError) {
-        throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+        throw new Error(`Failed to upload ${compressed.name}: ${uploadError.message}`);
       }
 
       uploadedPaths.push(filePath);
@@ -1015,13 +1025,18 @@ export default function EditBusinessPage() {
 
     for (let i = 0; i < files.length; i += 1) {
       const file = files[i];
-      const filePath = `${user.id}/retail-items/${retailItemId}/${Date.now()}-${startIndex + i}-${file.name}`;
+      const compressed = await compressImage(file, {
+        maxSizeMB: 0.8,
+        maxWidthOrHeight: 1600,
+        initialQuality: 0.82,
+      });
+      const filePath = `${user.id}/retail-items/${retailItemId}/${Date.now()}-${startIndex + i}-${compressed.name}`;
       const { error: uploadError } = await supabase.storage
         .from(bucket)
-        .upload(filePath, file, { upsert: false });
+        .upload(filePath, compressed, { upsert: false });
 
       if (uploadError) {
-        throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+        throw new Error(`Failed to upload ${compressed.name}: ${uploadError.message}`);
       }
 
       uploadedPaths.push(filePath);

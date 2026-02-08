@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabaseClient'; // Ensure this path is correct
+import { compressImage } from '@/lib/imageCompression';
 
 // This function simulates geocoding. In a real application, you would use a
 // proper geocoding API (e.g., Google Geocoding API).
@@ -100,23 +101,33 @@ export default function RegisterBusinessPage() {
 
     // Loop through each file, upload to Supabase Storage, and get its public URL
     for (const file of filesToUpload) {
+      const isLogo = form.logo === file;
+      const compressed = await compressImage(file, isLogo ? {
+        maxSizeMB: 0.25,
+        maxWidthOrHeight: 512,
+        initialQuality: 0.85,
+      } : {
+        maxSizeMB: 0.8,
+        maxWidthOrHeight: 1600,
+        initialQuality: 0.82,
+      });
       // Define a unique path for each file in the 'business-uploads' bucket
-      const path = `business/${Date.now()}-${file.name}`;
-      console.log(`Attempting to upload file: ${file.name} to path: ${path}`);
+      const path = `business/${Date.now()}-${compressed.name}`;
+      console.log(`Attempting to upload file: ${compressed.name} to path: ${path}`);
       
       // Upload the file to Supabase Storage
       const { data, error: uploadError } = await supabase.storage
         .from('business-uploads') // Ensure this bucket exists and has public write/read policies
-        .upload(path, file);
+        .upload(path, compressed);
 
       if (uploadError) {
-        setError(`Failed to upload image ${file.name}: ${uploadError.message}`);
-        console.error(`Supabase Upload Error for ${file.name}:`, uploadError);
+        setError(`Failed to upload image ${compressed.name}: ${uploadError.message}`);
+        console.error(`Supabase Upload Error for ${compressed.name}:`, uploadError);
         setSubmitting(false);
         return;
       }
 
-      console.log(`Successfully uploaded ${file.name}. Data received:`, data);
+      console.log(`Successfully uploaded ${compressed.name}. Data received:`, data);
 
       // Get the public URL for the uploaded file
       const { data: publicUrlData } = supabase.storage
@@ -125,10 +136,10 @@ export default function RegisterBusinessPage() {
 
       if (publicUrlData && publicUrlData.publicUrl) {
         uploadedImageUrls.push(publicUrlData.publicUrl); // Store the full public URL
-        console.log(`Public URL for ${file.name}:`, publicUrlData.publicUrl);
+        console.log(`Public URL for ${compressed.name}:`, publicUrlData.publicUrl);
       } else {
-        setError(`Failed to get public URL for uploaded image ${file.name}.`);
-        console.error(`Supabase getPublicUrl Error for ${file.name}:`, publicUrlData);
+        setError(`Failed to get public URL for uploaded image ${compressed.name}.`);
+        console.error(`Supabase getPublicUrl Error for ${compressed.name}:`, publicUrlData);
         setSubmitting(false);
         return;
       }

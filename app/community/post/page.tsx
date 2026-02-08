@@ -4,10 +4,11 @@ import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useLanguage } from '@/context/LanguageContext';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
-import imageCompression from 'browser-image-compression';
+import { compressImage } from '@/lib/imageCompression';
 import { FaEye, FaEdit } from 'react-icons/fa';
 import { Bold, Italic, Underline as UnderlineIcon, Image as ImageIcon, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -24,11 +25,12 @@ export default function CreateCommunityPostPage() {
   const [charLimitToast, setCharLimitToast] = useState(false);
   const [emptyFieldsToast, setEmptyFieldsToast] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
-  const [businessName, setBusinessName] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgUsername, setOrgUsername] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isBusinessAccount, setIsBusinessAccount] = useState(false);
+  const [checkingAccount, setCheckingAccount] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { lang } = useLanguage();
@@ -54,37 +56,50 @@ export default function CreateCommunityPostPage() {
 
       if (error) {
         console.error('Error fetching user:', error.message);
+        setCheckingAccount(false);
         return;
       }
 
       if (!user) {
         router.push('/login?redirect=/community/post');
+        setCheckingAccount(false);
+        return;
+      }
+
+      const { data: businessAccount } = await supabase
+        .from('businesses')
+        .select('id')
+        .eq('owner_id', user.id)
+        .maybeSingle();
+
+      if (businessAccount) {
+        setIsBusinessAccount(true);
+        setCheckingAccount(false);
         return;
       }
 
       setUserId(user.id);
 
-      const [{ data: userData }, { data: bizData }, { data: orgData }] = await Promise.all([
+      const [{ data: userData }, { data: orgData }] = await Promise.all([
         supabase.from('registeredaccounts').select('username').eq('user_id', user.id).single(),
-        supabase.from('businesses').select('business_name').eq('user_id', user.id).single(),
         supabase.from('organizations').select('id,full_name,username').eq('user_id', user.id).single(),
       ]);
 
       if (userData?.username) setUsername(userData.username);
-      if (bizData?.business_name) setBusinessName(bizData.business_name);
       if (orgData?.full_name) setOrgName(orgData.full_name);
       if (orgData?.id) setOrgId(orgData.id);
       if (orgData?.username) setOrgUsername(orgData.username);
+      setCheckingAccount(false);
     };
 
     fetchUser();
   }, [router]);
 
   const handleImageUpload = async (file: File) => {
-    const compressed = await imageCompression(file, {
-      maxSizeMB: 0.2,
-      maxWidthOrHeight: 800,
-      useWebWorker: true,
+    const compressed = await compressImage(file, {
+      maxSizeMB: 0.6,
+      maxWidthOrHeight: 1200,
+      initialQuality: 0.82,
     });
 
     const fileName = `${Date.now()}.${compressed.name.split('.').pop()}`;
@@ -173,6 +188,26 @@ export default function CreateCommunityPostPage() {
     { value: 'anonymous', label: t(lang, 'Anonymous') },
   ].filter((opt): opt is { value: string; label: string } => opt !== null);
 
+  if (checkingAccount) return null;
+  if (isBusinessAccount) {
+    return (
+      <div className="min-h-screen bg-slate-50 px-4 py-6 flex items-start justify-center">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow">
+          <h2 className="text-lg font-semibold text-slate-900">Business accounts can’t post</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Community posts are for personal and organization accounts only.
+          </p>
+          <Link
+            href="/community"
+            className="mt-4 inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            Back to Community
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
@@ -220,7 +255,7 @@ export default function CreateCommunityPostPage() {
                 <div>
                   <h2 className="text-2xl font-semibold text-slate-900">{title || t(lang, 'Untitled Post')}</h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    {t(lang, 'Posted as')}: {postAs === 'anonymous' ? 'Anonymous' : postAs === 'business' ? businessName : postAs === 'organization' ? orgName : username}
+                    {t(lang, 'Posted as')}: {postAs === 'anonymous' ? 'Anonymous' : postAs === 'organization' ? orgName : username}
                   </p>
                 </div>
                 {imageUrl && (

@@ -4,13 +4,14 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function EditItemPage({ params }: { params: { id: string } }) {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
   const router = useRouter();
   const [form, setForm] = useState<any>(null);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
 
   useEffect(() => {
     // Fetch item from backend
-    fetch(`http://localhost:5000/api/marketplace/${params.id}`)
+    fetch(`${apiBaseUrl}/api/marketplace/${params.id}`)
       .then((res) => res.json())
       .then((data) => {
         setForm(data.item);

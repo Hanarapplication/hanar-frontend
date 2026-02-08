@@ -76,7 +76,13 @@ export default function HomeFeedPage() {
 
             {post.type === 'business' && (
               <LiveRefreshLink href="/businesses" className="block">
-                <img src={post.image} alt={post.name} className="w-full h-48 object-cover rounded-md" />
+                <img
+                  src={post.image}
+                  alt={post.name}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-48 object-cover rounded-md"
+                />
                 <h3 className="text-lg font-semibold mt-2">{post.name}</h3>
                 <p className="text-sm text-gray-600">{post.category}</p>
                 <div className="text-xs text-gray-400 mt-1">{post.fakeViews} views ❤️</div>
@@ -85,7 +91,13 @@ export default function HomeFeedPage() {
 
             {post.type === 'item' && (
               <LiveRefreshLink href="/marketplace" className="block">
-                <img src={post.image} alt={post.title} className="w-full h-48 object-cover rounded-md" />
+                <img
+                  src={post.image}
+                  alt={post.title}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-48 object-cover rounded-md"
+                />
                 <h3 className="text-lg font-semibold mt-2">{post.title}</h3>
                 <p className="text-green-600 font-bold">{post.price}</p>
                 <div className="text-xs text-gray-400 mt-1">{post.fakeViews} views ❤️</div>
@@ -106,7 +118,13 @@ export default function HomeFeedPage() {
 
             {post.type === 'ad' && (
               <a href={post.link} target="_blank" rel="noopener noreferrer" className="block">
-                <img src={post.image} alt={post.alt} className="w-full h-48 object-cover rounded-md" />
+                <img
+                  src={post.image}
+                  alt={post.alt}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-48 object-cover rounded-md"
+                />
               </a>
             )}
 

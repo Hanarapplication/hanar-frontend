@@ -29,6 +29,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing or invalid user ID' }, { status: 400 });
     }
 
+    const { data: businessAccount } = await supabaseAdmin
+      .from('businesses')
+      .select('id')
+      .eq('owner_id', user_id)
+      .maybeSingle();
+
+    if (businessAccount || author_type === 'business') {
+      return NextResponse.json({ error: 'Business accounts cannot post to community' }, { status: 403 });
+    }
+
     // ✅ Insert into Supabase
     const { error } = await supabaseAdmin.from('community_posts').insert([
       {

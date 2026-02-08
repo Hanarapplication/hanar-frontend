@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
+import { compressImage } from '@/lib/imageCompression';
 
 export default function PostItemPage() {
   const router = useRouter();
@@ -86,34 +87,6 @@ export default function PostItemPage() {
     }
   };
 
-  const resizeImage = (file: File): Promise<File> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      const canvas = document.createElement('canvas');
-      const reader = new FileReader();
-
-      reader.onload = (e) => {
-        if (!e.target?.result) return;
-        img.src = e.target.result as string;
-        img.onload = () => {
-          const maxSize = 1024;
-          const scale = Math.min(maxSize / img.width, maxSize / img.height);
-          canvas.width = img.width * scale;
-          canvas.height = img.height * scale;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob((blob) => {
-            if (blob) {
-              const resized = new File([blob], file.name, { type: file.type });
-              resolve(resized);
-            }
-          }, file.type);
-        };
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -130,7 +103,11 @@ export default function PostItemPage() {
     const newPreviews: string[] = [];
 
     for (const file of fileList) {
-      const resized = await resizeImage(file);
+      const resized = await compressImage(file, {
+        maxSizeMB: 0.8,
+        maxWidthOrHeight: 1400,
+        initialQuality: 0.82,
+      });
       const filename = `${Date.now()}-${file.name}`;
       const { data, error } = await supabase.storage.from('marketplace-images').upload(filename, resized);
       if (error) {
