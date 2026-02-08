@@ -75,9 +75,15 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] px-4">
       <div className="bg-white w-full max-w-md p-6 rounded-lg shadow-[0_2px_4px_rgba(0,0,0,.1),0_8px_16px_rgba(0,0,0,.1)]">
-        <h1 className="text-2xl font-bold text-center text-[#1c1e21] mb-4">
-          Hanar
-        </h1>
+        <div className="flex justify-center mb-6">
+          <img
+            src="/hanar.logo.png"
+            alt="Hanar"
+            width={100}
+            height={100}
+            className="h-16 w-auto object-contain"
+          />
+        </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <input

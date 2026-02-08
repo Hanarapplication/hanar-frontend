@@ -207,6 +207,15 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
       <form onSubmit={handleRegister} className="w-full max-w-xl bg-white rounded-3xl p-10 space-y-8 shadow-xl">
+        <div className="flex justify-center">
+          <img
+            src="/hanar.logo.png"
+            alt="Hanar"
+            width={100}
+            height={100}
+            className="h-16 w-auto object-contain"
+          />
+        </div>
         <h1 className="text-3xl font-bold text-center">Create Account</h1>
 
         <div className="grid grid-cols-3 gap-3">
