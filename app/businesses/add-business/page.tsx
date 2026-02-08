@@ -192,8 +192,7 @@ export default function RegisterBusinessPage() {
       isretail: ['retails', 'something_else'].includes(form.business_type),
       logo_url: logoUrl, // Store the full public URL for the logo
       images: galleryImageUrls, // Store full public URLs for gallery images
-      status: 'inactive', // Default status for new submissions
-      business_status: 'pending', // Default business status for new submissions
+      status: 'unclaimed',
       owner_id: user.id, // --- NEW: Store the owner's ID ---
       plan: 'free', // Set default plan
       plan_selected_at: null, // Not selected until user confirms

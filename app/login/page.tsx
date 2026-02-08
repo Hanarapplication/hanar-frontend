@@ -73,59 +73,58 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-300 px-4">
-      <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-2xl">
-        <h1 className="text-3xl font-bold text-center text-blue-600 mb-6">
-          Welcome to Hanar
+    <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] px-4">
+      <div className="bg-white w-full max-w-md p-6 rounded-lg shadow-[0_2px_4px_rgba(0,0,0,.1),0_8px_16px_rgba(0,0,0,.1)]">
+        <h1 className="text-2xl font-bold text-center text-[#1c1e21] mb-4">
+          Hanar
         </h1>
 
-        <form className="space-y-5" onSubmit={handleLogin}>
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email address
-            </label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="you@example.com"
-              className="mt-1 w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-              className="mt-1 w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-          </div>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <input
+            type="email"
+            id="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            placeholder="Email or phone number"
+            className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#1877F2] focus:border-[#1877F2]"
+          />
+          <input
+            type="password"
+            id="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            placeholder="Password"
+            className="w-full px-4 py-3 text-base border border-gray-300 rounded-lg placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#1877F2] focus:border-[#1877F2]"
+          />
 
           <button
             type="submit"
-            className={`w-full py-2 rounded-md text-white font-semibold transition-transform duration-300 transform ${
-              clicked ? 'scale-95 bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'
-            }`}
             disabled={clicked}
+            className="w-full py-3 rounded-lg text-white font-semibold text-lg bg-[#1877F2] hover:bg-[#166fe5] disabled:opacity-70 transition"
           >
-            {clicked ? 'Logging in...' : 'Login'}
+            {clicked ? 'Logging in...' : 'Log In'}
           </button>
+          <a
+            href="/forgot-password"
+            className="block text-center text-sm text-[#1877F2] hover:underline"
+          >
+            Forgotten password?
+          </a>
         </form>
 
-        <p className="mt-4 text-center text-sm text-gray-500">
-          Don’t have an account?{' '}
-          <a href="/register" className="text-blue-600 hover:underline">
-            Register
-          </a>
+        <hr className="my-6 border-gray-200" />
+
+        <a
+          href="/register"
+          className="block w-full py-3 text-center rounded-lg font-semibold text-white bg-[#42b72a] hover:bg-[#36a420] transition"
+        >
+          Create new account
+        </a>
+
+        <p className="mt-4 text-center text-xs text-gray-500">
+          By continuing, you agree to our Terms and Privacy Policy.
         </p>
       </div>
     </div>

@@ -338,7 +338,9 @@ export default function Home() {
         supabase
           .from('businesses')
           .select('id, business_name, category, address, logo_url, slug, lat, lon, created_at')
-          .eq('business_status', 'approved')
+          .eq('moderation_status', 'active')
+          .eq('is_archived', false)
+          .neq('lifecycle_status', 'archived')
           .order('created_at', { ascending: false })
           .limit(50),
         supabase

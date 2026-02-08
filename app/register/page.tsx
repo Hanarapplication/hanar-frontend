@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { Turnstile } from '@marsidev/react-turnstile';
 import {
   User,
   Building2,
@@ -9,11 +10,6 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  Check,
-  X,
-  ShieldCheck,
-  ShieldAlert,
-  Shield,
 } from 'lucide-react';
 
 // Simple toast (replace later with react-hot-toast if you want)
@@ -132,6 +128,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
 
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [form, setForm] = useState({
     fullName: '',
     businessName: '',
@@ -139,6 +136,7 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
+    website: '', // honeypot - bots fill this
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -174,6 +172,7 @@ export default function RegisterPage() {
     if (!passwordMatch) return toast.error('Passwords do not match');
     if (passwordStrength < 3) return toast.error('Password too weak');
     if (!agreed) return toast.error('Accept Terms');
+    if (!turnstileToken) return toast.error('Please complete the verification');
 
     try {
       setClicked(true);
@@ -187,6 +186,8 @@ export default function RegisterPage() {
           email: form.email,
           password: form.password,
           role,
+          turnstileToken,
+          website: form.website,
         }),
       });
 
@@ -236,10 +237,27 @@ export default function RegisterPage() {
         <FloatingInput id="password" placeholder="Password" isPassword showPassword={showPassword} setShowPassword={setShowPassword} value={form.password} onChange={handleChange} disabled={clicked} />
         <FloatingInput id="confirmPassword" placeholder="Confirm Password" isPassword showPassword={showPassword} setShowPassword={setShowPassword} value={form.confirmPassword} onChange={handleChange} disabled={clicked} error={!passwordMatch ? 'Passwords do not match' : null} />
 
+        <div className="sr-only" aria-hidden="true">
+          <label htmlFor="website">Website</label>
+          <input id="website" type="text" value={form.website} onChange={handleChange} tabIndex={-1} autoComplete="off" />
+        </div>
+
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={agreed} onChange={() => setAgreed(!agreed)} />
           I agree to the Terms & Privacy Policy
         </label>
+
+        <div className="flex justify-center">
+          <Turnstile
+            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? '1x00000000000000000000AA'}
+            onSuccess={(token) => setTurnstileToken(token)}
+            onExpire={() => setTurnstileToken(null)}
+            options={{
+              theme: 'light',
+              size: 'normal',
+            }}
+          />
+        </div>
 
         <button
           disabled={clicked}

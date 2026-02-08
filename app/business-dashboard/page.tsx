@@ -8,6 +8,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { Edit, Eye, Crown, BarChart3 } from 'lucide-react';
 
 type BusinessStatus = 'pending' | 'approved' | 'rejected' | 'hold' | 'archived';
+type ModerationStatus = 'on_hold' | 'active' | 'rejected';
+type LifecycleStatus = 'unclaimed' | 'trial' | 'active' | 'expired' | 'archived';
 type Plan = 'free' | 'starter' | 'growth' | 'premium';
 
 function normalizePlan(value: string | null | undefined): Plan | null {
@@ -73,12 +75,34 @@ type NotificationHistoryItem = {
   };
 };
 
+function getUiStatus(biz: {
+  moderation_status: ModerationStatus;
+  lifecycle_status: LifecycleStatus;
+  is_archived: boolean;
+}): BusinessStatus {
+  if (biz.is_archived === true || biz.lifecycle_status === 'archived') return 'archived';
+  if (biz.moderation_status === 'rejected') return 'rejected';
+  if (biz.moderation_status === 'active') return 'approved';
+  if (biz.moderation_status === 'on_hold') return 'hold';
+  return 'pending';
+}
+
 function normalizeCategory(value?: string | null) {
   const normalized = (value || '').trim().toLowerCase();
   if (!normalized) return '';
   if (normalized === 'something_else' || normalized === 'other') return '';
   if (normalized === 'retails') return 'Retail';
   return value || '';
+}
+
+function getDaysRemaining(isoDate: string): number {
+  const end = new Date(isoDate).getTime();
+  const now = Date.now();
+  return Math.max(0, Math.ceil((end - now) / (24 * 60 * 60 * 1000)));
+}
+
+function formatExpiryDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 export default function BusinessDashboardPage() {
@@ -89,9 +113,13 @@ export default function BusinessDashboardPage() {
     id: string;
     business_name: string;
     slug: string;
-    business_status: BusinessStatus;
+    moderation_status: ModerationStatus;
+    lifecycle_status: LifecycleStatus;
+    is_archived: boolean;
     plan: Plan | null;
     plan_selected_at: string | null;
+    trial_end: string | null;
+    plan_expires_at: string | null;
     logo_url?: string | null;
     lat?: number | null;
     lon?: number | null;
@@ -161,7 +189,7 @@ export default function BusinessDashboardPage() {
 
         const { data, error } = await supabase
           .from('businesses')
-          .select('id, business_name, slug, business_status, plan, plan_selected_at, logo_url, lat, lon')
+          .select('id, business_name, slug, moderation_status, lifecycle_status, is_archived, plan, plan_selected_at, trial_end, plan_expires_at, logo_url, lat, lon')
           .eq('owner_id', userId)
           .maybeSingle();
 
@@ -178,9 +206,13 @@ export default function BusinessDashboardPage() {
             id: String(data.id),
             business_name: data.business_name ?? 'Your Business',
             slug: String(data.slug),
-            business_status: data.business_status as BusinessStatus,
+            moderation_status: data.moderation_status as ModerationStatus,
+            lifecycle_status: data.lifecycle_status as LifecycleStatus,
+            is_archived: Boolean(data.is_archived),
             plan: normalizePlan(data.plan),
             plan_selected_at: data.plan_selected_at ? String(data.plan_selected_at) : null,
+            trial_end: data.trial_end ? String(data.trial_end) : null,
+            plan_expires_at: data.plan_expires_at ? String(data.plan_expires_at) : null,
             logo_url: data.logo_url ?? null,
             lat: typeof data.lat === 'number' ? data.lat : null,
             lon: typeof data.lon === 'number' ? data.lon : null,
@@ -470,12 +502,13 @@ export default function BusinessDashboardPage() {
 
   if (!business) return null;
 
+  const uiStatus = getUiStatus(business);
   const statusColor =
-    business.business_status === 'approved'
+    uiStatus === 'approved'
       ? 'text-white bg-emerald-600 border-emerald-600'
-      : business.business_status === 'pending'
+      : uiStatus === 'pending'
       ? 'text-white bg-amber-500 border-amber-500'
-      : business.business_status === 'rejected'
+      : uiStatus === 'rejected'
       ? 'text-white bg-rose-600 border-rose-600'
       : 'text-white bg-slate-500 border-slate-500';
   const canViewPublicProfile = true;
@@ -509,16 +542,22 @@ export default function BusinessDashboardPage() {
               <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">{business.business_name}</h1>
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                 <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusColor}`}>
-                  {business.business_status.toUpperCase()}
+                  {uiStatus.toUpperCase()}
                 </span>
                 <span
                   className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
-                    planConfirmed && business.plan === 'growth'
+                    business.trial_end && business.plan === 'premium'
+                      ? 'text-amber-900 bg-amber-200 border-amber-400'
+                      : planConfirmed && business.plan === 'growth'
                       ? 'text-white bg-orange-500 border-orange-500'
                       : 'border-slate-200 bg-slate-50 text-slate-700'
                   }`}
                 >
-                  {planConfirmed && business.plan ? `${business.plan.toUpperCase()} PLAN` : 'PLAN NOT CONFIRMED'}
+                  {planConfirmed && business.plan
+                    ? business.trial_end && business.plan === 'premium'
+                      ? 'PREMIUM FREE TRIAL'
+                      : `${business.plan.toUpperCase()} PLAN`
+                    : 'PLAN NOT CONFIRMED'}
                 </span>
               </div>
               </div>
@@ -541,6 +580,71 @@ export default function BusinessDashboardPage() {
               </button>
             </div>
           </div>
+
+          {/* Trial / Plan expiry banner */}
+          {business.trial_end && business.plan === 'premium' && (
+            <div className="mx-6 mb-4 rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 px-5 py-4 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-amber-900">Premium Free Trial</h3>
+                  <p className="mt-1 text-sm text-amber-800">
+                    {getDaysRemaining(business.trial_end) > 0
+                      ? `${getDaysRemaining(business.trial_end)} days remaining`
+                      : 'Your trial has ended'}
+                  </p>
+                  <p className="mt-2 text-sm text-amber-900/90">
+                    Want to keep your business on Premium and unlock all features? Subscribe now to continue enjoying premium benefits.
+                  </p>
+                </div>
+                <Link
+                  href="/business/plan"
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-amber-500"
+                >
+                  <Crown className="h-4 w-4" />
+                  Subscribe to Premium
+                </Link>
+              </div>
+            </div>
+          )}
+          {business.plan_expires_at && !business.trial_end && business.plan && business.plan !== 'free' && (
+            <div className="mx-6 mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">Plan renewal</h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Your {String(business.plan).toUpperCase()} plan renews on {formatExpiryDate(business.plan_expires_at)}
+                  </p>
+                </div>
+                <Link
+                  href="/business/plan"
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Manage Plan
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Free / Starter / Growth: 3-month premium trial promo */}
+          {['free', 'starter', 'growth'].includes(business.plan || '') && !business.trial_end && (
+            <div className="mx-6 mb-4 rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 px-5 py-4 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-amber-900">3 months free on Premium</h3>
+                  <p className="mt-1 text-sm text-amber-800">
+                    Upgrade to Premium and get 3 months free trial. Unlock all features for your business.
+                  </p>
+                </div>
+                <Link
+                  href="/business/plan"
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-amber-500"
+                >
+                  <Crown className="h-4 w-4" />
+                  Try Premium Free
+                </Link>
+              </div>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="grid gap-4 px-6 py-6 md:grid-cols-2">
@@ -793,7 +897,7 @@ export default function BusinessDashboardPage() {
                   )}
                 </div>
 
-                {business.business_status !== 'approved' && (
+                {uiStatus !== 'approved' && (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
                     Your business is currently pending approval. You can still view and edit your business profile and online
                     shop, but it will not be visible to other users until it has been approved.

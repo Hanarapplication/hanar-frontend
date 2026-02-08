@@ -29,7 +29,10 @@ interface BusinessType {
     id: string;
     business_name: string;
     category: string;
-    business_status?: 'pending' | 'approved' | 'rejected' | 'hold' | 'archived';
+    moderation_status?: 'on_hold' | 'active' | 'rejected';
+    lifecycle_status?: 'unclaimed' | 'trial' | 'active' | 'expired' | 'archived';
+    status?: string;
+    is_archived?: boolean;
     address: {
         street?: string;
         city?: string;
@@ -572,8 +575,10 @@ const BusinessProfilePage = () => {
                     .from('businesses')
                     .select('*')
                     .eq('slug', slug)
-                    .in('business_status', ['approved', 'pending'])
-                    .in('status', ['active', 'pending'])
+                    .in('moderation_status', ['active', 'on_hold'])
+                    .in('status', ['active', 'unclaimed'])
+                    .eq('is_archived', false)
+                    .neq('lifecycle_status', 'archived')
                     .single();
 
                 if (businessError || !businessData) {
@@ -1139,7 +1144,7 @@ const BusinessProfilePage = () => {
             )}
 
             <motion.div className="rounded-2xl max-w-4xl mx-auto p-4 sm:p-6 space-y-6 bg-yellow-50 dark:bg-slate-900/70 backdrop-blur">
-                {business.business_status !== 'approved' && (
+                {business.moderation_status !== 'active' && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                         Your business is currently pending approval. You can still view and edit your business profile and online
                         shop, but it will not be visible to other users until it has been approved.

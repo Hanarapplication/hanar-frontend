@@ -1,10 +1,12 @@
 export interface Business {
   id: string;
-  name: string;
+  business_name: string;
   slug: string;
   category?: string;
-  business_status: string;
-  status: string;
+  moderation_status?: string | null;
+  lifecycle_status?: string | null;
+  status?: string | null;
+  is_archived?: boolean;
   menu?: any[];
   carListings?: any[];
   retailItems?: any[];

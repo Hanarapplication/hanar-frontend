@@ -55,8 +55,16 @@ export default function OwnerAdminPage() {
           🔔 Review Business Notification Requests
         </button>
 
+        {/* Email Businesses */}
+        <button
+          onClick={() => router.push('/admin/send-emails')}
+          className="bg-orange-500 text-white px-4 py-3 rounded-lg shadow hover:bg-orange-600 transition"
+        >
+          📧 Email Businesses
+        </button>
+
         {/* Send Local Notification */}
-        <button className="bg-orange-500 text-white px-4 py-3 rounded-lg shadow hover:bg-orange-600 transition">
+        <button className="bg-orange-600 text-white px-4 py-3 rounded-lg shadow hover:bg-orange-700 transition">
           📍 Send Local Notifications to Users
         </button>
 

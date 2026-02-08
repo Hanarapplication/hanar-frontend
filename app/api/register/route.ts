@@ -1,13 +1,14 @@
 // app/api/register/route.ts
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getClientIp, isRegistrationRateLimited } from '@/lib/rateLimit';
 
 /**
  * ✅ FINAL FULL CODE (your route fixed for the plan flow)
  *
  * What changed:
  * - When creating a business row, we explicitly set:
- *   - plan = 'basic'   (free default)
+ *   - plan = 'free'   (free default)
  *   - plan_selected_at = null  (NOT selected yet → forces user to confirm on /business/plan)
  *
  * This matches the new logic:
@@ -108,33 +109,77 @@ async function generateUniqueBusinessSlug(businessName: string): Promise<string>
   return `${base}-${Date.now().toString().slice(-4)}`.slice(0, 50);
 }
 
-function getBusinessFlags(businessType?: BusinessType) {
-  return {
-    isretail: businessType === 'retail',
-    isrestaurant: businessType === 'restaurant',
-    isdealership: businessType === 'dealership',
-  };
-}
-
 /* ---------------- Main handler ---------------- */
+
+const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+
+async function verifyTurnstile(token: string, remoteip?: string): Promise<boolean> {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'development' && token === 'test-token') return true;
+    console.warn('TURNSTILE_SECRET_KEY not set - skipping verification');
+    return true;
+  }
+  try {
+    const formData = new FormData();
+    formData.append('secret', secret);
+    formData.append('response', token);
+    if (remoteip) formData.append('remoteip', remoteip);
+    const res = await fetch(TURNSTILE_VERIFY_URL, { method: 'POST', body: formData });
+    const data = await res.json();
+    return !!data?.success;
+  } catch (e) {
+    console.error('Turnstile verify error:', e);
+    return false;
+  }
+}
 
 export async function POST(req: Request) {
   let createdUserId: string | null = null;
 
   try {
+    const clientIp = getClientIp(req);
+    const rateKey = `register:${clientIp}`;
+    if (isRegistrationRateLimited(rateKey)) {
+      return NextResponse.json(
+        { error: 'Too many registration attempts. Please try again later.', stage: 'rate_limit' },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json().catch(() => null);
     if (!body) {
       return NextResponse.json({ error: 'Invalid JSON body', stage: 'validate' }, { status: 400 });
     }
 
-    const { name, fullName, email, password, role, businessType } = body as {
+    const { name, fullName, email, password, role, businessType, turnstileToken, website } = body as {
       name?: string;
       fullName?: string;
       email?: string;
       password?: string;
       role?: Role;
       businessType?: BusinessType;
+      turnstileToken?: string;
+      website?: string;
     };
+
+    if (website) {
+      return NextResponse.json({ error: 'Invalid request', stage: 'validate' }, { status: 400 });
+    }
+
+    const secret = process.env.TURNSTILE_SECRET_KEY;
+    if (secret && !turnstileToken) {
+      return NextResponse.json(
+        { error: 'Verification required. Please complete the captcha.', stage: 'captcha' },
+        { status: 400 }
+      );
+    }
+    if (turnstileToken && !(await verifyTurnstile(turnstileToken, clientIp))) {
+      return NextResponse.json(
+        { error: 'Verification failed. Please try again.', stage: 'captcha' },
+        { status: 400 }
+      );
+    }
 
     const missing: string[] = [];
     if (!name) missing.push('name');
@@ -241,45 +286,31 @@ export async function POST(req: Request) {
 
     if (role === 'business') {
       businessSlug = await generateUniqueBusinessSlug(String(name));
-      const flags = getBusinessFlags(businessType);
 
-      // Free plan defaults (from business_plans table)
-      // These must be set during INSERT to satisfy check constraints
-      const freePlanDefaults = {
-        max_gallery_images: 1,
-        max_menu_items: 0,
-        max_retail_items: 0,
-        max_car_listings: 0,
-        allow_social_links: false,
-        allow_whatsapp: false,
-        allow_promoted: false,
-        allow_reviews: false,
-        allow_qr: false,
-      };
-
-      const { data: businessData, error: bizErr } = await supabaseAdmin.from('businesses').insert({
+      const businessInsert = {
         business_name: String(name).trim(),
         slug: businessSlug,
         owner_id: createdUserId,
         email: safeEmail,
+        status: 'unclaimed',
 
-        // Your existing status fields
-        status: 'pending',
-        business_status: 'pending',
+      // business type flags can be set later during profile completion
+      };
 
-        // ✅ Plan flow fix:
-        // basic can be default, but NOT "chosen" until user confirms on /business/plan
-        plan: 'free',
-        plan_selected_at: null,
-
-        // ✅ Free plan limits - set during INSERT to satisfy check constraints
-        ...freePlanDefaults,
-
-        // business type flags (columns must exist)
-        ...flags,
-      }).select('id').single();
+      const { data: businessData, error: bizErr } = await supabaseAdmin
+        .from('businesses')
+        .insert(businessInsert)
+        .select('id')
+        .single();
 
       if (bizErr) {
+        console.error('Business insert failed:', {
+          message: bizErr.message,
+          details: (bizErr as any).details,
+          hint: (bizErr as any).hint,
+          code: (bizErr as any).code,
+          columns: Object.keys(businessInsert),
+        });
         try {
           await supabaseAdmin.from('businesses').delete().eq('owner_id', createdUserId);
         } catch {}
@@ -290,7 +321,16 @@ export async function POST(req: Request) {
           await supabaseAdmin.auth.admin.deleteUser(createdUserId);
         } catch {}
 
-        return NextResponse.json({ error: bizErr.message || 'Failed to create business row', stage: 'db_businesses' }, { status: 500 });
+        return NextResponse.json(
+          {
+            error: bizErr.message || 'Failed to create business row',
+            details: (bizErr as any).details || null,
+            hint: (bizErr as any).hint || null,
+            code: (bizErr as any).code || null,
+            stage: 'db_businesses',
+          },
+          { status: 500 }
+        );
       }
 
       // ✅ Apply free plan limits after business creation to satisfy check constraints

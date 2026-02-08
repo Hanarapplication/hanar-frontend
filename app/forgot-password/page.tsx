@@ -1,15 +1,35 @@
 'use client';
 
 import { useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import toast from 'react-hot-toast';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSent(true);
-    setTimeout(() => setSent(false), 3000); // reset message after 3s
+    setLoading(true);
+    try {
+      const redirectTo = typeof window !== 'undefined'
+        ? `${window.location.origin}/reset-password`
+        : undefined;
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: redirectTo || undefined,
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      setSent(true);
+      toast.success('Check your email for the reset link.');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Something went wrong.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,15 +60,16 @@ export default function ForgotPasswordPage() {
 
           <button
             type="submit"
-            className="w-full py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition"
+            disabled={loading}
+            className="w-full py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Send Reset Link
+            {loading ? 'Sending...' : 'Send Reset Link'}
           </button>
         </form>
 
         {sent && (
-          <p className="text-green-600 text-center mt-4">
-            Reset link sent to {email}
+          <p className="text-green-600 text-center mt-4 text-sm">
+            If an account exists for {email}, you will receive a link to set a new password.
           </p>
         )}
 

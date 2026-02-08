@@ -97,7 +97,9 @@ export default function BusinessesPage() {
       const { data, error } = await supabase
         .from('businesses')
         .select('id, business_name, category, address, description, logo_url, slug, lat, lon')
-        .eq('business_status', 'approved');
+        .eq('moderation_status', 'active')
+        .eq('is_archived', false)
+        .neq('lifecycle_status', 'archived');
 
       if (error) {
         console.error('Supabase fetch error:', error);

@@ -85,6 +85,7 @@ function getUiStatus(biz: Business): BusinessStatus {
   if (biz.is_archived === true || biz.lifecycle_status === 'archived') return 'archived';
   if (biz.moderation_status === 'rejected') return 'rejected';
   if (biz.moderation_status === 'active') return 'approved';
+  if (biz.moderation_status === 'on_hold') return 'hold';
   return 'pending';
 }
 

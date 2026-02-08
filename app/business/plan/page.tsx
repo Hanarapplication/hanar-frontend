@@ -51,6 +51,7 @@ export default function BusinessPlanPage() {
     id: string;
     plan: Plan | null;
     plan_selected_at: string | null;
+    trial_end: string | null;
   } | null>(null);
 
   const redirectTimerRef = useRef<number | null>(null);
@@ -82,7 +83,7 @@ export default function BusinessPlanPage() {
         // Fetch current business
         const { data, error } = await supabase
           .from('businesses')
-          .select('id, plan, plan_selected_at')
+          .select('id, plan, plan_selected_at, trial_end')
           .eq('owner_id', userId)
           .maybeSingle();
 
@@ -96,6 +97,7 @@ export default function BusinessPlanPage() {
 
         const currentPlan = normalizePlan(data.plan);
         const selectedAt = data.plan_selected_at ? String(data.plan_selected_at) : null;
+        const trialEnd = data.trial_end ? String(data.trial_end) : null;
 
         if (isMounted) {
           setPlans((plansData as BusinessPlan[]) || []);
@@ -103,6 +105,7 @@ export default function BusinessPlanPage() {
             id: String(data.id),
             plan: currentPlan,
             plan_selected_at: selectedAt,
+            trial_end: trialEnd,
           });
         }
       } catch (err: any) {
@@ -141,28 +144,48 @@ export default function BusinessPlanPage() {
     try {
       setSaving(plan);
 
-      // Use the apply_business_plan RPC function (applies for 1 year by default)
+      // New businesses or free/starter/growth users selecting premium get 3 months free trial
+      const isEligibleForTrial = !biz.plan_selected_at || (biz.plan && ['free', 'starter', 'growth'].includes(biz.plan));
+      const isPremiumTrial = isEligibleForTrial && plan === 'premium';
+      const years = isPremiumTrial ? 0.25 : 1; // 3 months = 0.25 years
+
       const { error } = await supabase.rpc('apply_business_plan', {
         p_business_id: biz.id,
         p_plan: plan,
-        p_years: 1,
+        p_years: years,
       });
 
       if (error) throw error;
 
       const nowIso = new Date().toISOString();
+      const trialEnd = isPremiumTrial
+        ? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+
+      const updatePayload: Record<string, unknown> = {
+        plan,
+        plan_selected_at: nowIso,
+      };
+      if (isPremiumTrial) {
+        updatePayload.trial_start = nowIso;
+        updatePayload.trial_end = trialEnd;
+      }
+
       const { error: confirmError } = await supabase
         .from('businesses')
-        .update({ plan, plan_selected_at: nowIso })
+        .update(updatePayload)
         .eq('id', biz.id);
 
       if (confirmError) throw confirmError;
 
-      toast.success(`Plan applied: ${plan.toUpperCase()}`);
+      toast.success(
+        isPremiumTrial
+          ? 'Premium plan activated! Enjoy 3 months free trial.'
+          : `Plan applied: ${plan.toUpperCase()}`
+      );
 
       setBiz((prev) => (prev ? { ...prev, plan, plan_selected_at: nowIso } : prev));
 
-      // ✅ redirect to the correct dashboard route
       redirectTimerRef.current = window.setTimeout(() => {
         router.replace(DASHBOARD_ROUTE);
       }, 700);
@@ -183,6 +206,10 @@ export default function BusinessPlanPage() {
 
   const hasSelected = !!biz?.plan_selected_at;
   const currentPlan = biz?.plan;
+  const isOnPremiumTrial = currentPlan === 'premium' && !!biz?.trial_end;
+  const daysRemaining = biz?.trial_end
+    ? Math.max(0, Math.ceil((new Date(biz.trial_end).getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+    : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/50 px-3 py-6 sm:px-4 sm:py-8 lg:px-8">
@@ -194,10 +221,22 @@ export default function BusinessPlanPage() {
             <p className="mt-2 sm:mt-3 text-sm sm:text-base text-indigo-100 text-center max-w-2xl mx-auto px-2">
               {!hasSelected
                 ? 'Please confirm a plan to continue. (Free is available.)'
+                : isOnPremiumTrial
+                ? `You are on Premium Free Trial — ${daysRemaining} days remaining. Subscribe to keep your business on Premium.`
                 : currentPlan === 'free'
                 ? 'You are on Free. Upgrade anytime for more features.'
                 : `You are on ${String(currentPlan).toUpperCase()}. You can upgrade anytime.`}
             </p>
+            {isOnPremiumTrial && (
+              <p className="mt-3 text-sm font-medium text-amber-200 text-center max-w-2xl mx-auto px-2">
+                Want to keep your business on Premium and unlock all features? Subscribe now to continue.
+              </p>
+            )}
+            {(!hasSelected || currentPlan === 'free' || currentPlan === 'starter' || currentPlan === 'growth') && !isOnPremiumTrial && (
+              <p className="mt-3 text-sm font-medium text-amber-200 text-center max-w-2xl mx-auto px-2">
+                Upgrade to Premium for a 3-month free trial!
+              </p>
+            )}
           </div>
 
           <div className="p-4 sm:p-6 md:p-8 lg:p-10">
@@ -213,16 +252,30 @@ export default function BusinessPlanPage() {
                   const isDowngrade =
                     currentPlanIndex >= 0 &&
                     PLAN_ORDER.indexOf(planName) < currentPlanIndex;
+                  const showPremiumTrial = planName === 'premium' && (!hasSelected || currentPlan === 'free' || currentPlan === 'starter' || currentPlan === 'growth');
+                  const isPremiumTrialCard = planName === 'premium' && (showPremiumTrial || isOnPremiumTrial);
                   
                   return (
                     <PlanCard
                       key={planData.plan}
                       title={planData.plan.charAt(0).toUpperCase() + planData.plan.slice(1)}
-                      price={`$${planData.price_yearly} / year`}
+                      price={
+                        showPremiumTrial
+                          ? `3 months free trial, then $${planData.price_yearly}/year`
+                          : isOnPremiumTrial
+                          ? `${daysRemaining} days left in trial`
+                          : `$${planData.price_yearly} / year`
+                      }
+                      trialNote={
+                        showPremiumTrial
+                          ? 'No automatic renewal after 3 months. You\'ll receive email and text reminders before your trial ends so you can renew to keep your business.'
+                          : undefined
+                      }
                       planData={planData}
                       isPopular={isPopular}
                       isCurrent={isCurrentPlan}
                       isDowngrade={isDowngrade}
+                      isFreeTrial={isPremiumTrialCard}
                       disabled={saving !== null}
                       loading={saving === planName}
                       onClick={() => choosePlan(planName)}
@@ -243,7 +296,13 @@ export default function BusinessPlanPage() {
 
             <div className="mt-4 sm:mt-6 text-center text-xs sm:text-sm text-gray-600">
               <span className="font-semibold">Current:</span>{' '}
-              {hasSelected ? (currentPlan ? currentPlan.toUpperCase() : 'UNKNOWN') : 'NOT CONFIRMED'}
+              {hasSelected
+                ? isOnPremiumTrial
+                  ? 'PREMIUM FREE TRIAL'
+                  : currentPlan
+                  ? currentPlan.toUpperCase()
+                  : 'UNKNOWN'
+                : 'NOT CONFIRMED'}
             </div>
           </div>
         </div>
@@ -259,20 +318,24 @@ export default function BusinessPlanPage() {
 function PlanCard({
   title,
   price,
+  trialNote,
   planData,
   isPopular = false,
   isCurrent = false,
   isDowngrade = false,
+  isFreeTrial = false,
   disabled,
   loading,
   onClick,
 }: {
   title: string;
   price: string;
+  trialNote?: string;
   planData: BusinessPlan;
   isPopular?: boolean;
   isCurrent?: boolean;
   isDowngrade?: boolean;
+  isFreeTrial?: boolean;
   disabled: boolean;
   loading: boolean;
   onClick: () => void | Promise<void>;
@@ -342,9 +405,14 @@ function PlanCard({
           : 'border-gray-200 hover:border-indigo-300 hover:shadow-md bg-white/50 backdrop-blur-sm'
       }`}
     >
-      {isPopular && (
+      {isPopular && !isFreeTrial && (
         <div className="absolute -top-2.5 sm:-top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-[10px] sm:text-xs font-bold px-3 sm:px-4 py-0.5 sm:py-1 rounded-full shadow-lg z-10">
           Most Popular
+        </div>
+      )}
+      {isFreeTrial && (
+        <div className="absolute -top-2.5 sm:-top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-3 sm:px-4 py-0.5 sm:py-1 rounded-full shadow-lg z-10">
+          Free Trial
         </div>
       )}
       {isCurrent && (
@@ -358,6 +426,11 @@ function PlanCard({
         <div className="mt-1 sm:mt-2 text-2xl sm:text-3xl lg:text-4xl font-extrabold bg-gradient-to-r from-indigo-600 to-indigo-800 bg-clip-text text-transparent">
           {price}
         </div>
+        {trialNote && (
+          <p className="mt-2 text-xs sm:text-sm text-orange-600 leading-snug">
+            {trialNote}
+          </p>
+        )}
 
         <div className="mt-4 sm:mt-5 lg:mt-6 space-y-3 sm:space-y-4 flex-grow">
           {/* Limits */}
