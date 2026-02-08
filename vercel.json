@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/daily-business?key=${CRON_SECRET}",
+      "schedule": "0 15 * * *"
+    }
+  ]
+}
