@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation';
 
 // ──────────────────────────────────────────────── Types
 type BusinessStatus = 'pending' | 'approved' | 'hold' | 'archived' | 'rejected';
-type BusinessVisibilityStatus = 'active' | 'inactive';
+type ModerationStatus = 'on_hold' | 'active' | 'rejected';
+type LifecycleStatus = 'unclaimed' | 'trial' | 'active' | 'expired' | 'archived';
 
 type PlanName = 'free' | 'starter' | 'growth' | 'premium';
 
@@ -31,8 +32,9 @@ interface Business {
   email?: string | null;
   whatsapp?: string | null;
 
-  business_status: BusinessStatus;
-  status: BusinessVisibilityStatus;
+  moderation_status: ModerationStatus;
+  lifecycle_status: LifecycleStatus;
+  is_archived: boolean;
 
   verified_info?: Partial<VerifiedInfo> | null;
   admin_note?: string | null;
@@ -79,6 +81,13 @@ const PLAN_LABELS: Record<PlanName, string> = {
   premium: 'Premium ($399/yr)',
 };
 
+function getUiStatus(biz: Business): BusinessStatus {
+  if (biz.is_archived === true || biz.lifecycle_status === 'archived') return 'archived';
+  if (biz.moderation_status === 'rejected') return 'rejected';
+  if (biz.moderation_status === 'active') return 'approved';
+  return 'pending';
+}
+
 // ──────────────────────────────────────────────── Main Page
 export default function AdminApprovalsPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -100,7 +109,7 @@ export default function AdminApprovalsPage() {
       .select(
         `
         id, business_name, slug, phone, email, whatsapp,
-        business_status, status, verified_info,
+        moderation_status, lifecycle_status, is_archived, verified_info,
         admin_note, note_history, updated_at,
         plan, plan_expires_at,
         max_gallery_images, max_menu_items, max_retail_items, max_car_listings,
@@ -196,7 +205,7 @@ export default function AdminApprovalsPage() {
   const filteredBusinesses = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return businesses.filter((b) => {
-      const matchStatus = filterStatus === 'all' || b.business_status === filterStatus;
+      const matchStatus = filterStatus === 'all' || getUiStatus(b) === filterStatus;
       const matchSearch = term === '' || (b.business_name || '').toLowerCase().includes(term);
       return matchStatus && matchSearch;
     });
@@ -221,7 +230,7 @@ export default function AdminApprovalsPage() {
           className="border rounded-lg px-4 py-2 flex-1"
         />
         <div className="flex gap-2 flex-wrap">
-          {(['all', 'pending', 'approved', 'hold', 'archived'] as const).map((status) => (
+          {(['all', 'pending', 'approved', 'hold', 'archived', 'rejected'] as const).map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
@@ -314,8 +323,7 @@ function BusinessCard({
 
   const confirmAndSave = async (
     action: string,
-    newStatus: BusinessStatus,
-    visibility: BusinessVisibilityStatus
+    newStatus: BusinessStatus
   ) => {
     const noteText = adminNote.trim();
     const hasNote = noteText.length > 0;
@@ -326,14 +334,26 @@ function BusinessCard({
 
     if (!confirm(message)) return;
 
-    const success = await saveUpdates(
-      {
-        business_status: newStatus,
-        status: visibility,
-        verified_info: verified,
-      },
-      hasNote ? noteText : undefined
-    );
+    const updates: Partial<Business> = {
+      verified_info: verified,
+    };
+
+    if (newStatus === 'approved') {
+      updates.moderation_status = 'active';
+      if (biz.lifecycle_status !== 'trial' && biz.lifecycle_status !== 'active') {
+        updates.lifecycle_status = 'active';
+      }
+      updates.is_archived = false;
+    } else if (newStatus === 'hold' || newStatus === 'pending') {
+      updates.moderation_status = 'on_hold';
+    } else if (newStatus === 'rejected') {
+      updates.moderation_status = 'rejected';
+    } else if (newStatus === 'archived') {
+      updates.lifecycle_status = 'archived';
+      updates.is_archived = true;
+    }
+
+    const success = await saveUpdates(updates, hasNote ? noteText : undefined);
 
     if (success) toast.success(`${action} successful`);
   };
@@ -450,7 +470,7 @@ function BusinessCard({
           {biz.email && <p className="text-gray-600">✉️ {biz.email}</p>}
 
           <p className="text-xs text-gray-500 mt-1">
-            Visibility: <span className="font-medium">{biz.status}</span>
+            Visibility: <span className="font-medium">{getUiStatus(biz)}</span>
           </p>
 
           <p className="text-xs text-gray-500 mt-1">
@@ -475,7 +495,7 @@ function BusinessCard({
         </div>
 
         <div className="text-right">
-          <StatusBadge status={biz.business_status} />
+          <StatusBadge status={getUiStatus(biz)} />
           <button
             onClick={() => window.open(`/business/${biz.slug}`, '_blank')}
             className="mt-2 inline-flex items-center justify-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 shadow-sm transition hover:bg-blue-100"
@@ -588,7 +608,7 @@ function BusinessCard({
 
       <div className="flex flex-wrap gap-2.5 pt-2">
         <button
-          onClick={() => confirmAndSave('Approve', 'approved', 'active')}
+          onClick={() => confirmAndSave('Approve', 'approved')}
           disabled={!canApprove}
           className={`px-5 py-2 rounded-lg text-white font-medium ${
             canApprove ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'
@@ -598,21 +618,21 @@ function BusinessCard({
         </button>
 
         <button
-          onClick={() => confirmAndSave('Reject', 'rejected', 'inactive')}
+          onClick={() => confirmAndSave('Reject', 'rejected')}
           className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
         >
           Reject
         </button>
 
         <button
-          onClick={() => confirmAndSave('Hold', 'hold', 'inactive')}
+          onClick={() => confirmAndSave('Hold', 'hold')}
           className="px-5 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium"
         >
           Hold
         </button>
 
         <button
-          onClick={() => confirmAndSave('Archive', 'archived', 'inactive')}
+          onClick={() => confirmAndSave('Archive', 'archived')}
           className="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium"
         >
           Archive
