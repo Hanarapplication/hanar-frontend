@@ -35,6 +35,7 @@ interface Business {
   moderation_status: ModerationStatus;
   lifecycle_status: LifecycleStatus;
   is_archived: boolean;
+  status?: string | null;
 
   verified_info?: Partial<VerifiedInfo> | null;
   admin_note?: string | null;
@@ -341,17 +342,21 @@ function BusinessCard({
 
     if (newStatus === 'approved') {
       updates.moderation_status = 'active';
+      updates.status = 'active';
       if (biz.lifecycle_status !== 'trial' && biz.lifecycle_status !== 'active') {
         updates.lifecycle_status = 'active';
       }
       updates.is_archived = false;
     } else if (newStatus === 'hold' || newStatus === 'pending') {
       updates.moderation_status = 'on_hold';
+      updates.status = 'inactive';
     } else if (newStatus === 'rejected') {
       updates.moderation_status = 'rejected';
+      updates.status = 'inactive';
     } else if (newStatus === 'archived') {
       updates.lifecycle_status = 'archived';
       updates.is_archived = true;
+      updates.status = 'inactive';
     }
 
     const success = await saveUpdates(updates, hasNote ? noteText : undefined);

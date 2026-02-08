@@ -184,7 +184,16 @@ export default function BusinessPlanPage() {
           : `Plan applied: ${plan.toUpperCase()}`
       );
 
-      setBiz((prev) => (prev ? { ...prev, plan, plan_selected_at: nowIso } : prev));
+      setBiz((prev) =>
+        prev
+          ? {
+              ...prev,
+              plan,
+              plan_selected_at: nowIso,
+              ...(isPremiumTrial ? { trial_end: trialEnd } : {}),
+            }
+          : prev
+      );
 
       redirectTimerRef.current = window.setTimeout(() => {
         router.replace(DASHBOARD_ROUTE);

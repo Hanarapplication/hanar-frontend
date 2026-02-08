@@ -343,8 +343,19 @@ export async function POST(req: Request) {
 
         if (planErr) {
           console.error('Failed to apply free plan limits:', planErr);
-          // Don't fail registration if plan application fails, but log it
-          // The user can still select a plan later
+          try {
+            await supabaseAdmin.from('businesses').delete().eq('id', businessData.id);
+          } catch {}
+          try {
+            await supabaseAdmin.from('registeredaccounts').delete().eq('user_id', createdUserId);
+          } catch {}
+          try {
+            await supabaseAdmin.auth.admin.deleteUser(createdUserId);
+          } catch {}
+          return NextResponse.json(
+            { error: 'Registration failed: could not configure plan. Please try again.', stage: 'apply_plan' },
+            { status: 500 }
+          );
         }
       }
     }
