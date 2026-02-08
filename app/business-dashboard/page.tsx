@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { Edit, Eye, Crown, BarChart3 } from 'lucide-react';
@@ -26,6 +27,19 @@ type FavoriteBusiness = {
     state?: string;
   } | null;
 };
+
+type FavoriteItem = {
+  key: string;
+  id: string;
+  source: 'retail' | 'dealership';
+  slug: string;
+  title: string;
+  price: string | number;
+  image: string;
+  location?: string;
+};
+
+const FAVORITE_ITEMS_KEY = 'favoriteMarketplaceItems';
 
 type FollowedOrganization = {
   user_id: string;
@@ -84,6 +98,8 @@ export default function BusinessDashboardPage() {
   } | null>(null);
   const [favorites, setFavorites] = useState<FavoriteBusiness[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(true);
+  const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
+  const [favoriteItemsOpen, setFavoriteItemsOpen] = useState(false);
   const [followedOrgs, setFollowedOrgs] = useState<FollowedOrganization[]>([]);
   const [followedOrgsLoading, setFollowedOrgsLoading] = useState(true);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
@@ -283,6 +299,19 @@ export default function BusinessDashboardPage() {
     };
 
     loadFavorites();
+  }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(FAVORITE_ITEMS_KEY);
+    if (!stored) {
+      setFavoriteItems([]);
+      return;
+    }
+    try {
+      setFavoriteItems(JSON.parse(stored) as FavoriteItem[]);
+    } catch {
+      setFavoriteItems([]);
+    }
   }, []);
 
   const loadNotificationHistory = async () => {
@@ -838,6 +867,70 @@ export default function BusinessDashboardPage() {
                                   </button>
                                 ))}
                               </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => setFavoriteItemsOpen((prev) => !prev)}
+                    className="flex w-full items-center justify-between gap-4 text-left"
+                  >
+                    <div>
+                      <h2 className="text-lg font-semibold text-emerald-900">Favorite Items</h2>
+                      <span className="text-sm text-emerald-700">{favoriteItems.length} total</span>
+                    </div>
+                    <span className="text-sm text-emerald-700">{favoriteItemsOpen ? 'Hide' : 'Show'}</span>
+                  </button>
+
+                  {favoriteItemsOpen && (
+                    <>
+                      {favoriteItems.length === 0 ? (
+                        <div className="mt-4 rounded-2xl border border-dashed border-emerald-200 p-6 text-center text-emerald-700">
+                          No favorite items yet.
+                        </div>
+                      ) : (
+                        <div className="mt-5 grid gap-3">
+                          {favoriteItems.map((item) => (
+                            <div
+                              key={item.key}
+                              className="group rounded-2xl border border-emerald-100 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+                            >
+                              <Link href={`/marketplace/${item.slug}`} className="flex items-center gap-3">
+                                <div className="h-11 w-11 rounded-xl overflow-hidden border border-emerald-100 bg-emerald-100">
+                                  <img
+                                    src={item.image || '/placeholder.jpg'}
+                                    alt={item.title}
+                                    className="h-full w-full object-contain"
+                                    loading="lazy"
+                                    decoding="async"
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate font-semibold text-emerald-900">
+                                    {item.title}
+                                  </p>
+                                  <p className="text-xs text-emerald-700">
+                                    {item.location || ''}
+                                  </p>
+                                </div>
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = favoriteItems.filter((fav) => fav.key !== item.key);
+                                  setFavoriteItems(next);
+                                  localStorage.setItem(FAVORITE_ITEMS_KEY, JSON.stringify(next));
+                                }}
+                                className="mt-2 text-xs text-red-600 hover:underline"
+                              >
+                                Remove
+                              </button>
                             </div>
                           ))}
                         </div>

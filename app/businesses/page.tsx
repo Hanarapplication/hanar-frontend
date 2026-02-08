@@ -85,10 +85,12 @@ export default function BusinessesPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<'nearest' | 'default'>('default');
+  const [relatedBusinessIds, setRelatedBusinessIds] = useState<Set<string>>(new Set());
+  const [searching, setSearching] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [visibleCount, setVisibleCount] = useState(6);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const searchCacheRef = useRef<Map<string, Set<string>>>(new Map());
 
   useEffect(() => {
     async function fetchBusinesses() {
@@ -149,6 +151,90 @@ export default function BusinessesPage() {
     );
   }, []);
 
+  useEffect(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) {
+      setRelatedBusinessIds(new Set());
+      setSearching(false);
+      setVisibleCount(6);
+      return;
+    }
+
+    if (term.length < 2) {
+      setRelatedBusinessIds(new Set());
+      setSearching(false);
+      setVisibleCount(6);
+      return;
+    }
+
+    const cached = searchCacheRef.current.get(term);
+    if (cached) {
+      setRelatedBusinessIds(new Set(cached));
+      setSearching(false);
+      setVisibleCount(6);
+      return;
+    }
+
+    setSearching(true);
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      try {
+        const likeTerm = `%${term}%`;
+        const [menuRes, retailRes, carRes] = await Promise.all([
+          supabase
+            .from('menu_items')
+            .select('business_id')
+            .or(`name.ilike.${likeTerm},description.ilike.${likeTerm},category.ilike.${likeTerm}`)
+            .limit(200),
+          supabase
+            .from('retail_items')
+            .select('business_id')
+            .or(`name.ilike.${likeTerm},description.ilike.${likeTerm},category.ilike.${likeTerm}`)
+            .limit(200),
+          supabase
+            .from('dealerships')
+            .select('business_id')
+            .or(`title.ilike.${likeTerm},description.ilike.${likeTerm}`)
+            .limit(200),
+        ]);
+
+        const ids = new Set<string>();
+        if (!menuRes.error && menuRes.data) {
+          menuRes.data.forEach((row: { business_id: string | null }) => {
+            if (row.business_id) ids.add(row.business_id);
+          });
+        }
+        if (!retailRes.error && retailRes.data) {
+          retailRes.data.forEach((row: { business_id: string | null }) => {
+            if (row.business_id) ids.add(row.business_id);
+          });
+        }
+        if (!carRes.error && carRes.data) {
+          carRes.data.forEach((row: { business_id: string | null }) => {
+            if (row.business_id) ids.add(row.business_id);
+          });
+        }
+
+        if (!cancelled) {
+          searchCacheRef.current.set(term, ids);
+          setRelatedBusinessIds(ids);
+        }
+      } catch (err) {
+        console.error('Search lookup failed', err);
+      } finally {
+        if (!cancelled) {
+          setSearching(false);
+          setVisibleCount(6);
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [query]);
+
   const toggleFavorite = async (e: React.MouseEvent, businessId: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -179,17 +265,18 @@ export default function BusinessesPage() {
     }
   };
 
+  const normalizedQuery = query.toLowerCase();
   const filtered = businesses
-    .filter((b) =>
-      b.business_name.toLowerCase().includes(query.toLowerCase()) ||
-      b.category.toLowerCase().includes(query.toLowerCase()) ||
-      (b.description || '').toLowerCase().includes(query.toLowerCase()) ||
-      getCityState(b.address).toLowerCase().includes(query.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (filter === 'nearest' && a.distance !== undefined && b.distance !== undefined) return a.distance - b.distance;
-      return a.business_name.localeCompare(b.business_name);
-    });
+    .filter((b) => {
+      if (!normalizedQuery) return true;
+      const matchesText =
+        b.business_name.toLowerCase().includes(normalizedQuery) ||
+        b.category.toLowerCase().includes(normalizedQuery) ||
+        (b.description || '').toLowerCase().includes(normalizedQuery) ||
+        getCityState(b.address).toLowerCase().includes(normalizedQuery);
+      return matchesText || relatedBusinessIds.has(b.id);
+    })
+    .sort((a, b) => a.business_name.localeCompare(b.business_name));
 
   const visible = filtered.slice(0, visibleCount);
 
@@ -216,15 +303,12 @@ export default function BusinessesPage() {
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full pl-10 pr-3.5 py-3 sm:py-3.5 bg-white border border-blue-200 rounded-lg sm:rounded-xl text-sm sm:text-base placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/40 focus:border-blue-400 transition shadow-sm"
               />
+              {searching && (
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-blue-500">
+                  Searching…
+                </span>
+              )}
             </div>
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as any)}
-              className="px-3.5 py-3 sm:py-3.5 bg-white border border-blue-200 rounded-lg sm:rounded-xl text-sm sm:text-base text-gray-700 focus:ring-2 focus:ring-blue-400/40 focus:border-blue-400 shadow-sm"
-            >
-              <option value="default">A–Z</option>
-              <option value="nearest">Nearest</option>
-            </select>
           </div>
         </div>
 
@@ -282,7 +366,7 @@ export default function BusinessesPage() {
                     {locationText}
                   </p>
 
-                  {filter === 'nearest' && biz.distance !== undefined && (
+                  {biz.distance !== undefined && (
                     <div className="mt-2 inline-flex items-center px-2 py-0.5 bg-blue-100/70 text-blue-800 text-xs font-medium rounded-full">
                       ≈ {biz.distance.toFixed(1)} km
                     </div>

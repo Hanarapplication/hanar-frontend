@@ -52,6 +52,7 @@ type MarketplaceItem = {
   id: string;
   title: string;
   price: number | string | null;
+  description?: string | null;
   imageUrls?: string[] | string | null;
   condition?: string | null;
   location?: string | null;
@@ -59,6 +60,10 @@ type MarketplaceItem = {
   lon?: number | null;
   created_at?: string | null;
   distance?: number;
+  slug?: string | null;
+  source?: 'retail' | 'dealership';
+  business_id?: string | null;
+  business_verified?: boolean;
 };
 
 type Comment = {
@@ -76,6 +81,7 @@ type FeedItem =
   | { type: 'post'; post: CommunityPost }
   | { type: 'business'; business: Business }
   | { type: 'organization'; organization: Organization }
+  | { type: 'item'; item: MarketplaceItem }
   | { type: 'ad'; banner: AdBanner }
   | { type: 'sliderBusinesses' }
   | { type: 'sliderMarketplace' };
@@ -113,6 +119,32 @@ const formatPrice = (value: number | string | null | undefined) => {
 const getFirstImage = (value?: string[] | string | null) => {
   if (Array.isArray(value)) return value[0] || '';
   return value || '';
+};
+
+const getStorageUrl = (bucket: string, path?: string | null) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  return `${base}/storage/v1/object/public/${bucket}/${path}`;
+};
+
+const normalizeImages = (value: unknown, bucket: string): string[] => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.map((item) => getStorageUrl(bucket, String(item))).filter(Boolean);
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => getStorageUrl(bucket, String(item))).filter(Boolean);
+      }
+      return [getStorageUrl(bucket, value)].filter(Boolean);
+    } catch {
+      return [getStorageUrl(bucket, value)].filter(Boolean);
+    }
+  }
+  return [];
 };
 
 const sortByCreatedAtDesc = (a?: string | null, b?: string | null) =>
@@ -296,7 +328,7 @@ export default function Home() {
   useEffect(() => {
     const loadHomeFeed = async () => {
       setLoading(true);
-      const [postsRes, businessRes, orgRes, marketplaceRes] = await Promise.all([
+      const [postsRes, businessRes, orgRes, retailRes, dealershipRes] = await Promise.all([
         supabase
           .from('community_posts')
           .select('id, title, body, created_at, author, author_type, username, image, likes_post, community_comments(count)')
@@ -315,16 +347,76 @@ export default function Home() {
           .order('created_at', { ascending: false })
           .limit(8),
         supabase
-          .from('marketplace_items')
-          .select('id, title, price, imageUrls, condition, location, lat, lon, created_at')
+          .from('retail_items')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('dealerships')
+          .select('*')
           .order('created_at', { ascending: false })
           .limit(50),
       ]);
 
+      const normalizedRetail = (retailRes.data || []).map((row: any) => ({
+        id: String(row.id),
+        title: row.title || row.name || row.item_name || 'Retail item',
+        price: row.price ?? row.amount ?? row.cost ?? '',
+        description: row.description || row.details || null,
+        imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'retail-items'),
+        condition: row.condition || row.item_condition || null,
+        location: row.location || row.city || row.address || '',
+        lat: row.lat ?? row.latitude ?? null,
+        lon: row.lon ?? row.longitude ?? null,
+        created_at: row.created_at || row.createdAt || null,
+        slug: row.slug || row.item_slug || row.listing_slug || `retail-${row.id}`,
+        source: 'retail' as const,
+        business_id: row.business_id || null,
+      }));
+
+      const normalizedDealership = (dealershipRes.data || []).map((row: any) => ({
+        id: String(row.id),
+        title: row.title || row.name || row.vehicle_name || row.model || 'Dealership listing',
+        price: row.price ?? row.amount ?? row.cost ?? '',
+        description: row.description || row.details || row.notes || null,
+        imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'car-listings'),
+        condition: row.condition || row.item_condition || null,
+        location: row.location || row.city || row.address || '',
+        lat: row.lat ?? row.latitude ?? null,
+        lon: row.lon ?? row.longitude ?? null,
+        created_at: row.created_at || row.createdAt || null,
+        slug: row.slug || row.item_slug || row.listing_slug || `dealership-${row.id}`,
+        source: 'dealership' as const,
+        business_id: row.business_id || null,
+      }));
+
       setCommunityPosts(postsRes.data || []);
       setBusinesses(businessRes.data || []);
       setOrganizations(orgRes.data || []);
-      setMarketplaceItems(marketplaceRes.data || []);
+      const combinedItems = [...normalizedRetail, ...normalizedDealership].sort((a, b) =>
+        sortByCreatedAtDesc(a.created_at, b.created_at)
+      );
+      const itemBusinessIds = Array.from(
+        new Set(combinedItems.map((item) => item.business_id).filter(Boolean) as string[])
+      );
+      let verifiedMap = new Map<string, boolean>();
+      if (itemBusinessIds.length > 0) {
+        const { data: businessRows } = await supabase
+          .from('businesses')
+          .select('id, is_verified')
+          .in('id', itemBusinessIds);
+        verifiedMap = new Map(
+          (businessRows || []).map((row: { id: string; is_verified?: boolean | null }) => [
+            row.id,
+            Boolean(row.is_verified),
+          ])
+        );
+      }
+      const itemsWithVerified = combinedItems.map((item) => ({
+        ...item,
+        business_verified: item.business_id ? verifiedMap.get(item.business_id) || false : false,
+      }));
+      setMarketplaceItems(itemsWithVerified);
       setLoading(false);
     };
 
@@ -560,6 +652,7 @@ const formatDateLabel = (value?: string | null) => {
     const items: FeedItem[] = [];
     const businessQueue = [...nearbyBusinesses];
     const organizationQueue = [...organizations];
+    const itemQueue = [...nearbyMarketplaceItems];
     let adIndex = 0;
     let count = 0;
     let insertAfter = 3 + Math.floor(Math.random() * 2);
@@ -591,6 +684,10 @@ const formatDateLabel = (value?: string | null) => {
           items.push({ type: 'organization', organization: organizationQueue.shift()! });
         }
 
+        if (itemQueue.length) {
+          items.push({ type: 'item', item: itemQueue.shift()! });
+        }
+
         count = 0;
         insertAfter = 3 + Math.floor(Math.random() * 2);
       }
@@ -601,6 +698,11 @@ const formatDateLabel = (value?: string | null) => {
       items.push(...remaining.map((business) => ({ type: 'business' as const, business })));
     }
 
+    if (itemQueue.length) {
+      const remainingItems = itemQueue.slice(0, 6);
+      items.push(...remainingItems.map((item) => ({ type: 'item' as const, item })));
+    }
+
     if (!items.length && !loading) {
       if (adBanners[0]) items.push({ type: 'ad', banner: adBanners[0] });
       if (businessQueue.length) {
@@ -608,12 +710,25 @@ const formatDateLabel = (value?: string | null) => {
           ...businessQueue.slice(0, 6).map((business) => ({ type: 'business' as const, business }))
         );
       }
+      if (itemQueue.length) {
+        items.push(
+          ...itemQueue.slice(0, 6).map((item) => ({ type: 'item' as const, item }))
+        );
+      }
       if (featuredBusinesses.length) items.push({ type: 'sliderBusinesses' });
       if (trendingItems.length) items.push({ type: 'sliderMarketplace' });
     }
 
     return items;
-  }, [communityPosts, featuredBusinesses.length, loading, nearbyBusinesses, organizations, trendingItems.length]);
+  }, [
+    communityPosts,
+    featuredBusinesses.length,
+    loading,
+    nearbyBusinesses,
+    nearbyMarketplaceItems,
+    organizations,
+    trendingItems.length,
+  ]);
 
   useEffect(() => {
     const target = bottomRef.current;
@@ -652,7 +767,7 @@ const formatDateLabel = (value?: string | null) => {
             const isCommentsOpen = commentsOpen.has(item.post.id);
             const comments = commentsByPost[item.post.id] || [];
             return (
-              <article key={`post-${item.post.id}-${index}`} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <article key={`post-${item.post.id}-${index}`} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm min-h-[260px] flex flex-col">
                 <div className="flex items-center justify-between text-xs text-slate-500">
                   <span>{item.post.author || 'Community'}</span>
                   <span>{dateLabel}</span>
@@ -726,7 +841,7 @@ const formatDateLabel = (value?: string | null) => {
 
           if (item.type === 'business') {
             return (
-              <article key={`biz-${item.business.id}-${index}`} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <article key={`biz-${item.business.id}-${index}`} className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm">
                 <div className="flex items-center gap-3">
                   <Link href={`/business/${item.business.slug}`} className="shrink-0">
                     <img
@@ -758,7 +873,7 @@ const formatDateLabel = (value?: string | null) => {
 
           if (item.type === 'organization') {
             return (
-              <article key={`org-${item.organization.id}-${index}`} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <article key={`org-${item.organization.id}-${index}`} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm min-h-[260px] flex flex-col">
                 <div className="flex items-center gap-3">
                   <img
                     src={item.organization.logo_url || item.organization.banner_url || 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=600&auto=format&fit=crop'}
@@ -780,6 +895,40 @@ const formatDateLabel = (value?: string | null) => {
 
           if (item.type === 'ad') {
             return <AdCard key={`ad-${item.banner.id}-${index}`} banner={item.banner} />;
+          }
+
+          if (item.type === 'item') {
+            return (
+              <article key={`item-${item.item.id}-${index}`} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <Link href={`/marketplace/${item.item.slug || item.item.id}`}>
+                  <div className="relative w-full bg-gray-100">
+                    <img
+                      src={getFirstImage(item.item.imageUrls) || '/placeholder.jpg'}
+                      alt={item.item.title}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-auto max-h-72 object-contain"
+                    />
+                    {item.item.business_verified && (
+                      <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white shadow">
+                        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-emerald-600 text-[9px] font-bold">
+                          H
+                        </span>
+                        Verified
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-3 space-y-1">
+                    <h3 className="text-base font-semibold text-slate-800 line-clamp-2">{item.item.title}</h3>
+                    <p className="text-sm font-semibold text-emerald-600">{formatPrice(item.item.price)}</p>
+                    {item.item.description && (
+                      <p className="text-xs text-slate-600 line-clamp-2">{item.item.description}</p>
+                    )}
+                    <p className="text-xs text-slate-500">{item.item.location || ''}</p>
+                  </div>
+                </Link>
+              </article>
+            );
           }
 
           if (item.type === 'sliderBusinesses') {

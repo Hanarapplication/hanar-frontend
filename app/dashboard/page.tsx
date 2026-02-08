@@ -18,6 +18,19 @@ type FavoriteBusiness = {
   } | null;
 };
 
+type FavoriteItem = {
+  key: string;
+  id: string;
+  source: 'retail' | 'dealership';
+  slug: string;
+  title: string;
+  price: string | number;
+  image: string;
+  location?: string;
+};
+
+const FAVORITE_ITEMS_KEY = 'favoriteMarketplaceItems';
+
 const normalizeCategory = (value?: string | null) => {
   const normalized = (value || '').trim().toLowerCase();
   if (!normalized) return '';
@@ -28,6 +41,7 @@ const normalizeCategory = (value?: string | null) => {
 
 export default function DashboardPage() {
   const [favorites, setFavorites] = useState<FavoriteBusiness[]>([]);
+  const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -80,6 +94,19 @@ export default function DashboardPage() {
 
     load();
   }, [router]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(FAVORITE_ITEMS_KEY);
+    if (!stored) {
+      setFavoriteItems([]);
+      return;
+    }
+    try {
+      setFavoriteItems(JSON.parse(stored) as FavoriteItem[]);
+    } catch {
+      setFavoriteItems([]);
+    }
+  }, []);
 
   const groupedFavorites = useMemo(() => {
     const groups: Record<string, FavoriteBusiness[]> = {};
@@ -159,6 +186,61 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
+
+          <div className="mt-10 border-t border-slate-100 pt-8">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Marketplace</p>
+                <h2 className="mt-1 text-xl font-semibold text-slate-900">Favorite Items</h2>
+              </div>
+              <div className="text-sm text-slate-500">
+                {favoriteItems.length} item{favoriteItems.length === 1 ? '' : 's'}
+              </div>
+            </div>
+
+            {favoriteItems.length === 0 ? (
+              <div className="mt-6 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-slate-500">
+                You have no favorite items yet.
+              </div>
+            ) : (
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {favoriteItems.map((item) => (
+                  <div
+                    key={item.key}
+                    className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                  >
+                    <Link href={`/marketplace/${item.slug}`} className="block">
+                      <div className="h-32 w-full overflow-hidden rounded-xl bg-slate-100">
+                        <img
+                          src={item.image || '/placeholder.jpg'}
+                          alt={item.title}
+                          className="h-full w-full object-contain"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </div>
+                      <div className="mt-3">
+                        <p className="truncate font-semibold text-slate-900">{item.title}</p>
+                        <p className="text-xs text-slate-500">{item.location || ''}</p>
+                        <p className="text-sm font-semibold text-emerald-600">{item.price}</p>
+                      </div>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = favoriteItems.filter((fav) => fav.key !== item.key);
+                        setFavoriteItems(next);
+                        localStorage.setItem(FAVORITE_ITEMS_KEY, JSON.stringify(next));
+                      }}
+                      className="mt-3 text-xs text-red-600 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

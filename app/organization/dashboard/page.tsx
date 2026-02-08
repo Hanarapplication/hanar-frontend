@@ -73,6 +73,19 @@ type NotificationType = {
   type: 'success' | 'error' | 'info';
 };
 
+type FavoriteItem = {
+  key: string;
+  id: string;
+  source: 'retail' | 'dealership';
+  slug: string;
+  title: string;
+  price: string | number;
+  image: string;
+  location?: string;
+};
+
+const FAVORITE_ITEMS_KEY = 'favoriteMarketplaceItems';
+
 // Add new type for modal state
 type ModalState = {
   isOpen: boolean;
@@ -190,6 +203,8 @@ export default function OrganizationDashboard() {
   const [followedOrgsLoading, setFollowedOrgsLoading] = useState(true);
   const [favoritesOpen, setFavoritesOpen] = useState(false);
   const [followedOrgsOpen, setFollowedOrgsOpen] = useState(false);
+  const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
+  const [favoriteItemsOpen, setFavoriteItemsOpen] = useState(false);
 
   // Add form state for profile editing
   const [form, setForm] = useState({
@@ -343,6 +358,19 @@ export default function OrganizationDashboard() {
     };
 
     loadFavoritesAndOrgs();
+  }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(FAVORITE_ITEMS_KEY);
+    if (!stored) {
+      setFavoriteItems([]);
+      return;
+    }
+    try {
+      setFavoriteItems(JSON.parse(stored) as FavoriteItem[]);
+    } catch {
+      setFavoriteItems([]);
+    }
   }, []);
 
   // Load user liked posts from localStorage
@@ -1562,6 +1590,70 @@ export default function OrganizationDashboard() {
                               </p>
                             </div>
                           </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </Card>
+
+              <Card>
+                <button
+                  type="button"
+                  onClick={() => setFavoriteItemsOpen((prev) => !prev)}
+                  className="flex w-full items-center justify-between gap-4 text-left"
+                >
+                  <div>
+                    <h2 className="text-lg font-semibold text-emerald-900">Favorite Items</h2>
+                    <span className="text-sm text-emerald-700">{favoriteItems.length} total</span>
+                  </div>
+                  <span className="text-sm text-emerald-700">{favoriteItemsOpen ? 'Hide' : 'Show'}</span>
+                </button>
+
+                {favoriteItemsOpen && (
+                  <>
+                    {favoriteItems.length === 0 ? (
+                      <div className="mt-4 rounded-2xl border border-dashed border-emerald-200 p-6 text-center text-emerald-700">
+                        No favorite items yet.
+                      </div>
+                    ) : (
+                      <div className="mt-5 grid gap-3">
+                        {favoriteItems.map((item) => (
+                          <div
+                            key={item.key}
+                            className="group rounded-2xl border border-emerald-100 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+                          >
+                            <Link href={`/marketplace/${item.slug}`} className="flex items-center gap-3">
+                              <div className="h-11 w-11 rounded-xl overflow-hidden border border-emerald-100 bg-emerald-100">
+                                <img
+                                  src={item.image || '/placeholder.jpg'}
+                                  alt={item.title}
+                                  className="h-full w-full object-contain"
+                                  loading="lazy"
+                                  decoding="async"
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate font-semibold text-emerald-900">
+                                  {item.title}
+                                </p>
+                                <p className="text-xs text-emerald-700">
+                                  {item.location || ''}
+                                </p>
+                              </div>
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = favoriteItems.filter((fav) => fav.key !== item.key);
+                                setFavoriteItems(next);
+                                localStorage.setItem(FAVORITE_ITEMS_KEY, JSON.stringify(next));
+                              }}
+                              className="mt-2 text-xs text-red-600 hover:underline"
+                            >
+                              Remove
+                            </button>
+                          </div>
                         ))}
                       </div>
                     )}
