@@ -64,7 +64,8 @@ type Comment = {
   user_id: string;
   username: string;
   author: string;
-  text: string;
+  text?: string;
+  body?: string;
   created_at: string;
   likes_comment?: number;
 
