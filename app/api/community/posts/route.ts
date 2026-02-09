@@ -16,9 +16,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Missing orgId or userId' }, { status: 400 });
     }
 
-    const authorFilter = orgId
-      ? `org_id.eq.${orgId},and(user_id.eq.${userId},author_type.eq.organization),and(user_id.eq.${userId},author_type.is.null)`
-      : `and(user_id.eq.${userId},author_type.eq.organization),and(user_id.eq.${userId},author_type.is.null)`;
+    const individualOnly = searchParams.get('individualOnly') === 'true';
+    const authorFilter = individualOnly
+      ? `and(user_id.eq.${userId},author_type.is.null)`
+      : orgId
+        ? `org_id.eq.${orgId},and(user_id.eq.${userId},author_type.eq.organization),and(user_id.eq.${userId},author_type.is.null)`
+        : `and(user_id.eq.${userId},author_type.eq.organization),and(user_id.eq.${userId},author_type.is.null)`;
 
     const { data: posts, error } = await supabaseAdmin
       .from('community_posts')
@@ -33,20 +36,30 @@ export async function GET(req: Request) {
 
     const postIds = (posts || []).map(post => post.id);
     let commentCounts: Record<string, number> = {};
+    let likeCounts: Record<string, number> = {};
 
     if (postIds.length > 0) {
-      const { data: commentsData } = await supabaseAdmin
-        .from('community_comments')
-        .select('id, post_id')
-        .in('post_id', postIds);
+      const [commentsRes, likesRes] = await Promise.all([
+        supabaseAdmin.from('community_comments').select('id, post_id').in('post_id', postIds),
+        supabaseAdmin.from('community_post_likes').select('post_id').in('post_id', postIds),
+      ]);
 
-      commentCounts = (commentsData || []).reduce<Record<string, number>>((acc, comment) => {
+      commentCounts = (commentsRes.data || []).reduce<Record<string, number>>((acc, comment) => {
         acc[comment.post_id] = (acc[comment.post_id] || 0) + 1;
         return acc;
       }, {});
+
+      (likesRes.data || []).forEach((row) => {
+        likeCounts[row.post_id] = (likeCounts[row.post_id] ?? 0) + 1;
+      });
     }
 
-    return NextResponse.json({ posts: posts || [], commentCounts });
+    const enrichedPosts = (posts || []).map((post) => ({
+      ...post,
+      likes_post: likeCounts[post.id] ?? post.likes_post ?? 0,
+    }));
+
+    return NextResponse.json({ posts: enrichedPosts, commentCounts });
   } catch (err) {
     console.error('[API Error]', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

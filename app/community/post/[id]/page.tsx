@@ -50,32 +50,34 @@ export default function CommunityPostPage() {
       }
     
       setPost(post);
-      setLikes(post.likes_post || 0);
+      // Fetch like count from community_post_likes (source of truth)
+      if (id) {
+        try {
+          const countsRes = await fetch(`/api/community/post/counts?postIds=${id}`);
+          const { counts } = await countsRes.json();
+          setLikes(counts?.[id] ?? post.likes_post ?? 0);
+        } catch {
+          setLikes(post.likes_post || 0);
+        }
+      } else {
+        setLikes(post.likes_post || 0);
+      }
     
-      const commentsQuery = supabase
-      .from('community_comments')
-      .select(`
-        *,
-        profiles (
-          profile_pic_url
-        )
-      `)
-      .eq('post_id', id);
-    
-    if (sortMode === 'popular') {
-      commentsQuery.order('likes_comment', { ascending: false });
-    } else {
-      commentsQuery.order('created_at', { ascending: false });
-    }
-    
-    // ✅ Use the query you already built
-    const { data: commentsData, error: commentError } = await commentsQuery;
-    
-    if (commentError) {
-      toast.error('Failed to fetch comments');
-    } else {
-      setComments(commentsData || []);
-    }
+      // Fetch comments via API (avoids RLS and client join issues)
+      const commentsRes = await fetch(`/api/community/comments?postId=${id}`);
+      const commentsPayload = await commentsRes.json();
+
+      if (!commentsRes.ok) {
+        toast.error('Failed to fetch comments');
+        setComments([]);
+      } else {
+        const list = commentsPayload.comments || [];
+        const sorted =
+          sortMode === 'popular'
+            ? [...list].sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0))
+            : list;
+        setComments(sorted);
+      }
     
     setLoading(false);
     
@@ -132,72 +134,94 @@ export default function CommunityPostPage() {
       return toast.error('Cannot submit comment');
     }
 
-    const comment = {
-      post_id: id,
-      user_id: userSession.user.id,
-      username,
-      author: username,
-      identity: 'user',
-      text: newComment.trim(),
-      created_at: new Date().toISOString(),
-      parent_id: null,
-      likes_comment: 0,
-    };
-
-    const { data, error } = await supabase
-  .from('community_comments')
-  .insert([comment])
-  .select()
-  .single();
-
-if (error) {
-  toast.error('Failed to post comment');
-} else {
-  setNewComment('');
-  setComments((prev) => [data, ...prev]); // Add new comment to top
-}
+    const res = await fetch('/api/community/comments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        post_id: id,
+        user_id: userSession.user.id,
+        username,
+        author: username,
+        text: newComment.trim(),
+      }),
+    });
+    const result = await res.json();
+    if (!res.ok) {
+      toast.error('Failed to post comment');
+      return;
+    }
+    setNewComment('');
+    setComments((prev) => [result.comment, ...prev]);
 
   };
 
   const handleCommentLike = async (commentId: string) => {
-    if (!userSession || !username) return toast.error('Login required');
+    const userId = userSession?.user?.id;
+    if (!userSession || !username || !userId) return toast.error('Login required');
 
-    const { data, error } = await supabase.rpc('toggle_comment_like', {
-      cid: commentId,
-      uid: userSession.user.id,
-    });
+    const currentlyLiked = commentLikeStates[commentId];
+    const method = currentlyLiked ? 'DELETE' : 'POST';
+    const delta = currentlyLiked ? -1 : 1;
 
-    if (error) {
-      toast.error('Failed to like comment');
-      return;
-    }
-
-    const [result] = data;
-    setCommentLikeStates(prev => ({ ...prev, [commentId]: result.liked }));
-    setComments(prev =>
-      prev.map(c =>
-        c.id === commentId ? { ...c, likes_comment: result.likes_comment } : c
+    setCommentLikeStates((prev) => ({ ...prev, [commentId]: !currentlyLiked }));
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === commentId ? { ...c, likes: Math.max(0, (c.likes ?? c.likes_comment ?? 0) + delta) } : c
       )
     );
+
+    const url =
+      method === 'DELETE'
+        ? `/api/community/comments/like?comment_id=${encodeURIComponent(commentId)}&user_id=${encodeURIComponent(userId)}`
+        : '/api/community/comments/like';
+
+    const res = await fetch(url, {
+      method,
+      headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
+      body: method === 'POST' ? JSON.stringify({ comment_id: commentId, user_id: userId }) : undefined,
+    });
+
+    if (!res.ok && res.status !== 409) {
+      toast.error('Failed to like comment');
+      setCommentLikeStates((prev) => ({ ...prev, [commentId]: currentlyLiked }));
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId ? { ...c, likes: Math.max(0, (c.likes ?? c.likes_comment ?? 0) - delta) } : c
+        )
+      );
+    }
   };
 
   const handleLike = async () => {
-    if (!userSession || !username) return toast.error('Login required');
+    const userId = userSession?.user?.id;
+    if (!id || !userSession || !username || !userId) return toast.error('Login required');
 
-    const { data, error } = await supabase.rpc('toggle_post_like', {
-      pid: id,
-      uid: userSession.user.id,
+    const currentlyLiked = likedByUser;
+    const newLiked = !currentlyLiked;
+
+    // Optimistic update: show new count and liked state immediately
+    setLikedByUser(newLiked);
+    setLikes((prev) => (newLiked ? prev + 1 : Math.max(0, prev - 1)));
+
+    const method = currentlyLiked ? 'DELETE' : 'POST';
+    const url =
+      method === 'DELETE'
+        ? `/api/community/post/like?post_id=${encodeURIComponent(id)}&user_id=${encodeURIComponent(userId)}`
+        : '/api/community/post/like';
+
+    const res = await fetch(url, {
+      method,
+      headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
+      body: method === 'POST' ? JSON.stringify({ post_id: id, user_id: userId }) : undefined,
     });
 
-    if (error) {
-      toast.error(`Failed to update like: ${error.message}`);
+    if (!res.ok && res.status !== 409) {
+      toast.error('Failed to update like');
+      setLikedByUser(currentlyLiked);
+      setLikes((prev) => (newLiked ? Math.max(0, prev - 1) : prev + 1));
       return;
     }
-
-    const [result] = data;
-    setLikedByUser(result.liked);
-    setLikes(result.likes_post);
-    toast.success(result.liked ? 'Liked' : 'Unliked');
+    toast.success(newLiked ? 'Liked' : 'Unliked');
   };
 
   const handleDeleteComment = async (commentId: number) => {
@@ -313,12 +337,20 @@ if (error) {
               </button>
             )}
             {isPostAuthor && (
-              <button
-                onClick={confirmDeletePost}
-                className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-red-700"
-              >
-                🗑️ Delete
-              </button>
+              <>
+                <button
+                  onClick={() => toast('Promote coming soon.')}
+                  className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                >
+                  📢 Promote
+                </button>
+                <button
+                  onClick={confirmDeletePost}
+                  className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-red-700"
+                >
+                  🗑️ Delete
+                </button>
+              </>
             )}
           </div>
         </article>
@@ -377,7 +409,7 @@ if (error) {
                       onClick={() => handleCommentLike(c.id)}
                       className={`ml-auto text-xs ${commentLikeStates[c.id] ? 'text-blue-600 font-semibold' : 'text-gray-500'} hover:underline`}
                     >
-                      {commentLikeStates[c.id] ? '💙 Liked' : '👍 Like'} ({c.likes_comment || 0})
+                      {commentLikeStates[c.id] ? '💙 Liked' : '👍 Like'} ({c.likes ?? c.likes_comment ?? 0})
                     </button>
                   )}
                   {userSession?.user?.id === c.user_id && (
@@ -386,7 +418,7 @@ if (error) {
                     </button>
                   )}
                 </div>
-                <p className="mt-2 text-sm text-slate-700">{c.text}</p>
+                <p className="mt-2 text-sm text-slate-700">{c.body ?? c.text}</p>
               </div>
             ))}
           </div>

@@ -425,17 +425,18 @@ function BusinessCard({
     }
   };
 
-  const removeSent = async (id: string) => {
+  const removeSent = async (item: SentNotification) => {
     if (!confirm('Remove this sent notification log?')) return;
+    const source = item.kind === 'follower_update' ? 'notification' : 'area_blast';
     try {
       const res = await fetch('/api/admin/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: 'delete' }),
+        body: JSON.stringify({ id: item.id, action: 'delete', source }),
       });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload?.error || 'Failed to remove notification');
-      setSentNotifications((prev) => prev.filter((n) => n.id !== id));
+      setSentNotifications((prev) => prev.filter((n) => n.id !== item.id));
     } catch (err: any) {
       toast.error(err?.message || 'Failed to remove notification');
     }
@@ -783,7 +784,7 @@ function BusinessCard({
                             {flagged ? 'Unflag' : 'Flag'}
                           </button>
                           <button
-                            onClick={() => removeSent(item.id)}
+                            onClick={() => removeSent(item)}
                             className="px-3 py-1.5 rounded-md bg-red-600 text-white text-xs font-semibold"
                           >
                             Remove

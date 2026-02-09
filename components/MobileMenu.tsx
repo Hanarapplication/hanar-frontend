@@ -109,13 +109,7 @@ export default function MobileMenu({
           </LiveRefreshLink>
 
           <Link
-            href={
-              userRole === 'business'
-                ? '/business-dashboard'
-                : userRole === 'organization'
-                ? '/organization/dashboard'
-                : '/dashboard'
-            }
+            href="/dashboard"
             onClick={() => setIsOpen(false)}
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >

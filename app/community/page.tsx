@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { HeartIcon, ChatBubbleLeftIcon, MagnifyingGlassIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid';
+import { Trash2, Megaphone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import Link from 'next/link';
@@ -17,6 +18,7 @@ interface Post {
   author: string;
   author_type?: string | null;
   username?: string | null;
+  user_id?: string | null;
   created_at: string;
   image?: string;
   likes_post?: number;
@@ -38,6 +40,7 @@ export default function CommunityFeedPage() {
   const [commentsByPost, setCommentsByPost] = useState<Record<string, any[]>>({});
   const [commentsOpen, setCommentsOpen] = useState<Set<string>>(new Set());
   const [commentLoading, setCommentLoading] = useState<Record<string, boolean>>({});
+  const [deletingPost, setDeletingPost] = useState<string | null>(null);
 
   const sortPosts = (posts: Post[]): Post[] => {
     if (sortMode === 'popular') {
@@ -113,6 +116,7 @@ export default function CommunityFeedPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setCurrentUser({ id: '', username: null });
+        setLikedPosts(new Set());
         return;
       }
 
@@ -123,17 +127,18 @@ export default function CommunityFeedPage() {
         .single();
 
       setCurrentUser({ id: user.id, username: account?.username || null });
-    };
 
-    const stored = localStorage.getItem('communityFeedLikedPosts');
-    if (stored) {
+      // Fetch user's liked post IDs from community_post_likes
       try {
-        const parsed = JSON.parse(stored) as string[];
-        setLikedPosts(new Set(parsed));
+        const res = await fetch(`/api/community/post/liked?userId=${encodeURIComponent(user.id)}`);
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.likedPostIds)) {
+          setLikedPosts(new Set(data.likedPostIds));
+        }
       } catch {
         setLikedPosts(new Set());
       }
-    }
+    };
 
     loadUser();
   }, []);
@@ -148,26 +153,50 @@ export default function CommunityFeedPage() {
 
   const handleLikePost = async (postId: string) => {
     if (!requireLogin()) return;
-    if (likedPosts.has(postId)) return;
 
-    const res = await fetch('/api/community/post/like', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ post_id: postId, user_id: currentUser.id }),
+    const currentlyLiked = likedPosts.has(postId);
+    const delta = currentlyLiked ? -1 : 1;
+
+    // Optimistic update: show new count and liked state immediately
+    setVisiblePosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? { ...post, likes_post: Math.max(0, (post.likes_post || 0) + delta) }
+          : post
+      )
+    );
+    setLikedPosts((prev) => {
+      const next = new Set(prev);
+      if (currentlyLiked) next.delete(postId);
+      else next.add(postId);
+      return next;
     });
 
-    if (res.ok || res.status === 409) {
+    const method = currentlyLiked ? 'DELETE' : 'POST';
+    const url =
+      method === 'DELETE'
+        ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}&user_id=${encodeURIComponent(currentUser.id)}`
+        : '/api/community/post/like';
+
+    const res = await fetch(url, {
+      method,
+      headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
+      body: method === 'POST' ? JSON.stringify({ post_id: postId, user_id: currentUser.id }) : undefined,
+    });
+
+    if (!res.ok && res.status !== 409) {
+      // Revert on failure
       setVisiblePosts((prev) =>
         prev.map((post) =>
           post.id === postId
-            ? { ...post, likes_post: (post.likes_post || 0) + (res.ok ? 1 : 0) }
+            ? { ...post, likes_post: Math.max(0, (post.likes_post || 0) - delta) }
             : post
         )
       );
       setLikedPosts((prev) => {
         const next = new Set(prev);
-        next.add(postId);
-        localStorage.setItem('communityFeedLikedPosts', JSON.stringify(Array.from(next)));
+        if (currentlyLiked) next.add(postId);
+        else next.delete(postId);
         return next;
       });
     }
@@ -228,6 +257,31 @@ export default function CommunityFeedPage() {
         return { ...post, community_comments: [{ count: currentCount + 1 }] };
       })
     );
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!requireLogin()) return;
+    if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) return;
+    setDeletingPost(postId);
+    try {
+      const { error } = await supabase
+        .from('community_posts')
+        .update({ deleted: true })
+        .eq('id', postId)
+        .eq('user_id', currentUser.id);
+
+      if (error) throw error;
+      setVisiblePosts((prev) => prev.filter((p) => p.id !== postId));
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Failed to delete post');
+    } finally {
+      setDeletingPost(null);
+    }
+  };
+
+  const handlePromotePost = () => {
+    alert('Promote coming soon.');
   };
 
   const handleSharePost = async (postId: string) => {
@@ -383,6 +437,26 @@ export default function CommunityFeedPage() {
                 onShare={() => handleSharePost(post.id)}
               />
 
+              {currentUser.id && post.user_id === currentUser.id && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-sm">
+                  <button
+                    onClick={() => handleDeletePost(post.id)}
+                    disabled={deletingPost === post.id}
+                    className="flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-200 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete
+                  </button>
+                  <button
+                    onClick={handlePromotePost}
+                    className="flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-200"
+                  >
+                    <Megaphone className="h-3.5 w-3.5" />
+                    Promote
+                  </button>
+                </div>
+              )}
+
               {isCommentsOpen && (
                 <div className="mt-4 border-t border-slate-100 pt-4">
                   {commentLoading[post.id] ? (
@@ -397,7 +471,7 @@ export default function CommunityFeedPage() {
                           <p className="text-xs font-semibold text-slate-700">
                             {comment.username || comment.author || 'User'}
                           </p>
-                          <p className="text-sm text-slate-600">{comment.text}</p>
+                          <p className="text-sm text-slate-600">{comment.body ?? comment.text}</p>
                         </div>
                       ))}
                     </div>

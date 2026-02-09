@@ -30,8 +30,9 @@ type MarketplaceItem = {
   lon?: number | null;
   created_at?: string | null;
   slug: string;
-  source: 'retail' | 'dealership';
+  source: 'retail' | 'dealership' | 'individual';
   business_id?: string | null;
+  user_id?: string | null;
   business_verified?: boolean;
   business_plan?: string | null;
 };
@@ -39,7 +40,7 @@ type MarketplaceItem = {
 type FavoriteItem = {
   key: string;
   id: string;
-  source: 'retail' | 'dealership';
+  source: 'retail' | 'dealership' | 'individual';
   slug: string;
   title: string;
   price: string | number;
@@ -221,10 +222,33 @@ export default function MarketplacePage() {
       business_id: row.business_id || null,
     });
 
+    const normalizeIndividualItem = (row: any): MarketplaceItem => {
+      const raw = row.image_urls ?? row.imageUrls;
+      const urls = normalizeImages(raw, 'marketplace-images');
+      return {
+        id: String(row.id),
+        title: row.title || 'Listing',
+        price: row.price ?? '',
+        location: row.location || '',
+        category: row.category || 'General',
+        condition: row.condition || '',
+        description: row.description || null,
+        imageUrls: urls,
+        lat: null,
+        lon: null,
+        created_at: row.created_at || null,
+        slug: `individual-${row.id}`,
+        source: 'individual',
+        business_id: null,
+        user_id: row.user_id || null,
+      };
+    };
+
     const loadItems = async () => {
-      const [retailRes, dealershipRes] = await Promise.all([
+      const [retailRes, dealershipRes, individualRes] = await Promise.all([
         supabase.from('retail_items').select('*').order('created_at', { ascending: false }),
         supabase.from('dealerships').select('*').order('created_at', { ascending: false }),
+        supabase.from('marketplace_items').select('*').order('created_at', { ascending: false }),
       ]);
 
       if (retailRes.error || dealershipRes.error) {
@@ -235,7 +259,8 @@ export default function MarketplacePage() {
 
       const retail = (retailRes.data || []).map(normalizeRetailItem);
       const dealership = (dealershipRes.data || []).map(normalizeDealershipItem);
-      const combined = [...retail, ...dealership].sort(sortByCreatedAt);
+      const individual = (individualRes.data || []).map(normalizeIndividualItem);
+      const combined = [...retail, ...dealership, ...individual].sort(sortByCreatedAt);
       const businessIds = Array.from(
         new Set(combined.map((item) => item.business_id).filter(Boolean) as string[])
       );

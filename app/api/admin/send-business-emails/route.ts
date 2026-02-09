@@ -6,6 +6,7 @@ import { Resend } from 'resend';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM || 'Hanar <onboarding@resend.dev>';
 
@@ -29,16 +30,39 @@ type Audience =
   | 'individuals'
   | 'organizations'
   | 'businesses'
+  | 'business_admin_added'
+  | 'organization_admin_added'
   | 'business_free'
   | 'business_starter'
   | 'business_growth'
   | 'business_premium'
   | 'business_free_trial';
 
-async function verifyAdmin(): Promise<string | null> {
+async function verifyAdmin(req: Request): Promise<string | null> {
+  let user: { id: string; email?: string } | null = null;
+
   const supabaseServer = createRouteHandlerClient({ cookies });
-  const { data: { user }, error } = await supabaseServer.auth.getUser();
-  if (error || !user?.email) return null;
+  const { data: { user: cookieUser }, error } = await supabaseServer.auth.getUser();
+  if (!error && cookieUser) user = cookieUser;
+
+  if (!user && req) {
+    const authHeader = req.headers.get('authorization') || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    if (token && ANON_KEY) {
+      const supabaseAnon = createClient(SUPABASE_URL!, ANON_KEY, {
+        auth: { persistSession: false },
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+      const { data: { user: tokenUser } } = await supabaseAnon.auth.getUser();
+      if (tokenUser) user = tokenUser;
+    }
+    if (!user && token) {
+      const { data } = await supabaseAdmin.auth.getUser(token);
+      if (data?.user) user = data.user;
+    }
+  }
+
+  if (!user?.email) return null;
 
   const { data } = await supabaseAdmin
     .from('adminaccounts')
@@ -52,7 +76,7 @@ async function verifyAdmin(): Promise<string | null> {
 
 export async function POST(req: Request) {
   try {
-    const adminEmail = await verifyAdmin();
+    const adminEmail = await verifyAdmin(req);
     if (!adminEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -77,6 +101,7 @@ export async function POST(req: Request) {
 
     const validAudiences: Audience[] = [
       'all_users', 'individuals', 'organizations', 'businesses',
+      'business_admin_added', 'organization_admin_added',
       'business_free', 'business_starter', 'business_growth', 'business_premium', 'business_free_trial',
     ];
     if (!audience || !validAudiences.includes(audience)) {
@@ -115,25 +140,30 @@ export async function POST(req: Request) {
       }
     }
 
-    // Organizations
-    if (audience === 'all_users' || audience === 'organizations') {
-      const { data: orgs } = await supabaseAdmin
-        .from('organizations')
-        .select('user_id, email');
+    // Organizations (all or admin-added only)
+    if (audience === 'all_users' || audience === 'organizations' || audience === 'organization_admin_added') {
+      let orgQuery = supabaseAdmin.from('organizations').select('user_id, email');
+      if (audience === 'organization_admin_added') {
+        orgQuery = orgQuery.not('admin_added_at', 'is', null);
+      }
+      const { data: orgs } = await orgQuery;
       for (const o of orgs || []) {
         if (o.email) await addEmail(o.email);
         else if (o.user_id) await resolveAuthEmails([o.user_id]);
       }
     }
 
-    // Businesses (all or by plan)
+    // Businesses (all, admin-added only, or by plan)
     const isBusinessAudience =
       audience === 'all_users' ||
       audience === 'businesses' ||
+      audience === 'business_admin_added' ||
       audience.startsWith('business_');
     if (isBusinessAudience) {
       let q = supabaseAdmin.from('businesses').select('id, owner_id, email');
-      if (audience === 'business_free_trial') {
+      if (audience === 'business_admin_added') {
+        q = q.not('admin_added_at', 'is', null);
+      } else if (audience === 'business_free_trial') {
         q = q.eq('plan', 'premium').not('trial_end', 'is', null);
       } else if (audience.startsWith('business_') && audience !== 'businesses') {
         const plan = audience.replace('business_', '');

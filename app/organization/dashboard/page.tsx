@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, ChangeEvent, FormEvent, FC } from 'react';
-import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Heart, Calendar } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Heart, Calendar, Eye, Megaphone } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { compressImage } from '@/lib/imageCompression';
 import { useRouter } from 'next/navigation';
@@ -54,11 +54,13 @@ type Comment = {
   user_id: string;
   username: string;
   author: string;
-  identity: string;
-  text: string;
+  author_type?: string | null;
+  body: string;
+  text?: string;
   created_at: string;
   parent_id: string | null;
-  likes_comment: number;
+  likes: number;
+  likes_comment?: number;
   user_liked?: boolean;
   profiles?: {
     profile_pic_url: string | null;
@@ -205,6 +207,10 @@ export default function OrganizationDashboard() {
   const [followedOrgsOpen, setFollowedOrgsOpen] = useState(false);
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
   const [favoriteItemsOpen, setFavoriteItemsOpen] = useState(false);
+  const [notificationModalOpen, setNotificationModalOpen] = useState(false);
+  const [notificationTitle, setNotificationTitle] = useState('');
+  const [notificationBody, setNotificationBody] = useState('');
+  const [sendingNotification, setSendingNotification] = useState(false);
 
   // Add form state for profile editing
   const [form, setForm] = useState({
@@ -373,20 +379,21 @@ export default function OrganizationDashboard() {
     }
   }, []);
 
-  // Load user liked posts from localStorage
+  // Load user liked posts from community_post_likes table
   useEffect(() => {
-    if (profile?.user_id) {
-      // Load liked posts
-      const storedPostLikes = localStorage.getItem(`userLikedPosts_${profile.user_id}`);
-      if (storedPostLikes) {
-        try {
-          const likedPostsArray = JSON.parse(storedPostLikes);
-          setUserLikedPosts(new Set(likedPostsArray));
-        } catch (error) {
-          console.error('Error parsing stored post likes:', error);
+    if (!profile?.user_id) return;
+    const fetchLikedPosts = async () => {
+      try {
+        const res = await fetch(`/api/community/post/liked?userId=${encodeURIComponent(profile.user_id)}`);
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.likedPostIds)) {
+          setUserLikedPosts(new Set(data.likedPostIds));
         }
+      } catch {
+        setUserLikedPosts(new Set());
       }
-    }
+    };
+    fetchLikedPosts();
   }, [profile?.user_id]);
 
   // Function to load posts
@@ -440,9 +447,22 @@ export default function OrganizationDashboard() {
       console.log('Raw organization posts data from database:', data);
       console.log('Number of posts found:', data?.length || 0);
 
-      // Process posts to include user_liked status from localStorage
-      const processedPosts = (data || []).map(post => ({
+      const postList = data || [];
+      const postIds = postList.map((p: { id: string }) => p.id);
+      let likeCounts: Record<string, number> = {};
+      if (postIds.length > 0) {
+        try {
+          const countsRes = await fetch(`/api/community/post/counts?postIds=${postIds.join(',')}`);
+          const res = await countsRes.json();
+          likeCounts = res.counts || {};
+        } catch {
+          // keep original likes_post
+        }
+      }
+
+      const processedPosts: Post[] = postList.map((post: Post) => ({
         ...post,
+        likes_post: likeCounts[post.id] ?? post.likes_post ?? 0,
         user_liked: userLikedPosts.has(post.id)
       }));
 
@@ -598,6 +618,53 @@ export default function OrganizationDashboard() {
       addNotification(err?.message || 'Save failed.', 'error');
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const sendNotificationToMembers = async () => {
+    if (!profile?.user_id) return;
+    const title = notificationTitle.trim();
+    const body = notificationBody.trim();
+    if (!title || !body) {
+      addNotification('Title and message are required.', 'error');
+      return;
+    }
+    if (title.length > 140 || body.length > 1000) {
+      addNotification('Title max 140 chars, body max 1000 chars.', 'error');
+      return;
+    }
+    try {
+      setSendingNotification(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token || '';
+      const res = await fetch('/api/notifications/organization-broadcast', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({
+          orgUserId: profile.user_id,
+          title,
+          body,
+          url: profile.username ? `/organization/${profile.username}` : null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to send notification');
+      const sentCount = Number(data.sent || 0);
+      if (sentCount === 0) {
+        addNotification('Notification saved, but you have no followers yet.', 'info');
+      } else {
+        addNotification(`Notification sent to ${sentCount} members.`, 'success');
+      }
+      setNotificationTitle('');
+      setNotificationBody('');
+      setNotificationModalOpen(false);
+    } catch (err: any) {
+      addNotification(err?.message || 'Failed to send notification', 'error');
+    } finally {
+      setSendingNotification(false);
     }
   };
 
@@ -800,42 +867,26 @@ export default function OrganizationDashboard() {
       }
 
       // Match exact column order from the API request
-      const comment = {
-        post_id: postId,
-        user_id: user.id,
-        username: profile.username || '',
-        author: profile.full_name || '',
-        identity: 'author',
-        text: commentContent[postId].trim(),
-        created_at: new Date().toISOString(),
-        parent_id: null,
-        likes_comment: 0
-      };
-
-      console.log('Attempting to create comment with data:', comment);
-
-      const { data, error } = await supabase
-        .from('community_comments')
-        .insert([comment])
-        .select('id,post_id,user_id,username,author,identity,text,created_at,parent_id,likes_comment')
-        .single();
-
-      if (error) {
-        console.error('Error creating comment:', error);
-        console.error('Error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        throw error;
+      const res = await fetch('/api/community/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: postId,
+          user_id: user.id,
+          username: profile.username || '',
+          author: profile.full_name || profile.username || '',
+          text: commentContent[postId].trim(),
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        addNotification('Error posting comment.', 'error');
+        return;
       }
-
-      console.log('Successfully created comment:', data);
-
+      const data = result.comment;
       setComments(prev => ({
         ...prev,
-        [postId]: [data, ...(prev[postId] || [])]
+        [postId]: [{ ...data, likes: data.likes ?? 0, user_liked: false }, ...(prev[postId] || [])]
       }));
 
       setCommentContent(prev => ({ ...prev, [postId]: '' }));
@@ -856,7 +907,8 @@ export default function OrganizationDashboard() {
         .from('community_comments')
         .select('*')
         .eq('post_id', postId)
-        .order(commentSort === 'newest' ? 'created_at' : 'likes_comment', { ascending: commentSort === 'newest' ? false : false });
+        .eq('deleted', false)
+        .order(commentSort === 'newest' ? 'created_at' : 'likes', { ascending: false });
 
       if (error) {
         console.error('Error fetching comments:', error);
@@ -890,18 +942,19 @@ export default function OrganizationDashboard() {
         }
       }
 
-      // Process comments to include like counts and user_liked status
-      const processedComments = (data || []).map(comment => {
+      const processedComments: Comment[] = (data || []).map((comment: Record<string, unknown> & { id: string; likes?: number }) => {
         const commentLikeCount = commentLikes.filter(like => like.comment_id === comment.id).length;
-        const userLikedThisComment = commentLikes.some(like => 
+        const userLikedThisComment = commentLikes.some(like =>
           like.comment_id === comment.id && like.user_id === currentUserId
         );
-
+        const likes = commentLikeCount > 0 ? commentLikeCount : (comment.likes ?? 0);
         return {
           ...comment,
-          likes_comment: commentLikeCount,
+          body: (comment.body ?? comment.text) as string,
+          likes,
+          likes_comment: likes,
           user_liked: userLikedThisComment
-        };
+        } as Comment;
       });
 
       setComments(prev => ({
@@ -924,63 +977,64 @@ export default function OrganizationDashboard() {
     }
   }, [profile?.user_id, posts, commentSort]);
 
-  // Add function to like/unlike posts
+  // Add function to like/unlike posts (uses community_post_likes table via API)
   const handleLikePost = async (postId: string, currentlyLiked: boolean) => {
     if (!profile) return;
-    
+
+    const delta = currentlyLiked ? -1 : 1;
+
+    // Optimistic update: show new count and liked state immediately
+    const newLikedPosts = new Set(userLikedPosts);
+    if (currentlyLiked) newLikedPosts.delete(postId);
+    else newLikedPosts.add(postId);
+    setUserLikedPosts(newLikedPosts);
+    setPosts(prev =>
+      prev.map(post =>
+        post.id === postId
+          ? {
+              ...post,
+              likes_post: Math.max(0, (post.likes_post || 0) + delta),
+              user_liked: !currentlyLiked,
+            }
+          : post
+      )
+    );
+
     try {
-      if (currentlyLiked) {
-        // Unlike - decrement the like count
-        const currentPost = posts.find(p => p.id === postId);
-        if (currentPost) {
-          const newLikeCount = Math.max(0, currentPost.likes_post - 1);
-          await supabase
-            .from('community_posts')
-            .update({ likes_post: newLikeCount })
-            .eq('id', postId);
-        }
+      const method = currentlyLiked ? 'DELETE' : 'POST';
+      const url =
+        method === 'DELETE'
+          ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}&user_id=${encodeURIComponent(profile.user_id)}`
+          : '/api/community/post/like';
 
-        // Remove from user's liked posts
-        const newLikedPosts = new Set(userLikedPosts);
-        newLikedPosts.delete(postId);
-        setUserLikedPosts(newLikedPosts);
-        
-        // Save to localStorage
-        localStorage.setItem(`userLikedPosts_${profile.user_id}`, JSON.stringify([...newLikedPosts]));
+      const res = await fetch(url, {
+        method,
+        headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
+        body: method === 'POST' ? JSON.stringify({ post_id: postId, user_id: profile.user_id }) : undefined,
+      });
 
-        setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { ...post, likes_post: Math.max(0, post.likes_post - 1), user_liked: false }
-            : post
-        ));
-      } else {
-        // Like - increment the like count
-        const currentPost = posts.find(p => p.id === postId);
-        if (currentPost) {
-          const newLikeCount = currentPost.likes_post + 1;
-          await supabase
-            .from('community_posts')
-            .update({ likes_post: newLikeCount })
-            .eq('id', postId);
-        }
-
-        // Add to user's liked posts
-        const newLikedPosts = new Set(userLikedPosts);
-        newLikedPosts.add(postId);
-        setUserLikedPosts(newLikedPosts);
-        
-        // Save to localStorage
-        localStorage.setItem(`userLikedPosts_${profile.user_id}`, JSON.stringify([...newLikedPosts]));
-
-        setPosts(prev => prev.map(post => 
-          post.id === postId 
-            ? { ...post, likes_post: post.likes_post + 1, user_liked: true }
-            : post
-        ));
+      if (!res.ok && res.status !== 409) {
+        addNotification('Error updating post like.', 'error');
+        setUserLikedPosts(userLikedPosts);
+        setPosts(prev =>
+          prev.map(post =>
+            post.id === postId
+              ? { ...post, likes_post: Math.max(0, (post.likes_post || 0) - delta), user_liked: currentlyLiked }
+              : post
+          )
+        );
       }
     } catch (error) {
       console.error('Error toggling post like:', error);
       addNotification('Error updating post like.', 'error');
+      setUserLikedPosts(userLikedPosts);
+      setPosts(prev =>
+        prev.map(post =>
+          post.id === postId
+            ? { ...post, likes_post: Math.max(0, (post.likes_post || 0) - delta), user_liked: currentlyLiked }
+            : post
+        )
+      );
     }
   };
 
@@ -998,66 +1052,49 @@ export default function OrganizationDashboard() {
 
       console.log('Toggling comment like:', { postId, commentId, currentlyLiked, authUserId: user.id });
 
-      if (currentlyLiked) {
-        // Unlike - remove from community_comment_likes table
-        console.log('Removing like from comment:', commentId);
-        const { error: deleteError } = await supabase
-          .from('community_comment_likes')
-          .delete()
-          .eq('comment_id', commentId)
-          .eq('user_id', user.id);
+      const method = currentlyLiked ? 'DELETE' : 'POST';
+      const delta = currentlyLiked ? -1 : 1;
 
-        if (deleteError) {
-          console.error('Error removing comment like:', deleteError);
-          throw deleteError;
-        }
+      setComments(prev => ({
+        ...prev,
+        [postId]: prev[postId].map(comment =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                likes: Math.max(0, (comment.likes ?? comment.likes_comment ?? 0) + delta),
+                likes_comment: Math.max(0, (comment.likes ?? comment.likes_comment ?? 0) + delta),
+                user_liked: !currentlyLiked,
+              }
+            : comment
+        )
+      }));
 
-        console.log('Successfully removed comment like');
+      const url =
+        method === 'DELETE'
+          ? `/api/community/comments/like?comment_id=${encodeURIComponent(commentId)}&user_id=${encodeURIComponent(user.id)}`
+          : '/api/community/comments/like';
 
+      const res = await fetch(url, {
+        method,
+        headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
+        body: method === 'POST' ? JSON.stringify({ comment_id: commentId, user_id: user.id }) : undefined,
+      });
+
+      if (!res.ok && res.status !== 409) {
         setComments(prev => ({
           ...prev,
-          [postId]: prev[postId].map(comment => 
-            comment.id === commentId 
-              ? { ...comment, likes_comment: Math.max(0, comment.likes_comment - 1), user_liked: false }
+          [postId]: prev[postId].map(comment =>
+            comment.id === commentId
+              ? {
+                  ...comment,
+                  likes: Math.max(0, (comment.likes ?? 0) - delta),
+                  likes_comment: Math.max(0, (comment.likes_comment ?? 0) - delta),
+                  user_liked: currentlyLiked,
+                }
               : comment
           )
         }));
-      } else {
-        // Like - add to community_comment_likes table
-        const likeData = { 
-          comment_id: commentId, 
-          user_id: user.id,
-          created_at: new Date().toISOString()
-        };
-
-        console.log('Adding like to comment:', likeData);
-        const { data: insertData, error: insertError } = await supabase
-          .from('community_comment_likes')
-          .insert([likeData])
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error('Error adding comment like:', insertError);
-          console.error('Error details:', {
-            message: insertError.message,
-            details: insertError.details,
-            hint: insertError.hint,
-            code: insertError.code
-          });
-          throw insertError;
-        }
-
-        console.log('Successfully added comment like:', insertData);
-
-        setComments(prev => ({
-          ...prev,
-          [postId]: prev[postId].map(comment => 
-            comment.id === commentId 
-              ? { ...comment, likes_comment: comment.likes_comment + 1, user_liked: true }
-              : comment
-          )
-        }));
+        addNotification('Error updating comment like.', 'error');
       }
     } catch (error) {
       console.error('Error toggling comment like:', error);
@@ -1180,34 +1217,39 @@ export default function OrganizationDashboard() {
           {profile.username ? (
             <Link
               href={`/organization/${profile.username}`}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md inline-flex items-center justify-center gap-2"
             >
+              <Eye className="w-4 h-4 shrink-0" />
               View Profile
             </Link>
           ) : (
             <button
               onClick={() => addNotification('Please set a username to view your public profile.', 'info')}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md inline-flex items-center justify-center gap-2"
             >
+              <Eye className="w-4 h-4 shrink-0" />
               View Profile
             </button>
           )}
           <Link
             href="/community/post"
-            className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md inline-flex items-center justify-center gap-2"
           >
+            <Send className="w-4 h-4 shrink-0" />
             Post to Community
           </Link>
           <button
             onClick={() => addNotification('Event promotion coming soon.', 'info')}
-            className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md inline-flex items-center justify-center gap-2"
           >
+            <Megaphone className="w-4 h-4 shrink-0" />
             Promote Event / Message
           </button>
           <button
-            onClick={() => addNotification('Member notifications coming soon.', 'info')}
-            className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            onClick={() => setNotificationModalOpen(true)}
+            className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md inline-flex items-center justify-center gap-2"
           >
+            <Bell className="w-4 h-4 shrink-0" />
             Send Notification to Members
           </button>
         </div>
@@ -1293,247 +1335,6 @@ export default function OrganizationDashboard() {
                     </button>
                 </form>
              </Card>
-
-             <Card>
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-slate-800">Announcements</h2>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => setModal({ isOpen: true, type: 'create-post' })}
-                      className="btn-secondary"
-                    >
-                      <Send className="w-4 h-4" />
-                      <span>Create Post</span>
-                    </button>
-                  </div>
-                </div>
-
-                {postPreview && (
-                  <div className="mb-6 p-4 border border-slate-200 rounded-lg">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="font-bold text-lg text-slate-800">{postPreview.title}</h3>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={handlePublishPost}
-                          disabled={posting}
-                          className="btn-primary"
-                        >
-                          {posting ? <Spinner size={20} /> : <Send className="w-4 h-4" />}
-                          <span>{posting ? 'Publishing...' : 'Publish'}</span>
-                        </button>
-                        <button 
-                          onClick={handlePostDelete}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                    {postPreview.image && (
-                      <div className="aspect-video bg-slate-200 mb-4 rounded-lg overflow-hidden">
-                        <img 
-                          src={postPreview.image} 
-                          alt="Post preview" 
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                    <p className="text-slate-600 mb-4">{postPreview.body}</p>
-                    {postPreview.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {postPreview.tags.map(tag => (
-                          <span key={tag} className="bg-indigo-100 text-indigo-700 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Posts List */}
-                {postsLoading ? (
-                  <div className="flex justify-center items-center h-64">
-                    <Spinner />
-                  </div>
-                ) : posts.length === 0 ? (
-                  <div className="text-center text-slate-500 py-16">
-                    <Send className="w-12 h-12 mx-auto mb-4 text-slate-400"/>
-                    <h3 className="text-lg font-semibold">No posts yet.</h3>
-                    <p>Click the Create Post button to share your first post.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {posts.map(post => (
-                      <Card key={post.id} className="p-0 overflow-hidden">
-                        {post.image && (
-                          <div className="aspect-video bg-slate-200">
-                            <img 
-                              src={post.image} 
-                              alt={post.title} 
-                              className="w-full h-full object-cover" 
-                              onError={(e) => { e.currentTarget.src = 'https://placehold.co/800x450/e2e8f0/e2e8f0?text=Image+Error'; }}
-                            />
-                          </div>
-                        )}
-                        <div className="p-6">
-                          <div className="flex justify-between items-start mb-4">
-                            <h3 className="font-bold text-lg text-slate-800 hover:text-indigo-600 cursor-pointer transition-colors">
-                              {post.title}
-                            </h3>
-                            <div className="flex items-center gap-4">
-                              <button
-                                onClick={() => handleLikePost(post.id, post.user_liked || false)}
-                                className={`flex items-center gap-1 ${
-                                  post.user_liked 
-                                    ? 'text-red-500' 
-                                    : 'text-slate-500 hover:text-red-500'
-                                }`}
-                              >
-                                <Heart className={`w-4 h-4 ${post.user_liked ? 'fill-current' : ''}`} />
-                                <span>{post.likes_post || 0} likes</span>
-                              </button>
-                              <button
-                                onClick={() => handleDeletePost(post.id)}
-                                disabled={deletingPost}
-                                className="text-red-600 hover:text-red-700 disabled:opacity-50"
-                              >
-                                {deletingPost ? (
-                                  <Spinner className="w-5 h-5" />
-                                ) : (
-                                  <Trash2 className="w-5 h-5" />
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                          <p className="text-slate-600 mb-4 text-sm">{post.body}</p>
-                          <div className="flex flex-wrap gap-2 mb-4">
-                            {Array.isArray(post.tags) && post.tags.map(tag => (
-                              <span key={tag} className="bg-indigo-100 text-indigo-700 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                          <div className="border-t border-slate-100 pt-3 flex justify-between items-center text-xs text-slate-500">
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => handleLikePost(post.id, post.user_liked || false)}
-                                className={`flex items-center gap-1 ${
-                                  post.user_liked 
-                                    ? 'text-red-500' 
-                                    : 'text-slate-500 hover:text-red-500'
-                                }`}
-                              >
-                                <Heart className={`w-4 h-4 ${post.user_liked ? 'fill-current' : ''}`} />
-                                <span>{post.likes_post || 0} likes</span>
-                              </button>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              <span>{new Date(post.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                            </div>
-                          </div>
-                          
-                          {/* Comments Section */}
-                          <div className="mt-6 border-t border-slate-100 pt-4">
-                            <div className="flex justify-between items-center mb-4">
-                              <h4 className="font-semibold text-slate-800">Comments</h4>
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => setCommentSort('newest')}
-                                  className={`text-sm px-3 py-1 rounded-full ${
-                                    commentSort === 'newest' 
-                                      ? 'bg-indigo-100 text-indigo-700' 
-                                      : 'text-slate-500 hover:text-slate-700'
-                                  }`}
-                                >
-                                  Newest
-                                </button>
-                                <button
-                                  onClick={() => setCommentSort('popular')}
-                                  className={`text-sm px-3 py-1 rounded-full ${
-                                    commentSort === 'popular' 
-                                      ? 'bg-indigo-100 text-indigo-700' 
-                                      : 'text-slate-500 hover:text-slate-700'
-                                  }`}
-                                >
-                                  Popular
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Comment Input */}
-                            <div className="mb-4">
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={commentContent[post.id] || ''}
-                                  onChange={e => setCommentContent(prev => ({ ...prev, [post.id]: e.target.value }))}
-                                  placeholder="Write a comment..."
-                                  className="form-input flex-1"
-                                />
-                                <button
-                                  onClick={() => handlePostComment(post.id)}
-                                  disabled={postingComment[post.id] || !commentContent[post.id]?.trim()}
-                                  className="btn-primary"
-                                >
-                                  {postingComment[post.id] ? <Spinner size={20} /> : <Send className="w-4 h-4" />}
-                                  <span>Post</span>
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Comments List */}
-                            <div className="space-y-4">
-                              {comments[post.id]?.map(comment => (
-                                <div key={comment.id} className="flex gap-3">
-                                  <div className="flex-1 bg-slate-50 rounded-lg p-3">
-                                    <div className="flex justify-between items-start mb-1">
-                                      <span className="font-medium text-slate-800">{comment.username}</span>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs text-slate-500">
-                                          {new Date(comment.created_at).toLocaleDateString()}
-                                        </span>
-                                        <button
-                                          onClick={() => handleDeleteComment(post.id, comment.id)}
-                                          disabled={deletingComment[comment.id]}
-                                          className="text-red-500 hover:text-red-700 disabled:opacity-50 text-xs font-medium"
-                                          title="Delete comment"
-                                        >
-                                          {deletingComment[comment.id] ? (
-                                            <Spinner className="w-3 h-3" />
-                                          ) : (
-                                            'Delete'
-                                          )}
-                                        </button>
-                                      </div>
-                                    </div>
-                                    <p className="text-slate-600 text-sm mb-2">{comment.text}</p>
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        onClick={() => handleLikeComment(post.id, comment.id, comment.user_liked || false)}
-                                        disabled={likingComment[comment.id]}
-                                        className={`flex items-center gap-1 text-xs ${
-                                          comment.user_liked 
-                                            ? 'text-red-500' 
-                                            : 'text-slate-500 hover:text-red-500'
-                                        }`}
-                                      >
-                                        <Heart className={`w-4 h-4 ${comment.user_liked ? 'fill-current' : ''}`} />
-                                        <span>{comment.likes_comment}</span>
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </Card>
 
               <Card>
                 <button
@@ -1727,147 +1528,94 @@ export default function OrganizationDashboard() {
               </Card>
           </div>
           
-          <div className="lg:col-span-2">
-            {/* Create Post Modal */}
-            {modal.isOpen && modal.type === 'create-post' && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <div className="p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-xl font-bold text-slate-800">Create a Post</h2>
-                      <button 
-                        onClick={() => setModal({ isOpen: false, type: null })}
-                        className="text-slate-400 hover:text-slate-600"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-                    
-                    <form onSubmit={(e) => {
-                      e.preventDefault();
-                      handlePostPreview();
-                      setModal({ isOpen: false, type: null });
-                    }} className="space-y-4">
-                      <input 
-                        type="text" 
-                        value={postTitle} 
-                        onChange={e => setPostTitle(e.target.value)} 
-                        required 
-                        className="form-input" 
-                        placeholder="Post Title" 
-                      />
-                      <textarea 
-                        value={postBody} 
-                        onChange={e => setPostBody(e.target.value)} 
-                        required 
-                        rows={5} 
-                        className="form-textarea" 
-                        placeholder="What's on your mind?" 
-                      />
-                      <div className="relative">
-                        <Tag className="w-4 h-4 absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
-                        <input 
-                          type="text" 
-                          value={postTags} 
-                          onChange={e => setPostTags(e.target.value)} 
-                          className="form-input pl-9" 
-                          placeholder="Tags (comma-separated)" 
-                        />
-                      </div>
-                      
-                      <label htmlFor="post-image-upload" className="w-full text-sm text-center border-2 border-dashed border-slate-300 rounded-lg p-4 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-colors flex flex-col items-center justify-center">
-                        {postImagePreview ? (
-                          <img src={postImagePreview} alt="Post preview" className="w-full h-32 object-cover rounded-md mb-2"/>
-                        ) : (
-                          <div className="flex flex-col items-center text-slate-500">
-                            <ImageIcon className="w-8 h-8 mb-2" />
-                            <span className="font-semibold">Click to upload an image</span>
-                            <span className="text-xs">PNG, JPG, GIF up to 10MB</span>
-                          </div>
-                        )}
-                        <input 
-                          id="post-image-upload" 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
-                          onChange={e => setPostImage(e.target.files?.[0] || null)} 
-                        />
-                      </label>
-                      
-                      {postImage && (
-                        <button 
-                          type="button" 
-                          onClick={() => { setPostImage(null); setPostImagePreview(null); }} 
-                          className="text-xs text-red-500 hover:underline flex items-center gap-1 mx-auto"
-                        >
-                          <Trash2 className="w-3 h-3"/>
-                          Remove image
-                        </button>
-                      )}
-                      
-                      <div className="flex gap-3">
-                        <button 
-                          type="button" 
-                          onClick={() => setModal({ isOpen: false, type: null })}
-                          className="btn-secondary flex-1"
-                        >
-                          Cancel
-                        </button>
-                        <button 
-                          type="submit" 
-                          className="btn-primary flex-1"
-                        >
-                          Preview Post
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              </div>
-            )}
+        </div>
 
-            {/* Delete Confirmation Modal */}
-            {modal.isOpen && modal.type === 'delete-confirm' && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-slate-800">Delete Post</h2>
-                    <button 
-                      onClick={() => setModal({ isOpen: false, type: null })}
-                      className="text-slate-400 hover:text-slate-600"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
+        {/* Send Notification to Members Modal */}
+        {notificationModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-slate-800">Send Notification to Members</h2>
+                  <button
+                    onClick={() => {
+                      if (!sendingNotification) {
+                        setNotificationModalOpen(false);
+                        setNotificationTitle('');
+                        setNotificationBody('');
+                      }
+                    }}
+                    disabled={sendingNotification}
+                    className="text-slate-400 hover:text-slate-600 disabled:opacity-50"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-sm text-slate-600 mb-4">
+                  Send a message to your {followerCount} follower{followerCount !== 1 ? 's' : ''}.
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Title</label>
+                    <input
+                      value={notificationTitle}
+                      onChange={(e) => setNotificationTitle(e.target.value)}
+                      maxLength={140}
+                      disabled={sendingNotification}
+                      placeholder="e.g. Upcoming event"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-60"
+                    />
+                    <span className="text-xs text-slate-500">{notificationTitle.length}/140</span>
                   </div>
-                  
-                  <p className="text-slate-600 mb-6">
-                    Are you sure you want to delete this post? This action cannot be undone.
-                  </p>
-                  
-                  <div className="flex gap-3">
-                    <button 
-                      type="button" 
-                      onClick={() => setModal({ isOpen: false, type: null })}
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">Message</label>
+                    <textarea
+                      value={notificationBody}
+                      onChange={(e) => setNotificationBody(e.target.value)}
+                      maxLength={1000}
+                      rows={4}
+                      disabled={sendingNotification}
+                      placeholder="Write your message to members..."
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-60 resize-none"
+                    />
+                    <span className="text-xs text-slate-500">{notificationBody.length}/1000</span>
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!sendingNotification) {
+                          setNotificationModalOpen(false);
+                          setNotificationTitle('');
+                          setNotificationBody('');
+                        }
+                      }}
+                      disabled={sendingNotification}
                       className="btn-secondary flex-1"
                     >
                       Cancel
                     </button>
-                    <button 
+                    <button
                       type="button"
-                      onClick={() => modal.postId && handleDeletePost(modal.postId)}
-                      disabled={deletingPost}
-                      className="btn-primary flex-1 bg-red-500 hover:bg-red-600"
+                      onClick={sendNotificationToMembers}
+                      disabled={sendingNotification || !notificationTitle.trim() || !notificationBody.trim()}
+                      className="btn-primary flex-1 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-400"
                     >
-                      {deletingPost ? <Spinner size={20} /> : <Trash2 className="w-4 h-4" />}
-                      <span>{deletingPost ? 'Deleting...' : 'Delete Post'}</span>
+                      {sendingNotification ? (
+                        <>
+                          <Spinner size={18} />
+                          Sending…
+                        </>
+                      ) : (
+                        'Send Notification'
+                      )}
                     </button>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
-
-        </div>
+        )}
       </main>
       
       {/* FIX: Removed invalid 'jsx' and 'global' attributes from the <style> tag.

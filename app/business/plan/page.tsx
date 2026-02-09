@@ -90,7 +90,7 @@ export default function BusinessPlanPage() {
         if (error) throw error;
 
         if (!data?.id) {
-          toast.error('No business found. Please add your business first.');
+          toast.error('No business linked to your account.');
           router.replace(DASHBOARD_ROUTE);
           return;
         }

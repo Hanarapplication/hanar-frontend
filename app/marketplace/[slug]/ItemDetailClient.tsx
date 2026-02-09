@@ -19,7 +19,8 @@ type MarketplaceItem = {
   condition: string;
   created_at?: string | null;
   business_id?: string | null;
-  source: 'retail' | 'dealership';
+  user_id?: string | null;
+  source: 'retail' | 'dealership' | 'individual';
 };
 
 type BusinessContact = {
@@ -30,10 +31,17 @@ type BusinessContact = {
   slug?: string | null;
 };
 
+type IndividualSeller = {
+  user_id: string;
+  username: string | null;
+  profile_pic_url: string | null;
+  contact?: { phone?: string; whatsapp?: string; email?: string };
+};
+
 type FavoriteItem = {
   key: string;
   id: string;
-  source: 'retail' | 'dealership';
+  source: 'retail' | 'dealership' | 'individual';
   slug: string;
   title: string;
   price: string | number;
@@ -83,6 +91,7 @@ export default function ItemDetailClient() {
   const slug = String(params?.slug || '');
   const [item, setItem] = useState<MarketplaceItem | null>(null);
   const [business, setBusiness] = useState<BusinessContact | null>(null);
+  const [individualSeller, setIndividualSeller] = useState<IndividualSeller | null>(null);
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [currentUrl, setCurrentUrl] = useState('');
@@ -117,6 +126,69 @@ export default function ItemDetailClient() {
 
       const parseIdFromSlug = (prefix: string) =>
         slug.startsWith(prefix) ? slug.replace(prefix, '') : null;
+
+      const individualId = parseIdFromSlug('individual-');
+      if (individualId) {
+        const { data: individualRow, error: indErr } = await supabase
+          .from('marketplace_items')
+          .select('*')
+          .eq('id', individualId)
+          .maybeSingle();
+
+        if (indErr || !individualRow) {
+          if (!cancelled) setError('Item not found.');
+          return;
+        }
+
+        const raw = individualRow.image_urls ?? individualRow.imageUrls;
+        const urls = normalizeImages(raw, 'marketplace-images');
+        const mappedItem: MarketplaceItem = {
+          id: String(individualRow.id),
+          title: individualRow.title || 'Listing',
+          price: individualRow.price ?? '',
+          category: individualRow.category || 'General',
+          location: individualRow.location || '',
+          description: individualRow.description || '',
+          condition: individualRow.condition || '',
+          images: urls,
+          created_at: individualRow.created_at || null,
+          business_id: null,
+          user_id: individualRow.user_id || null,
+          source: 'individual',
+        };
+
+        if (!cancelled) setItem(mappedItem);
+        setBusiness(null);
+
+        const contact = (individualRow as any).contact && typeof (individualRow as any).contact === 'object'
+          ? (individualRow as any).contact
+          : {
+              phone: (individualRow as any).contact_phone ?? null,
+              whatsapp: (individualRow as any).contact_whatsapp ?? null,
+              email: (individualRow as any).contact_email ?? null,
+            };
+
+        if (individualRow.user_id) {
+          const [{ data: profData }, { data: regData }] = await Promise.all([
+            supabase.from('profiles').select('username, profile_pic_url').eq('id', individualRow.user_id).maybeSingle(),
+            supabase.from('registeredaccounts').select('username').eq('user_id', individualRow.user_id).maybeSingle(),
+          ]);
+          const username = profData?.username ?? regData?.username ?? null;
+          let profile_pic_url = profData?.profile_pic_url ?? null;
+          if (profile_pic_url && !profile_pic_url.startsWith('http')) {
+            profile_pic_url = getStorageUrl('avatars', profile_pic_url);
+          }
+          if (!cancelled) {
+            setIndividualSeller({
+              user_id: individualRow.user_id,
+              username,
+              profile_pic_url,
+              contact: (contact?.phone || contact?.whatsapp || contact?.email) ? contact : undefined,
+            });
+          }
+        }
+        return;
+      }
 
       const fetchRetailBySlug = async () => supabase
         .from('retail_items')
@@ -154,6 +226,8 @@ export default function ItemDetailClient() {
         if (!cancelled) setError('Item not found.');
         return;
       }
+
+      setIndividualSeller(null);
 
       const row = retailItem || dealershipItem;
       const mappedItem: MarketplaceItem = {
@@ -351,15 +425,80 @@ export default function ItemDetailClient() {
         {/* Seller / Business Info */}
         <div className="bg-gray-50 p-4 rounded-xl mb-4">
           <h2 className="font-semibold text-sm text-gray-700 mb-2">Seller</h2>
-          {business ? (
+          {individualSeller ? (
+            <>
+              <div className="flex items-center gap-3 mb-3">
+                <Link
+                  href={individualSeller.username ? `/profile/${individualSeller.username}` : '#'}
+                  className={`flex items-center gap-3 ${individualSeller.username ? 'hover:opacity-90' : ''}`}
+                >
+                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-slate-200 bg-slate-100">
+                    {individualSeller.profile_pic_url ? (
+                      <img
+                        src={individualSeller.profile_pic_url}
+                        alt={individualSeller.username ? `@${individualSeller.username}` : 'Seller'}
+                        className="h-full w-full object-cover"
+                        onError={(e) => { e.currentTarget.src = '/default-avatar.png'; e.currentTarget.onerror = null; }}
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-lg text-slate-400">👤</div>
+                    )}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-indigo-600 hover:underline">
+                      {individualSeller.username ? `@${individualSeller.username}` : 'Individual seller'}
+                    </span>
+                  </div>
+                </Link>
+              </div>
+              {(individualSeller.contact?.phone || individualSeller.contact?.whatsapp || individualSeller.contact?.email) && (
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  {individualSeller.contact?.phone && (
+                    <a
+                      href={`tel:${normalizePhone(individualSeller.contact.phone)}`}
+                      className="text-xs bg-emerald-600 text-white px-3 py-2 rounded-md hover:bg-emerald-700 w-full sm:w-auto text-center"
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <FaPhoneAlt className="text-[11px]" />
+                        Call
+                      </span>
+                    </a>
+                  )}
+                  {individualSeller.contact?.whatsapp && (
+                    <a
+                      href={`https://wa.me/${normalizePhone(individualSeller.contact.whatsapp)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 w-full sm:w-auto text-center"
+                    >
+                      WhatsApp
+                    </a>
+                  )}
+                  {individualSeller.contact?.email && (
+                    <a
+                      href={`mailto:${individualSeller.contact.email}`}
+                      className="text-xs bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 w-full sm:w-auto text-center"
+                    >
+                      Email
+                    </a>
+                  )}
+                </div>
+              )}
+            </>
+          ) : business ? (
             <>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
-                <div>
-                  <Link href={`/business/${business.slug || ''}`} className="text-sm font-semibold text-blue-700 hover:underline">
-                    {business.business_name}
-                  </Link>
-                  <p className="text-xs text-gray-500">Verified business</p>
-                </div>
+                <Link href={`/business/${business.slug || ''}`} className="flex items-center gap-3 hover:opacity-90">
+                  <div className="h-10 w-10 rounded-full overflow-hidden bg-slate-200 shrink-0">
+                    <FaStore className="h-5 w-5 m-auto mt-2.5 text-slate-500" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-semibold text-blue-700 hover:underline">
+                      {business.business_name}
+                    </span>
+                    <p className="text-xs text-gray-500">Verified business</p>
+                  </div>
+                </Link>
                 <Link
                   href={`/business/${business.slug || ''}`}
                   className="text-xs bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 w-full sm:w-auto text-center"

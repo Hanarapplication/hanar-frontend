@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useKeenSlider } from 'keen-slider/react';
 import Footer from '@/components/Footer';
+import { Trash2, Megaphone } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import PostActionsBar from '@/components/PostActionsBar';
 
@@ -21,6 +22,7 @@ type CommunityPost = {
   author: string;
   author_type: string | null;
   username: string | null;
+  user_id?: string | null;
   image: string | null;
   likes_post: number | null;
   community_comments?: { count: number }[];
@@ -61,8 +63,9 @@ type MarketplaceItem = {
   created_at?: string | null;
   distance?: number;
   slug?: string | null;
-  source?: 'retail' | 'dealership';
+  source?: 'retail' | 'dealership' | 'individual';
   business_id?: string | null;
+  user_id?: string | null;
   business_verified?: boolean;
 };
 
@@ -72,9 +75,13 @@ type Comment = {
   user_id: string;
   username: string | null;
   author: string | null;
-  text: string;
+  text?: string;
+  body?: string;
   created_at: string;
-  likes_comment: number;
+  likes?: number;
+  likes_comment?: number;
+  user_liked?: boolean;
+  profiles?: { profile_pic_url: string | null } | null;
 };
 
 type FeedItem =
@@ -149,6 +156,16 @@ const normalizeImages = (value: unknown, bucket: string): string[] => {
 
 const sortByCreatedAtDesc = (a?: string | null, b?: string | null) =>
   new Date(b || 0).getTime() - new Date(a || 0).getTime();
+
+/** Fisher-Yates shuffle for mixed feed order */
+function shuffleArray<T>(arr: T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
 
 const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
   if (!items.length) return null;
@@ -270,6 +287,7 @@ export default function Home() {
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [commentsByPost, setCommentsByPost] = useState<Record<string, Comment[]>>({});
+  const [deletingPost, setDeletingPost] = useState<string | null>(null);
   const [commentsOpen, setCommentsOpen] = useState<Set<string>>(new Set());
   const [commentLoading, setCommentLoading] = useState<Record<string, boolean>>({});
 
@@ -278,6 +296,7 @@ export default function Home() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setCurrentUser({ id: '', username: null });
+        setLikedPosts(new Set());
         return;
       }
 
@@ -288,17 +307,18 @@ export default function Home() {
         .single();
 
       setCurrentUser({ id: user.id, username: account?.username || null });
-    };
 
-    const stored = localStorage.getItem('homeFeedLikedPosts');
-    if (stored) {
+      // Fetch user's liked post IDs from community_post_likes
       try {
-        const parsed = JSON.parse(stored) as string[];
-        setLikedPosts(new Set(parsed));
+        const res = await fetch(`/api/community/post/liked?userId=${encodeURIComponent(user.id)}`);
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.likedPostIds)) {
+          setLikedPosts(new Set(data.likedPostIds));
+        }
       } catch {
         setLikedPosts(new Set());
       }
-    }
+    };
 
     loadUser();
   }, []);
@@ -328,10 +348,10 @@ export default function Home() {
   useEffect(() => {
     const loadHomeFeed = async () => {
       setLoading(true);
-      const [postsRes, businessRes, orgRes, retailRes, dealershipRes] = await Promise.all([
+      const [postsRes, businessRes, orgRes, retailRes, dealershipRes, individualRes] = await Promise.all([
         supabase
           .from('community_posts')
-          .select('id, title, body, created_at, author, author_type, username, image, likes_post, community_comments(count)')
+          .select('id, title, body, created_at, author, author_type, username, user_id, image, likes_post, community_comments(count)')
           .eq('deleted', false)
           .order('created_at', { ascending: false })
           .limit(12),
@@ -346,6 +366,7 @@ export default function Home() {
         supabase
           .from('organizations')
           .select('id, full_name, username, logo_url, banner_url, mission')
+          .or('moderation_status.neq.on_hold,moderation_status.is.null')
           .order('created_at', { ascending: false })
           .limit(8),
         supabase
@@ -355,6 +376,11 @@ export default function Home() {
           .limit(50),
         supabase
           .from('dealerships')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('marketplace_items')
           .select('*')
           .order('created_at', { ascending: false })
           .limit(50),
@@ -392,10 +418,47 @@ export default function Home() {
         business_id: row.business_id || null,
       }));
 
-      setCommunityPosts(postsRes.data || []);
+      const normalizedIndividual = (individualRes.data || []).map((row: any) => {
+        const raw = row.image_urls ?? row.imageUrls;
+        const urls = normalizeImages(raw, 'marketplace-images');
+        return {
+          id: String(row.id),
+          title: row.title || 'Listing',
+          price: row.price ?? '',
+          description: row.description || null,
+          imageUrls: urls,
+          condition: row.condition || null,
+          location: row.location || '',
+          lat: null,
+          lon: null,
+          created_at: row.created_at || null,
+          slug: `individual-${row.id}`,
+          source: 'individual' as const,
+          business_id: null,
+          user_id: row.user_id || null,
+        };
+      });
+
+      const rawPosts = postsRes.data || [];
+      // Enrich with like counts from community_post_likes
+      const postIds = rawPosts.map((p: { id: string }) => p.id);
+      if (postIds.length > 0) {
+        try {
+          const countsRes = await fetch(`/api/community/post/counts?postIds=${postIds.join(',')}`);
+          const { counts } = await countsRes.json();
+          if (counts) {
+            rawPosts.forEach((p: { id: string; likes_post?: number }) => {
+              p.likes_post = counts[p.id] ?? p.likes_post ?? 0;
+            });
+          }
+        } catch {
+          // keep original likes_post
+        }
+      }
+      setCommunityPosts(rawPosts);
       setBusinesses(businessRes.data || []);
       setOrganizations(orgRes.data || []);
-      const combinedItems = [...normalizedRetail, ...normalizedDealership].sort((a, b) =>
+      const combinedItems = [...normalizedRetail, ...normalizedDealership, ...normalizedIndividual].sort((a, b) =>
         sortByCreatedAtDesc(a.created_at, b.created_at)
       );
       const itemBusinessIds = Array.from(
@@ -543,26 +606,50 @@ const formatDateLabel = (value?: string | null) => {
 
   const handleLikePost = async (postId: string) => {
     if (!requireLogin()) return;
-    if (likedPosts.has(postId)) return;
 
-    const res = await fetch('/api/community/post/like', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ post_id: postId, user_id: currentUser.id }),
+    const currentlyLiked = likedPosts.has(postId);
+    const delta = currentlyLiked ? -1 : 1;
+
+    // Optimistic update: show new count and liked state immediately
+    setCommunityPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? { ...post, likes_post: Math.max(0, (post.likes_post || 0) + delta) }
+          : post
+      )
+    );
+    setLikedPosts((prev) => {
+      const next = new Set(prev);
+      if (currentlyLiked) next.delete(postId);
+      else next.add(postId);
+      return next;
     });
 
-    if (res.ok || res.status === 409) {
+    const method = currentlyLiked ? 'DELETE' : 'POST';
+    const url =
+      method === 'DELETE'
+        ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}&user_id=${encodeURIComponent(currentUser.id)}`
+        : '/api/community/post/like';
+
+    const res = await fetch(url, {
+      method,
+      headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
+      body: method === 'POST' ? JSON.stringify({ post_id: postId, user_id: currentUser.id }) : undefined,
+    });
+
+    if (!res.ok && res.status !== 409) {
+      // Revert on failure
       setCommunityPosts((prev) =>
         prev.map((post) =>
           post.id === postId
-            ? { ...post, likes_post: (post.likes_post || 0) + (res.ok ? 1 : 0) }
+            ? { ...post, likes_post: Math.max(0, (post.likes_post || 0) - delta) }
             : post
         )
       );
       setLikedPosts((prev) => {
         const next = new Set(prev);
-        next.add(postId);
-        localStorage.setItem('homeFeedLikedPosts', JSON.stringify(Array.from(next)));
+        if (currentlyLiked) next.add(postId);
+        else next.delete(postId);
         return next;
       });
     }
@@ -582,12 +669,68 @@ const formatDateLabel = (value?: string | null) => {
     if (!commentsByPost[postId] && !commentLoading[postId]) {
       setCommentLoading((prev) => ({ ...prev, [postId]: true }));
       try {
-        const res = await fetch(`/api/community/comments?postId=${postId}`);
+        const params = new URLSearchParams({ postId });
+        if (currentUser.id) params.set('userId', currentUser.id);
+        const res = await fetch(`/api/community/comments?${params.toString()}`);
         const data = await res.json();
         setCommentsByPost((prev) => ({ ...prev, [postId]: data.comments || [] }));
       } finally {
         setCommentLoading((prev) => ({ ...prev, [postId]: false }));
       }
+    }
+  };
+
+  const handleCommentLike = async (postId: string, commentId: string) => {
+    if (!currentUser.id) {
+      window.location.href = '/login?redirect=/';
+      return;
+    }
+    const comments = commentsByPost[postId] || [];
+    const comment = comments.find((c) => c.id === commentId);
+    if (!comment) return;
+    const currentlyLiked = comment.user_liked ?? false;
+    const delta = currentlyLiked ? -1 : 1;
+
+    setCommentsByPost((prev) => ({
+      ...prev,
+      [postId]: (prev[postId] || []).map((c) =>
+        c.id === commentId
+          ? {
+              ...c,
+              user_liked: !currentlyLiked,
+              likes: Math.max(0, (c.likes ?? c.likes_comment ?? 0) + delta),
+              likes_comment: Math.max(0, (c.likes ?? c.likes_comment ?? 0) + delta),
+            }
+          : c
+      ),
+    }));
+
+    const method = currentlyLiked ? 'DELETE' : 'POST';
+    const url =
+      method === 'DELETE'
+        ? `/api/community/comments/like?comment_id=${encodeURIComponent(commentId)}&user_id=${encodeURIComponent(currentUser.id)}`
+        : '/api/community/comments/like';
+
+    const res = await fetch(url, {
+      method,
+      headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
+      body: method === 'POST' ? JSON.stringify({ comment_id: commentId, user_id: currentUser.id }) : undefined,
+    });
+
+    if (!res.ok && res.status !== 409) {
+      setCommentsByPost((prev) => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map((c) =>
+          c.id === commentId
+            ? {
+                ...c,
+                user_liked: currentlyLiked,
+                likes: Math.max(0, (c.likes ?? 0) - delta),
+                likes_comment: Math.max(0, (c.likes_comment ?? 0) - delta),
+              }
+            : c
+        ),
+      }));
     }
   };
 
@@ -625,6 +768,31 @@ const formatDateLabel = (value?: string | null) => {
     );
   };
 
+  const handleDeletePost = async (postId: string) => {
+    if (!requireLogin()) return;
+    if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) return;
+    setDeletingPost(postId);
+    try {
+      const { error } = await supabase
+        .from('community_posts')
+        .update({ deleted: true })
+        .eq('id', postId)
+        .eq('user_id', currentUser.id);
+
+      if (error) throw error;
+      setCommunityPosts((prev) => prev.filter((p) => p.id !== postId));
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Failed to delete post');
+    } finally {
+      setDeletingPost(null);
+    }
+  };
+
+  const handlePromotePost = () => {
+    alert('Promote coming soon.');
+  };
+
   const handleSharePost = async (postId: string) => {
     const url = `${window.location.origin}/community/post/${postId}`;
     const shareData = {
@@ -650,78 +818,65 @@ const formatDateLabel = (value?: string | null) => {
     }
   };
 
+  // Stable feed order: only reshuffle when the set of items changes (e.g. post deleted), not on like/comment
+  const feedOrderRef = useRef<number[] | null>(null);
+  const feedPoolLengthRef = useRef<number>(0);
+
   const feedItems = useMemo<FeedItem[]>(() => {
-    const items: FeedItem[] = [];
-    const businessQueue = [...nearbyBusinesses];
-    const organizationQueue = [...organizations];
-    const itemQueue = [...nearbyMarketplaceItems];
-    let adIndex = 0;
-    let count = 0;
-    let insertAfter = 3 + Math.floor(Math.random() * 2);
+    const pool: FeedItem[] = [];
 
     for (const post of communityPosts) {
-      items.push({ type: 'post', post });
-      count += 1;
+      pool.push({ type: 'post', post });
+    }
+    for (const business of nearbyBusinesses.slice(0, 12)) {
+      pool.push({ type: 'business', business });
+    }
+    for (const organization of organizations.slice(0, 8)) {
+      pool.push({ type: 'organization', organization });
+    }
+    for (const item of nearbyMarketplaceItems.slice(0, 12)) {
+      pool.push({ type: 'item', item });
+    }
 
-      if (count >= insertAfter) {
-        if (featuredBusinesses.length && trendingItems.length) {
-          const sliderType = Math.random() > 0.5 ? 'sliderBusinesses' : 'sliderMarketplace';
-          items.push({ type: sliderType });
-        } else if (featuredBusinesses.length) {
-          items.push({ type: 'sliderBusinesses' });
-        } else if (trendingItems.length) {
-          items.push({ type: 'sliderMarketplace' });
-        }
+    if (featuredBusinesses.length && trendingItems.length) {
+      pool.push(Math.random() > 0.5 ? { type: 'sliderBusinesses' } : { type: 'sliderMarketplace' });
+    } else if (featuredBusinesses.length) {
+      pool.push({ type: 'sliderBusinesses' });
+    } else if (trendingItems.length) {
+      pool.push({ type: 'sliderMarketplace' });
+    }
+    for (const banner of adBanners) {
+      pool.push({ type: 'ad', banner });
+    }
 
-        if (adBanners.length) {
-          items.push({ type: 'ad', banner: adBanners[adIndex % adBanners.length] });
-          adIndex += 1;
-        }
-
-        if (businessQueue.length) {
-          items.push({ type: 'business', business: businessQueue.shift()! });
-        }
-
-        if (organizationQueue.length) {
-          items.push({ type: 'organization', organization: organizationQueue.shift()! });
-        }
-
-        if (itemQueue.length) {
-          items.push({ type: 'item', item: itemQueue.shift()! });
-        }
-
-        count = 0;
-        insertAfter = 3 + Math.floor(Math.random() * 2);
+    if (!pool.length && !loading) {
+      if (adBanners[0]) pool.push({ type: 'ad', banner: adBanners[0] });
+      for (const business of nearbyBusinesses.slice(0, 6)) {
+        pool.push({ type: 'business', business });
       }
-    }
-
-    if (businessQueue.length) {
-      const remaining = businessQueue.slice(0, 6);
-      items.push(...remaining.map((business) => ({ type: 'business' as const, business })));
-    }
-
-    if (itemQueue.length) {
-      const remainingItems = itemQueue.slice(0, 6);
-      items.push(...remainingItems.map((item) => ({ type: 'item' as const, item })));
-    }
-
-    if (!items.length && !loading) {
-      if (adBanners[0]) items.push({ type: 'ad', banner: adBanners[0] });
-      if (businessQueue.length) {
-        items.push(
-          ...businessQueue.slice(0, 6).map((business) => ({ type: 'business' as const, business }))
-        );
+      for (const item of nearbyMarketplaceItems.slice(0, 6)) {
+        pool.push({ type: 'item', item });
       }
-      if (itemQueue.length) {
-        items.push(
-          ...itemQueue.slice(0, 6).map((item) => ({ type: 'item' as const, item }))
-        );
-      }
-      if (featuredBusinesses.length) items.push({ type: 'sliderBusinesses' });
-      if (trendingItems.length) items.push({ type: 'sliderMarketplace' });
+      if (featuredBusinesses.length) pool.push({ type: 'sliderBusinesses' });
+      if (trendingItems.length) pool.push({ type: 'sliderMarketplace' });
     }
 
-    return items;
+    const needNewOrder =
+      feedOrderRef.current === null ||
+      feedPoolLengthRef.current !== pool.length;
+
+    if (needNewOrder && pool.length > 0) {
+      const indices = pool.map((_, i) => i);
+      feedOrderRef.current = shuffleArray(indices);
+      feedPoolLengthRef.current = pool.length;
+    }
+
+    if (feedOrderRef.current === null || feedOrderRef.current.length === 0) {
+      return pool;
+    }
+    return feedOrderRef.current
+      .filter((i) => i < pool.length)
+      .map((i) => pool[i]);
   }, [
     communityPosts,
     featuredBusinesses.length,
@@ -799,6 +954,26 @@ const formatDateLabel = (value?: string | null) => {
                   onShare={() => handleSharePost(item.post.id)}
                 />
 
+                {currentUser.id && item.post.user_id === currentUser.id && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-sm">
+                    <button
+                      onClick={() => handleDeletePost(item.post.id)}
+                      disabled={deletingPost === item.post.id}
+                      className="flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-200 disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
+                    <button
+                      onClick={handlePromotePost}
+                      className="flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-200"
+                    >
+                      <Megaphone className="h-3.5 w-3.5" />
+                      Promote
+                    </button>
+                  </div>
+                )}
+
                 {isCommentsOpen && (
                   <div className="mt-4 border-t border-slate-100 pt-4">
                     {commentLoading[item.post.id] ? (
@@ -809,11 +984,43 @@ const formatDateLabel = (value?: string | null) => {
                           <p className="text-xs text-slate-500">Be the first to comment.</p>
                         )}
                         {comments.map((comment) => (
-                          <div key={comment.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
-                            <p className="text-xs font-semibold text-slate-700">
-                              {comment.username || comment.author || 'User'}
-                            </p>
-                            <p className="text-sm text-slate-600">{comment.text}</p>
+                          <div key={comment.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm flex gap-2">
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-200 flex-shrink-0">
+                              <img
+                                src={
+                                  comment.profiles?.profile_pic_url
+                                    ? `${comment.profiles.profile_pic_url}?t=${Date.now()}`
+                                    : '/default-avatar.png'
+                                }
+                                alt=""
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = '/default-avatar.png';
+                                }}
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-slate-700">
+                                {comment.username || comment.author || 'User'}
+                              </p>
+                              <p className="text-sm text-slate-600">{comment.body ?? comment.text}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                {currentUser.id && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCommentLike(item.post.id, comment.id)}
+                                    className={`text-xs font-medium transition ${
+                                      comment.user_liked ? 'text-rose-600' : 'text-slate-400 hover:text-rose-500'
+                                    }`}
+                                  >
+                                    👍 {comment.user_liked ? 'Liked' : 'Like'}
+                                  </button>
+                                )}
+                                <span className="text-xs text-slate-400">
+                                  {comment.likes ?? comment.likes_comment ?? 0} likes
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>

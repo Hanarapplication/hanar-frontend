@@ -17,6 +17,7 @@ import {
   Heart,
   MessageCircle,
   Share2,
+  Trash2,
 } from 'lucide-react';
 
 type OrgProfile = {
@@ -127,6 +128,7 @@ export default function OrganizationProfilePage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [deletingPost, setDeletingPost] = useState<string | null>(null);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -141,6 +143,9 @@ export default function OrganizationProfilePage() {
         .single();
 
       if (error || !data) {
+        setProfile(null);
+        setNotFound(true);
+      } else if (data.moderation_status === 'on_hold') {
         setProfile(null);
         setNotFound(true);
       } else {
@@ -273,6 +278,27 @@ export default function OrganizationProfilePage() {
       }
     } finally {
       setCommentsLoading(prev => ({ ...prev, [postId]: false }));
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!profile?.user_id || currentUser?.id !== profile.user_id) return;
+    if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) return;
+    setDeletingPost(postId);
+    try {
+      const { error } = await supabase
+        .from('community_posts')
+        .update({ deleted: true })
+        .eq('id', postId)
+        .eq('user_id', profile.user_id);
+
+      if (error) throw error;
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Failed to delete post');
+    } finally {
+      setDeletingPost(null);
     }
   };
 
@@ -505,6 +531,18 @@ export default function OrganizationProfilePage() {
                             <Share2 className="h-4 w-4" />
                             <span>Share</span>
                           </button>
+
+                          {currentUser?.id === profile.user_id && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePost(post.id)}
+                              disabled={deletingPost === post.id}
+                              className="flex items-center gap-1 text-red-600 hover:text-red-700 disabled:opacity-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span>Delete</span>
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -559,7 +597,7 @@ export default function OrganizationProfilePage() {
                                       <span>{new Date(comment.created_at).toLocaleDateString()}</span>
                                     </div>
 
-                                    <p className="mt-1">{comment.text}</p>
+                                    <p className="mt-1">{comment.body ?? comment.text}</p>
                                   </div>
                                 );
                               })}

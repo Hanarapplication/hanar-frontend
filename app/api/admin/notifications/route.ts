@@ -24,8 +24,47 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const businessId = (searchParams.get('businessId') || '').trim();
+    const orgUserId = (searchParams.get('orgUserId') || '').trim();
+
+    if (orgUserId) {
+      const { data: orgNotifs, error: orgErr } = await supabaseAdmin
+        .from('notifications')
+        .select('id, type, title, body, url, created_at, data')
+        .eq('type', 'organization_update')
+        .filter('data->>org_user_id', 'eq', orgUserId)
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (orgErr) return NextResponse.json({ error: orgErr.message }, { status: 500 });
+
+      const grouped: Record<string, any> = {};
+      for (const row of orgNotifs || []) {
+        const createdAt = new Date(row.created_at);
+        const bucket = new Date(createdAt.getFullYear(), createdAt.getMonth(), createdAt.getDate(), createdAt.getHours(), createdAt.getMinutes()).toISOString();
+        const key = `${row.title}||${row.body}||${row.url || ''}||${bucket}`;
+        if (!grouped[key]) {
+          grouped[key] = {
+            id: row.id,
+            kind: 'organization_update',
+            title: row.title,
+            body: row.body,
+            created_at: row.created_at,
+            status: 'sent',
+            data: { ...(row.data || {}), sent_count: 1 },
+          };
+        } else {
+          grouped[key].data.sent_count = (grouped[key].data.sent_count || 1) + 1;
+          if (new Date(row.created_at).getTime() > new Date(grouped[key].created_at).getTime()) {
+            grouped[key].created_at = row.created_at;
+          }
+        }
+      }
+      const items = Object.values(grouped).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      return NextResponse.json({ notifications: items });
+    }
+
     if (!businessId) {
-      return NextResponse.json({ error: 'Missing businessId' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing businessId or orgUserId' }, { status: 400 });
     }
 
     const [outboxRes, followerRes] = await Promise.all([
@@ -117,8 +156,14 @@ export async function POST(req: Request) {
     }
 
     if (action === 'delete') {
-      const { error } = await supabaseAdmin.from('area_blast_outbox').delete().eq('id', id);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      const source = body.source === 'notification' ? 'notification' : 'area_blast';
+      if (source === 'notification') {
+        const { error } = await supabaseAdmin.from('notifications').delete().eq('id', id);
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      } else {
+        const { error } = await supabaseAdmin.from('area_blast_outbox').delete().eq('id', id);
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      }
       return NextResponse.json({ success: true }, { status: 200 });
     }
 

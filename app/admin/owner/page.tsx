@@ -55,6 +55,22 @@ export default function OwnerAdminPage() {
           🔔 Review Business Notification Requests
         </button>
 
+        {/* Manage Organizations */}
+        <button
+          onClick={() => router.push('/admin/organizations')}
+          className="bg-teal-600 text-white px-4 py-3 rounded-lg shadow hover:bg-teal-700 transition"
+        >
+          🏛️ Manage Organizations
+        </button>
+
+        {/* Create Business / Organization */}
+        <button
+          onClick={() => router.push('/admin/create')}
+          className="bg-teal-600 text-white px-4 py-3 rounded-lg shadow hover:bg-teal-700 transition"
+        >
+          🏢 Create Business or Organization
+        </button>
+
         {/* Email Businesses */}
         <button
           onClick={() => router.push('/admin/send-emails')}
