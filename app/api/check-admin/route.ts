@@ -21,8 +21,8 @@ const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX = 20;
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
-function getClientIp(req: Request): string {
-  const headersList = headers();
+async function getClientIp(): Promise<string> {
+  const headersList = await headers();
   const forwarded = headersList.get('x-forwarded-for');
   const realIp = headersList.get('x-real-ip');
   if (forwarded) return forwarded.split(',')[0].trim();
@@ -52,7 +52,7 @@ const genericDeny = { allowed: false, message: 'Invalid credentials or access de
 
 export async function POST(req: Request) {
   try {
-    const ip = getClientIp(req);
+    const ip = await getClientIp();
     if (!rateLimit(ip)) {
       return NextResponse.json(
         { allowed: false, message: 'Too many attempts. Try again later.' },
