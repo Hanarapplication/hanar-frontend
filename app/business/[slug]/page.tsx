@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation'; // This import remains as per your original code
 import { supabase } from '@/lib/supabaseClient'; // This import remains as per your original code
 import toast from 'react-hot-toast';
@@ -415,6 +416,7 @@ const BusinessProfilePage = () => {
     const loadMoreTimerRef = useRef<number | null>(null);
     const touchStartXRef = useRef<number | null>(null);
     const touchEndXRef = useRef<number | null>(null);
+
 
     // Add new state for detailed view of individual item cards
     const [selectedItemForDetails, setSelectedItemForDetails] = useState<{
@@ -969,8 +971,14 @@ const BusinessProfilePage = () => {
         <motion.div
             initial="hidden"
             animate="visible"
-            className="relative p-4 min-h-screen font-inter bg-yellow-50 dark:bg-gray-900"
+            className="relative px-0 pt-0 pb-4 min-h-screen font-inter bg-gray-100 dark:bg-gray-900 overflow-x-clip"
         >
+            {/* Hanar logo - back to businesses */}
+            <div className="sticky top-0 z-30 mb-0 py-3 px-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur border-b border-gray-200 dark:border-gray-700">
+                <Link href="/businesses" className="inline-block" aria-label="Back to Hanar">
+                    <img src="/hanar.logo.png" alt="Hanar" className="h-8 w-auto object-contain" />
+                </Link>
+            </div>
             {/* Modals for Menu, Cars, Retail (Added new) */}
             {showMenuModal && (
                 <Modal title="Our Menu" onClose={() => setShowMenuModal(false)}>
@@ -1143,20 +1151,83 @@ const BusinessProfilePage = () => {
                 />
             )}
 
-            <motion.div className="rounded-2xl max-w-4xl mx-auto p-4 sm:p-6 space-y-6 bg-yellow-50 dark:bg-slate-900/70 backdrop-blur">
+            <motion.div className="w-full space-y-6 bg-gray-100 dark:bg-slate-900/80 backdrop-blur">
                 {business.moderation_status !== 'active' && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                         Your business is currently pending approval. You can still view and edit your business profile and online
                         shop, but it will not be visible to other users until it has been approved.
                     </div>
                 )}
-                {/* Name + Description */}
-                <motion.div className="sticky top-12 z-20 rounded-xl p-[2px] bg-gradient-to-r from-red-300 via-yellow-300 via-green-300 via-sky-300 to-purple-300">
-                    <div className="rounded-[10px] p-4 sm:p-6 bg-white dark:bg-slate-900/70">
+                {/* Gallery + action bar - full width, buttons directly under gallery */}
+                <div className="relative left-1/2 -translate-x-1/2 w-screen max-w-none">
+                    {business.images?.length ? (
+                        <div
+                            className="relative overflow-hidden w-full aspect-video flex items-center justify-center group bg-black/5 dark:bg-black/20"
+                            onTouchStart={handleGalleryTouchStart}
+                            onTouchMove={handleGalleryTouchMove}
+                            onTouchEnd={handleGalleryTouchEnd}
+                        >
+                            <img
+                                src={business.images[selectedIndex]}
+                                alt={`Slide ${selectedIndex + 1}`}
+                                className="w-full h-full object-cover transition-transform duration-500"
+                                onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400/cccccc/333333?text=Image+Not+Available'; e.currentTarget.onerror = null; }}
+                            />
+                            {business.images.length > 1 && (<>
+                                <button onClick={prevImage} className="absolute top-1/2 left-4 transform -translate-y-1/2 bg-white/50 dark:bg-gray-800/50 hover:bg-white/70 dark:hover:bg-gray-700/70 text-gray-800 dark:text-gray-200 rounded-full shadow p-2 opacity-0 group-hover:opacity-100 transition-opacity"><FaArrowLeft size={20} /></button>
+                                <button onClick={nextImage} className="absolute top-1/2 right-4 transform -translate-y-1/2 bg-white/50 dark:bg-gray-800/50 hover:bg-white/70 dark:hover:bg-gray-700/70 text-gray-800 dark:text-gray-200 rounded-full shadow p-2 opacity-0 group-hover:opacity-100 transition-opacity"><FaArrowRight size={20} /></button>
+                                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2">
+                                    {business.images.map((_, index) => (
+                                        <div key={index} className={cn(
+                                            "w-3 h-3 rounded-full transition-colors duration-300 cursor-pointer",
+                                            selectedIndex === index
+                                                ? "bg-blue-500 dark:bg-blue-400"
+                                                : "bg-gray-300 dark:bg-gray-600"
+                                        )} onClick={() => setSelectedIndex(index)} />
+                                    ))}
+                                </div>
+                            </>)}
+                        </div>
+                    ) : null}
+                    {/* Action bar - directly under gallery, modern style */}
+                    <div className="flex flex-wrap items-center justify-center gap-2 px-4 py-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-t border-slate-200/80 dark:border-slate-700/80">
+                        {business.phone && (
+                            <a href={`tel:${business.phone}`} aria-label="Call" className="flex items-center justify-center h-10 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-green-500 hover:text-white dark:hover:bg-green-600 transition-colors duration-200 font-medium text-sm">
+                                <FaPhone size={18} className="shrink-0" />
+                            </a>
+                        )}
+                        {business.whatsapp && (
+                            <a href={`https://wa.me/${business.whatsapp}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className="flex items-center justify-center h-10 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors duration-200 font-medium text-sm">
+                                <FaWhatsapp size={20} className="shrink-0" />
+                            </a>
+                        )}
+                        {business.email && (
+                            <a href={`mailto:${business.email}`} aria-label="Email" className="flex items-center justify-center h-10 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-600 hover:text-white dark:hover:bg-slate-500 transition-colors duration-200 font-medium text-sm">
+                                <FaEnvelope size={18} className="shrink-0" />
+                            </a>
+                        )}
+                        {business.website && (
+                            <a href={business.website} target="_blank" rel="noopener noreferrer" aria-label="Website" className="flex items-center justify-center h-10 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-600 transition-colors duration-200 font-medium text-sm">
+                                <FaGlobe size={18} className="shrink-0" />
+                            </a>
+                        )}
+                        <button
+                            type="button"
+                            onClick={handleShare}
+                            aria-label="Share"
+                            className="flex items-center justify-center h-10 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600 transition-colors duration-200 font-medium text-sm"
+                        >
+                            <FaShareAlt size={18} className="shrink-0" />
+                        </button>
+                    </div>
+                </div>
+                {/* Name + Description - scrolls away with page */}
+                <motion.div className="rounded-xl border-2 border-slate-400 dark:border-slate-500 shadow-md bg-white dark:bg-slate-900">
+                    <div className="rounded-[8px] p-4 sm:p-6 bg-white dark:bg-slate-900">
                         <div className="relative flex justify-between items-start flex-col sm:flex-row">
                             <div className="flex items-center gap-4 mb-0 sm:mb-0">
                                 {business.logo_url && (
-                                    <div className="w-24 sm:w-28 h-24 sm:h-28 flex-shrink-0 rounded-xl overflow-hidden shadow-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+                                    <div className="w-24 sm:w-28 h-24 sm:h-28 flex-shrink-0 rounded-xl overflow-hidden shadow-md border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-gray-900">
                                         <img
                                             src={business.logo_url}
                                             alt="Business Logo"
@@ -1168,7 +1239,7 @@ const BusinessProfilePage = () => {
                                 <div className="text-left flex-1">
                                     <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">{business.business_name}</h1>
                                     {displayCategory ? (
-                                      <p className="text-gray-500 dark:text-gray-400 italic">{displayCategory}</p>
+                                      <p className="text-sm font-normal text-gray-500 dark:text-gray-400 italic">{displayCategory}</p>
                                     ) : null}
                                 </div>
                             </div>
@@ -1184,27 +1255,15 @@ const BusinessProfilePage = () => {
                                 </button>
                             </div>
                         </div>
-                        <p className="mt-2 text-[#444] dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                        <p className="mt-2 font-normal text-[#444] dark:text-gray-300 leading-relaxed whitespace-pre-line">
                             {business.description}
                         </p>
                     </div>
                 </motion.div>
                 {/* Contact */}
                 {hasContactInfo && (
-                <motion.div className="rounded-xl p-4 sm:p-6 shadow-md space-y-3 bg-white dark:bg-slate-900/70 border border-sky-200 dark:border-sky-300/50">
+                <motion.div className="rounded-xl p-4 sm:p-6 shadow-md space-y-3 bg-white dark:bg-slate-900/90 border-2 border-slate-300 dark:border-slate-600">
                     <h2 className="text-xl font-semibold text-[#333] dark:text-gray-100">Contact</h2>
-                    {business.phone && (<p className="flex items-center gap-2 text-sm text-[#444] dark:text-gray-300"><FaPhone className="text-green-500 dark:text-green-400" size={16} /><a href={`tel:${business.phone}`} className="text-blue-500 dark:text-blue-400 hover:underline">{business.phone}</a></p>)}
-                    {business.whatsapp && (<p className="flex items-center gap-2 text-sm text-[#444] dark:text-gray-300"><FaWhatsapp className="text-green-500 dark:text-green-400" size={16} /><a href={`https://wa.me/${business.whatsapp}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 dark:text-blue-400 hover:underline">WhatsApp: {business.whatsapp}</a></p>)}
-                    {business.email && (<p className="flex items-center gap-2 text-sm text-[#444] dark:text-gray-300"><FaEnvelope size={16} /><a href={`mailto:${business.email}`} className="text-blue-500 dark:text-blue-400 hover:underline">{business.email}</a></p>)}
-                    {business.website && (<p className="flex items-center gap-2 text-sm text-[#444] dark:text-gray-300"><FaGlobe size={16} /><a href={business.website} target="_blank" rel="noopener noreferrer" className="text-blue-500 dark:text-blue-400 hover:underline">Website</a></p>)}
-                    <div className="flex items-center">
-                        <button
-                            className="bg-[#ede7f6] dark:bg-gray-700 px-3 py-1.5 rounded-full text-sm flex items-center gap-2 hover:bg-[#dcd1f2] dark:hover:bg-gray-600 transition-colors duration-200 shadow-md"
-                            onClick={handleShare}
-                        >
-                            <FaShareAlt size={14} /> Share
-                        </button>
-                    </div>
                     {business.address?.street && (
                         <div className="mt-6">
                             <h3 className="text-lg font-semibold text-[#333] dark:text-gray-100 flex items-center gap-1 mb-2">
@@ -1227,40 +1286,9 @@ const BusinessProfilePage = () => {
                     )}
                 </motion.div>
                 )}
-                {business.images?.length ? (
-                    <motion.div>
-                        <div
-                            className="relative rounded-xl overflow-hidden w-full aspect-video flex items-center justify-center group bg-white dark:bg-slate-900/70 border border-sky-200 dark:border-sky-300/50"
-                            onTouchStart={handleGalleryTouchStart}
-                            onTouchMove={handleGalleryTouchMove}
-                            onTouchEnd={handleGalleryTouchEnd}
-                        >
-                            <img
-                                src={business.images[selectedIndex]}
-                                alt={`Slide ${selectedIndex + 1}`}
-                                className="w-full h-full object-contain rounded-xl transition-transform duration-500"
-                                onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400/cccccc/333333?text=Image+Not+Available'; e.currentTarget.onerror = null; }}
-                            />
-                            {business.images.length > 1 && (<>
-                                <button onClick={prevImage} className="absolute top-1/2 left-4 transform -translate-y-1/2 bg-white/50 dark:bg-gray-800/50 hover:bg-white/70 dark:hover:bg-gray-700/70 text-gray-800 dark:text-gray-200 rounded-full shadow p-2 opacity-0 group-hover:opacity-100 transition-opacity"><FaArrowLeft size={20} /></button>
-                                <button onClick={nextImage} className="absolute top-1/2 right-4 transform -translate-y-1/2 bg-white/50 dark:bg-gray-800/50 hover:bg-white/70 dark:hover:bg-gray-700/70 text-gray-800 dark:text-gray-200 rounded-full shadow p-2 opacity-0 group-hover:opacity-100 transition-opacity"><FaArrowRight size={20} /></button>
-                                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2">
-                                    {business.images.map((_, index) => (
-                                        <div key={index} className={cn(
-                                            "w-3 h-3 rounded-full transition-colors duration-300 cursor-pointer",
-                                            selectedIndex === index
-                                                ? "bg-blue-500 dark:bg-blue-400"
-                                                : "bg-gray-300 dark:bg-gray-600"
-                                        )} onClick={() => setSelectedIndex(index)} />
-                                    ))}
-                                </div>
-                            </>)}
-                        </div>
-                    </motion.div>
-                ) : null}
                 {/* Socials */}
                 {hasSocials && (
-                <motion.div className="rounded-xl p-4 sm:p-6 shadow-md bg-sky-50 dark:bg-slate-900/70 border border-sky-200 dark:border-sky-300/50">
+                <motion.div className="rounded-xl p-4 sm:p-6 shadow-md bg-slate-50 dark:bg-slate-900/80 border-2 border-slate-300 dark:border-slate-600">
                     <h2 className="text-xl font-semibold text-[#333] dark:text-gray-100">Socials</h2>
                     <ul className="list-none space-y-2">
                         {business.instagram && (<li className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><FaInstagram className="text-blue-500 dark:text-blue-400" size={18} /><a href={business.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 dark:hover:text-blue-400 hover:underline">Instagram</a></li>)}
@@ -1272,7 +1300,7 @@ const BusinessProfilePage = () => {
                 )}
                 {/* Hours */}
                 {hasHours && (
-                <motion.div className="rounded-xl p-4 sm:p-6 shadow-md bg-sky-50 dark:bg-slate-900/70 border border-sky-200 dark:border-sky-300/50">
+                <motion.div className="rounded-xl p-4 sm:p-6 shadow-md bg-slate-50 dark:bg-slate-900/80 border-2 border-slate-300 dark:border-slate-600">
                     <div className="flex items-start justify-between gap-4">
                         <div>
                             <h2 className="text-xl font-semibold text-[#333] dark:text-gray-100">Hours</h2>
@@ -1290,7 +1318,7 @@ const BusinessProfilePage = () => {
                     </div>
 
                     {showHours && (
-                        <div className="mt-4 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
+                        <div className="mt-4 border-2 border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
                             {normalizedHours ? (
                                 <div className="divide-y divide-gray-200 dark:divide-gray-700">
                                     {hoursEntries.map(([day, hours]) => {
@@ -1323,7 +1351,7 @@ const BusinessProfilePage = () => {
                 )}
                 {/* === ALL ITEMS SECTION AT THE BOTTOM === */}
                 {(menu.length > 0 || carListings.length > 0 || retailItems.length > 0) && (
-                    <motion.div className="mt-10 rounded-xl p-4 sm:p-6 shadow-lg space-y-10 bg-white dark:bg-gray-800 border border-sky-200 dark:border-sky-300/50">
+                    <motion.div className="mt-10 rounded-xl p-4 sm:p-6 shadow-lg space-y-10 bg-white dark:bg-gray-800 border-2 border-slate-300 dark:border-slate-600">
                         {/* Menu */}
                         {menu.length > 0 && (
                             <div>
@@ -1393,7 +1421,7 @@ const BusinessProfilePage = () => {
                                     {carListings.slice(0, visibleCarCount).map((car) => (
                                         <div
                                             key={car.id}
-                                            className="shadow-md sm:shadow-sm overflow-hidden relative flex flex-col bg-gray-100 dark:bg-gray-700 border border-sky-300 dark:border-sky-300/60 rounded-lg"
+                                            className="shadow-md sm:shadow-sm overflow-hidden relative flex flex-col bg-slate-100 dark:bg-gray-700 border-2 border-slate-300 dark:border-slate-600 rounded-lg"
                                         >
                                             {car.images && car.images.length > 0 && car.images[0] && (
                                                 <div className="w-full h-36 sm:h-48 relative flex-shrink-0 mb-3">
@@ -1445,7 +1473,7 @@ const BusinessProfilePage = () => {
                                     {retailItems.slice(0, visibleRetailCount).map((item) => (
                                         <div
                                             key={item.id}
-                                            className="shadow-md sm:shadow-sm overflow-hidden relative flex flex-col bg-white dark:bg-gray-700 border border-sky-300 dark:border-sky-300/60 rounded-lg"
+                                            className="shadow-md sm:shadow-sm overflow-hidden relative flex flex-col bg-white dark:bg-gray-700 border-2 border-slate-300 dark:border-slate-600 rounded-lg"
                                         >
                                             {item.images?.[0] && (
                                                 <div className="w-full h-36 sm:h-48 relative flex-shrink-0 mb-3">
@@ -1498,8 +1526,18 @@ const BusinessProfilePage = () => {
                     </div>
                 )}
             </motion.div>
+
+            {/* Floating call button - visible when scrolled and business has phone */}
+            {business.phone && (
+                <a
+                    href={`tel:${business.phone}`}
+                    className="fixed bottom-32 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-green-600 text-white shadow-xl shadow-black/25 transition-all duration-300 hover:bg-green-700 hover:scale-105 hover:shadow-2xl hover:shadow-black/30 focus:outline-none focus:ring-4 focus:ring-green-400/50"
+                    aria-label="Call business"
+                >
+                    <FaPhone size={22} />
+                </a>
+            )}
         </motion.div>
     );
 };
-
 export default BusinessProfilePage;

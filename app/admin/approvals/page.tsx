@@ -56,6 +56,9 @@ interface Business {
   allow_promoted?: boolean | null;
   allow_reviews?: boolean | null;
   allow_qr?: boolean | null;
+
+  /** Set when business was created by admin (admin create-business flow). */
+  admin_added_at?: string | null;
 }
 
 type SentNotification = {
@@ -86,7 +89,7 @@ function getUiStatus(biz: Business): BusinessStatus {
   if (biz.is_archived === true || biz.lifecycle_status === 'archived') return 'archived';
   if (biz.moderation_status === 'rejected') return 'rejected';
   if (biz.moderation_status === 'active') return 'approved';
-  if (biz.moderation_status === 'on_hold') return 'hold';
+  if (biz.moderation_status === 'on_hold') return 'pending'; // not approved yet -> show as Pending
   return 'pending';
 }
 
@@ -115,7 +118,8 @@ export default function AdminApprovalsPage() {
         admin_note, note_history, updated_at,
         plan, plan_expires_at,
         max_gallery_images, max_menu_items, max_retail_items, max_car_listings,
-        allow_social_links, allow_whatsapp, allow_promoted, allow_reviews, allow_qr
+        allow_social_links, allow_whatsapp, allow_promoted, allow_reviews, allow_qr,
+        admin_added_at
       `
       )
       .order('updated_at', { ascending: false, nullsFirst: true });
@@ -232,7 +236,7 @@ export default function AdminApprovalsPage() {
           className="border rounded-lg px-4 py-2 flex-1"
         />
         <div className="flex gap-2 flex-wrap">
-          {(['all', 'pending', 'approved', 'hold', 'archived', 'rejected'] as const).map((status) => (
+          {(['all', 'pending', 'approved', 'archived', 'rejected'] as const).map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
@@ -472,7 +476,14 @@ function BusinessCard({
     <div className="bg-white rounded-lg shadow p-5 space-y-5 text-sm border border-gray-200">
       <div className="flex justify-between items-start">
         <div>
-          <h2 className="text-lg font-semibold">{biz.business_name}</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold">{biz.business_name}</h2>
+            {biz.admin_added_at ? (
+              <span className="inline-flex items-center rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800" title="Created by admin">Admin</span>
+            ) : (
+              <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600" title="Created by user">User</span>
+            )}
+          </div>
           {biz.phone && <p className="text-gray-600">📞 {biz.phone}</p>}
           {biz.email && <p className="text-gray-600">✉️ {biz.email}</p>}
 
@@ -893,9 +904,10 @@ function StatusBadge({ status }: { status: string }) {
     unknown: 'bg-gray-300',
   };
   const safe = (status || 'unknown').toLowerCase();
+  const label = safe.charAt(0).toUpperCase() + safe.slice(1);
   return (
     <span className={`inline-block px-3 py-1 rounded-full text-xs text-white ${colors[safe] || colors.unknown}`}>
-      {safe}
+      {label}
     </span>
   );
 }

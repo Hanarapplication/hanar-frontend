@@ -2,112 +2,135 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import {
+  ClipboardCheck,
+  Bell,
+  Flag,
+  MessageSquare,
+  Mail,
+  FileText,
+  ChevronRight,
+} from 'lucide-react';
+
+type DashboardCounts = {
+  businesses_pending_approval: number;
+  notification_requests_pending: number;
+  reported_posts: number;
+  reported_comments: number;
+  contact_us_to_review: number;
+};
+
+const TASKS: {
+  key: keyof DashboardCounts;
+  label: string;
+  path: string;
+  icon: React.ReactNode;
+}[] = [
+  { key: 'businesses_pending_approval', label: 'Businesses pending approval', path: '/admin/approvals', icon: <ClipboardCheck className="h-5 w-5" /> },
+  { key: 'notification_requests_pending', label: 'Notification requests to approve', path: '/admin/notification-requests', icon: <Bell className="h-5 w-5" /> },
+  { key: 'reported_posts', label: 'Reported posts', path: '/admin/community-moderation', icon: <FileText className="h-5 w-5" /> },
+  { key: 'reported_comments', label: 'Reported comments', path: '/admin/moderation', icon: <MessageSquare className="h-5 w-5" /> },
+  { key: 'contact_us_to_review', label: 'Contact us to review', path: '/admin/contact', icon: <Mail className="h-5 w-5" /> },
+];
 
 export default function AdminDashboard() {
-  const [adminRole, setAdminRole] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState<DashboardCounts | null>(null);
+  const [countsError, setCountsError] = useState<string | null>(null);
   const router = useRouter();
 
-  const fullAccessRoles = ['owner', 'ceo', 'topmanager'];
-  const limitedTools = {
-    reviewer: ['/admin/approvals'],
-    moderator: ['/admin/community'],
-    support: ['/admin/support'],
-    editor: ['/admin/content'],
-    readonly: ['/admin/viewer'],
-    manager: ['/admin/overview'],
-  };
+  useEffect(() => {
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push('/admin-login');
+        return;
+      }
+      setUserEmail(user.email ?? null);
 
-useEffect(() => {
-  const checkAdmin = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        const res = await fetch('/api/admin/dashboard-counts', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          setCounts(data);
+        } else {
+          setCountsError(data?.error || 'Failed to load task counts');
+        }
+      } catch (e) {
+        setCountsError(e instanceof Error ? e.message : 'Failed to load counts');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [router]);
 
-    if (!user) {
-      router.push('/admin/login');
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from('adminaccounts')
-      .select('role')
-      .eq('email', user.user_metadata.email)
-      .single();
-
-    if (error || !data) {
-      router.push('/unauthorized');
-      return;
-    }
-
-    setAdminRole(data.role);
-  };
-
-  checkAdmin();
-}, []);
-
-
-
-  if (loading || !adminRole) {
-    return <div className="text-center mt-10">Loading dashboard...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+      </div>
+    );
   }
 
-  const navItems = [
-    { label: 'Business Approvals', path: '/admin/approvals' },
-    { label: 'Manage Organizations', path: '/admin/organizations' },
-    { label: 'Create Business / Organization', path: '/admin/create' },
-    { label: 'Email Businesses', path: '/admin/send-emails' },
-    { label: 'Notification Requests', path: '/admin/notification-requests' },
-    { label: 'Marketplace Listings', path: '/admin/marketplace' },
-    { label: 'Community Posts', path: '/admin/community' },
-    { label: 'Support Tickets', path: '/admin/support' },
-    { label: 'Reports', path: '/admin/reports' },
-    { label: 'Site Settings', path: '/admin/settings' },
-  ];
-
-  const isFullAccess = fullAccessRoles.includes(adminRole);
-
-  const visibleItems = isFullAccess
-    ? navItems
-    : navItems.filter(item =>
-        (limitedTools[adminRole as keyof typeof limitedTools] || []).includes(item.path)
-      );
+  const totalAttention = counts
+    ? TASKS.reduce((sum, t) => sum + (counts[t.key] ?? 0), 0)
+    : 0;
 
   return (
-    <div className="min-h-screen flex bg-white">
-      {/* Sidebar */}
-      <aside className="w-64 border-r px-4 py-6 space-y-4 shadow-sm">
-        <h1 className="text-2xl font-bold text-blue-600 mb-6">Admin Panel</h1>
+    <div className="max-w-4xl">
+      <h1 className="text-2xl font-bold text-slate-900">Insight</h1>
+      <p className="mt-1 text-slate-600">
+        {userEmail ? `Signed in as ${userEmail}` : 'Admin'} · Tasks that need your attention.
+      </p>
 
-        {visibleItems.map(item => (
-          <button
-            key={item.path}
-            onClick={() => router.push(item.path)}
-            className="block w-full text-left px-4 py-2 rounded-md hover:bg-blue-100 text-gray-700"
-          >
-            {item.label}
-          </button>
-        ))}
+      {countsError && (
+        <p className="mt-4 text-sm text-amber-600">{countsError}</p>
+      )}
 
-        <hr className="my-4" />
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold text-slate-800 mb-4">Tasks to do</h2>
+        {counts && totalAttention === 0 && (
+          <p className="text-slate-500 text-sm py-4">No pending tasks right now.</p>
+        )}
+        {counts && totalAttention > 0 && (
+          <ul className="space-y-2">
+            {TASKS.filter((task) => (counts[task.key] ?? 0) > 0).map((task) => {
+              const count = counts[task.key] ?? 0;
+              return (
+                <li key={task.key}>
+                  <Link
+                    href={task.path}
+                    className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all"
+                  >
+                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                      {task.icon}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-slate-900">{task.label}</span>
+                      <span className="ml-2 inline-flex items-center justify-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                        {count}
+                      </span>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-slate-400 flex-shrink-0" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
-        <button
-          onClick={async () => {
-            await supabase.auth.signOut();
-            router.push('/admin/login');
-          }}
-          className="text-red-600 px-4 py-2 rounded-md hover:bg-red-100"
-        >
-          Logout
-        </button>
-      </aside>
-
-      {/* Main */}
-      <main className="flex-1 p-8">
-        <h2 className="text-3xl font-semibold text-gray-800">Welcome, {adminRole}</h2>
-        <p className="mt-2 text-gray-600">
-          Use the sidebar to manage your admin tasks.
-        </p>
-      </main>
+      <p className="mt-6 text-sm text-slate-500">
+        Use the menu to open Business Approvals, Organizations, Send Emails, Moderation, and more.
+      </p>
     </div>
   );
 }

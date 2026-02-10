@@ -2,107 +2,77 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Cookies from 'js-cookie';
 
+const OWNER_LINKS: { label: string; path: string; description: string }[] = [
+  { label: 'Business Approvals', path: '/admin/approvals', description: 'Review and approve new businesses' },
+  { label: 'Notification Requests', path: '/admin/notification-requests', description: 'Review business notification requests' },
+  { label: 'Organizations', path: '/admin/organizations', description: 'Manage organizations' },
+  { label: 'Create Business / Org', path: '/admin/create', description: 'Create a business or organization' },
+  { label: 'Send Emails', path: '/admin/send-emails', description: 'Email businesses or send login + OTP' },
+  { label: 'Community Moderation', path: '/admin/community-moderation', description: 'Moderate community content' },
+  { label: 'Moderation', path: '/admin/moderation', description: 'Content moderation' },
+];
+
+const PLACEHOLDER_LINKS: { label: string; description: string }[] = [
+  { label: 'Manage Ad Requests', description: 'Coming soon' },
+  { label: 'Manage Homepage Banners', description: 'Coming soon' },
+  { label: 'Send Local Notifications', description: 'Coming soon' },
+  { label: 'Send Global Notifications', description: 'Coming soon' },
+  { label: 'Review Reported Content', description: 'Coming soon' },
+];
+
 export default function OwnerAdminPage() {
-  const [role, setRole] = useState('');
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     const storedRole = Cookies.get('adminRole');
-    setRole(storedRole || '');
-
     if (storedRole === 'owner') {
       setIsAuthorized(true);
     } else {
       router.push('/unauthorized');
     }
-  }, []);
+  }, [router]);
+
+  if (isAuthorized === null) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!isAuthorized) return null;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Owner Admin Panel</h1>
-      <p className="mb-8 text-gray-600">Full access to Hanar platform features</p>
+    <div className="max-w-4xl">
+      <h1 className="text-2xl font-bold text-slate-900">Owner Panel</h1>
+      <p className="mt-1 text-slate-600">
+        Full access to Hanar platform features. Use the sidebar or the links below.
+      </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-        {/* Business Approval */}
-   <button
-  onClick={() => router.push('/admin/approvals')}
-  className="bg-green-600 text-white px-4 py-3 rounded-lg shadow hover:bg-green-700 transition"
->
-  ✅ Approve New Businesses
-</button>
-
-        {/* Ad Requests */}
-        <button className="bg-yellow-600 text-white px-4 py-3 rounded-lg shadow hover:bg-yellow-700 transition">
-          📢 Manage Ad Requests
-        </button>
-
-        {/* Banner Management */}
-        <button className="bg-blue-600 text-white px-4 py-3 rounded-lg shadow hover:bg-blue-700 transition">
-          🖼️ Manage Homepage Banners
-        </button>
-
-        {/* Review Business Notifications */}
-        <button
-          onClick={() => router.push('/admin/notification-requests')}
-          className="bg-purple-600 text-white px-4 py-3 rounded-lg shadow hover:bg-purple-700 transition"
-        >
-          🔔 Review Business Notification Requests
-        </button>
-
-        {/* Manage Organizations */}
-        <button
-          onClick={() => router.push('/admin/organizations')}
-          className="bg-teal-600 text-white px-4 py-3 rounded-lg shadow hover:bg-teal-700 transition"
-        >
-          🏛️ Manage Organizations
-        </button>
-
-        {/* Create Business / Organization */}
-        <button
-          onClick={() => router.push('/admin/create')}
-          className="bg-teal-600 text-white px-4 py-3 rounded-lg shadow hover:bg-teal-700 transition"
-        >
-          🏢 Create Business or Organization
-        </button>
-
-        {/* Email Businesses */}
-        <button
-          onClick={() => router.push('/admin/send-emails')}
-          className="bg-orange-500 text-white px-4 py-3 rounded-lg shadow hover:bg-orange-600 transition"
-        >
-          📧 Email Businesses
-        </button>
-
-        {/* Send Local Notification */}
-        <button className="bg-orange-600 text-white px-4 py-3 rounded-lg shadow hover:bg-orange-700 transition">
-          📍 Send Local Notifications to Users
-        </button>
-
-        {/* Send Global Notification */}
-        <button className="bg-pink-600 text-white px-4 py-3 rounded-lg shadow hover:bg-pink-700 transition">
-          🌍 Send International Notifications
-        </button>
-
-        {/* Review Community Posts */}
-        <button className="bg-indigo-600 text-white px-4 py-3 rounded-lg shadow hover:bg-indigo-700 transition">
-          📝 Review New Community Posts
-        </button>
-
-        {/* Review Reported Content */}
-        <button className="bg-red-600 text-white px-4 py-3 rounded-lg shadow hover:bg-red-700 transition">
-          🚨 Review Reported Posts or Comments
-        </button>
-
-        {/* Future Features Placeholder */}
-        <button className="bg-gray-600 text-white px-4 py-3 rounded-lg shadow hover:bg-gray-700 transition">
-          🛠️ Coming Soon...
-        </button>
+      <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {OWNER_LINKS.map((item) => (
+          <Link
+            key={item.path}
+            href={item.path}
+            className="block p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all text-left"
+          >
+            <h2 className="font-semibold text-slate-900">{item.label}</h2>
+            <p className="mt-1 text-sm text-slate-500">{item.description}</p>
+          </Link>
+        ))}
+        {PLACEHOLDER_LINKS.map((item) => (
+          <div
+            key={item.label}
+            className="block p-4 rounded-xl border border-slate-200 bg-slate-50 text-left opacity-90"
+          >
+            <h2 className="font-semibold text-slate-700">{item.label}</h2>
+            <p className="mt-1 text-sm text-slate-500">{item.description}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
