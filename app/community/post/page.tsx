@@ -163,7 +163,7 @@ export default function CreateCommunityPostPage() {
         title: title.trim(),
         body: plainText,
         tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
-        lang,
+        lang: effectiveLang,
         image: imageUrl,
         author,
         user_id: userId,
@@ -180,7 +180,7 @@ export default function CreateCommunityPostPage() {
     setTimeout(() => router.push('/community'), 2000);
   };
 
-  const getDirection = () => (lang === 'ar' ? 'rtl' : 'ltr');
+  const getDirection = () => (effectiveLang === 'ar' ? 'rtl' : 'ltr');
 
   const postAsOptions: { value: string; label: string }[] = [
     username ? { value: 'personal', label: `@${username}` } : null,
