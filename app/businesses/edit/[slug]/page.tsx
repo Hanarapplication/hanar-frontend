@@ -17,8 +17,10 @@ import {
   HeartHandshake, DollarSign, Shirt, Laptop, ClipboardList, Video, MessageSquare, MapPin,
   Clock as ClockIcon, ExternalLink, Hash, Text, Info, List, Factory,
   Car as CarIcon, DollarSign as DollarIcon, Calendar as CalendarIcon, Wrench,
-  Package, ShoppingBag
+  Package, ShoppingBag, Languages
 } from 'lucide-react';
+import { PhoneInput } from '@/components/PhoneInput';
+import { supportedLanguages } from '@/utils/languages';
 
 /**
  * Global variables (from Canvas environment, if applicable).
@@ -415,6 +417,7 @@ interface BusinessForm {
   instagram: string;
   twitter: string;
   tags: string[];
+  spoken_languages: string[];
   isVerified: boolean;
   isActive: boolean;
   createdAt: string;
@@ -476,6 +479,7 @@ export default function EditBusinessPage() {
     instagram: '',
     twitter: '',
     tags: [],
+    spoken_languages: [],
     isVerified: false,
     isActive: true,
     createdAt: new Date().toISOString(),
@@ -582,7 +586,7 @@ export default function EditBusinessPage() {
       if (!slug || !authReady) return; // Don't fetch if slug or auth is not available yet
 
       try {
-        // Fetch main business data from 'businesses' table, including plan limits
+        // Fetch main business data from 'businesses' table (all columns including phone)
         const { data: businessData, error: businessError } = await supabase
           .from('businesses')
           .select('*')
@@ -819,6 +823,7 @@ export default function EditBusinessPage() {
           instagram: businessData.instagram || '',
           twitter: businessData.twitter || '',
           tiktok: businessData.tiktok || '',
+          spoken_languages: Array.isArray(businessData.spoken_languages) ? businessData.spoken_languages : [],
           hours: parsedHours,
           menu: menuItemsFromDb,
           carListings: carListingsFromDb,
@@ -1425,6 +1430,7 @@ export default function EditBusinessPage() {
         instagram: form.instagram,
         twitter: form.twitter,
         tiktok: form.tiktok,
+        spoken_languages: (form.spoken_languages || []).filter(Boolean),
         hours: JSON.stringify(form.hours),
         logo_url: uploadedLogoUrl,
         images: finalGalleryUrls,
@@ -2100,7 +2106,18 @@ export default function EditBusinessPage() {
           {/* Contact Information */}
           <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
             <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Contact Information</h2>
-            <FormInput name="phone" value={form.phone} onChange={handleChange} placeholder="Phone Number" type="tel" icon={Phone} />
+            <div>
+              <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <Phone className="h-4 w-4" />
+                Phone Number
+              </label>
+              <PhoneInput
+                value={form.phone}
+                onChange={(v) => setForm((prev) => ({ ...prev, phone: v }))}
+                placeholder="e.g. 202 555 1234"
+                disabled={isSaving}
+              />
+            </div>
             <FormInput name="email" value={form.email} onChange={handleChange} placeholder="Email Address" type="email" icon={Mail} />
             {planFeatures.allow_whatsapp ? (
               <FormInput name="whatsapp" value={form.whatsapp} onChange={handleChange} placeholder="WhatsApp Number (optional)" type="tel" icon={MessageSquare} />
@@ -2113,6 +2130,47 @@ export default function EditBusinessPage() {
               </div>
             )}
             <FormInput name="website" value={form.website} onChange={handleChange} placeholder="Website URL" type="url" icon={ExternalLink} />
+          </section>
+
+          {/* Spoken languages (optional) – helps users find businesses that speak their language */}
+          <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
+            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
+              <Languages className="h-6 w-6 text-indigo-600" />
+              Spoken languages (optional)
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Select languages spoken at your business. Customers searching in these languages may see you at the top (premium).
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {supportedLanguages.filter((l) => l.code !== 'auto').map((lang) => {
+                const selected = (form.spoken_languages || []).includes(lang.code);
+                return (
+                  <label
+                    key={lang.code}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                      selected
+                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => {
+                        setForm((prev) => {
+                          const current = prev.spoken_languages || [];
+                          const next = selected ? current.filter((c) => c !== lang.code) : [...current, lang.code];
+                          return { ...prev, spoken_languages: next };
+                        });
+                      }}
+                      className="sr-only"
+                    />
+                    <span aria-hidden>{lang.emoji}</span>
+                    <span>{lang.name}</span>
+                  </label>
+                );
+              })}
+            </div>
           </section>
 
           {/* Address */}

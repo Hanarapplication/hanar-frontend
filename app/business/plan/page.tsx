@@ -42,6 +42,9 @@ export default function BusinessPlanPage() {
   const DASHBOARD_ROUTE = '/business-dashboard'; // ✅ your real dashboard route
   const CONTACT_ROUTE = '/contact';
   const PLAN_ORDER: Plan[] = ['free', 'starter', 'growth', 'premium'];
+  /** 3-month premium free trial length in days (used for trial_end and for RPC years) */
+  const TRIAL_DAYS = 90;
+  const TRIAL_YEARS = TRIAL_DAYS / 365;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Plan | null>(null);
@@ -147,7 +150,7 @@ export default function BusinessPlanPage() {
       // New businesses or free/starter/growth users selecting premium get 3 months free trial
       const isEligibleForTrial = !biz.plan_selected_at || (biz.plan && ['free', 'starter', 'growth'].includes(biz.plan));
       const isPremiumTrial = isEligibleForTrial && plan === 'premium';
-      const years = isPremiumTrial ? 0.25 : 1; // 3 months = 0.25 years
+      const years = isPremiumTrial ? TRIAL_YEARS : 1;
 
       const { error } = await supabase.rpc('apply_business_plan', {
         p_business_id: biz.id,
@@ -159,7 +162,7 @@ export default function BusinessPlanPage() {
 
       const nowIso = new Date().toISOString();
       const trialEnd = isPremiumTrial
-        ? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
+        ? new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString()
         : null;
 
       const updatePayload: Record<string, unknown> = {
@@ -216,8 +219,9 @@ export default function BusinessPlanPage() {
   const hasSelected = !!biz?.plan_selected_at;
   const currentPlan = biz?.plan;
   const isOnPremiumTrial = currentPlan === 'premium' && !!biz?.trial_end;
+  const MS_PER_DAY = 24 * 60 * 60 * 1000;
   const daysRemaining = biz?.trial_end
-    ? Math.max(0, Math.ceil((new Date(biz.trial_end).getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+    ? Math.max(0, Math.ceil((new Date(biz.trial_end).getTime() - Date.now()) / MS_PER_DAY))
     : 0;
 
   return (
@@ -261,7 +265,7 @@ export default function BusinessPlanPage() {
                   const isDowngrade =
                     currentPlanIndex >= 0 &&
                     PLAN_ORDER.indexOf(planName) < currentPlanIndex;
-                  const showPremiumTrial = planName === 'premium' && (!hasSelected || currentPlan === 'free' || currentPlan === 'starter' || currentPlan === 'growth');
+                  const showPremiumTrial = planName === 'premium' && (!hasSelected || !currentPlan || currentPlan === 'free' || currentPlan === 'starter' || currentPlan === 'growth');
                   const isPremiumTrialCard = planName === 'premium' && (showPremiumTrial || isOnPremiumTrial);
                   
                   return (

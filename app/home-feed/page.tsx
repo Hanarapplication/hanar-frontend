@@ -68,11 +68,11 @@ export default function HomeFeedPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-6 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-6 px-4 sm:px-6 lg:px-8">
       <div className="space-y-6 max-w-2xl mx-auto">
 
         {feed.slice(0, visibleCount).map((post, idx) => (
-          <div key={idx} className="bg-white rounded-lg shadow-md p-4">
+          <div key={idx} className="home-feed-card bg-gray-50 rounded-lg shadow-md dark:shadow-lg dark:shadow-black/30 border border-transparent dark:border-gray-700 p-4">
 
             {post.type === 'business' && (
               <LiveRefreshLink href="/businesses" className="block">
@@ -83,9 +83,9 @@ export default function HomeFeedPage() {
                   decoding="async"
                   className="w-full h-48 object-cover rounded-md"
                 />
-                <h3 className="text-lg font-semibold mt-2">{post.name}</h3>
-                <p className="text-sm text-gray-600">{post.category}</p>
-                <div className="text-xs text-gray-400 mt-1">{post.fakeViews} views ❤️</div>
+                <h3 className="text-lg font-semibold mt-2 text-gray-900 dark:text-gray-100">{post.name}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">{post.category}</p>
+                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">{post.fakeViews} views ❤️</div>
               </LiveRefreshLink>
             )}
 
@@ -98,17 +98,17 @@ export default function HomeFeedPage() {
                   decoding="async"
                   className="w-full h-48 object-cover rounded-md"
                 />
-                <h3 className="text-lg font-semibold mt-2">{post.title}</h3>
-                <p className="text-green-600 font-bold">{post.price}</p>
-                <div className="text-xs text-gray-400 mt-1">{post.fakeViews} views ❤️</div>
+                <h3 className="text-lg font-semibold mt-2 text-gray-900 dark:text-gray-100">{post.title}</h3>
+                <p className="text-green-600 dark:text-green-400 font-bold">{post.price}</p>
+                <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">{post.fakeViews} views ❤️</div>
               </LiveRefreshLink>
             )}
 
             {post.type === 'community' && (
               <Link href={`/communities/${post.id}`} className="block">
-                <h3 className="text-lg font-semibold text-teal-700">{post.name}</h3>
-                <p className="text-sm text-gray-600 mt-1">{post.description}</p>
-                <div className="flex space-x-4 mt-2 text-xs text-gray-500">
+                <h3 className="text-lg font-semibold text-teal-700 dark:text-teal-300">{post.name}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{post.description}</p>
+                <div className="flex space-x-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
                   <span>👍 {post.likeCount}</span>
                   <span>💬 {post.replyCount}</span>
                   <span>{post.fakeViews} views</span>
@@ -132,7 +132,7 @@ export default function HomeFeedPage() {
         ))}
 
         <div ref={loaderRef} className="flex justify-center py-8">
-          <span className="text-gray-500 text-sm">Loading more posts...</span>
+          <span className="text-gray-500 dark:text-gray-400 text-sm">Loading more posts...</span>
         </div>
 
       </div>

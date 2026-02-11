@@ -29,7 +29,7 @@ export default function MobileMenu({
 }) {
   const [loggedIn, setLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState<'individual' | 'business' | 'organization' | null>(null);
-  const { lang, setLang } = useLanguage();
+  const { lang, setLang, effectiveLang } = useLanguage();
   const router = useRouter();
 
   useEffect(() => {
@@ -92,7 +92,7 @@ export default function MobileMenu({
         }`}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <span className="font-semibold text-lg text-gray-800">{t(lang, 'menu')}</span>
+          <span className="font-semibold text-lg text-gray-800">{t(effectiveLang, 'menu')}</span>
           <button onClick={() => setIsOpen(false)} className="focus:outline-none" aria-label="Close Menu">
             <FaTimes className="text-gray-600 hover:text-gray-800 transition" />
           </button>
@@ -105,7 +105,7 @@ export default function MobileMenu({
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >
             <FaHome className="text-gray-500" />
-            <span>{t(lang, 'Home')}</span>
+            <span>{t(effectiveLang, 'Home')}</span>
           </LiveRefreshLink>
 
           <Link
@@ -114,7 +114,7 @@ export default function MobileMenu({
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >
             <FaThLarge className="text-gray-500" />
-            <span>{t(lang, 'dashboard')}</span>
+            <span>{t(effectiveLang, 'dashboard')}</span>
           </Link>
 
           <Link
@@ -123,7 +123,7 @@ export default function MobileMenu({
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >
             <FaQuestionCircle className="text-gray-500" />
-            <span>{t(lang, 'faq')}</span>
+            <span>{t(effectiveLang, 'faq')}</span>
           </Link>
 
           <Link
@@ -132,7 +132,7 @@ export default function MobileMenu({
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >
             <FaPhone className="text-gray-500" />
-            <span>{t(lang, 'contact')}</span>
+            <span>{t(effectiveLang, 'contact')}</span>
           </Link>
 
           <Link
@@ -141,7 +141,7 @@ export default function MobileMenu({
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >
             <FaCog className="text-gray-500" />
-            <span>{t(lang, 'settings')}</span>
+            <span>{t(effectiveLang, 'settings')}</span>
           </Link>
 
           <div className="flex items-center gap-2">
@@ -170,12 +170,12 @@ export default function MobileMenu({
             {loggedIn ? (
               <>
                 <FaSignOutAlt className="text-gray-500" />
-                <span>{t(lang, 'logout')}</span>
+                <span>{t(effectiveLang, 'logout')}</span>
               </>
             ) : (
               <>
                 <FaSignInAlt className="text-gray-500" />
-                <span>{t(lang, 'login')}</span>
+                <span>{t(effectiveLang, 'login')}</span>
               </>
             )}
           </button>

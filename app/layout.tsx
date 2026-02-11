@@ -4,6 +4,7 @@ import { DarkModeProvider } from '@/context/DarkModeContext';
 import { Toaster } from 'react-hot-toast';
 import ConditionalAppShell from '@/components/ConditionalAppShell';
 import { LanguageProvider } from '@/context/LanguageContext';
+import FcmTokenHandler from '@/components/FcmTokenHandler';
 
 export const metadata = {
   title: 'Hanar',
@@ -16,9 +17,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <head />
-      <body className="dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var d=document.documentElement,v=localStorage.getItem('hanar-dark-mode');d.classList.toggle('dark',v==='true');})();`,
+          }}
+        />
+      </head>
+      <body className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+        <FcmTokenHandler />
         <LanguageProvider>
           <DarkModeProvider>
             <ConditionalAppShell>{children}</ConditionalAppShell>

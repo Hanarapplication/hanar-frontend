@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 
 type NotificationRow = {
   id: string;
@@ -20,6 +22,7 @@ type NotificationRow = {
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const { effectiveLang } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -94,7 +97,7 @@ export default function NotificationsPage() {
         await markAsRead(notification.id);
       }
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to mark as read');
+      toast.error(err?.message || t(effectiveLang, 'Failed to mark as read'));
     } finally {
       if (notification.url) {
         router.push(notification.url);
@@ -134,7 +137,7 @@ export default function NotificationsPage() {
         setHasMore(more);
         setNotifications(visible.slice(0, PAGE_SIZE));
       } catch (err: any) {
-        toast.error(err?.message || 'Failed to load notifications');
+        toast.error(err?.message || t(effectiveLang, 'Failed to load notifications'));
       } finally {
         setLoading(false);
       }
@@ -170,7 +173,7 @@ export default function NotificationsPage() {
           pageRef.current = nextPage;
           setHasMore(more);
         } catch (err: any) {
-          toast.error(err?.message || 'Failed to load notifications');
+          toast.error(err?.message || t(effectiveLang, 'Failed to load notifications'));
         } finally {
           loadMoreLockRef.current = false;
           setLoadingMore(false);
@@ -189,19 +192,19 @@ export default function NotificationsPage() {
         <div className="rounded-3xl border border-slate-200 bg-white/80 backdrop-blur p-6 shadow-lg shadow-slate-100/70">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Inbox</p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">Notifications</h1>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{t(effectiveLang, 'Inbox')}</p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">{t(effectiveLang, 'Notifications')}</h1>
             </div>
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              {notifications.length} total
+              {notifications.length} {t(effectiveLang, 'total')}
             </div>
           </div>
 
           {loading ? (
-            <div className="mt-6 text-sm text-slate-500">Loading notifications...</div>
+            <div className="mt-6 text-sm text-slate-500">{t(effectiveLang, 'Loading notifications...')}</div>
           ) : notifications.length === 0 ? (
             <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center text-sm text-slate-600">
-              No notifications yet.
+              {t(effectiveLang, 'No notifications yet.')}
             </div>
           ) : (
             <div className="mt-6 space-y-3">
@@ -227,23 +230,23 @@ export default function NotificationsPage() {
                         )}
                           <span className="mt-1 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
                             {n.type === 'area_blast'
-                              ? 'Area Blast'
+                              ? t(effectiveLang, 'Area Blast')
                               : n.type === 'area_blast_pending'
-                              ? 'Pending Approval'
-                              : 'Notification'}
+                              ? t(effectiveLang, 'Pending Approval')
+                              : t(effectiveLang, 'Notification')}
                           </span>
                         <p className="mt-1 text-sm text-slate-600">{n.body}</p>
                       </div>
                     </div>
                     <div className="text-right text-xs text-slate-400 space-y-1">
                       <div>{new Date(n.created_at).toLocaleString()}</div>
-                      {n.read_at && <div className="text-emerald-500">Read</div>}
+                      {n.read_at && <div className="text-emerald-500">{t(effectiveLang, 'Read')}</div>}
                     </div>
                   </div>
                 </button>
               ))}
               {loadingMore && (
-                <div className="text-xs text-slate-500 text-center py-2">Loading more...</div>
+                <div className="text-xs text-slate-500 text-center py-2">{t(effectiveLang, 'Loading more...')}</div>
               )}
               {hasMore && <div ref={sentinelRef} className="h-1 w-full" />}
             </div>

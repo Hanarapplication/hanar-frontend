@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Turnstile } from '@marsidev/react-turnstile';
+import toast from 'react-hot-toast';
 import {
   User,
   Building2,
@@ -11,12 +12,9 @@ import {
   EyeOff,
   Loader2,
 } from 'lucide-react';
-
-// Simple toast (replace later with react-hot-toast if you want)
-const toast = {
-  error: (msg: string) => console.error(msg),
-  success: (msg: string) => console.log(msg),
-};
+import { PhoneInput } from '@/components/PhoneInput';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 
 type Role = 'individual' | 'business' | 'organization';
 
@@ -122,6 +120,7 @@ const FloatingInput = ({
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { effectiveLang } = useLanguage();
 
   const [role, setRole] = useState<Role>('individual');
   const [clicked, setClicked] = useState(false);
@@ -133,6 +132,7 @@ export default function RegisterPage() {
     fullName: '',
     businessName: '',
     organizationName: '',
+    phone: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -168,11 +168,12 @@ export default function RegisterPage() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name || name.length < 3) return toast.error('Name too short');
-    if (!passwordMatch) return toast.error('Passwords do not match');
-    if (passwordStrength < 3) return toast.error('Password too weak');
-    if (!agreed) return toast.error('Accept Terms');
-    if (!turnstileToken) return toast.error('Please complete the verification');
+    if (!name || name.length < 3) return toast.error(t(effectiveLang, 'Name too short'));
+    if ((role === 'business' || role === 'organization') && !form.phone?.trim()) return toast.error(t(effectiveLang, 'Please enter your phone number'));
+    if (!passwordMatch) return toast.error(t(effectiveLang, 'Passwords do not match'));
+    if (passwordStrength < 3) return toast.error(t(effectiveLang, 'Password too weak'));
+    if (!agreed) return toast.error(t(effectiveLang, 'Accept Terms'));
+    if (!turnstileToken) return toast.error(t(effectiveLang, 'Please complete the verification'));
 
     try {
       setClicked(true);
@@ -186,15 +187,16 @@ export default function RegisterPage() {
           email: form.email,
           password: form.password,
           role,
+          phone: role === 'business' || role === 'organization' ? (form.phone?.trim() || undefined) : undefined,
           turnstileToken,
           website: form.website,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Registration failed');
+      if (!res.ok) throw new Error(data.error || t(effectiveLang, 'Registration failed'));
 
-      toast.success('Account created. Please log in.');
+      toast.success(t(effectiveLang, 'Account created. Please log in.'));
       router.push('/login'); // ✅ REDIRECT HERE
 
     } catch (err: any) {
@@ -216,35 +218,55 @@ export default function RegisterPage() {
             className="h-16 w-auto object-contain"
           />
         </div>
-        <h1 className="text-3xl font-bold text-center">Create Account</h1>
+        <h1 className="text-3xl font-bold text-center">{t(effectiveLang, 'Create Account')}</h1>
 
         <div className="grid grid-cols-3 gap-3">
-          <RoleOption value="individual" label="Individual" desc="Personal use" icon={User} currentRole={role} setRole={setRole} />
-          <RoleOption value="business" label="Business" desc="Sell & promote" icon={Building2} currentRole={role} setRole={setRole} />
-          <RoleOption value="organization" label="Org" desc="Community" icon={Landmark} currentRole={role} setRole={setRole} />
+          <RoleOption value="individual" label={t(effectiveLang, 'Individual')} desc={t(effectiveLang, 'Personal use')} icon={User} currentRole={role} setRole={setRole} />
+          <RoleOption value="business" label={t(effectiveLang, 'Business')} desc={t(effectiveLang, 'Sell & promote')} icon={Building2} currentRole={role} setRole={setRole} />
+          <RoleOption value="organization" label={t(effectiveLang, 'Org')} desc={t(effectiveLang, 'Community')} icon={Landmark} currentRole={role} setRole={setRole} />
         </div>
 
         {role === 'individual' && (
-          <FloatingInput id="fullName" placeholder="Full Name" value={form.fullName} onChange={handleChange} disabled={clicked} />
+          <FloatingInput id="fullName" placeholder={t(effectiveLang, 'Full Name')} value={form.fullName} onChange={handleChange} disabled={clicked} />
         )}
 
         {role === 'business' && (
           <>
-            <FloatingInput id="fullName" placeholder="Owner Name" value={form.fullName} onChange={handleChange} disabled={clicked} />
-            <FloatingInput id="businessName" placeholder="Business Name" value={form.businessName} onChange={handleChange} disabled={clicked} />
+            <div>
+              <label htmlFor="phone-business" className="mb-1.5 block text-xs font-semibold text-indigo-600">{t(effectiveLang, 'Phone number')}</label>
+              <PhoneInput
+                id="phone-business"
+                value={form.phone}
+                onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
+                placeholder={t(effectiveLang, 'e.g. 202 555 1234')}
+                disabled={clicked}
+              />
+            </div>
+            <FloatingInput id="fullName" placeholder={t(effectiveLang, 'Owner Name')} value={form.fullName} onChange={handleChange} disabled={clicked} />
+            <FloatingInput id="businessName" placeholder={t(effectiveLang, 'Business Name')} value={form.businessName} onChange={handleChange} disabled={clicked} />
           </>
         )}
 
         {role === 'organization' && (
           <>
-            <FloatingInput id="fullName" placeholder="Representative Name" value={form.fullName} onChange={handleChange} disabled={clicked} />
-            <FloatingInput id="organizationName" placeholder="Organization Name" value={form.organizationName} onChange={handleChange} disabled={clicked} />
+            <div>
+              <label htmlFor="phone-org" className="mb-1.5 block text-xs font-semibold text-indigo-600">{t(effectiveLang, 'Phone number')}</label>
+              <PhoneInput
+                id="phone-org"
+                value={form.phone}
+                onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
+                placeholder={t(effectiveLang, 'e.g. 202 555 1234')}
+                disabled={clicked}
+              />
+            </div>
+            <FloatingInput id="fullName" placeholder={t(effectiveLang, 'Representative Name')} value={form.fullName} onChange={handleChange} disabled={clicked} />
+            <FloatingInput id="organizationName" placeholder={t(effectiveLang, 'Organization Name')} value={form.organizationName} onChange={handleChange} disabled={clicked} />
           </>
         )}
 
-        <FloatingInput id="email" type="email" placeholder="Email" value={form.email} onChange={handleChange} disabled={clicked} />
-        <FloatingInput id="password" placeholder="Password" isPassword showPassword={showPassword} setShowPassword={setShowPassword} value={form.password} onChange={handleChange} disabled={clicked} />
-        <FloatingInput id="confirmPassword" placeholder="Confirm Password" isPassword showPassword={showPassword} setShowPassword={setShowPassword} value={form.confirmPassword} onChange={handleChange} disabled={clicked} error={!passwordMatch ? 'Passwords do not match' : null} />
+        <FloatingInput id="email" type="email" placeholder={t(effectiveLang, 'Email')} value={form.email} onChange={handleChange} disabled={clicked} />
+        <FloatingInput id="password" placeholder={t(effectiveLang, 'Password')} isPassword showPassword={showPassword} setShowPassword={setShowPassword} value={form.password} onChange={handleChange} disabled={clicked} />
+        <FloatingInput id="confirmPassword" placeholder={t(effectiveLang, 'Confirm Password')} isPassword showPassword={showPassword} setShowPassword={setShowPassword} value={form.confirmPassword} onChange={handleChange} disabled={clicked} error={!passwordMatch ? t(effectiveLang, 'Passwords do not match') : null} />
 
         <div className="sr-only" aria-hidden="true">
           <label htmlFor="website">Website</label>
@@ -253,7 +275,7 @@ export default function RegisterPage() {
 
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={agreed} onChange={() => setAgreed(!agreed)} />
-          I agree to the Terms & Privacy Policy
+          {t(effectiveLang, 'I agree to the Terms & Privacy Policy')}
         </label>
 
         <div className="flex justify-center">
@@ -272,11 +294,11 @@ export default function RegisterPage() {
           disabled={clicked}
           className={`w-full rounded-xl py-3 font-bold text-white ${clicked ? 'bg-slate-300' : 'bg-indigo-600 hover:bg-indigo-700'}`}
         >
-          {clicked ? <Loader2 className="animate-spin mx-auto" /> : 'Create Account'}
+          {clicked ? <Loader2 className="animate-spin mx-auto" /> : t(effectiveLang, 'Create Account')}
         </button>
 
         <p className="text-center text-sm text-slate-500">
-          Already have an account? <a href="/login" className="text-indigo-600 font-semibold">Log in</a>
+          {t(effectiveLang, 'Already have an account?')} <a href="/login" className="text-indigo-600 font-semibold">{t(effectiveLang, 'Log in')}</a>
         </p>
       </form>
     </div>

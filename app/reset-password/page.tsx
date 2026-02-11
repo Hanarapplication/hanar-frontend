@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const { effectiveLang } = useLanguage();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,11 +29,11 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+      toast.error(t(effectiveLang, 'Password must be at least 6 characters'));
       return;
     }
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
+      toast.error(t(effectiveLang, 'Passwords do not match'));
       return;
     }
     setLoading(true);
@@ -40,11 +43,11 @@ export default function ResetPasswordPage() {
         toast.error(error.message);
         return;
       }
-      toast.success('Password updated. You can now sign in.');
+      toast.success(t(effectiveLang, 'Password updated. You can now sign in.'));
       await supabase.auth.signOut();
       router.replace('/login');
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Something went wrong.');
+      toast.error(err instanceof Error ? err.message : t(effectiveLang, 'Something went wrong.'));
     } finally {
       setLoading(false);
     }
@@ -54,7 +57,7 @@ export default function ResetPasswordPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-300 px-4">
         <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-2xl text-center">
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">{t(effectiveLang, 'Loading...')}</p>
         </div>
       </div>
     );
@@ -64,18 +67,18 @@ export default function ResetPasswordPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-300 px-4">
         <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-2xl text-center">
-          <h1 className="text-xl font-bold text-gray-800 mb-2">Invalid or expired link</h1>
+          <h1 className="text-xl font-bold text-gray-800 mb-2">{t(effectiveLang, 'Invalid or expired link')}</h1>
           <p className="text-sm text-gray-600 mb-6">
-            This reset link may have expired. Please request a new one.
+            {t(effectiveLang, 'This reset link may have expired. Please request a new one.')}
           </p>
           <Link
             href="/forgot-password"
             className="text-blue-600 hover:underline font-medium"
           >
-            Request new reset link
+            {t(effectiveLang, 'Request new reset link')}
           </Link>
           <p className="mt-6 text-sm text-gray-500">
-            <Link href="/login" className="text-blue-600 hover:underline">Back to Login</Link>
+            <Link href="/login" className="text-blue-600 hover:underline">{t(effectiveLang, 'Back to Login')}</Link>
           </p>
         </div>
       </div>
@@ -86,16 +89,16 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-300 px-4">
       <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-2xl">
         <h1 className="text-2xl font-bold text-center text-blue-600 mb-2">
-          Set new password
+          {t(effectiveLang, 'Set new password')}
         </h1>
         <p className="text-sm text-gray-600 text-center mb-6">
-          Enter your new password below.
+          {t(effectiveLang, 'Enter your new password below.')}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              New password
+              {t(effectiveLang, 'New password')}
             </label>
             <input
               type="password"
@@ -110,7 +113,7 @@ export default function ResetPasswordPage() {
           </div>
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-              Confirm new password
+              {t(effectiveLang, 'Confirm new password')}
             </label>
             <input
               type="password"
@@ -128,13 +131,13 @@ export default function ResetPasswordPage() {
             disabled={loading}
             className="w-full py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Updating...' : 'Update password'}
+            {loading ? t(effectiveLang, 'Updating...') : t(effectiveLang, 'Update password')}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-gray-500">
           <Link href="/login" className="text-blue-600 hover:underline">
-            Back to Login
+            {t(effectiveLang, 'Back to Login')}
           </Link>
         </p>
       </div>

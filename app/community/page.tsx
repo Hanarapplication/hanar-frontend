@@ -32,7 +32,7 @@ export default function CommunityFeedPage() {
   const [hasMore, setHasMore] = useState(true);
   const [sortMode, setSortMode] = useState<'latest' | 'popular'>('latest');
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const { lang } = useLanguage();
+  const { lang, effectiveLang } = useLanguage();
   const [isBusinessUser, setIsBusinessUser] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null }>({ id: '', username: null });
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
@@ -311,29 +311,29 @@ export default function CommunityFeedPage() {
 
   return (
     <div className="container mx-auto px-4 pt-0 pb-8">
-      <div className="text-xs text-orange-600 mb-0 mt-0">
+      <div className="text-xs text-orange-600 dark:text-orange-400 mb-0 mt-0">
         Business accounts can’t post.
       </div>
-      <div className="text-sm text-gray-600 mb-1">
-        {t(lang, 'Showing posts in')}: <strong>{t(lang, lang)}</strong>
+      <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+        {t(effectiveLang, 'Showing posts in')}: <strong className="dark:text-gray-200">{t(effectiveLang, lang)}</strong>
       </div>
 
       <div className="flex gap-3 mb-6">
         <button
           onClick={() => setSortMode('latest')}
           className={`px-4 py-2 rounded-md text-sm font-medium ${
-            sortMode === 'latest' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
+            sortMode === 'latest' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 dark:text-gray-200 text-gray-800'
           }`}
         >
-          {t(lang, 'Latest')}
+          {t(effectiveLang, 'Latest')}
         </button>
         <button
           onClick={() => setSortMode('popular')}
           className={`px-4 py-2 rounded-md text-sm font-medium ${
-            sortMode === 'popular' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'
+            sortMode === 'popular' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 dark:text-gray-200 text-gray-800'
           }`}
         >
-          {t(lang, 'Most Popular')}
+          {t(effectiveLang, 'Most Popular')}
         </button>
       </div>
 
@@ -341,15 +341,15 @@ export default function CommunityFeedPage() {
         <div className="relative flex-1">
           <input
             type="text"
-            placeholder={t(lang, 'Search posts...')}
+            placeholder={t(effectiveLang, 'Search posts...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400"
           />
-          <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+          <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500" />
           {search && (
             <button onClick={() => setSearch('')} className="absolute right-3 top-2.5">
-              <XMarkIcon className="h-5 w-5 text-gray-400" />
+              <XMarkIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </button>
           )}
         </div>
@@ -359,7 +359,7 @@ export default function CommunityFeedPage() {
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <PlusIcon className="h-5 w-5" />
-            <span>{t(lang, 'New Post')}</span>
+            <span>{t(effectiveLang, 'New Post')}</span>
           </Link>
         )}
       </div>
@@ -374,7 +374,7 @@ export default function CommunityFeedPage() {
           return (
             <article
               key={`${post.id}-${index}`}
-              className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow p-6"
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md dark:shadow-lg dark:shadow-black/20 dark:border dark:border-gray-700 transition-shadow p-6"
             >
               <div className="flex flex-col sm:flex-row gap-4 h-full">
                 {post.image && (
@@ -391,27 +391,27 @@ export default function CommunityFeedPage() {
                 <div className="flex-1 flex flex-col justify-between">
                   <div>
                     <Link href={`/community/post/${post.id}`}>
-                      <h2 className="text-xl font-semibold mb-2">{post.title}</h2>
-                      <p className="text-gray-600 line-clamp-2">{post.body}</p>
+                      <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">{post.title}</h2>
+                      <p className="text-gray-600 dark:text-gray-300 line-clamp-2">{post.body}</p>
                     </Link>
-                    <div className="flex items-center gap-3 mt-4 text-sm text-gray-500">
+                    <div className="flex items-center gap-3 mt-4 text-sm text-gray-500 dark:text-gray-400">
                       {post.author_type === 'organization' && post.username ? (
-                        <Link href={`/organization/${post.username}`} className="text-indigo-600 hover:underline">
+                        <Link href={`/organization/${post.username}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
                           @{post.username}
                         </Link>
                       ) : post.author_type === 'business' && post.username ? (
-                        <Link href={`/business/${post.username}`} className="text-indigo-600 hover:underline">
+                        <Link href={`/business/${post.username}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
                           @{post.username}
                         </Link>
                       ) : post.username ? (
-                        <Link href={`/profile/${post.username}`} className="text-indigo-600 hover:underline">
+                        <Link href={`/profile/${post.username}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
                           @{post.username}
                         </Link>
                       ) : (
                         <span>{post.author}</span>
                       )}
                       {post.author_type === 'organization' && (
-                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600">
+                        <span className="rounded-full bg-indigo-50 dark:bg-indigo-900/50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-300">
                           Organization
                         </span>
                       )}
@@ -438,18 +438,18 @@ export default function CommunityFeedPage() {
               />
 
               {currentUser.id && post.user_id === currentUser.id && (
-                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-sm">
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-3 text-sm">
                   <button
                     onClick={() => handleDeletePost(post.id)}
                     disabled={deletingPost === post.id}
-                    className="flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-200 disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/40 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-300 transition hover:bg-red-200 dark:hover:bg-red-900/60 disabled:opacity-50"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     Delete
                   </button>
                   <button
                     onClick={handlePromotePost}
-                    className="flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-200"
+                    className="flex items-center gap-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-300 transition hover:bg-indigo-200 dark:hover:bg-indigo-900/60"
                   >
                     <Megaphone className="h-3.5 w-3.5" />
                     Promote
@@ -458,20 +458,20 @@ export default function CommunityFeedPage() {
               )}
 
               {isCommentsOpen && (
-                <div className="mt-4 border-t border-slate-100 pt-4">
+                <div className="mt-4 border-t border-slate-100 dark:border-gray-600 pt-4">
                   {commentLoading[post.id] ? (
-                    <p className="text-xs text-slate-500">Loading comments...</p>
+                    <p className="text-xs text-slate-500 dark:text-gray-400">Loading comments...</p>
                   ) : (
                     <div className="space-y-3">
                       {comments.length === 0 && (
-                        <p className="text-xs text-slate-500">Be the first to comment.</p>
+                        <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
                       )}
                       {comments.map((comment) => (
-                        <div key={comment.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
-                          <p className="text-xs font-semibold text-slate-700">
+                        <div key={comment.id} className="rounded-lg bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm">
+                          <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
                             {comment.username || comment.author || 'User'}
                           </p>
-                          <p className="text-sm text-slate-600">{comment.body ?? comment.text}</p>
+                          <p className="text-sm text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
                         </div>
                       ))}
                     </div>
@@ -483,7 +483,7 @@ export default function CommunityFeedPage() {
                         setCommentInputs((prev) => ({ ...prev, [post.id]: e.target.value }))
                       }
                       placeholder="Write a comment..."
-                      className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 rounded-full border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:placeholder-gray-400"
                     />
                     <button
                       onClick={() => submitComment(post.id)}

@@ -33,7 +33,7 @@ export default function CreateCommunityPostPage() {
   const [checkingAccount, setCheckingAccount] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const { lang } = useLanguage();
+  const { effectiveLang } = useLanguage();
   const router = useRouter();
 
   const editor = useEditor({
@@ -115,14 +115,14 @@ export default function CreateCommunityPostPage() {
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) return alert(t(lang, 'Image must be less than 4MB'));
+    if (file.size > 4 * 1024 * 1024) return alert(t(effectiveLang, 'Image must be less than 4MB'));
 
     try {
       const url = await handleImageUpload(file);
       setImageUrl(url);
       setImage(file);
     } catch {
-      alert(t(lang, 'Image processing failed'));
+      alert(t(effectiveLang, 'Image processing failed'));
     }
   };
 
@@ -185,7 +185,7 @@ export default function CreateCommunityPostPage() {
   const postAsOptions: { value: string; label: string }[] = [
     username ? { value: 'personal', label: `@${username}` } : null,
     orgName ? { value: 'organization', label: orgName } : null,
-    { value: 'anonymous', label: t(lang, 'Anonymous') },
+    { value: 'anonymous', label: t(effectiveLang, 'Anonymous') },
   ].filter((opt): opt is { value: string; label: string } => opt !== null);
 
   if (checkingAccount) return null;
@@ -213,24 +213,24 @@ export default function CreateCommunityPostPage() {
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="rounded-2xl border border-slate-200 bg-white shadow-xl">
           <div className="border-b border-slate-100 px-6 py-6 sm:px-8">
-            <h1 className="text-2xl font-semibold text-slate-900 sm:text-3xl">{t(lang, 'Create Community Post')}</h1>
-            <p className="mt-2 text-sm text-slate-500">{t(lang, 'Share an update, ask a question, or start a conversation.')}</p>
+            <h1 className="text-2xl font-semibold text-slate-900 sm:text-3xl">{t(effectiveLang, 'Create Community Post')}</h1>
+            <p className="mt-2 text-sm text-slate-500">{t(effectiveLang, 'Share an update, ask a question, or start a conversation.')}</p>
           </div>
 
           <div className="px-6 py-6 sm:px-8">
             {showToast && (
               <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
-                {t(lang, 'Post submitted. Redirecting...')}
+                {t(effectiveLang, 'Post submitted. Redirecting...')}
               </div>
             )}
             {emptyFieldsToast && (
               <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-                {t(lang, 'Title and content are required.')}
+                {t(effectiveLang, 'Title and content are required.')}
               </div>
             )}
             {charLimitToast && (
               <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-                {t(lang, 'Post content must be under 300 characters.')}
+                {t(effectiveLang, 'Post content must be under 300 characters.')}
               </div>
             )}
 
@@ -243,19 +243,19 @@ export default function CreateCommunityPostPage() {
                 )}
               >
                 {preview ? <FaEdit /> : <FaEye />}
-                {preview ? t(lang, 'Edit Post') : t(lang, 'Preview Post')}
+                {preview ? t(effectiveLang, 'Edit Post') : t(effectiveLang, 'Preview Post')}
               </button>
             </div>
 
-      {/* Continue the form with more t(lang, '...') where needed */}
+      {/* Continue the form with more t(effectiveLang, '...') where needed */}
 
 
             {preview && editor ? (
               <div className="space-y-5">
                 <div>
-                  <h2 className="text-2xl font-semibold text-slate-900">{title || t(lang, 'Untitled Post')}</h2>
+                  <h2 className="text-2xl font-semibold text-slate-900">{title || t(effectiveLang, 'Untitled Post')}</h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    {t(lang, 'Posted as')}: {postAs === 'anonymous' ? 'Anonymous' : postAs === 'organization' ? orgName : username}
+                    {t(effectiveLang, 'Posted as')}: {postAs === 'anonymous' ? 'Anonymous' : postAs === 'organization' ? orgName : username}
                   </p>
                 </div>
                 {imageUrl && (
@@ -275,7 +275,7 @@ export default function CreateCommunityPostPage() {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">{t(lang, 'Title or Question')}</label>
+                  <label className="block text-sm font-medium text-slate-700">{t(effectiveLang, 'Title or Question')}</label>
                   <input
                     type="text"
                     value={title}
@@ -283,12 +283,12 @@ export default function CreateCommunityPostPage() {
                     maxLength={100}
                     required
                     className="form-input"
-                    placeholder={t(lang, 'Post Title')}
+                    placeholder={t(effectiveLang, 'Post Title')}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">{t(lang, 'Content')}</label>
+                  <label className="block text-sm font-medium text-slate-700">{t(effectiveLang, 'Content')}</label>
                   <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3">
                     <div className="mb-3 flex items-center gap-2">
                       <button
@@ -330,13 +330,13 @@ export default function CreateCommunityPostPage() {
                       <EditorContent editor={editor} className="tiptap-editor min-h-[120px]" />
                     </div>
                     <div className="mt-2 text-right text-xs text-slate-500">
-                      {editor?.getText().length || 0}/300 {t(lang, 'characters')}
+                      {editor?.getText().length || 0}/300 {t(effectiveLang, 'characters')}
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">{t(lang, 'Tags')}</label>
+                  <label className="block text-sm font-medium text-slate-700">{t(effectiveLang, 'Tags')}</label>
                   <div className="relative mt-2">
                     <Tag className="input-icon w-4 h-4" />
                     <input
@@ -344,13 +344,13 @@ export default function CreateCommunityPostPage() {
                       value={tags}
                       onChange={(e) => setTags(e.target.value)}
                       className="form-input pl-9"
-                      placeholder={t(lang, 'Tags (comma-separated)')}
+                      placeholder={t(effectiveLang, 'Tags (comma-separated)')}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">{t(lang, 'Image (optional, max 4MB)')}</label>
+                  <label className="block text-sm font-medium text-slate-700">{t(effectiveLang, 'Image (optional, max 4MB)')}</label>
                   <label
                     htmlFor="post-image-upload"
                     className="mt-2 w-full text-sm text-center border-2 border-dashed border-slate-300 rounded-lg p-4 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-colors flex flex-col items-center justify-center"
@@ -360,8 +360,8 @@ export default function CreateCommunityPostPage() {
                     ) : (
                       <div className="flex flex-col items-center text-slate-500">
                         <ImageIcon className="w-8 h-8 mb-2" />
-                        <span className="font-semibold">{t(lang, 'Click to upload an image')}</span>
-                        <span className="text-xs">{t(lang, 'PNG, JPG, GIF up to 10MB')}</span>
+                        <span className="font-semibold">{t(effectiveLang, 'Click to upload an image')}</span>
+                        <span className="text-xs">{t(effectiveLang, 'PNG, JPG, GIF up to 10MB')}</span>
                       </div>
                     )}
                     <input
@@ -390,7 +390,7 @@ export default function CreateCommunityPostPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">{t(lang, 'Post as')}</label>
+                  <label className="block text-sm font-medium text-slate-700">{t(effectiveLang, 'Post as')}</label>
                   <select
                     value={postAs}
                     onChange={(e) => setPostAs(e.target.value)}
@@ -408,7 +408,7 @@ export default function CreateCommunityPostPage() {
                   type="submit"
                   className="btn-primary w-full"
                 >
-                  {t(lang, 'Post to Community')}
+                  {t(effectiveLang, 'Post to Community')}
                 </button>
               </form>
             )}

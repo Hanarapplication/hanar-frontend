@@ -9,6 +9,7 @@ export type Database = {
           description: string | null;
           category: string | null;
           phone: string | null;
+          spoken_languages: string[] | null;
           email: string | null;
           whatsapp: string | null;
           website: string | null;

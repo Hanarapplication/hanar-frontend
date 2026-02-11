@@ -7,12 +7,15 @@ import { FaMapMarkerAlt, FaBell, FaBars } from 'react-icons/fa';
 import { usePathname } from 'next/navigation';
 import MobileMenu from './MobileMenu';
 import { supabase } from '@/lib/supabaseClient';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 
 export default function Navbar() {
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
+  const { effectiveLang } = useLanguage();
 
   useEffect(() => {
     const persistLocation = async (
@@ -243,7 +246,7 @@ export default function Navbar() {
             className="group flex items-center gap-1 text-sm text-gray-600 hover:text-blue-700 focus:outline-none transition-colors duration-200 max-w-[140px]"
           >
             <FaMapMarkerAlt size={16} className="text-blue-500 group-hover:text-blue-700" />
-            <span className="truncate">{locationLabel || 'Set Location'}</span>
+            <span className="truncate">{locationLabel || t(effectiveLang, 'Set Location')}</span>
           </button>
 
           {/* Notifications */}

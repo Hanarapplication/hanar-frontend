@@ -586,7 +586,7 @@ export default function BusinessDashboardPage() {
             <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={() => toast('Insights coming soon.')}
-                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 shadow-sm transition hover:bg-indigo-100"
+                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-900/50 px-4 py-2 text-sm font-semibold text-indigo-700 dark:text-gray-100 shadow-sm transition hover:bg-indigo-100 dark:hover:bg-indigo-900/70"
               >
                 <BarChart3 className="h-4 w-4" />
                 Insights
@@ -645,8 +645,8 @@ export default function BusinessDashboardPage() {
             </div>
           )}
 
-          {/* Free / Starter / Growth: 3-month premium trial promo */}
-          {['free', 'starter', 'growth'].includes(business.plan || '') && !business.trial_end && (
+          {/* Free / Starter / Growth or plan not confirmed: 3-month premium trial promo */}
+          {(!business.plan || ['free', 'starter', 'growth'].includes(business.plan)) && !business.trial_end && (
             <div className="mx-6 mb-4 rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 px-5 py-4 shadow-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -699,31 +699,31 @@ export default function BusinessDashboardPage() {
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
               <div className="space-y-6">
                 {planSettings && (
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="rounded-2xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <h2 className="text-lg font-semibold text-slate-900">Send Notification</h2>
-                        <p className="mt-1 text-sm text-slate-600">
+                        <h2 className="text-lg font-semibold text-slate-900 dark:text-gray-100">Send Notification</h2>
+                        <p className="mt-1 text-sm text-slate-600 dark:text-gray-200">
                           Choose who receives your message.
                         </p>
                       </div>
-                      <span className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
                         {planSettings.plan?.toString().toUpperCase() || 'PLAN'}
                       </span>
                     </div>
-                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-600">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-600 dark:text-gray-200">
+                      <span className="rounded-full bg-slate-100 dark:bg-gray-700 px-2.5 py-1">
                         Per week: {planSettings.max_follower_notifications_per_week}
                       </span>
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                      <span className="rounded-full bg-slate-100 dark:bg-gray-700 px-2.5 py-1">
                         Per day: {planSettings.max_follower_notifications_per_day}
                       </span>
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                      <span className="rounded-full bg-slate-100 dark:bg-gray-700 px-2.5 py-1">
                         Min minutes: {planSettings.min_minutes_between_notifications}
                       </span>
                     </div>
                     <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      <label className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 shadow-sm">
+                      <label className="flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-gray-600 bg-emerald-50 dark:bg-gray-700 px-3 py-2 text-sm text-emerald-700 dark:text-gray-200 shadow-sm">
                         <input
                           type="radio"
                           name="notificationMode"
@@ -734,7 +734,7 @@ export default function BusinessDashboardPage() {
                         />
                         Notify followers
                       </label>
-                      <label className={`flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700 shadow-sm ${!isAreaBlastAvailable ? 'opacity-50' : ''}`}>
+                      <label className={`flex items-center gap-2 rounded-xl border border-blue-200 dark:border-gray-600 bg-blue-50 dark:bg-gray-700 px-3 py-2 text-sm text-blue-700 dark:text-gray-100 shadow-sm ${!isAreaBlastAvailable ? 'opacity-50' : ''}`}>
                         <input
                           type="radio"
                           name="notificationMode"
@@ -748,7 +748,7 @@ export default function BusinessDashboardPage() {
                       </label>
                     </div>
                     {notificationMode === 'area_blast' && (
-                      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 space-y-3">
+                      <div className="mt-3 rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/80 px-4 py-3 text-sm text-slate-600 dark:text-gray-200 space-y-3">
                         <div>
                           Sends to users who have shared location near your business. Max radius: {planSettings.max_blast_radius_miles} miles.
                         </div>
@@ -762,25 +762,25 @@ export default function BusinessDashboardPage() {
                             className="w-full accent-indigo-600"
                             disabled={!isAreaBlastAvailable}
                           />
-                          <span className="text-xs font-semibold text-slate-700">
+                          <span className="text-xs font-semibold text-slate-700 dark:text-gray-200">
                             {areaBlastRadiusMiles} mi
                           </span>
                         </div>
                       </div>
                     )}
                     {notificationMode === 'followers' && !canSendNotifications && (
-                      <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                      <div className="mt-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
                         Upgrade your plan to enable follower notifications.
                       </div>
                     )}
                     {notificationMode === 'area_blast' && areaBlastRequiresApproval && (
-                      <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                      <div className="mt-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
                         Area blasts require admin approval.
                       </div>
                     )}
                     <div className="mt-4 grid gap-3">
                       <div>
-                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-200">
                           Title
                         </label>
                         <input
@@ -792,12 +792,12 @@ export default function BusinessDashboardPage() {
                             (notificationMode === 'followers' && !canSendNotifications) ||
                             (notificationMode === 'area_blast' && !canRequestAreaBlast)
                           }
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                          className="mt-1 w-full rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-900 dark:text-gray-100 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:placeholder-gray-400"
                           placeholder="e.g. New menu items just dropped!"
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-200">
                           Message
                         </label>
                         <textarea
@@ -810,11 +810,11 @@ export default function BusinessDashboardPage() {
                             (notificationMode === 'followers' && !canSendNotifications) ||
                             (notificationMode === 'area_blast' && !canRequestAreaBlast)
                           }
-                          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                          className="mt-1 w-full rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-900 dark:text-gray-100 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:placeholder-gray-400"
                           placeholder="Tell followers about a new item, promotion, or update."
                         />
                       </div>
-                      <div className="flex items-center justify-between text-xs text-slate-500">
+                      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-gray-200">
                         <span>{notificationTitle.length}/140</span>
                         <span>{notificationBody.length}/1000</span>
                       </div>

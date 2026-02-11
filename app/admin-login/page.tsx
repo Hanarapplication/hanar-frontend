@@ -60,7 +60,7 @@ export default function AdminLoginPage() {
     }
 
     setLoading(true);
-
+    try {
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
@@ -113,29 +113,26 @@ export default function AdminLoginPage() {
     toast.success('Logged in successfully.');
 
     Cookies.set('adminRole', role, {
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
       path: '/',
-      maxAge: 60 * 60 * 8,
+      sameSite: 'strict',
+      expires: 8 / 24,
     });
 
-    switch (role) {
-      case 'owner':
-      case 'ceo':
-      case 'topmanager':
-        router.push('/admin/owner');
-        break;
-      case 'reviewer':
-        router.push('/admin/approvals');
-        break;
-      case 'moderator':
-        router.push('/admin/community-moderation');
-        break;
-      default:
-        router.push('/admin/dashboard');
-    }
-
     setLoading(false);
+    const target =
+      role === 'owner' || role === 'ceo' || role === 'topmanager'
+        ? '/admin/owner'
+        : role === 'reviewer'
+          ? '/admin/approvals'
+          : role === 'moderator'
+            ? '/admin/community-moderation'
+            : '/admin/dashboard';
+
+    await new Promise((r) => setTimeout(r, 100));
+    router.replace(target);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isLockedOut = lockoutUntil > Date.now();

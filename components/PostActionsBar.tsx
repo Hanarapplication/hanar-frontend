@@ -24,7 +24,7 @@ export default function PostActionsBar({
           onClick={onLike}
           disabled={!canLike || !onLike}
           className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-            liked ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            liked ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/50 dark:text-rose-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'
           } ${!canLike || !onLike ? 'cursor-not-allowed opacity-60' : ''}`}
         >
           👍 Like
@@ -32,7 +32,7 @@ export default function PostActionsBar({
         <button
           onClick={onComment}
           disabled={!onComment}
-          className={`rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-200 ${
+          className={`rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 ${
             !onComment ? 'cursor-not-allowed opacity-60' : ''
           }`}
         >
@@ -41,17 +41,17 @@ export default function PostActionsBar({
         <button
           onClick={onShare}
           disabled={!onShare}
-          className={`rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-200 ${
+          className={`rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 ${
             !onShare ? 'cursor-not-allowed opacity-60' : ''
           }`}
         >
           🔗 Share
         </button>
       </div>
-      <div className="text-xs text-slate-500 order-1 sm:order-2">
-        <span className="font-semibold text-slate-600">{likesCount}</span> likes
-        <span className="mx-2 text-slate-300">•</span>
-        <span className="font-semibold text-slate-600">{commentCount}</span> comments
+      <div className="text-xs text-slate-500 dark:text-gray-400 order-1 sm:order-2">
+        <span className="font-semibold text-slate-600 dark:text-gray-200">{likesCount}</span> likes
+        <span className="mx-2 text-slate-300 dark:text-gray-500">•</span>
+        <span className="font-semibold text-slate-600 dark:text-gray-200">{commentCount}</span> comments
       </div>
     </div>
   );

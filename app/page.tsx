@@ -903,15 +903,15 @@ const formatDateLabel = (value?: string | null) => {
   }, [feedItems.length, visibleCount]);
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-slate-100 dark:bg-gray-900">
       <div className="mx-auto max-w-3xl px-4 py-6 space-y-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h1 className="text-lg font-semibold text-slate-800">Hanar Feed</h1>
-          <p className="text-sm text-slate-500">Latest community updates, nearby businesses, and organizations.</p>
+        <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm">
+          <h1 className="text-lg font-semibold text-slate-800 dark:text-gray-100">Hanar Feed</h1>
+          <p className="text-sm text-slate-500 dark:text-gray-400">Latest community updates, nearby businesses, and organizations.</p>
         </div>
 
         {loading && (
-          <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-sm text-slate-500 dark:text-gray-400">
             Loading your feed...
           </div>
         )}
@@ -924,14 +924,14 @@ const formatDateLabel = (value?: string | null) => {
             const isCommentsOpen = commentsOpen.has(item.post.id);
             const comments = commentsByPost[item.post.id] || [];
             return (
-              <article key={`post-${item.post.id}-${index}`} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm min-h-[260px] flex flex-col">
-                <div className="flex items-center justify-between text-xs text-slate-500">
+              <article key={`post-${item.post.id}-${index}`} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm min-h-[260px] flex flex-col">
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-gray-400">
                   <span>{item.post.author || 'Community'}</span>
                   <span>{dateLabel}</span>
                 </div>
                 <Link href={`/community/post/${item.post.id}`}>
-                  <h2 className="mt-2 text-lg font-semibold text-slate-800">{item.post.title}</h2>
-                  <p className="mt-2 text-sm text-slate-600 line-clamp-3">{item.post.body}</p>
+                  <h2 className="mt-2 text-lg font-semibold text-slate-800 dark:text-gray-100">{item.post.title}</h2>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-gray-300 line-clamp-3">{item.post.body}</p>
                 </Link>
                 {item.post.image && (
                   <Link href={`/community/post/${item.post.id}`} className="block">
@@ -955,18 +955,18 @@ const formatDateLabel = (value?: string | null) => {
                 />
 
                 {currentUser.id && item.post.user_id === currentUser.id && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-sm">
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-3 text-sm">
                     <button
                       onClick={() => handleDeletePost(item.post.id)}
                       disabled={deletingPost === item.post.id}
-                      className="flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-200 disabled:opacity-50"
+                      className="flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/40 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-300 transition hover:bg-red-200 dark:hover:bg-red-900/60 disabled:opacity-50"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       Delete
                     </button>
                     <button
                       onClick={handlePromotePost}
-                      className="flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-200"
+                      className="flex items-center gap-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-300 transition hover:bg-indigo-200 dark:hover:bg-indigo-900/60"
                     >
                       <Megaphone className="h-3.5 w-3.5" />
                       Promote
@@ -975,17 +975,17 @@ const formatDateLabel = (value?: string | null) => {
                 )}
 
                 {isCommentsOpen && (
-                  <div className="mt-4 border-t border-slate-100 pt-4">
+                  <div className="mt-4 border-t border-slate-100 dark:border-gray-600 pt-4">
                     {commentLoading[item.post.id] ? (
-                      <p className="text-xs text-slate-500">Loading comments...</p>
+                      <p className="text-xs text-slate-500 dark:text-gray-400">Loading comments...</p>
                     ) : (
                       <div className="space-y-3">
                         {comments.length === 0 && (
-                          <p className="text-xs text-slate-500">Be the first to comment.</p>
+                          <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
                         )}
                         {comments.map((comment) => (
-                          <div key={comment.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm flex gap-2">
-                            <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-200 flex-shrink-0">
+                          <div key={comment.id} className="rounded-lg bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm flex gap-2">
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-200 dark:bg-gray-600 flex-shrink-0">
                               <img
                                 src={
                                   comment.profiles?.profile_pic_url
@@ -1000,23 +1000,23 @@ const formatDateLabel = (value?: string | null) => {
                               />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold text-slate-700">
+                              <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
                                 {comment.username || comment.author || 'User'}
                               </p>
-                              <p className="text-sm text-slate-600">{comment.body ?? comment.text}</p>
+                              <p className="text-sm text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
                               <div className="flex items-center gap-2 mt-1">
                                 {currentUser.id && (
                                   <button
                                     type="button"
                                     onClick={() => handleCommentLike(item.post.id, comment.id)}
                                     className={`text-xs font-medium transition ${
-                                      comment.user_liked ? 'text-rose-600' : 'text-slate-400 hover:text-rose-500'
+                                      comment.user_liked ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-gray-500 hover:text-rose-500 dark:hover:text-rose-400'
                                     }`}
                                   >
                                     👍 {comment.user_liked ? 'Liked' : 'Like'}
                                   </button>
                                 )}
-                                <span className="text-xs text-slate-400">
+                                <span className="text-xs text-slate-400 dark:text-gray-500">
                                   {comment.likes ?? comment.likes_comment ?? 0} likes
                                 </span>
                               </div>
@@ -1032,7 +1032,7 @@ const formatDateLabel = (value?: string | null) => {
                           setCommentInputs((prev) => ({ ...prev, [item.post.id]: e.target.value }))
                         }
                         placeholder="Write a comment..."
-                        className="flex-1 rounded-full border border-slate-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 rounded-full border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:placeholder-gray-400"
                       />
                       <button
                         onClick={() => submitComment(item.post.id)}
@@ -1050,7 +1050,7 @@ const formatDateLabel = (value?: string | null) => {
 
           if (item.type === 'business') {
             return (
-              <article key={`biz-${item.business.id}-${index}`} className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm">
+              <article key={`biz-${item.business.id}-${index}`} className="hanar-feed-business-card rounded-xl border border-emerald-200 dark:border-gray-700 bg-emerald-50/60 dark:bg-gray-800 p-5 shadow-sm dark:shadow-lg dark:shadow-black/20">
                 <div className="flex items-center gap-3">
                   <Link href={`/business/${item.business.slug}`} className="shrink-0">
                     <img
@@ -1062,15 +1062,15 @@ const formatDateLabel = (value?: string | null) => {
                     />
                   </Link>
                   <div>
-                    <Link href={`/business/${item.business.slug}`} className="text-sm font-semibold text-slate-800 hover:underline">
+                    <Link href={`/business/${item.business.slug}`} className="text-sm font-semibold text-slate-800 dark:text-gray-100 hover:underline">
                       {item.business.business_name}
                     </Link>
-                    <p className="text-xs text-slate-500">{item.business.category || 'Business'}</p>
-                    <p className="mt-1 text-xs font-semibold text-emerald-600">
+                    <p className="text-xs text-slate-500 dark:text-gray-400">{item.business.category || 'Business'}</p>
+                    <p className="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                       {getBusinessMessage(item.business)}
                     </p>
                     {item.business.created_at && (
-                      <p className="mt-1 text-[11px] text-slate-400">
+                      <p className="mt-1 text-[11px] text-slate-400 dark:text-gray-500">
                         Joined {formatDateLabel(item.business.created_at)}
                       </p>
                     )}
@@ -1082,7 +1082,7 @@ const formatDateLabel = (value?: string | null) => {
 
           if (item.type === 'organization') {
             return (
-              <article key={`org-${item.organization.id}-${index}`} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm min-h-[260px] flex flex-col">
+              <article key={`org-${item.organization.id}-${index}`} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm min-h-[260px] flex flex-col">
                 <div className="flex items-center gap-3">
                   <img
                     src={item.organization.logo_url || item.organization.banner_url || 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=600&auto=format&fit=crop'}
@@ -1092,10 +1092,10 @@ const formatDateLabel = (value?: string | null) => {
                     className="h-14 w-14 rounded-lg object-cover"
                   />
                   <div>
-                    <Link href={`/organization/${item.organization.username}`} className="text-sm font-semibold text-slate-800 hover:underline">
+                    <Link href={`/organization/${item.organization.username}`} className="text-sm font-semibold text-slate-800 dark:text-gray-100 hover:underline">
                       {item.organization.full_name}
                     </Link>
-                    <p className="text-xs text-slate-500 line-clamp-2">{item.organization.mission || 'Organization update'}</p>
+                    <p className="text-xs text-slate-500 dark:text-gray-400 line-clamp-2">{item.organization.mission || 'Organization update'}</p>
                   </div>
                 </div>
               </article>
@@ -1108,9 +1108,9 @@ const formatDateLabel = (value?: string | null) => {
 
           if (item.type === 'item') {
             return (
-              <article key={`item-${item.item.id}-${index}`} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <article key={`item-${item.item.id}-${index}`} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm">
                 <Link href={`/marketplace/${item.item.slug || item.item.id}`}>
-                  <div className="relative w-full bg-gray-100">
+                  <div className="relative w-full bg-gray-100 dark:bg-gray-700">
                     <img
                       src={getFirstImage(item.item.imageUrls) || '/placeholder.jpg'}
                       alt={item.item.title}
@@ -1128,12 +1128,12 @@ const formatDateLabel = (value?: string | null) => {
                     )}
                   </div>
                   <div className="mt-3 space-y-1">
-                    <h3 className="text-base font-semibold text-slate-800 line-clamp-2">{item.item.title}</h3>
-                    <p className="text-sm font-semibold text-emerald-600">{formatPrice(item.item.price)}</p>
+                    <h3 className="text-base font-semibold text-slate-800 dark:text-gray-100 line-clamp-2">{item.item.title}</h3>
+                    <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatPrice(item.item.price)}</p>
                     {item.item.description && (
-                      <p className="text-xs text-slate-600 line-clamp-2">{item.item.description}</p>
+                      <p className="text-xs text-slate-600 dark:text-gray-400 line-clamp-2">{item.item.description}</p>
                     )}
-                    <p className="text-xs text-slate-500">{item.item.location || ''}</p>
+                    <p className="text-xs text-slate-500 dark:text-gray-500">{item.item.location || ''}</p>
                   </div>
                 </Link>
               </article>
@@ -1148,13 +1148,13 @@ const formatDateLabel = (value?: string | null) => {
         })}
 
         {!loading && !feedItems.length && (
-          <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+          <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-sm text-slate-500 dark:text-gray-400">
             No posts yet. Check back soon.
           </div>
         )}
 
         {!loading && feedItems.length > visibleCount && (
-          <div ref={bottomRef} className="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500 text-center">
+          <div ref={bottomRef} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 text-xs text-slate-500 dark:text-gray-400 text-center">
             Loading more...
           </div>
         )}

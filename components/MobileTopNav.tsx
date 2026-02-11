@@ -13,13 +13,13 @@ import { t } from '@/utils/translations';
 
 export default function MobileTopNav() {
   const pathname = usePathname();
-  const { lang } = useLanguage();
+  const { effectiveLang } = useLanguage();
 
   const navItems = [
-    { href: '/', icon: <FaHome />, label: t(lang, 'Home') },
-    { href: '/community', icon: <FaComments />, label: t(lang, 'Community') },
-    { href: '/marketplace', icon: <FaShoppingCart />, label: t(lang, 'Marketplace') },
-    { href: '/businesses', icon: <FaStore />, label: t(lang, 'Businesses') },
+    { href: '/', icon: <FaHome />, label: t(effectiveLang, 'Home') },
+    { href: '/community', icon: <FaComments />, label: t(effectiveLang, 'Community') },
+    { href: '/marketplace', icon: <FaShoppingCart />, label: t(effectiveLang, 'Marketplace') },
+    { href: '/businesses', icon: <FaStore />, label: t(effectiveLang, 'Businesses') },
   ];
 
   return (

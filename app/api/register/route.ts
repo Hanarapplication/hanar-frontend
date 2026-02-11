@@ -152,13 +152,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid JSON body', stage: 'validate' }, { status: 400 });
     }
 
-    const { name, fullName, email, password, role, businessType, turnstileToken, website } = body as {
+    const { name, fullName, email, password, role, businessType, phone, turnstileToken, website } = body as {
       name?: string;
       fullName?: string;
       email?: string;
       password?: string;
       role?: Role;
       businessType?: BusinessType;
+      phone?: string;
       turnstileToken?: string;
       website?: string;
     };
@@ -205,7 +206,15 @@ export async function POST(req: Request) {
       );
     }
 
+    if ((role === 'business' || role === 'organization') && !(phone && String(phone).trim())) {
+      return NextResponse.json(
+        { error: 'Phone number is required for business and organization registration', stage: 'validate' },
+        { status: 400 }
+      );
+    }
+
     const safeFullName = (fullName && fullName.trim()) || String(name).trim();
+    const safePhone = phone && String(phone).trim() ? String(phone).trim().replace(/\s+/g, '') : null;
     const safeEmail = String(email).trim().toLowerCase();
     const safePassword = String(password);
 
@@ -292,6 +301,7 @@ export async function POST(req: Request) {
         slug: businessSlug,
         owner_id: createdUserId,
         email: safeEmail,
+        phone: safePhone,
         status: 'unclaimed',
 
       // business type flags can be set later during profile completion
@@ -361,12 +371,14 @@ export async function POST(req: Request) {
     }
 
     if (role === 'organization') {
-      const { error: orgErr } = await supabaseAdmin.from('organizations').insert({
+      const orgInsert: Record<string, unknown> = {
         user_id: createdUserId,
         username,
         email: safeEmail,
         full_name: safeFullName,
-      });
+      };
+      if (safePhone) orgInsert.contact_info = { phone: safePhone };
+      const { error: orgErr } = await supabaseAdmin.from('organizations').insert(orgInsert);
 
       if (orgErr) {
         try {

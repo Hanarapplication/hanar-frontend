@@ -2,6 +2,22 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 
+const STORAGE_KEY = 'hanar-dark-mode';
+
+function getInitialDarkMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(STORAGE_KEY) === 'true';
+}
+
+function applyDarkClass(isDark: boolean) {
+  if (typeof document === 'undefined') return;
+  if (isDark) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+}
+
 type DarkModeContextType = {
   darkMode: boolean;
   toggleDarkMode: () => void;
@@ -13,18 +29,16 @@ export const DarkModeProvider = ({ children }: { children: React.ReactNode }) =>
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem('hanar-dark-mode');
-    if (stored === 'true') {
-      setDarkMode(true);
-      document.documentElement.classList.add('dark');
-    }
+    const initial = getInitialDarkMode();
+    setDarkMode(initial);
+    applyDarkClass(initial);
   }, []);
 
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
-    localStorage.setItem('hanar-dark-mode', newMode.toString());
-    document.documentElement.classList.toggle('dark', newMode);
+    localStorage.setItem(STORAGE_KEY, newMode.toString());
+    applyDarkClass(newMode);
   };
 
   return (

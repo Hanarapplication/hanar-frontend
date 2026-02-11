@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import 'keen-slider/keen-slider.min.css';
 
+/* Tailwind v4: use class-based dark mode (add .dark on html) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 
 @font-face {
   font-family: 'Delon';
@@ -31,10 +34,100 @@
 
 body {
   background-color: #f7faff3b !important;
-  color: #171717;
+  color: #171717 !important;
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.dark body {
+  background-color: #111827 !important;
+  color: #f3f4f6 !important;
+}
+
+/* App-wide dark mode: override common Tailwind utilities when .dark is on html */
+.dark .bg-white { background-color: #111827 !important; }
+.dark .bg-gray-50 { background-color: #1f2937 !important; }
+.dark .bg-gray-100 { background-color: #374151 !important; }
+.dark .bg-gray-200 { background-color: #4b5563 !important; }
+.dark .bg-gray-800 { background-color: #1f2937 !important; }
+.dark .bg-slate-50 { background-color: #1e293b !important; }
+.dark .bg-slate-100 { background-color: #334155 !important; }
+.dark .bg-slate-200 { background-color: #475569 !important; }
+.dark .bg-zinc-50 { background-color: #27272a !important; }
+.dark .bg-zinc-100 { background-color: #3f3f46 !important; }
+.dark .bg-indigo-50 { background-color: #312e81 !important; }
+.dark .bg-blue-50 { background-color: #1e3a5f !important; }
+.dark .bg-blue-100 { background-color: #1e40af !important; }
+
+/* Home feed cards: force dark background so business cards stay dark */
+.dark .home-feed-card {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+/* Hanar Feed (main page) business cards: force dark in dark mode */
+.dark .hanar-feed-business-card {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+/* Dashboard: Following organizations – light mode colors */
+.following-orgs-light { color: #4f46e5; }
+.dashboard-following-orgs .following-orgs-light.text-sm { color: #64748b; }
+.dashboard-following-orgs h3.following-orgs-light { color: #0f172a; }
+.dashboard-following-orgs p.following-orgs-light.font-semibold { color: #0f172a; }
+.dashboard-following-orgs p.following-orgs-light.text-xs { color: #4f46e5; }
+
+/* Dark mode: header (Following, Organizations, 0 total, Hide) and empty state – force lighter text */
+.dark .dashboard-following-orgs .following-orgs-header,
+.dark .dashboard-following-orgs .following-orgs-header *,
+.dark .dashboard-following-orgs .following-orgs-empty,
+.dark .dashboard-following-orgs .following-orgs-empty * {
+  color: #ffffff !important;
+}
+
+.dark .following-orgs-light,
+.dark .dashboard-following-orgs .following-orgs-light {
+  color: #ffffff !important;
+}
+
+/* Following org cards stay light in dark mode – use dark text on the card */
+.dark .following-orgs-card .following-orgs-light {
+  color: #1f2937 !important;
+}
+
+.dark .text-gray-500 { color: #9ca3af !important; }
+.dark .text-gray-600 { color: #d1d5db !important; }
+.dark .text-gray-700 { color: #e5e7eb !important; }
+.dark .text-gray-800 { color: #f3f4f6 !important; }
+.dark .text-gray-900 { color: #f9fafb !important; }
+.dark .text-slate-600 { color: #cbd5e1 !important; }
+.dark .text-slate-700 { color: #e2e8f0 !important; }
+.dark .text-slate-800 { color: #f1f5f9 !important; }
+.dark .text-slate-900 { color: #f8fafc !important; }
+.dark .text-zinc-600 { color: #a1a1aa !important; }
+.dark .text-zinc-700 { color: #d4d4d8 !important; }
+.dark .text-zinc-800 { color: #e4e4e7 !important; }
+.dark .text-zinc-900 { color: #fafafa !important; }
+.dark .text-black { color: #f9fafb !important; }
+
+.dark .border-gray-200 { border-color: #374151 !important; }
+.dark .border-gray-300 { border-color: #4b5563 !important; }
+.dark .border-gray-400 { border-color: #6b7280 !important; }
+.dark .border-slate-200 { border-color: #475569 !important; }
+.dark .border-slate-300 { border-color: #64748b !important; }
+.dark .border-zinc-200 { border-color: #3f3f46 !important; }
+
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark select,
+.dark textarea {
+  background-color: #1f2937 !important;
+  border-color: #4b5563 !important;
+  color: #f3f4f6 !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #9ca3af !important;
+}
 
 @layer utilities {
   .animate-fade-in {
@@ -68,5 +161,13 @@ body {
     animation: wiggle 0.5s ease-in-out;
   }
   
+}
+
+/* Following organizations: force visible white text in dark mode (must come last) */
+html.dark .dashboard-following-orgs .following-orgs-header,
+html.dark .dashboard-following-orgs .following-orgs-header *,
+html.dark .dashboard-following-orgs .following-orgs-empty,
+html.dark .dashboard-following-orgs .following-orgs-empty * {
+  color: #ffffff !important;
 }
 
