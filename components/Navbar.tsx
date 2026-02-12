@@ -223,7 +223,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="bg-white dark:bg-gray-900 h-16 flex items-center justify-between px-4 sticky top-0 z-50 transition-all relative border-b border-gray-100 dark:border-gray-800">
+      <nav className="bg-blue-600 dark:bg-blue-800 h-16 flex items-center justify-between px-4 sticky top-0 z-50 transition-all relative border-b border-blue-500 dark:border-blue-700">
         {/* Logo */}
         <div className="flex items-center">
           <Link href="/" className="focus:outline-none">
@@ -242,16 +242,16 @@ export default function Navbar() {
           {/* Location */}
           <button
             onClick={resetLocation}
-            className="group flex items-center gap-1 text-sm text-gray-600 hover:text-blue-700 focus:outline-none transition-colors duration-200 max-w-[140px]"
+            className="group flex items-center gap-1 text-sm text-blue-100 hover:text-white focus:outline-none transition-colors duration-200 max-w-[140px]"
           >
-            <FaMapMarkerAlt size={16} className="text-blue-500 group-hover:text-blue-700" />
+            <FaMapMarkerAlt size={16} className="text-blue-200 group-hover:text-white" />
             <span className="truncate">{locationLabel || t(effectiveLang, 'Set Location')}</span>
           </button>
 
           {/* Notifications */}
           <Link href="/notifications" className="relative focus:outline-none">
             <div className="relative group">
-              <FaBell className="text-gray-600 text-xl group-hover:text-blue-700 transition-colors duration-200 cursor-pointer" />
+              <FaBell className="text-blue-100 text-xl group-hover:text-white transition-colors duration-200 cursor-pointer" />
               {unreadCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full shadow-sm">
                   {unreadCount > 99 ? '99+' : unreadCount}
@@ -263,7 +263,7 @@ export default function Navbar() {
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="text-gray-600 hover:text-rose-700 transition-colors duration-200 text-2xl focus:outline-none"
+            className="text-blue-100 hover:text-white transition-colors duration-200 text-2xl focus:outline-none"
             aria-label="Toggle Menu"
           >
             <FaBars />
