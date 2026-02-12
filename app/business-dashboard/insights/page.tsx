@@ -299,7 +299,7 @@ export default function BusinessInsightsPage() {
                       border: '1px solid #e2e8f0',
                       borderRadius: '8px',
                     }}
-                    formatter={(value: number) => [value.toLocaleString(), 'Count']}
+                    formatter={(value?: number) => [(value ?? 0).toLocaleString(), 'Count']}
                     labelFormatter={(label) => label}
                   />
                   <Bar dataKey="value" name="Count" radius={[4, 4, 0, 0]}>
@@ -333,7 +333,7 @@ export default function BusinessInsightsPage() {
                       <Cell key={index} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number) => value.toLocaleString()} />
+                  <Tooltip formatter={(value?: number) => (value ?? 0).toLocaleString()} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -365,7 +365,7 @@ export default function BusinessInsightsPage() {
                       border: '1px solid #e2e8f0',
                       borderRadius: '8px',
                     }}
-                    formatter={(value: number) => [value, '']}
+                    formatter={(value?: number) => [value ?? 0, '']}
                     labelFormatter={(label) => `Date: ${label}`}
                   />
                   <Legend />
