@@ -264,6 +264,14 @@ details > summary {
   to { transform: rotate(360deg); }
 }
 
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Following organizations: force visible white text in dark mode (must come last) */
 html.dark .dashboard-following-orgs .following-orgs-header,
 html.dark .dashboard-following-orgs .following-orgs-header *,

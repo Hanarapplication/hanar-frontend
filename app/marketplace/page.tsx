@@ -386,10 +386,11 @@ export default function MarketplacePage() {
     );
     let verifiedMap = new Map<string, boolean>();
     let planMap = new Map<string, string>();
+    let businessLocationMap = new Map<string, string>();
     if (businessIds.length > 0) {
       const { data: businessRows } = await supabase
         .from('businesses')
-        .select('id, is_verified, plan')
+        .select('id, is_verified, plan, address')
         .in('id', businessIds);
       verifiedMap = new Map(
         (businessRows || []).map((row: { id: string; is_verified?: boolean | null; plan?: string | null }) => [
@@ -400,12 +401,35 @@ export default function MarketplacePage() {
       planMap = new Map(
         (businessRows || []).map((row: { id: string; plan?: string | null }) => [row.id, row.plan || ''])
       );
+      businessLocationMap = new Map(
+        (businessRows || []).map((row: { id: string; address?: { city?: string; state?: string } | string | null }) => {
+          let addr: { city?: string; state?: string } | null = null;
+          if (row.address) {
+            if (typeof row.address === 'object') addr = row.address;
+            else if (typeof row.address === 'string') {
+              try { addr = JSON.parse(row.address) as { city?: string; state?: string }; } catch { /* ignore */ }
+            }
+          }
+          const city = addr?.city || '';
+          const state = addr?.state || '';
+          const loc = [city, state].filter(Boolean).join(', ');
+          return [row.id, loc] as [string, string];
+        }).filter(([, loc]) => loc.length > 0)
+      );
     }
-    const withMetadata = combined.map((item) => ({
-      ...item,
-      business_verified: item.business_id ? verifiedMap.get(item.business_id) || false : false,
-      business_plan: item.business_id ? planMap.get(item.business_id) || null : null,
-    }));
+    const withMetadata = combined.map((item) => {
+      const businessLocation = item.business_id ? businessLocationMap.get(item.business_id) : null;
+      const location =
+        (businessLocation && businessLocation.length > 0)
+          ? businessLocation
+          : (item.location && String(item.location).trim()) || '';
+      return {
+        ...item,
+        location: location || item.location || '',
+        business_verified: item.business_id ? verifiedMap.get(item.business_id) || false : false,
+        business_plan: item.business_id ? planMap.get(item.business_id) || null : null,
+      };
+    });
     const ranked = withMetadata.sort((a, b) => {
       const planDelta = getPlanRank(b.business_plan) - getPlanRank(a.business_plan);
       if (planDelta !== 0) return planDelta;
@@ -626,37 +650,39 @@ export default function MarketplacePage() {
         )}
       </div>
 
-      <div className="p-2.5 sm:p-3.5 flex flex-col flex-grow">
-        <div className="flex flex-wrap gap-1 mb-1 sm:mb-1.5">
-          <span className="inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 text-xs font-medium rounded-full w-fit bg-emerald-100 text-emerald-700 border border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700">
-            {getPriceValue(item.price) === null ? item.price : `$${getPriceValue(item.price)}`}
-          </span>
+      <div className="p-3 sm:p-4 flex flex-col flex-grow">
+        <h3 className="font-semibold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-snug line-clamp-2 text-[15px] sm:text-base tracking-tight mb-1.5">
+          {item.title}
+        </h3>
+        <p className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400 mb-2">
+          {getPriceValue(item.price) === null ? item.price : `$${getPriceValue(item.price)}`}
+        </p>
+        {item.description && (
+          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2 mb-2">
+            {item.description}
+          </p>
+        )}
+        <div className="mt-auto flex flex-wrap items-center gap-2">
+          {item.category && (
+            <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200 truncate max-w-[120px]">
+              {item.category}
+            </span>
+          )}
           {item.condition && (
-            <span className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 text-xs font-medium rounded-full w-fit ${
+            <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-full ${
               item.condition === 'New'
-                ? 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700'
-                : 'bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700'
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'
+                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200'
             }`}>
               {item.condition}
             </span>
           )}
+          {item.location && (
+            <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-lg bg-slate-200 text-slate-700 dark:bg-slate-600/50 dark:text-slate-200 truncate max-w-[120px]">
+              {item.location}
+            </span>
+          )}
         </div>
-
-        <h3 className="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors leading-tight line-clamp-2 mb-1 sm:mb-1.5 text-sm sm:text-base">
-          {item.title}
-        </h3>
-
-        {item.description && (
-          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 italic leading-relaxed line-clamp-2 mb-1.5 sm:mb-2">
-            {item.description}
-          </p>
-        )}
-
-        {item.location && (
-          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-1 mt-auto">
-            {item.location}
-          </p>
-        )}
       </div>
     </Link>
   );

@@ -588,7 +588,7 @@ export default function CommunityFeedPage() {
                     alt="Post"
                     loading="lazy"
                     decoding="async"
-                    className="w-full max-h-[400px] object-cover"
+                    className="block w-full h-auto max-h-[85vh] object-contain"
                   />
                 </Link>
               ) : null}

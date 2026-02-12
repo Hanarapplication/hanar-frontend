@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 
 export default function EditItemPage({ params }: { params: { id: string } }) {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? '';
@@ -83,13 +84,20 @@ export default function EditItemPage({ params }: { params: { id: string } }) {
           placeholder="Category"
           className="w-full border px-4 py-2 rounded"
         />
-        <input
-          name="location"
-          value={form.location}
-          onChange={handleChange}
-          placeholder="Location"
-          className="w-full border px-4 py-2 rounded"
-        />
+        <div>
+          <label className="block mb-1 font-medium">Location</label>
+          <AddressAutocomplete
+            value={form.location || ''}
+            onSelect={(result: AddressResult) => {
+              const locationLabel = [result.city, result.state].filter(Boolean).join(', ') || result.formatted_address;
+              setForm((prev: any) => ({ ...prev, location: locationLabel }));
+            }}
+            onChange={(value) => setForm((prev: any) => ({ ...prev, location: value }))}
+            placeholder="City, State or ZIP (type for suggestions)"
+            mode="locality"
+            inputClassName="w-full border px-4 py-2 rounded"
+          />
+        </div>
 
         <h2 className="font-semibold mt-4">Contact Info</h2>
         <input

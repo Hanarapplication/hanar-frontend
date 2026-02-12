@@ -20,6 +20,7 @@ import {
   Package, ShoppingBag, Languages
 } from 'lucide-react';
 import { PhoneInput } from '@/components/PhoneInput';
+import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
 
 /**
@@ -2226,11 +2227,31 @@ export default function EditBusinessPage() {
           {/* Address */}
           <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
             <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Address</h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search address (suggestions as you type)</label>
+              <AddressAutocomplete
+                value={[form.address.street, form.address.city, form.address.state, form.address.zip, form.address.country].filter(Boolean).join(', ')}
+                onSelect={(result: AddressResult) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    address: {
+                      street: result.street || prev.address.street,
+                      city: result.city || prev.address.city,
+                      state: result.state || prev.address.state,
+                      zip: result.zip || prev.address.zip,
+                      country: result.country || prev.address.country,
+                    },
+                  }));
+                }}
+                placeholder="Type address, city, or ZIP..."
+                mode="full"
+                inputClassName="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800"
+              />
+            </div>
             <FormInput name="address.street" value={form.address.street} onChange={handleChange} placeholder="Street Address" icon={MapPin} />
             <FormInput name="address.city" value={form.address.city} onChange={handleChange} placeholder="City" />
             <FormInput name="address.state" value={form.address.state} onChange={handleChange} placeholder="State/Province" />
             <FormInput name="address.zip" value={form.address.zip} onChange={handleChange} placeholder="Zip/Postal Code" />
-            {/* Added country to address for consistency */}
             <FormInput name="address.country" value={form.address.country} onChange={handleChange} placeholder="Country" />
           </section>
 

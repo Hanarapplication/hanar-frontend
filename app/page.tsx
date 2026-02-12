@@ -60,6 +60,7 @@ type MarketplaceItem = {
   description?: string | null;
   imageUrls?: string[] | string | null;
   condition?: string | null;
+  category?: string | null;
   location?: string | null;
   lat?: number | null;
   lon?: number | null;
@@ -505,6 +506,7 @@ export default function Home() {
         .from('community_posts')
         .select('id, title, body, created_at, author, author_type, username, user_id, image, video, likes_post, community_comments(count)')
         .eq('deleted', false)
+        .or('visibility.eq.community,visibility.is.null')
         .order('created_at', { ascending: false })
         .limit(12),
       supabase
@@ -614,10 +616,11 @@ export default function Home() {
       new Set(combinedItems.map((item) => item.business_id).filter(Boolean) as string[])
     );
     let verifiedMap = new Map<string, boolean>();
+    let businessLocationMap = new Map<string, string>();
     if (itemBusinessIds.length > 0) {
       const { data: businessRows } = await supabase
         .from('businesses')
-        .select('id, is_verified')
+        .select('id, is_verified, address')
         .in('id', itemBusinessIds);
       verifiedMap = new Map(
         (businessRows || []).map((row: { id: string; is_verified?: boolean | null }) => [
@@ -625,11 +628,33 @@ export default function Home() {
           Boolean(row.is_verified),
         ])
       );
+      businessLocationMap = new Map(
+        (businessRows || [])
+          .map((row: { id: string; address?: { city?: string; state?: string } | string | null }) => {
+            let addr: { city?: string; state?: string } | null = null;
+            if (row.address) {
+              if (typeof row.address === 'object') addr = row.address;
+              else if (typeof row.address === 'string') {
+                try { addr = JSON.parse(row.address) as { city?: string; state?: string }; } catch { /* ignore */ }
+              }
+            }
+            const city = addr?.city || '';
+            const state = addr?.state || '';
+            const loc = [city, state].filter(Boolean).join(', ');
+            return [row.id, loc] as [string, string];
+          })
+          .filter(([, loc]) => loc.length > 0)
+      );
     }
-    const itemsWithVerified = combinedItems.map((item) => ({
-      ...item,
-      business_verified: item.business_id ? verifiedMap.get(item.business_id) || false : false,
-    }));
+    const itemsWithVerified = combinedItems.map((item) => {
+      const businessLocation = item.business_id ? businessLocationMap.get(item.business_id) : null;
+      const location = businessLocation && businessLocation.length > 0 ? businessLocation : (item.location || '');
+      return {
+        ...item,
+        location: location || item.location || '',
+        business_verified: item.business_id ? verifiedMap.get(item.business_id) || false : false,
+      };
+    });
 
     return { rawPosts, businesses: businessRes.data || [], organizations: orgRes.data || [], marketplaceItems: itemsWithVerified };
   };
@@ -731,6 +756,7 @@ export default function Home() {
           .from('community_posts')
           .select('*', { count: 'exact', head: true })
           .eq('deleted', false)
+          .or('visibility.eq.community,visibility.is.null')
           .gt('created_at', latestPostDateRef.current);
         if (count && count > 0) {
           setHasNewContent(true);
@@ -1418,7 +1444,7 @@ const formatDateLabel = (value?: string | null) => {
                       alt={item.item.title}
                       loading="lazy"
                       decoding="async"
-                      className="w-full h-auto max-h-72 object-contain"
+                      className="block w-full h-auto max-h-[85vh] object-contain"
                     />
                     {item.item.business_id && (
                       item.item.business_verified ? (
@@ -1434,13 +1460,24 @@ const formatDateLabel = (value?: string | null) => {
                       )
                     )}
                   </div>
-                  <div className="mt-3 space-y-1">
-                    <h3 className="text-base font-semibold text-slate-800 dark:text-gray-100 line-clamp-2">{item.item.title}</h3>
-                    <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatPrice(item.item.price)}</p>
+                  <div className="mt-3 space-y-1.5">
+                    <h3 className="text-[15px] font-semibold text-slate-800 dark:text-gray-100 line-clamp-2 tracking-tight leading-snug">{item.item.title}</h3>
+                    <p className="text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{formatPrice(item.item.price)}</p>
                     {item.item.description && (
-                      <p className="text-xs text-slate-600 dark:text-gray-400 line-clamp-2">{item.item.description}</p>
+                      <p className="text-sm text-slate-600 dark:text-gray-400 line-clamp-2 leading-relaxed">{item.item.description}</p>
                     )}
-                    <p className="text-xs text-slate-500 dark:text-gray-500">{item.item.location || ''}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {item.item.category && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200">
+                          {item.item.category}
+                        </span>
+                      )}
+                      {item.item.location && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-lg bg-slate-200 text-slate-700 dark:bg-slate-600/50 dark:text-slate-200">
+                          {item.item.location}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </Link>
               </article>

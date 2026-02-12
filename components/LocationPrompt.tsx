@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 
 export default function LocationPromptModal() {
   const [showModal, setShowModal] = useState(false);
-  const [zipCity, setZipCity] = useState('');
   const [showFallback, setShowFallback] = useState(false);
   const [language, setLanguage] = useState<'en' | 'fa' | 'ar'>('en');
 
@@ -76,57 +76,39 @@ export default function LocationPromptModal() {
     );
   };
 
-  const handleZipSubmit = async () => {
-    if (!zipCity) return alert(t('pleaseEnterZip'));
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(zipCity)}`
-      );
-      const data = await res.json();
-      if (data.length > 0) {
-        const address = data[0].address || {};
-        const coords = {
-          lat: parseFloat(data[0].lat),
-          lon: parseFloat(data[0].lon),
-        };
-        const zipValue = address.postcode || (/^\d{3,10}$/.test(zipCity.trim()) ? zipCity.trim() : null);
-        const cityValue =
-          address.city ||
-          address.town ||
-          address.village ||
-          (zipValue ? null : zipCity.trim());
-        const stateValue = address.state || null;
-        const label =
-          data[0].display_name ||
-          data[0].name ||
-          zipCity;
-        localStorage.setItem('userCoords', JSON.stringify(coords));
-        localStorage.setItem('hasSeenLocationPrompt', 'true');
-        persistLocation(coords.lat, coords.lon, {
+  const handleAddressSelect = (result: AddressResult) => {
+    const lat = result.lat ?? 0;
+    const lng = result.lng ?? 0;
+    if (lat === 0 && lng === 0) {
+      alert(t('notFound'));
+      return;
+    }
+    const coords = { lat, lon: lng };
+    const cityValue = result.city || null;
+    const stateValue = result.state || null;
+    const zipValue = result.zip || null;
+    const label = result.formatted_address || [result.city, result.state, result.zip].filter(Boolean).join(', ');
+    localStorage.setItem('userCoords', JSON.stringify(coords));
+    localStorage.setItem('hasSeenLocationPrompt', 'true');
+    persistLocation(coords.lat, coords.lon, {
+      city: cityValue,
+      state: stateValue,
+      zip: zipValue,
+      source: 'google_places',
+    });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('location:updated', {
+        detail: {
+          ...coords,
+          label,
           city: cityValue,
           state: stateValue,
           zip: zipValue,
-          source: zipValue ? 'zip' : 'city',
-        });
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('location:updated', {
-            detail: {
-              ...coords,
-              label,
-              city: cityValue,
-              state: stateValue,
-              zip: zipValue,
-              source: zipValue ? 'zip' : 'city',
-            },
-          }));
-        }
-        setShowModal(false);
-      } else {
-        alert(t('notFound'));
-      }
-    } catch {
-      alert(t('lookupFailed'));
+          source: 'google_places',
+        },
+      }));
     }
+    setShowModal(false);
   };
 
   const handleSkip = () => {
@@ -211,19 +193,15 @@ export default function LocationPromptModal() {
           <>
             <h2 className="text-lg font-semibold mb-2">{t('fallbackTitle')}</h2>
             <p className="text-sm text-gray-600 mb-4">{t('fallbackText')}</p>
-            <input
-              type="text"
+            <AddressAutocomplete
+              value=""
+              onSelect={handleAddressSelect}
               placeholder={t('inputPlaceholder')}
-              value={zipCity}
-              onChange={(e) => setZipCity(e.target.value)}
-              className="w-full p-2 mb-3 border rounded-md text-sm"
+              mode="locality"
+              className="mb-3"
+              inputClassName="w-full p-2 border rounded-md text-sm"
             />
-            <button
-              onClick={handleZipSubmit}
-              className="w-full px-4 py-2 bg-blue-600 text-white text-sm rounded-md"
-            >
-              {t('submit')}
-            </button>
+            <p className="text-xs text-gray-500 mb-2">Search by city, ZIP, or address. Select a suggestion to save.</p>
           </>
         )}
       </div>

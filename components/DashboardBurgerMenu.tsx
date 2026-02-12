@@ -6,6 +6,8 @@ import { X, Menu, ArrowLeft } from 'lucide-react';
 
 export type MenuItem = {
   label: string;
+  /** Optional short line under the label for clarity */
+  subtitle?: string;
   href?: string;
   onClick?: () => void;
   icon?: React.ReactNode;
@@ -82,6 +84,17 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
               {items.map((item, i) => {
                 const bg = item.color || 'bg-slate-50 dark:bg-gray-800/60';
                 const cls = `flex items-center gap-3.5 rounded-xl px-4 py-3.5 ${bg} hover:brightness-95 dark:hover:brightness-110 transition`;
+                const content = (
+                  <>
+                    {item.icon}
+                    <span className="flex flex-col items-start gap-0.5">
+                      <span className="text-[15px] font-medium">{item.label}</span>
+                      {item.subtitle && (
+                        <span className="text-xs font-normal text-slate-500 dark:text-gray-400">{item.subtitle}</span>
+                      )}
+                    </span>
+                  </>
+                );
                 return (
                   <li key={i}>
                     {item.href ? (
@@ -93,8 +106,7 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
                         }}
                         className={`${cls} text-slate-700 dark:text-gray-200`}
                       >
-                        {item.icon}
-                        <span className="text-[15px] font-medium">{item.label}</span>
+                        {content}
                       </Link>
                     ) : (
                       <button
@@ -105,8 +117,7 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
                         }}
                         className={`${cls} w-full text-left text-slate-700 dark:text-gray-200`}
                       >
-                        {item.icon}
-                        <span className="text-[15px] font-medium">{item.label}</span>
+                        {content}
                       </button>
                     )}
                   </li>

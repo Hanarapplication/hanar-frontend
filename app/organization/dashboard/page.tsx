@@ -9,6 +9,7 @@ import { compressImage } from '@/lib/imageCompression';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
+import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 
 // --- TYPE DEFINITIONS ---
 type OrgProfile = {
@@ -220,6 +221,11 @@ export default function OrganizationDashboard() {
     email: '',
     mission: '',
     address: '',
+    address_city: '',
+    address_state: '',
+    address_zip: '',
+    address_lat: null as number | null,
+    address_lng: null as number | null,
     banner_url: '',
     logo_url: '',
     phone: '',
@@ -285,6 +291,11 @@ export default function OrganizationDashboard() {
             email: data.email || '',
             mission: data.mission || '',
             address: data.address || '',
+            address_city: (data as any).address_city ?? '',
+            address_state: (data as any).address_state ?? '',
+            address_zip: (data as any).address_zip ?? '',
+            address_lat: (data as any).address_lat ?? null,
+            address_lng: (data as any).address_lng ?? null,
             banner_url: data.banner_url || '',
             logo_url: data.logo_url || '',
             phone: data.contact_info?.phone || '',
@@ -588,7 +599,7 @@ export default function OrganizationDashboard() {
       if (logoFile) logo_url = await uploadFile(logoFile, ORG_STORAGE.logoFolder);
       if (bannerFile) banner_url = await uploadFile(bannerFile, ORG_STORAGE.bannerFolder);
 
-      const updatedProfile = {
+      const updatedProfile: Record<string, unknown> = {
         user_id: profile.user_id,
         full_name: form.full_name,
         username: form.username,
@@ -597,6 +608,11 @@ export default function OrganizationDashboard() {
         address: form.address,
         banner_url,
         logo_url,
+        ...(form.address_city ? { address_city: form.address_city } : {}),
+        ...(form.address_state ? { address_state: form.address_state } : {}),
+        ...(form.address_zip ? { address_zip: form.address_zip } : {}),
+        ...(form.address_lat != null ? { address_lat: form.address_lat } : {}),
+        ...(form.address_lng != null ? { address_lng: form.address_lng } : {}),
         contact_info: {
           phone: form.phone,
           email: form.email,
@@ -632,6 +648,11 @@ export default function OrganizationDashboard() {
         email: fresh.email || '',
         mission: fresh.mission || '',
         address: fresh.address || '',
+        address_city: (fresh as any).address_city ?? '',
+        address_state: (fresh as any).address_state ?? '',
+        address_zip: (fresh as any).address_zip ?? '',
+        address_lat: (fresh as any).address_lat ?? null,
+        address_lng: (fresh as any).address_lng ?? null,
         banner_url: fresh.banner_url || '',
         logo_url: fresh.logo_url || '',
         phone: fresh.contact_info?.phone || '',
@@ -1314,10 +1335,22 @@ export default function OrganizationDashboard() {
                     
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
-                        <div className="relative">
-                           <MapPin className="w-4 h-4 absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
-                           <input type="text" value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} className="form-input pl-9" placeholder="123 Charity Lane..."/>
-                        </div>
+                        <AddressAutocomplete
+                          value={form.address}
+                          onSelect={(result: AddressResult) => setForm(f => ({
+                            ...f,
+                            address: result.formatted_address,
+                            address_city: result.city || '',
+                            address_state: result.state || '',
+                            address_zip: result.zip || '',
+                            address_lat: result.lat ?? null,
+                            address_lng: result.lng ?? null,
+                          }))}
+                          onChange={(value) => setForm(f => ({ ...f, address: value }))}
+                          placeholder="Start typing address or city..."
+                          mode="full"
+                          inputClassName="form-input pl-9"
+                        />
                     </div>
 
                     <div>

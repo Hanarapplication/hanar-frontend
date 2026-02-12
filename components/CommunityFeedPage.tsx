@@ -184,7 +184,7 @@ onClick={async () => {
                     <img
                       src={post.image}
                       alt={post.title}
-                      className="mt-2 w-full h-40 object-cover rounded-md"
+                      className="mt-2 block w-full h-auto max-h-[85vh] object-contain rounded-md"
                     />
                   )}
                   <div className="mt-3">

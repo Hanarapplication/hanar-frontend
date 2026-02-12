@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     const { lang = 'en', tags = [], search = '', offset = 0, sortMode = 'latest', userId } = await req.json();
     const limit = 10;
 
-    // Build base query – include language and tags for ranking
+    // Build base query – only posts visible in community feed (not profile-only)
     let query = supabaseAdmin
       .from('community_posts')
       .select(`
@@ -88,6 +88,7 @@ export async function POST(req: Request) {
         community_comments(count)
       `)
       .eq('deleted', false)
+      .or('visibility.eq.community,visibility.is.null')
       .range(offset, offset + limit - 1);
 
     // Filter by language

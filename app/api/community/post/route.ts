@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { title, body, tags, lang, image, video, author, user_id, org_id, author_type, username } = await req.json();
+    const { title, body, tags, lang, image, video, author, user_id, org_id, author_type, username, visibility } = await req.json();
 
     // ✅ Validate required fields
     if (!title || typeof title !== 'string' || title.trim().length < 3 || title.length > 100) {
@@ -39,6 +39,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Business accounts cannot post to community' }, { status: 403 });
     }
 
+    const visibilityValue = visibility === 'profile' ? 'profile' : 'community';
+
     // ✅ Insert into Supabase
     const { error } = await supabaseAdmin.from('community_posts').insert([
       {
@@ -53,7 +55,8 @@ export async function POST(req: Request) {
         org_id: org_id || null,
         author_type: author_type || null,
         username: username || null,
-        likes_post: 0, // ✅ correct column name
+        likes_post: 0,
+        visibility: visibilityValue,
       },
     ]);
     

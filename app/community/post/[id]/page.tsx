@@ -392,10 +392,10 @@ export default function CommunityPostPage() {
 
           {post.image && !post.video && (
             <div
-              className="mt-3 max-h-80 overflow-hidden rounded-lg border border-slate-100 cursor-pointer"
+              className="mt-3 overflow-hidden rounded-lg border border-slate-100 cursor-pointer"
               onClick={() => setPopupImage(post.image)}
             >
-              <img src={post.image} alt={post.title} className="w-full h-full object-contain" />
+              <img src={post.image} alt={post.title} className="block w-full h-auto max-h-[85vh] object-contain" />
             </div>
           )}
 

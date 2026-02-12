@@ -7,6 +7,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { compressImage } from '@/lib/imageCompression';
 import { ArrowLeft } from 'lucide-react';
+import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 
 export default function PostItemPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function PostItemPage() {
   const [usedSlots, setUsedSlots] = useState(0);
   const [isBusiness, setIsBusiness] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
+  const [packPurchasing, setPackPurchasing] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -23,6 +25,11 @@ export default function PostItemPage() {
     title: '',
     price: '',
     location: '',
+    locationCity: '',
+    locationState: '',
+    locationZip: '',
+    locationLat: null as number | null,
+    locationLng: null as number | null,
     category: '',
     condition: 'Used',
     contact: {
@@ -36,6 +43,7 @@ export default function PostItemPage() {
     mileage: '',
     description: '',
     imageUrls: [] as string[],
+    externalBuyUrl: '',
   });
 
   const isVehicleCategory = [
@@ -54,23 +62,27 @@ export default function PostItemPage() {
       }
       setUserId(user.id);
 
-      const { data: bizAccount } = await supabase.from('businesses').select('id').eq('owner_id', user.id).maybeSingle();
-      const isBiz = !!bizAccount?.id;
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch('/api/marketplace/listing-limits', { headers });
+      const data = await res.json().catch(() => ({}));
 
-      if (isBiz) {
-        setIsBusiness(true);
-        setUsedSlots(0);
-        return;
+      if (res.ok && data) {
+        setIsBusiness(!!data.isBusiness);
+        setUsedSlots(data.activeCount ?? 0);
+        setLimitReached(!data.canAddMore);
+      } else {
+        const { data: bizAccount } = await supabase.from('businesses').select('id').eq('owner_id', user.id).maybeSingle();
+        setIsBusiness(!!bizAccount?.id);
+        if (bizAccount?.id) {
+          setUsedSlots(0);
+        } else {
+          const { count } = await supabase.from('marketplace_items').select('id', { count: 'exact', head: true }).eq('user_id', user.id);
+          setUsedSlots(count || 0);
+          setLimitReached((count || 0) >= 1);
+        }
       }
-
-      const { count } = await supabase
-        .from('marketplace_items')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      setUsedSlots(count || 0);
-      setIsBusiness(false);
-      if ((count || 0) >= 1) setLimitReached(true);
     };
     load();
   }, [router]);
@@ -134,23 +146,59 @@ export default function PostItemPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userId) return toast.error('Please log in first');
-    if (limitReached && !isBusiness) return toast.error('You already have an active listing. Delete it from your dashboard to add another.');
+    if (limitReached && !isBusiness) return toast.error('Listing limit reached. Delete one from your dashboard or get the Casual Seller Pack to list more.');
 
     setSubmitting(true);
-    const { imageUrls, ...rest } = form;
-    const { error } = await supabase.from('marketplace_items').insert({
-      user_id: userId,
+    const { imageUrls, locationCity, locationState, locationZip, locationLat, locationLng, externalBuyUrl, ...rest } = form;
+    const insertPayload: Record<string, unknown> = {
       ...rest,
       price: parseFloat(form.price),
       image_urls: imageUrls,
-    });
+    };
+    const trimmedUrl = (form.externalBuyUrl || '').trim();
+    if (trimmedUrl) insertPayload.external_buy_url = trimmedUrl;
+    if (locationCity) insertPayload.location_city = locationCity;
+    if (locationState) insertPayload.location_state = locationState;
+    if (locationZip) insertPayload.location_zip = locationZip;
+    if (locationLat != null) insertPayload.location_lat = locationLat;
+    if (locationLng != null) insertPayload.location_lng = locationLng;
 
-    if (error) {
-      toast.error(error.message || 'Failed to post');
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+    const res = await fetch('/api/marketplace/create-item', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(insertPayload),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      toast.error(data?.error || 'Failed to post');
       setSubmitting(false);
     } else {
       toast.success('Item posted!');
       router.push('/marketplace');
+    }
+  };
+
+  const purchasePack = async () => {
+    if (packPurchasing) return;
+    setPackPurchasing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch('/api/marketplace/casual-seller-pack', { method: 'POST', headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to activate pack');
+      setLimitReached(false);
+      setUsedSlots((prev) => Math.min(prev, 5));
+      toast.success('Casual Seller Pack active. You can list up to 5 items.');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to activate pack');
+    } finally {
+      setPackPurchasing(false);
     }
   };
 
@@ -167,12 +215,36 @@ export default function PostItemPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mb-1">Post an Item for Sale</h1>
 
           <p className="text-sm text-slate-500 mb-6">
-            {isBusiness ? 'Unlimited posts' : 'Individuals: 1 item at a time. Delete your current listing to add a new one.'}
+            {isBusiness ? 'Unlimited posts' : 'Choose a package below. Free: 1 listing (30 days). Or get the Casual Seller Pack for up to 5 listings.'}
           </p>
 
           {limitReached && !isBusiness && (
-            <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl mb-6 text-sm text-amber-800">
-              You already have 1 active listing. Delete it from your <Link href="/dashboard" className="text-indigo-600 font-medium hover:underline">dashboard</Link> to add a new item.
+            <div className="mb-6 rounded-2xl border-2 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-3">
+                Listing limit reached ({usedSlots} active). Choose a package to list more items:
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-3">
+                  <p className="font-semibold text-slate-900 dark:text-white">Free</p>
+                  <p className="text-xs text-slate-600 dark:text-gray-300 mt-0.5">1 listing, expires 30 days after posting.</p>
+                  <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">Your current plan.</p>
+                </div>
+                <div className="rounded-xl border-2 border-emerald-300 dark:border-emerald-600 bg-emerald-50/50 dark:bg-emerald-900/20 p-3">
+                  <p className="font-semibold text-slate-900 dark:text-white">Casual Seller Pack</p>
+                  <p className="text-xs text-slate-600 dark:text-gray-300 mt-0.5">$19.99 for 30 days. Up to 5 active listings.</p>
+                  <button
+                    type="button"
+                    onClick={purchasePack}
+                    disabled={packPurchasing}
+                    className="mt-2 w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {packPurchasing ? 'Activating...' : 'Choose this package – $19.99'}
+                  </button>
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-slate-500 dark:text-gray-400">
+                Or <Link href="/dashboard" className="text-indigo-600 dark:text-indigo-400 hover:underline">open dashboard</Link> to manage listings and view pricing.
+              </p>
             </div>
           )}
 
@@ -187,7 +259,25 @@ export default function PostItemPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
-              <input name="location" placeholder="City, State" value={form.location} onChange={handleChange} className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" required />
+              <AddressAutocomplete
+                value={form.location}
+                onSelect={(result: AddressResult) => {
+                  const locationLabel = [result.city, result.state].filter(Boolean).join(', ') || result.formatted_address;
+                  setForm((prev) => ({
+                    ...prev,
+                    location: locationLabel,
+                    locationCity: result.city || '',
+                    locationState: result.state || '',
+                    locationZip: result.zip || '',
+                    locationLat: result.lat ?? null,
+                    locationLng: result.lng ?? null,
+                  }));
+                }}
+                onChange={(value) => setForm((prev) => ({ ...prev, location: value }))}
+                placeholder="City, State or ZIP (start typing for suggestions)"
+                mode="locality"
+                inputClassName="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
@@ -213,6 +303,19 @@ export default function PostItemPage() {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
               <textarea name="description" placeholder="Describe your item..." value={form.description} onChange={handleChange} rows={3} className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 resize-y" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Link for online buyers (optional)</label>
+              <input
+                name="externalBuyUrl"
+                type="url"
+                placeholder="e.g. https://amazon.com/... or https://ebay.com/..."
+                value={form.externalBuyUrl}
+                onChange={handleChange}
+                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+              <p className="text-xs text-slate-500 mt-1">If you also sell on Amazon, eBay, etc., add the link. Buyers will open it in a new tab.</p>
             </div>
 
             <div>

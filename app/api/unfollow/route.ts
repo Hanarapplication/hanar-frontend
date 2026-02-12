@@ -6,12 +6,26 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+/** Only individual users can unfollow (same rule as follow). */
+async function isIndividualUser(userId: string): Promise<boolean> {
+  const [biz, org] = await Promise.all([
+    supabaseAdmin.from('businesses').select('id').eq('owner_id', userId).maybeSingle(),
+    supabaseAdmin.from('organizations').select('id').eq('user_id', userId).maybeSingle(),
+  ]);
+  return !biz.data && !org.data;
+}
+
 export async function POST(req: Request) {
   try {
     const { follower_id, following_id } = await req.json();
 
     if (!follower_id || !following_id) {
       return NextResponse.json({ success: false, error: 'Missing fields' }, { status: 400 });
+    }
+
+    const canUnfollow = await isIndividualUser(follower_id);
+    if (!canUnfollow) {
+      return NextResponse.json({ success: false, error: 'Only individual accounts can unfollow' }, { status: 403 });
     }
 
     const { error } = await supabaseAdmin

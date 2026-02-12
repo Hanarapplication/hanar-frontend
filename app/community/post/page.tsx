@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useLanguage } from '@/context/LanguageContext';
 import { useRouter } from 'next/navigation';
@@ -19,6 +20,7 @@ export default function CreateCommunityPostPage() {
   const [image, setImage] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [postAs, setPostAs] = useState('personal');
+  const [visibility, setVisibility] = useState<'profile' | 'community'>('community');
   const [tags, setTags] = useState('');
   const [preview, setPreview] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -42,6 +44,12 @@ export default function CreateCommunityPostPage() {
   const videoInputRef = useRef<HTMLInputElement | null>(null);
   const { effectiveLang } = useLanguage();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const v = searchParams.get('visibility');
+    if (v === 'profile' || v === 'community') setVisibility(v);
+  }, [searchParams]);
 
   const editor = useEditor({
     extensions: [StarterKit, Underline],
@@ -253,6 +261,8 @@ export default function CreateCommunityPostPage() {
       return;
     }
 
+    const visibilityToSend = postAs === 'personal' ? visibility : 'community';
+
     const res = await fetch('/api/community/post', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -268,6 +278,7 @@ export default function CreateCommunityPostPage() {
         org_id: payloadOrgId,
         author_type: authorType,
         username: payloadUsername,
+        visibility: visibilityToSend,
       }),
     });
 
@@ -577,6 +588,7 @@ export default function CreateCommunityPostPage() {
                 </div>
 
                 <div>
+                  <div>
                   <label className="block text-sm font-medium text-slate-700">{t(effectiveLang, 'Post as')}</label>
                   <select
                     value={postAs}
@@ -589,6 +601,42 @@ export default function CreateCommunityPostPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {postAs === 'personal' && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">{t(effectiveLang, 'Who can see this?')}</label>
+                    <div className="mt-2 flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="visibility"
+                          value="profile"
+                          checked={visibility === 'profile'}
+                          onChange={() => setVisibility('profile')}
+                          className="text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-sm text-slate-700">{t(effectiveLang, 'Profile only (followers)')}</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="visibility"
+                          value="community"
+                          checked={visibility === 'community'}
+                          onChange={() => setVisibility('community')}
+                          className="text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span className="text-sm text-slate-700">{t(effectiveLang, 'Community (public)')}</span>
+                      </label>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {visibility === 'profile'
+                        ? t(effectiveLang, 'Only visible on your profile to people who follow you.')
+                        : t(effectiveLang, 'Visible in the public Community feed and on your profile.')}
+                    </p>
+                  </div>
+                )}
                 </div>
 
                 <button
