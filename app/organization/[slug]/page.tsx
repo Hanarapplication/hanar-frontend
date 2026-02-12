@@ -416,7 +416,7 @@ export default function OrganizationProfilePage() {
                   <ReportButton
                     entityType="organization"
                     entityId={profile.id}
-                    entityTitle={profile.name}
+                    entityTitle={profile.full_name || profile.username}
                     variant="icon"
                   />
                 )}
