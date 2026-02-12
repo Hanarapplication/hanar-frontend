@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useKeenSlider } from 'keen-slider/react';
 import Footer from '@/components/Footer';
 import { Trash2, Megaphone } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import PostActionsBar from '@/components/PostActionsBar';
+import FeedVideoPlayer from '@/components/FeedVideoPlayer';
+import PullToRefresh from '@/components/PullToRefresh';
 
-type SliderBusiness = { id: string; name: string; category: string; image: string };
-type SliderItem = { id: string; title: string; price: string; image: string };
+type SliderBusiness = { id: string; name: string; category: string; image: string; plan?: string | null };
+type SliderItem = { id: string; title: string; price: string; image: string; business_id?: string | null; business_verified?: boolean };
 type AdBanner = { id: string; image: string; link: string; alt: string };
 
 type CommunityPost = {
@@ -22,6 +24,7 @@ type CommunityPost = {
   username: string | null;
   user_id?: string | null;
   image: string | null;
+  video?: string | null;
   likes_post: number | null;
   community_comments?: { count: number }[];
 };
@@ -37,6 +40,7 @@ type Business = {
   lon?: number | null;
   created_at?: string | null;
   distance?: number;
+  plan?: string | null;
 };
 
 type Organization = {
@@ -46,6 +50,7 @@ type Organization = {
   logo_url: string | null;
   banner_url: string | null;
   mission: string | null;
+  created_at?: string | null;
 };
 
 type MarketplaceItem = {
@@ -155,16 +160,6 @@ const normalizeImages = (value: unknown, bucket: string): string[] => {
 const sortByCreatedAtDesc = (a?: string | null, b?: string | null) =>
   new Date(b || 0).getTime() - new Date(a || 0).getTime();
 
-/** Fisher-Yates shuffle for mixed feed order */
-function shuffleArray<T>(arr: T[]): T[] {
-  const out = [...arr];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
-
 const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
   if (!items.length) return null;
   const [sliderRef, slider] = useKeenSlider({
@@ -193,13 +188,21 @@ const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
       <div ref={sliderRef} className="keen-slider overflow-hidden rounded-lg">
         {items.map((biz) => (
           <div key={biz.id} className="keen-slider__slide bg-white rounded-lg border border-slate-200">
-            <img
-              src={biz.image}
-              alt={biz.name}
-              loading="lazy"
-              decoding="async"
-              className="w-full h-24 object-cover rounded-t-lg"
-            />
+            <div className="relative">
+              <img
+                src={biz.image}
+                alt={biz.name}
+                loading="lazy"
+                decoding="async"
+                className="w-full h-24 object-cover rounded-t-lg"
+              />
+              {(biz.plan || '').toLowerCase() === 'premium' && (
+                <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-amber-500/90 backdrop-blur-sm px-1 py-[1px] text-[8px] font-bold text-white shadow-sm">
+                  <svg className="h-2 w-2" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.39c-.833.068-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.494c.714.437 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.583-.536-1.65l-4.752-.391-1.831-4.401z" clipRule="evenodd" /></svg>
+                  Premium
+                </span>
+              )}
+            </div>
             <div className="p-2">
               <p className="text-xs font-semibold text-slate-800 truncate">{biz.name}</p>
               <p className="text-[11px] text-slate-500">{biz.category}</p>
@@ -239,13 +242,28 @@ const MarketplaceSliderCard = ({ items }: { items: SliderItem[] }) => {
       <div ref={sliderRef} className="keen-slider overflow-hidden rounded-lg">
         {items.map((item) => (
           <div key={item.id} className="keen-slider__slide bg-white rounded-lg border border-slate-200">
-            <img
-              src={item.image}
-              alt={item.title}
-              loading="lazy"
-              decoding="async"
-              className="w-full h-24 object-cover rounded-t-lg"
-            />
+            <div className="relative">
+              <img
+                src={item.image}
+                alt={item.title}
+                loading="lazy"
+                decoding="async"
+                className="w-full h-24 object-cover rounded-t-lg"
+              />
+              {item.business_id && (
+                item.business_verified ? (
+                  <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-emerald-500/90 backdrop-blur-sm px-1 py-[1px] text-[8px] font-bold text-white shadow-sm">
+                    <svg className="h-2 w-2" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.403 12.652a3 3 0 010-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-5.11-1.36a.75.75 0 10-1.085-1.035l-2.165 2.27-.584-.614a.75.75 0 10-1.085 1.035l1.126 1.182a.75.75 0 001.085 0l2.708-2.839z" clipRule="evenodd" /></svg>
+                    Verified
+                  </span>
+                ) : (
+                  <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-indigo-500/90 backdrop-blur-sm px-1 py-[1px] text-[8px] font-bold text-white shadow-sm">
+                    <svg className="h-2 w-2" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.581.814L10 13.197l-4.419 3.617A1 1 0 014 16V4z" clipRule="evenodd" /></svg>
+                    Business
+                  </span>
+                )
+              )}
+            </div>
             <div className="p-2">
               <p className="text-xs font-semibold text-slate-800 truncate">{item.title}</p>
               <p className="text-[11px] text-emerald-600 font-semibold">{item.price}</p>
@@ -347,9 +365,17 @@ function FeedBusinessCardWithTrack({
           />
         </Link>
         <div>
-          <Link href={`/business/${business.slug}`} className="text-sm font-semibold text-slate-800 dark:text-gray-100 hover:underline">
-            {business.business_name}
-          </Link>
+          <div className="flex items-center gap-1.5">
+            <Link href={`/business/${business.slug}`} className="text-sm font-semibold text-slate-800 dark:text-gray-100 hover:underline">
+              {business.business_name}
+            </Link>
+            {(business.plan || '').toLowerCase() === 'premium' && (
+              <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/90 px-1.5 py-[2px] text-[9px] font-bold text-white">
+                <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.39c-.833.068-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.494c.714.437 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.583-.536-1.65l-4.752-.391-1.831-4.401z" clipRule="evenodd" /></svg>
+                Premium
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-500 dark:text-gray-400">{business.category || 'Business'}</p>
           <p className="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
             {getBusinessMessage(business)}
@@ -363,6 +389,38 @@ function FeedBusinessCardWithTrack({
       </div>
     </article>
   );
+}
+
+const FEED_CACHE_KEY = 'hanar_feed_cache';
+const FEED_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+type FeedCache = {
+  ts: number;
+  communityPosts: CommunityPost[];
+  businesses: Business[];
+  organizations: Organization[];
+  marketplaceItems: MarketplaceItem[];
+  feedBanners: AdBanner[];
+};
+
+function readFeedCache(): FeedCache | null {
+  try {
+    const raw = sessionStorage.getItem(FEED_CACHE_KEY);
+    if (!raw) return null;
+    const cache: FeedCache = JSON.parse(raw);
+    if (Date.now() - cache.ts > FEED_CACHE_TTL) return null;
+    return cache;
+  } catch {
+    return null;
+  }
+}
+
+function writeFeedCache(data: Omit<FeedCache, 'ts'>) {
+  try {
+    sessionStorage.setItem(FEED_CACHE_KEY, JSON.stringify({ ...data, ts: Date.now() }));
+  } catch {
+    // storage full or unavailable
+  }
 }
 
 export default function Home() {
@@ -382,6 +440,10 @@ export default function Home() {
   const [commentsOpen, setCommentsOpen] = useState<Set<string>>(new Set());
   const [commentLoading, setCommentLoading] = useState<Record<string, boolean>>({});
   const [feedBanners, setFeedBanners] = useState<AdBanner[]>([]);
+  const [hasNewContent, setHasNewContent] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const latestPostDateRef = useRef<string | null>(null);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -437,167 +499,247 @@ export default function Home() {
     return () => window.removeEventListener('location:updated', handleLocationUpdate as EventListener);
   }, []);
 
-  useEffect(() => {
-    const loadHomeFeed = async () => {
-      setLoading(true);
-      const [postsRes, businessRes, orgRes, retailRes, dealershipRes, individualRes] = await Promise.all([
-        supabase
-          .from('community_posts')
-          .select('id, title, body, created_at, author, author_type, username, user_id, image, likes_post, community_comments(count)')
-          .eq('deleted', false)
-          .order('created_at', { ascending: false })
-          .limit(12),
-        supabase
-          .from('businesses')
-          .select('id, business_name, category, address, logo_url, slug, lat, lon, created_at')
-          .eq('moderation_status', 'active')
-          .eq('is_archived', false)
-          .neq('lifecycle_status', 'archived')
-          .order('created_at', { ascending: false })
-          .limit(50),
-        supabase
-          .from('organizations')
-          .select('id, full_name, username, logo_url, banner_url, mission')
-          .or('moderation_status.neq.on_hold,moderation_status.is.null')
-          .order('created_at', { ascending: false })
-          .limit(8),
-        supabase
-          .from('retail_items')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(50),
-        supabase
-          .from('dealerships')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(50),
-        supabase
-          .from('marketplace_items')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(50),
-      ]);
+  const loadHomeFeed = async () => {
+    const [postsRes, businessRes, orgRes, retailRes, dealershipRes, individualRes] = await Promise.all([
+      supabase
+        .from('community_posts')
+        .select('id, title, body, created_at, author, author_type, username, user_id, image, video, likes_post, community_comments(count)')
+        .eq('deleted', false)
+        .order('created_at', { ascending: false })
+        .limit(12),
+      supabase
+        .from('businesses')
+        .select('id, business_name, category, address, logo_url, slug, lat, lon, created_at, plan')
+        .eq('moderation_status', 'active')
+        .eq('is_archived', false)
+        .neq('lifecycle_status', 'archived')
+        .order('created_at', { ascending: false })
+        .limit(50),
+      supabase
+        .from('organizations')
+        .select('id, full_name, username, logo_url, banner_url, mission, created_at')
+        .or('moderation_status.neq.on_hold,moderation_status.is.null')
+        .order('created_at', { ascending: false })
+        .limit(8),
+      supabase
+        .from('retail_items')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50),
+      supabase
+        .from('dealerships')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50),
+      supabase
+        .from('marketplace_items')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50),
+    ]);
 
-      const normalizedRetail = (retailRes.data || []).map((row: any) => ({
+    const normalizedRetail = (retailRes.data || []).map((row: any) => ({
+      id: String(row.id),
+      title: row.title || row.name || row.item_name || 'Retail item',
+      price: row.price ?? row.amount ?? row.cost ?? '',
+      description: row.description || row.details || null,
+      imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'retail-items'),
+      condition: row.condition || row.item_condition || null,
+      location: row.location || row.city || row.address || '',
+      lat: row.lat ?? row.latitude ?? null,
+      lon: row.lon ?? row.longitude ?? null,
+      created_at: row.created_at || row.createdAt || null,
+      slug: row.slug || row.item_slug || row.listing_slug || `retail-${row.id}`,
+      source: 'retail' as const,
+      business_id: row.business_id || null,
+    }));
+
+    const normalizedDealership = (dealershipRes.data || []).map((row: any) => ({
+      id: String(row.id),
+      title: row.title || row.name || row.vehicle_name || row.model || 'Dealership listing',
+      price: row.price ?? row.amount ?? row.cost ?? '',
+      description: row.description || row.details || row.notes || null,
+      imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'car-listings'),
+      condition: row.condition || row.item_condition || null,
+      location: row.location || row.city || row.address || '',
+      lat: row.lat ?? row.latitude ?? null,
+      lon: row.lon ?? row.longitude ?? null,
+      created_at: row.created_at || row.createdAt || null,
+      slug: row.slug || row.item_slug || row.listing_slug || `dealership-${row.id}`,
+      source: 'dealership' as const,
+      business_id: row.business_id || null,
+    }));
+
+    const normalizedIndividual = (individualRes.data || []).map((row: any) => {
+      const raw = row.image_urls ?? row.imageUrls;
+      const urls = normalizeImages(raw, 'marketplace-images');
+      return {
         id: String(row.id),
-        title: row.title || row.name || row.item_name || 'Retail item',
-        price: row.price ?? row.amount ?? row.cost ?? '',
-        description: row.description || row.details || null,
-        imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'retail-items'),
-        condition: row.condition || row.item_condition || null,
-        location: row.location || row.city || row.address || '',
-        lat: row.lat ?? row.latitude ?? null,
-        lon: row.lon ?? row.longitude ?? null,
-        created_at: row.created_at || row.createdAt || null,
-        slug: row.slug || row.item_slug || row.listing_slug || `retail-${row.id}`,
-        source: 'retail' as const,
-        business_id: row.business_id || null,
-      }));
+        title: row.title || 'Listing',
+        price: row.price ?? '',
+        description: row.description || null,
+        imageUrls: urls,
+        condition: row.condition || null,
+        location: row.location || '',
+        lat: null,
+        lon: null,
+        created_at: row.created_at || null,
+        slug: `individual-${row.id}`,
+        source: 'individual' as const,
+        business_id: null,
+        user_id: row.user_id || null,
+      };
+    });
 
-      const normalizedDealership = (dealershipRes.data || []).map((row: any) => ({
-        id: String(row.id),
-        title: row.title || row.name || row.vehicle_name || row.model || 'Dealership listing',
-        price: row.price ?? row.amount ?? row.cost ?? '',
-        description: row.description || row.details || row.notes || null,
-        imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'car-listings'),
-        condition: row.condition || row.item_condition || null,
-        location: row.location || row.city || row.address || '',
-        lat: row.lat ?? row.latitude ?? null,
-        lon: row.lon ?? row.longitude ?? null,
-        created_at: row.created_at || row.createdAt || null,
-        slug: row.slug || row.item_slug || row.listing_slug || `dealership-${row.id}`,
-        source: 'dealership' as const,
-        business_id: row.business_id || null,
-      }));
-
-      const normalizedIndividual = (individualRes.data || []).map((row: any) => {
-        const raw = row.image_urls ?? row.imageUrls;
-        const urls = normalizeImages(raw, 'marketplace-images');
-        return {
-          id: String(row.id),
-          title: row.title || 'Listing',
-          price: row.price ?? '',
-          description: row.description || null,
-          imageUrls: urls,
-          condition: row.condition || null,
-          location: row.location || '',
-          lat: null,
-          lon: null,
-          created_at: row.created_at || null,
-          slug: `individual-${row.id}`,
-          source: 'individual' as const,
-          business_id: null,
-          user_id: row.user_id || null,
-        };
-      });
-
-      const rawPosts = postsRes.data || [];
-      // Enrich with like counts from community_post_likes
-      const postIds = rawPosts.map((p: { id: string }) => p.id);
-      if (postIds.length > 0) {
-        try {
-          const countsRes = await fetch(`/api/community/post/counts?postIds=${postIds.join(',')}`);
-          const { counts } = await countsRes.json();
-          if (counts) {
-            rawPosts.forEach((p: { id: string; likes_post?: number }) => {
-              p.likes_post = counts[p.id] ?? p.likes_post ?? 0;
-            });
-          }
-        } catch {
-          // keep original likes_post
-        }
-      }
-      setCommunityPosts(rawPosts);
-      setBusinesses(businessRes.data || []);
-      setOrganizations(orgRes.data || []);
-      const combinedItems = [...normalizedRetail, ...normalizedDealership, ...normalizedIndividual].sort((a, b) =>
-        sortByCreatedAtDesc(a.created_at, b.created_at)
-      );
-      const itemBusinessIds = Array.from(
-        new Set(combinedItems.map((item) => item.business_id).filter(Boolean) as string[])
-      );
-      let verifiedMap = new Map<string, boolean>();
-      if (itemBusinessIds.length > 0) {
-        const { data: businessRows } = await supabase
-          .from('businesses')
-          .select('id, is_verified')
-          .in('id', itemBusinessIds);
-        verifiedMap = new Map(
-          (businessRows || []).map((row: { id: string; is_verified?: boolean | null }) => [
-            row.id,
-            Boolean(row.is_verified),
-          ])
-        );
-      }
-      const itemsWithVerified = combinedItems.map((item) => ({
-        ...item,
-        business_verified: item.business_id ? verifiedMap.get(item.business_id) || false : false,
-      }));
-      setMarketplaceItems(itemsWithVerified);
-      setLoading(false);
-    };
-
-    const loadBanners = async () => {
+    const rawPosts = postsRes.data || [];
+    const postIds = rawPosts.map((p: { id: string }) => p.id);
+    if (postIds.length > 0) {
       try {
-        const res = await fetch('/api/feed-banners');
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && Array.isArray(data.banners)) {
-          setFeedBanners(
-            data.banners.map((b: { id: string; image: string; link: string; alt?: string }) => ({
-              id: b.id,
-              image: b.image,
-              link: b.link || '#',
-              alt: b.alt || 'Banner',
-            }))
-          );
+        const countsRes = await fetch(`/api/community/post/counts?postIds=${postIds.join(',')}`);
+        const { counts } = await countsRes.json();
+        if (counts) {
+          rawPosts.forEach((p: { id: string; likes_post?: number }) => {
+            p.likes_post = counts[p.id] ?? p.likes_post ?? 0;
+          });
         }
       } catch {
-        setFeedBanners([]);
+        // keep original likes_post
+      }
+    }
+
+    const combinedItems = [...normalizedRetail, ...normalizedDealership, ...normalizedIndividual].sort((a, b) =>
+      sortByCreatedAtDesc(a.created_at, b.created_at)
+    );
+    const itemBusinessIds = Array.from(
+      new Set(combinedItems.map((item) => item.business_id).filter(Boolean) as string[])
+    );
+    let verifiedMap = new Map<string, boolean>();
+    if (itemBusinessIds.length > 0) {
+      const { data: businessRows } = await supabase
+        .from('businesses')
+        .select('id, is_verified')
+        .in('id', itemBusinessIds);
+      verifiedMap = new Map(
+        (businessRows || []).map((row: { id: string; is_verified?: boolean | null }) => [
+          row.id,
+          Boolean(row.is_verified),
+        ])
+      );
+    }
+    const itemsWithVerified = combinedItems.map((item) => ({
+      ...item,
+      business_verified: item.business_id ? verifiedMap.get(item.business_id) || false : false,
+    }));
+
+    return { rawPosts, businesses: businessRes.data || [], organizations: orgRes.data || [], marketplaceItems: itemsWithVerified };
+  };
+
+  const loadBanners = async (): Promise<AdBanner[]> => {
+    try {
+      const segmentRes = await fetch('/api/user/audience-segment');
+      const segment = await segmentRes.json().catch(() => ({}));
+      const params = new URLSearchParams();
+      if (segment.age_group) params.set('age_group', segment.age_group);
+      if (segment.gender) params.set('gender', segment.gender);
+      if (segment.preferred_language) params.append('lang', segment.preferred_language);
+      if (Array.isArray(segment.spoken_languages)) segment.spoken_languages.forEach((l: string) => params.append('lang', l));
+      const qs = params.toString();
+      const url = qs ? `/api/feed-banners?${qs}` : '/api/feed-banners';
+      const res = await fetch(url);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.banners)) {
+        return data.banners.map((b: { id: string; image: string; link: string; alt?: string }) => ({
+          id: b.id,
+          image: b.image,
+          link: b.link || '#',
+          alt: b.alt || 'Banner',
+        }));
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  };
+
+  const applyFeedData = (data: { rawPosts: CommunityPost[]; businesses: Business[]; organizations: Organization[]; marketplaceItems: MarketplaceItem[] }, banners: AdBanner[]) => {
+    setCommunityPosts(data.rawPosts);
+    setBusinesses(data.businesses);
+    setOrganizations(data.organizations);
+    setMarketplaceItems(data.marketplaceItems);
+    setFeedBanners(banners);
+    if (data.rawPosts.length > 0) {
+      latestPostDateRef.current = data.rawPosts[0].created_at;
+    }
+    writeFeedCache({
+      communityPosts: data.rawPosts,
+      businesses: data.businesses,
+      organizations: data.organizations,
+      marketplaceItems: data.marketplaceItems,
+      feedBanners: banners,
+    });
+  };
+
+  const refreshFeed = async () => {
+    setRefreshing(true);
+    setHasNewContent(false);
+    try {
+      const [data, banners] = await Promise.all([loadHomeFeed(), loadBanners()]);
+      applyFeedData(data, banners);
+      setVisibleCount(8);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  // Initial load: use cache if available, otherwise fetch fresh
+  useEffect(() => {
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+
+    const init = async () => {
+      const cache = readFeedCache();
+      if (cache) {
+        // Restore from cache immediately (no loading spinner)
+        setCommunityPosts(cache.communityPosts);
+        setBusinesses(cache.businesses);
+        setOrganizations(cache.organizations);
+        setMarketplaceItems(cache.marketplaceItems);
+        setFeedBanners(cache.feedBanners);
+        if (cache.communityPosts.length > 0) {
+          latestPostDateRef.current = cache.communityPosts[0].created_at;
+        }
+        setLoading(false);
+      } else {
+        // First visit — fetch fresh
+        setLoading(true);
+        const [data, banners] = await Promise.all([loadHomeFeed(), loadBanners()]);
+        applyFeedData(data, banners);
+        setLoading(false);
       }
     };
 
-    loadHomeFeed();
-    loadBanners();
+    init();
+  }, []);
+
+  // Background check for new content every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (!latestPostDateRef.current) return;
+      try {
+        const { count } = await supabase
+          .from('community_posts')
+          .select('*', { count: 'exact', head: true })
+          .eq('deleted', false)
+          .gt('created_at', latestPostDateRef.current);
+        if (count && count > 0) {
+          setHasNewContent(true);
+        }
+      } catch {
+        // ignore
+      }
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const sortedBusinesses = useMemo(
@@ -693,6 +835,7 @@ const formatDateLabel = (value?: string | null) => {
         name: biz.business_name,
         category: biz.category || '',
         image: biz.logo_url || '/placeholder.jpg',
+        plan: biz.plan,
       })),
     [nearbyBusinesses]
   );
@@ -704,6 +847,8 @@ const formatDateLabel = (value?: string | null) => {
         title: item.title,
         price: formatPrice(item.price),
         image: getFirstImage(item.imageUrls) || '/placeholder.jpg',
+        business_id: item.business_id,
+        business_verified: item.business_verified,
       })),
     [nearbyMarketplaceItems]
   );
@@ -930,89 +1075,64 @@ const formatDateLabel = (value?: string | null) => {
     }
   };
 
-  // Stable feed order: only reshuffle when the set of items changes (e.g. post deleted), not on like/comment
-  const feedOrderRef = useRef<number[] | null>(null);
-  const feedPoolLengthRef = useRef<number>(0);
-
+  // Build feed sorted by created_at (latest first), with ads and sliders interspersed
   const feedItems = useMemo<FeedItem[]>(() => {
-    const pool: FeedItem[] = [];
+    // Collect all dated items into a single pool
+    const datedPool: { item: FeedItem; date: number }[] = [];
 
     for (const post of communityPosts) {
-      pool.push({ type: 'post', post });
+      datedPool.push({ item: { type: 'post', post }, date: new Date(post.created_at || 0).getTime() });
     }
     for (const business of nearbyBusinesses.slice(0, 12)) {
-      pool.push({ type: 'business', business });
+      datedPool.push({ item: { type: 'business', business }, date: new Date(business.created_at || 0).getTime() });
     }
     for (const organization of organizations.slice(0, 8)) {
-      pool.push({ type: 'organization', organization });
+      datedPool.push({ item: { type: 'organization', organization }, date: new Date(organization.created_at || 0).getTime() });
     }
     for (const item of nearbyMarketplaceItems.slice(0, 12)) {
-      pool.push({ type: 'item', item });
+      datedPool.push({ item: { type: 'item', item }, date: new Date(item.created_at || 0).getTime() });
     }
 
-    if (featuredBusinesses.length && trendingItems.length) {
-      pool.push(Math.random() > 0.5 ? { type: 'sliderBusinesses' } : { type: 'sliderMarketplace' });
-    } else if (featuredBusinesses.length) {
-      pool.push({ type: 'sliderBusinesses' });
-    } else if (trendingItems.length) {
-      pool.push({ type: 'sliderMarketplace' });
-    }
+    // Sort by date descending (latest first)
+    datedPool.sort((a, b) => b.date - a.date);
 
-    if (!pool.length && !loading) {
+    const ordered = datedPool.map((d) => d.item);
+
+    if (!ordered.length && !loading) {
       for (const business of nearbyBusinesses.slice(0, 6)) {
-        pool.push({ type: 'business', business });
+        ordered.push({ type: 'business', business });
       }
       for (const item of nearbyMarketplaceItems.slice(0, 6)) {
-        pool.push({ type: 'item', item });
+        ordered.push({ type: 'item', item });
       }
-      if (featuredBusinesses.length) pool.push({ type: 'sliderBusinesses' });
-      if (trendingItems.length) pool.push({ type: 'sliderMarketplace' });
     }
 
-    const needNewOrder =
-      feedOrderRef.current === null ||
-      feedPoolLengthRef.current !== pool.length;
-
-    if (needNewOrder && pool.length > 0) {
-      const indices = pool.map((_, i) => i);
-      feedOrderRef.current = shuffleArray(indices);
-      feedPoolLengthRef.current = pool.length;
+    // Insert slider cards at specific positions
+    const hasSlider = featuredBusinesses.length > 0 || trendingItems.length > 0;
+    if (hasSlider && ordered.length > 2) {
+      if (featuredBusinesses.length > 0) {
+        ordered.splice(Math.min(2, ordered.length), 0, { type: 'sliderBusinesses' });
+      }
+      if (trendingItems.length > 0) {
+        const sliderPos = featuredBusinesses.length > 0 ? Math.min(6, ordered.length) : Math.min(2, ordered.length);
+        ordered.splice(sliderPos, 0, { type: 'sliderMarketplace' });
+      }
+    } else if (hasSlider) {
+      if (featuredBusinesses.length > 0) ordered.push({ type: 'sliderBusinesses' });
+      if (trendingItems.length > 0) ordered.push({ type: 'sliderMarketplace' });
     }
 
-    if (feedOrderRef.current === null || feedOrderRef.current.length === 0) {
-      return pool;
-    }
-    const ordered = feedOrderRef.current
-      .filter((i) => i < pool.length)
-      .map((i) => pool[i]);
-
-    if (feedBanners.length === 0) return ordered;
-
-    // Random slots: possibly at top, then every 3rd or 4th item (random)
-    const slotIndices: number[] = [];
-    if (Math.random() < 0.6) slotIndices.push(0);
-    let pos = 3 + Math.floor(Math.random() * 2);
-    while (pos < ordered.length) {
-      slotIndices.push(pos);
-      pos += 3 + Math.floor(Math.random() * 2);
-    }
-
-    // Shuffle banners so each appears once before any repeats
+    // Intersperse ad banners every 4-5 items
     const validBanners = feedBanners.filter((b) => !!b.image);
-    const shuffledBanners = shuffleArray([...validBanners.keys()]).map((i) => validBanners[i]);
-    let bannerIdx = 0;
-    const pickBanner = () => {
-      if (shuffledBanners.length === 0) return null;
-      const b = shuffledBanners[bannerIdx % shuffledBanners.length];
-      bannerIdx++;
-      return b;
-    };
+    if (validBanners.length === 0) return ordered;
 
+    let bannerIdx = 0;
     const result: FeedItem[] = [];
     for (let i = 0; i < ordered.length; i++) {
-      if (slotIndices.includes(i)) {
-        const banner = pickBanner();
-        if (banner) result.push({ type: 'ad', banner });
+      // Insert a banner every 4th content item (starting at position 3)
+      if (i > 0 && i % 4 === 3 && bannerIdx < validBanners.length * 2) {
+        result.push({ type: 'ad', banner: validBanners[bannerIdx % validBanners.length] });
+        bannerIdx++;
       }
       result.push(ordered[i]);
     }
@@ -1043,13 +1163,49 @@ const formatDateLabel = (value?: string | null) => {
     return () => observer.disconnect();
   }, [feedItems.length, visibleCount]);
 
+  const handlePullRefresh = useCallback(async () => {
+    await refreshFeed();
+  }, [refreshFeed]);
+
   return (
+    <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="min-h-screen bg-slate-100 dark:bg-gray-900">
       <div className="mx-auto max-w-3xl px-4 py-6 space-y-4">
         <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm">
-          <h1 className="text-lg font-semibold text-slate-800 dark:text-gray-100">Hanar Feed</h1>
-          <p className="text-sm text-slate-500 dark:text-gray-400">Latest community updates, nearby businesses, and organizations.</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-semibold text-slate-800 dark:text-gray-100">Hanar Feed</h1>
+              <p className="text-sm text-slate-500 dark:text-gray-400">Latest community updates, nearby businesses, and organizations.</p>
+            </div>
+            {!loading && (
+              <button
+                type="button"
+                onClick={refreshFeed}
+                disabled={refreshing}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-600 disabled:opacity-50 transition"
+              >
+                <svg className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* New content banner */}
+        {hasNewContent && !refreshing && (
+          <button
+            type="button"
+            onClick={refreshFeed}
+            className="w-full rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 px-4 py-3 text-sm font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm flex items-center justify-center gap-2"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+            </svg>
+            New posts available — tap to refresh
+          </button>
+        )}
 
         {loading && (
           <div className="space-y-4">
@@ -1093,7 +1249,11 @@ const formatDateLabel = (value?: string | null) => {
                   <h2 className="mt-2 text-lg font-semibold text-slate-800 dark:text-gray-100">{item.post.title}</h2>
                   <p className="mt-2 text-sm text-slate-600 dark:text-gray-300 line-clamp-3">{item.post.body}</p>
                 </Link>
-                {item.post.image && (
+                {item.post.video ? (
+                  <div className="mt-3 -mx-5">
+                    <FeedVideoPlayer src={item.post.video} />
+                  </div>
+                ) : item.post.image ? (
                   <Link href={`/community/post/${item.post.id}`} className="block">
                     <img
                       src={item.post.image}
@@ -1103,7 +1263,7 @@ const formatDateLabel = (value?: string | null) => {
                       className="mt-3 h-56 w-full rounded-lg object-cover"
                     />
                   </Link>
-                )}
+                ) : null}
                 <PostActionsBar
                   liked={liked}
                   likesCount={item.post.likes_post || 0}
@@ -1112,6 +1272,8 @@ const formatDateLabel = (value?: string | null) => {
                   onLike={() => handleLikePost(item.post.id)}
                   onComment={() => toggleComments(item.post.id)}
                   onShare={() => handleSharePost(item.post.id)}
+                  postId={item.post.id}
+                  postTitle={item.post.title}
                 />
 
                 {currentUser.id && item.post.user_id === currentUser.id && (
@@ -1258,13 +1420,18 @@ const formatDateLabel = (value?: string | null) => {
                       decoding="async"
                       className="w-full h-auto max-h-72 object-contain"
                     />
-                    {item.item.business_verified && (
-                      <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white shadow">
-                        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-emerald-600 text-[9px] font-bold">
-                          H
+                    {item.item.business_id && (
+                      item.item.business_verified ? (
+                        <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-emerald-500/90 backdrop-blur-sm px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm">
+                          <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.403 12.652a3 3 0 010-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-5.11-1.36a.75.75 0 10-1.085-1.035l-2.165 2.27-.584-.614a.75.75 0 10-1.085 1.035l1.126 1.182a.75.75 0 001.085 0l2.708-2.839z" clipRule="evenodd" /></svg>
+                          Verified
                         </span>
-                        Verified
-                      </span>
+                      ) : (
+                        <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-indigo-500/90 backdrop-blur-sm px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm">
+                          <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.581.814L10 13.197l-4.419 3.617A1 1 0 014 16V4z" clipRule="evenodd" /></svg>
+                          Business
+                        </span>
+                      )
                     )}
                   </div>
                   <div className="mt-3 space-y-1">
@@ -1301,5 +1468,6 @@ const formatDateLabel = (value?: string | null) => {
       </div>
       <Footer />
     </div>
+    </PullToRefresh>
   );
 }

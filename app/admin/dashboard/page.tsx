@@ -13,6 +13,7 @@ import {
   ChevronRight,
   ImageIcon,
   Users,
+  Flag,
 } from 'lucide-react';
 
 type DashboardCounts = {
@@ -23,6 +24,7 @@ type DashboardCounts = {
   contact_us_to_review: number;
   feed_banners_on_hold: number;
   organizations_needing_attention: number;
+  unread_reports: number;
 };
 
 const TASKS: {
@@ -38,6 +40,7 @@ const TASKS: {
   { key: 'reported_posts', label: 'Reported posts', path: '/admin/community-moderation', icon: <FileText className="h-5 w-5" /> },
   { key: 'reported_comments', label: 'Reported comments', path: '/admin/moderation', icon: <MessageSquare className="h-5 w-5" /> },
   { key: 'contact_us_to_review', label: 'Contact us to review', path: '/admin/contact', icon: <Mail className="h-5 w-5" /> },
+  { key: 'unread_reports', label: 'User reports to review', path: '/admin/reports', icon: <Flag className="h-5 w-5" /> },
 ];
 
 export default function AdminDashboard() {

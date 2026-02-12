@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { HeartIcon, ChatBubbleLeftIcon, MagnifyingGlassIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid';
 import { Trash2, Megaphone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -9,7 +9,36 @@ import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase } from '@/lib/supabaseClient';
 import PostActionsBar from '@/components/PostActionsBar';
+import FeedVideoPlayer from '@/components/FeedVideoPlayer';
+import PullToRefresh from '@/components/PullToRefresh';
 import { t } from '@/utils/translations';
+
+const COMMUNITY_CACHE_KEY = 'hanar_community_cache';
+const COMMUNITY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+type CommunityCache = {
+  ts: number;
+  posts: Post[];
+  banner: { id: string; image: string; link: string; alt: string } | null;
+};
+
+function readCommunityCache(): CommunityCache | null {
+  try {
+    const raw = sessionStorage.getItem(COMMUNITY_CACHE_KEY);
+    if (!raw) return null;
+    const cache: CommunityCache = JSON.parse(raw);
+    if (Date.now() - cache.ts > COMMUNITY_CACHE_TTL) return null;
+    return cache;
+  } catch {
+    return null;
+  }
+}
+
+function writeCommunityCache(posts: Post[], banner: { id: string; image: string; link: string; alt: string } | null) {
+  try {
+    sessionStorage.setItem(COMMUNITY_CACHE_KEY, JSON.stringify({ ts: Date.now(), posts, banner }));
+  } catch {}
+}
 
 interface Post {
   id: string;
@@ -21,6 +50,7 @@ interface Post {
   user_id?: string | null;
   created_at: string;
   image?: string;
+  video?: string | null;
   likes_post?: number;
   community_comments?: { count: number }[];
 }
@@ -42,19 +72,31 @@ export default function CommunityFeedPage() {
   const [commentLoading, setCommentLoading] = useState<Record<string, boolean>>({});
   const [deletingPost, setDeletingPost] = useState<string | null>(null);
   const [communityBanner, setCommunityBanner] = useState<{ id: string; image: string; link: string; alt: string } | null>(null);
+  const hasFetchedRef = useRef(false);
 
-  useEffect(() => {
-    fetch('/api/feed-banners')
-      .then((r) => r.json())
-      .then((d) => {
-        const list = d.banners || [];
-        if (list.length > 0) {
-          const pick = list[Math.floor(Math.random() * list.length)];
-          if (pick?.image) setCommunityBanner(pick);
+  const loadBanner = async () => {
+    try {
+      const segRes = await fetch('/api/user/audience-segment');
+      const seg = await segRes.json().catch(() => ({}));
+      const params = new URLSearchParams();
+      if (seg.age_group) params.set('age_group', seg.age_group);
+      if (seg.gender) params.set('gender', seg.gender);
+      if (seg.preferred_language) params.append('lang', seg.preferred_language);
+      if (Array.isArray(seg.spoken_languages)) seg.spoken_languages.forEach((l: string) => params.append('lang', l));
+      const qs = params.toString();
+      const r = await fetch(qs ? `/api/feed-banners?${qs}` : '/api/feed-banners');
+      const d = await r.json();
+      const list = d.banners || [];
+      if (list.length > 0) {
+        const pick = list[Math.floor(Math.random() * list.length)];
+        if (pick?.image) {
+          setCommunityBanner(pick);
+          return pick;
         }
-      })
-      .catch(() => {});
-  }, []);
+      }
+    } catch {}
+    return null;
+  };
 
   const sortPosts = (posts: Post[]): Post[] => {
     if (sortMode === 'popular') {
@@ -66,8 +108,8 @@ export default function CommunityFeedPage() {
     }
   };
 
-  const loadMorePosts = async () => {
-    if (loading || !hasMore) return;
+  const loadMorePosts = async (offset = 0) => {
+    if (loading || (!hasMore && offset > 0)) return;
     setLoading(true);
     try {
       const response = await fetch('/api/community/list', {
@@ -75,7 +117,7 @@ export default function CommunityFeedPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           search,
-          offset: visiblePosts.length,
+          offset,
           lang,
           sortMode,
           userId: currentUser.id || undefined,
@@ -83,9 +125,20 @@ export default function CommunityFeedPage() {
       });
       const newPosts: Post[] = await response.json();
       const sorted = sortPosts(newPosts);
-      const unique = [...new Map([...visiblePosts, ...sorted].map(p => [p.id, p])).values()];
-      setVisiblePosts(unique);
+      if (offset === 0) {
+        setVisiblePosts(sorted);
+      } else {
+        setVisiblePosts((prev) => {
+          const unique = [...new Map([...prev, ...sorted].map(p => [p.id, p])).values()];
+          return unique;
+        });
+      }
       setHasMore(newPosts.length === 10);
+
+      // Cache initial batch
+      if (offset === 0 && !search) {
+        writeCommunityCache(sorted, communityBanner);
+      }
     } catch (err) {
       console.error('Error loading posts:', err);
     } finally {
@@ -93,23 +146,42 @@ export default function CommunityFeedPage() {
     }
   };
 
+  // Initial load: use cache if available, otherwise fetch
   useEffect(() => {
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+
+    const cache = readCommunityCache();
+    if (cache && !search) {
+      setVisiblePosts(cache.posts);
+      if (cache.banner) setCommunityBanner(cache.banner);
+      setHasMore(cache.posts.length >= 10);
+      setLoading(false);
+    } else {
+      loadBanner();
+      loadMorePosts(0);
+    }
+  }, []);
+
+  // Reload when search / sort / lang changes
+  useEffect(() => {
+    if (!hasFetchedRef.current) return;
     setVisiblePosts([]);
     setHasMore(true);
-    loadMorePosts();
+    loadMorePosts(0);
   }, [search, lang, sortMode, currentUser.id]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && !loading && hasMore) {
-        loadMorePosts();
+        loadMorePosts(visiblePosts.length);
       }
     });
     if (bottomRef.current) observer.observe(bottomRef.current);
     return () => {
       if (bottomRef.current) observer.unobserve(bottomRef.current);
     };
-  }, [loading, hasMore]);
+  }, [loading, hasMore, visiblePosts.length]);
 
   useEffect(() => {
     const checkBusinessAccount = async () => {
@@ -329,7 +401,41 @@ export default function CommunityFeedPage() {
     }
   };
 
+  const handlePullRefresh = useCallback(async () => {
+    try {
+      sessionStorage.removeItem(COMMUNITY_CACHE_KEY);
+    } catch {}
+    setVisiblePosts([]);
+    setHasMore(true);
+    const banner = await loadBanner();
+    // Refetch from scratch
+    setLoading(true);
+    try {
+      const response = await fetch('/api/community/list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          search,
+          offset: 0,
+          lang,
+          sortMode,
+          userId: currentUser.id || undefined,
+        }),
+      });
+      const newPosts: Post[] = await response.json();
+      const sorted = sortPosts(newPosts);
+      setVisiblePosts(sorted);
+      setHasMore(newPosts.length === 10);
+      writeCommunityCache(sorted, banner || communityBanner);
+    } catch (err) {
+      console.error('Error refreshing posts:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, lang, sortMode, currentUser.id, communityBanner]);
+
   return (
+    <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="container mx-auto px-4 pt-0 pb-8">
       <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
         {t(effectiveLang, 'Showing posts in')}: <strong className="dark:text-gray-200">{t(effectiveLang, lang)}</strong>
@@ -433,56 +539,59 @@ export default function CommunityFeedPage() {
               key={`${post.id}-${index}`}
               className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md dark:shadow-lg dark:shadow-black/20 dark:border dark:border-gray-700 transition-shadow p-6"
             >
-              <div className="flex flex-col sm:flex-row gap-4 h-full">
-                {post.image && (
-                  <Link href={`/community/post/${post.id}`} className="block">
-                    <img
-                      src={post.image}
-                      alt="Post"
-                      loading="lazy"
-                      decoding="async"
-                      className="max-w-[120px] max-h-[120px] w-full sm:w-auto object-cover rounded-md"
-                    />
+              {/* Author row */}
+              <div className="flex items-center gap-3 mb-3 text-sm text-gray-500 dark:text-gray-400">
+                {post.author_type === 'organization' && post.username ? (
+                  <Link href={`/organization/${post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                    @{post.username}
                   </Link>
+                ) : post.author_type === 'business' && post.username ? (
+                  <Link href={`/business/${post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                    @{post.username}
+                  </Link>
+                ) : post.username ? (
+                  <Link href={`/profile/${post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                    @{post.username}
+                  </Link>
+                ) : (
+                  <span className="font-semibold">{post.author}</span>
                 )}
-                <div className="flex-1 flex flex-col justify-between">
-                  <div>
-                    <Link href={`/community/post/${post.id}`}>
-                      <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">{post.title}</h2>
-                      <p className="text-gray-600 dark:text-gray-300 line-clamp-2">{post.body}</p>
-                    </Link>
-                    <div className="flex items-center gap-3 mt-4 text-sm text-gray-500 dark:text-gray-400">
-                      {post.author_type === 'organization' && post.username ? (
-                        <Link href={`/organization/${post.username}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
-                          @{post.username}
-                        </Link>
-                      ) : post.author_type === 'business' && post.username ? (
-                        <Link href={`/business/${post.username}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
-                          @{post.username}
-                        </Link>
-                      ) : post.username ? (
-                        <Link href={`/profile/${post.username}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
-                          @{post.username}
-                        </Link>
-                      ) : (
-                        <span>{post.author}</span>
-                      )}
-                      {post.author_type === 'organization' && (
-                        <span className="rounded-full bg-indigo-50 dark:bg-indigo-900/50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-300">
-                          Organization
-                        </span>
-                      )}
-                      <span>•</span>
-                      <span>
-                        {formatDistanceToNow(new Date(post.created_at), {
-                          addSuffix: true,
-                          locale: enUS,
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                {post.author_type === 'organization' && (
+                  <span className="rounded-full bg-indigo-50 dark:bg-indigo-900/50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-300">
+                    Organization
+                  </span>
+                )}
+                <span>•</span>
+                <span>
+                  {formatDistanceToNow(new Date(post.created_at), {
+                    addSuffix: true,
+                    locale: enUS,
+                  })}
+                </span>
               </div>
+
+              {/* Text content */}
+              <Link href={`/community/post/${post.id}`}>
+                <h2 className="text-xl font-semibold mb-1 text-gray-900 dark:text-gray-100">{post.title}</h2>
+                <p className="text-gray-600 dark:text-gray-300 line-clamp-2">{post.body}</p>
+              </Link>
+
+              {/* Media: video (inline player) or image (thumbnail) */}
+              {post.video ? (
+                <div className="mt-3 -mx-6">
+                  <FeedVideoPlayer src={post.video} />
+                </div>
+              ) : post.image ? (
+                <Link href={`/community/post/${post.id}`} className="block mt-3 -mx-6">
+                  <img
+                    src={post.image}
+                    alt="Post"
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full max-h-[400px] object-cover"
+                  />
+                </Link>
+              ) : null}
 
               <PostActionsBar
                 liked={liked}
@@ -492,6 +601,8 @@ export default function CommunityFeedPage() {
                 onLike={() => handleLikePost(post.id)}
                 onComment={() => toggleComments(post.id)}
                 onShare={() => handleSharePost(post.id)}
+                postId={post.id}
+                postTitle={post.title}
               />
 
               {currentUser.id && post.user_id === currentUser.id && (
@@ -564,5 +675,6 @@ export default function CommunityFeedPage() {
       )}
       <div ref={bottomRef} className="h-10" />
     </div>
+    </PullToRefresh>
   );
 }

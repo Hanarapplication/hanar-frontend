@@ -1,12 +1,34 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { FaSearch, FaHeart, FaRegHeart } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
+import PullToRefresh from '@/components/PullToRefresh';
+
+const BUSINESSES_CACHE_KEY = 'hanar_businesses_cache';
+const BUSINESSES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function readBusinessesCache(): { ts: number; businesses: Business[] } | null {
+  try {
+    const raw = sessionStorage.getItem(BUSINESSES_CACHE_KEY);
+    if (!raw) return null;
+    const cache = JSON.parse(raw);
+    if (Date.now() - cache.ts > BUSINESSES_CACHE_TTL) return null;
+    return cache;
+  } catch {
+    return null;
+  }
+}
+
+function writeBusinessesCache(businesses: Business[]) {
+  try {
+    sessionStorage.setItem(BUSINESSES_CACHE_KEY, JSON.stringify({ ts: Date.now(), businesses }));
+  } catch {}
+}
 
 interface Business {
   id: string;
@@ -96,24 +118,34 @@ export default function BusinessesPage() {
   const [visibleCount, setVisibleCount] = useState(6);
   const bottomRef = useRef<HTMLDivElement>(null);
   const searchCacheRef = useRef<Map<string, Set<string>>>(new Map());
+  const hasFetchedRef = useRef(false);
+
+  const fetchBusinesses = async () => {
+    const { data, error } = await supabase
+      .from('businesses')
+      .select('id, business_name, category, address, description, logo_url, slug, lat, lon, spoken_languages, plan')
+      .eq('moderation_status', 'active')
+      .eq('is_archived', false)
+      .neq('lifecycle_status', 'archived');
+
+    if (error) {
+      console.error('Supabase fetch error:', error);
+      return;
+    }
+    setBusinesses(data || []);
+    writeBusinessesCache(data || []);
+  };
 
   useEffect(() => {
-    async function fetchBusinesses() {
-      const { data, error } = await supabase
-        .from('businesses')
-        .select('id, business_name, category, address, description, logo_url, slug, lat, lon, spoken_languages, plan')
-        .eq('moderation_status', 'active')
-        .eq('is_archived', false)
-        .neq('lifecycle_status', 'archived');
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
 
-      if (error) {
-        console.error('Supabase fetch error:', error);
-        return;
-      }
-      setBusinesses(data || []);
+    const cache = readBusinessesCache();
+    if (cache) {
+      setBusinesses(cache.businesses);
+    } else {
+      fetchBusinesses();
     }
-
-    fetchBusinesses();
   }, []);
 
   useEffect(() => {
@@ -305,6 +337,12 @@ export default function BusinessesPage() {
 
   const visible = filtered.slice(0, visibleCount);
 
+  const handlePullRefresh = useCallback(async () => {
+    try { sessionStorage.removeItem(BUSINESSES_CACHE_KEY); } catch {}
+    setVisibleCount(6);
+    await fetchBusinesses();
+  }, []);
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => entries[0].isIntersecting && setVisibleCount((c) => c + 6),
@@ -315,6 +353,7 @@ export default function BusinessesPage() {
   }, [filtered]);
 
   return (
+    <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
       <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-5 sm:pt-6">
         {/* Search */}
@@ -368,6 +407,12 @@ export default function BusinessesPage() {
                       <FaRegHeart className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500 dark:text-gray-400" />
                     )}
                   </button>
+                  {isPremium(biz) && (
+                    <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-amber-500/90 backdrop-blur-sm px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm">
+                      <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.39c-.833.068-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.494c.714.437 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.583-.536-1.65l-4.752-.391-1.831-4.401z" clipRule="evenodd" /></svg>
+                      Premium
+                    </span>
+                  )}
                 </div>
 
                 <div className="p-2.5 sm:p-3.5 flex flex-col flex-grow">
@@ -380,11 +425,6 @@ export default function BusinessesPage() {
                     {speaksUserLang(biz) && (
                       <span className="inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 text-xs font-medium rounded-full w-fit bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700">
                         {t(effectiveLang, 'Speaks your language')}
-                      </span>
-                    )}
-                    {speaksUserLang(biz) && isPremium(biz) && (
-                      <span className="inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 text-xs font-medium rounded-full w-fit bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700">
-                        {t(effectiveLang, 'Premium')}
                       </span>
                     )}
                   </div>
@@ -426,5 +466,6 @@ export default function BusinessesPage() {
         </div>
       </div>
     </div>
+    </PullToRefresh>
   );
 }

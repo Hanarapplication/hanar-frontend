@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'; // These imports remain as per your original code
 
 import { cn } from '@/lib/utils'; // This import remains as per your original code
+import ReportButton from '@/components/ReportButton';
 
 // Types
 interface BusinessType {
@@ -978,7 +979,7 @@ const BusinessProfilePage = () => {
         <motion.div
             initial="hidden"
             animate="visible"
-            className="relative px-0 pt-0 pb-4 min-h-screen font-inter bg-gray-100 dark:bg-gray-900 overflow-x-clip"
+            className="relative px-0 pt-0 pb-4 min-h-screen font-inter bg-gray-100 dark:bg-gray-900 overflow-x-clip lg:max-w-5xl lg:mx-auto"
         >
             {/* Hanar logo - back to businesses */}
             <div className="sticky top-0 z-30 mb-0 py-3 px-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur border-b border-gray-200 dark:border-gray-700">
@@ -1158,7 +1159,7 @@ const BusinessProfilePage = () => {
                 />
             )}
 
-            <motion.div className="w-full space-y-6 bg-gray-100 dark:bg-slate-900/80 backdrop-blur">
+            <motion.div className="w-full space-y-6 bg-gray-100 dark:bg-slate-900/80 backdrop-blur lg:px-6 lg:pt-4">
                 {business.moderation_status !== 'active' && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                         Your business is currently pending approval. You can still view and edit your business profile and online
@@ -1166,10 +1167,10 @@ const BusinessProfilePage = () => {
                     </div>
                 )}
                 {/* Gallery + action bar - full width, buttons directly under gallery */}
-                <div className="relative left-1/2 -translate-x-1/2 w-screen max-w-none">
+                <div className="relative left-1/2 -translate-x-1/2 w-screen max-w-none lg:static lg:left-0 lg:translate-x-0 lg:w-full lg:rounded-xl lg:overflow-hidden">
                     {business.images?.length ? (
                         <div
-                            className="relative overflow-hidden w-full aspect-video flex items-center justify-center group bg-black/5 dark:bg-black/20"
+                            className="relative overflow-hidden w-full aspect-video lg:aspect-auto lg:h-[420px] flex items-center justify-center group bg-black/5 dark:bg-black/20"
                             onTouchStart={handleGalleryTouchStart}
                             onTouchMove={handleGalleryTouchMove}
                             onTouchEnd={handleGalleryTouchEnd}
@@ -1226,6 +1227,15 @@ const BusinessProfilePage = () => {
                         >
                             <FaShareAlt size={18} className="shrink-0" />
                         </button>
+                        {business && (
+                            <ReportButton
+                                entityType="business"
+                                entityId={business.id}
+                                entityTitle={business.business_name}
+                                variant="icon"
+                                className="flex items-center justify-center h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors duration-200"
+                            />
+                        )}
                     </div>
                 </div>
                 {/* Name + Description - scrolls away with page */}

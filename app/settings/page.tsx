@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabaseClient';
 import PushNotificationToggle from '@/components/PushNotificationToggle';
 import toast from 'react-hot-toast';
 import { AlertTriangle, X } from 'lucide-react';
+import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
 
 const DELETE_REASONS = [
   { value: 'want_break', labelKey: 'I want a break' },
@@ -28,6 +29,10 @@ export default function SettingsPage() {
   const [deleteOtherText, setDeleteOtherText] = useState('');
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [spokenLanguages, setSpokenLanguages] = useState<string[]>([]);
+  const [spokenLanguagesLoading, setSpokenLanguagesLoading] = useState(true);
+  const [spokenLanguagesSaving, setSpokenLanguagesSaving] = useState(false);
+  const [newLanguageInput, setNewLanguageInput] = useState('');
 
   useEffect(() => {
     const check = async () => {
@@ -36,6 +41,39 @@ export default function SettingsPage() {
     };
     check();
   }, [router]);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('registeredaccounts')
+        .select('spoken_languages')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setSpokenLanguages(Array.isArray(data?.spoken_languages) ? data.spoken_languages : []);
+      setSpokenLanguagesLoading(false);
+    };
+    load();
+  }, []);
+
+  const saveSpokenLanguages = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setSpokenLanguagesSaving(true);
+    try {
+      const { error } = await supabase
+        .from('registeredaccounts')
+        .update({ spoken_languages: spokenLanguages })
+        .eq('user_id', user.id);
+      if (error) throw error;
+      toast.success(t(effectiveLang, 'Spoken languages saved.'));
+    } catch (e) {
+      toast.error(t(effectiveLang, 'Failed to save.'));
+    } finally {
+      setSpokenLanguagesSaving(false);
+    }
+  };
 
   const openDeleteModal = () => {
     setDeleteModalOpen(true);
@@ -138,6 +176,107 @@ export default function SettingsPage() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-gray-100 mb-3">Notifications</h2>
         <PushNotificationToggle />
+      </div>
+
+      {/* Spoken languages (individual) – for ads and matching */}
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-gray-100 mb-2">
+          {t(effectiveLang, 'Spoken languages')}
+        </h2>
+        <p className="text-sm text-slate-600 dark:text-gray-400 mb-3">
+          {t(effectiveLang, 'Used for relevant ads and content. Select languages you speak.')}
+        </p>
+        {spokenLanguagesLoading ? (
+          <p className="text-sm text-slate-500">{t(effectiveLang, 'Loading...')}</p>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto rounded-xl border border-slate-200 dark:border-gray-600 p-3 bg-slate-50 dark:bg-gray-800/50">
+              {spokenLanguagesWithDialects.map((lang) => {
+                const selected = spokenLanguages.includes(lang.code);
+                return (
+                  <label
+                    key={lang.code}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                      selected
+                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+                        : 'border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-slate-600 dark:text-gray-400 hover:border-indigo-300'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() =>
+                        setSpokenLanguages((prev) =>
+                          selected ? prev.filter((c) => c !== lang.code) : [...prev, lang.code]
+                        )
+                      }
+                      className="sr-only"
+                    />
+                    <span aria-hidden>{lang.flag}</span>
+                    <span>{lang.label}</span>
+                  </label>
+                );
+              })}
+              {spokenLanguages.filter((c) => !predefinedLanguageCodes.has(c)).map((custom) => (
+                <span
+                  key={custom}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-slate-700 dark:text-gray-300"
+                >
+                  <span aria-hidden>🌐</span>
+                  <span>{custom}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSpokenLanguages((prev) => prev.filter((c) => c !== custom))}
+                    className="ml-1 rounded-full p-0.5 hover:bg-slate-200 dark:hover:bg-gray-600"
+                    aria-label={t(effectiveLang, 'Remove')}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={newLanguageInput}
+                onChange={(e) => setNewLanguageInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const v = newLanguageInput.trim();
+                    if (v && !spokenLanguages.includes(v)) {
+                      setSpokenLanguages((prev) => [...prev, v]);
+                      setNewLanguageInput('');
+                    }
+                  }
+                }}
+                placeholder={t(effectiveLang, 'Add another language')}
+                className="rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm w-48"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const v = newLanguageInput.trim();
+                  if (v && !spokenLanguages.includes(v)) {
+                    setSpokenLanguages((prev) => [...prev, v]);
+                    setNewLanguageInput('');
+                  }
+                }}
+                className="rounded-lg bg-slate-200 dark:bg-gray-600 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-gray-200 hover:bg-slate-300 dark:hover:bg-gray-500"
+              >
+                {t(effectiveLang, 'Add')}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={saveSpokenLanguages}
+              disabled={spokenLanguagesSaving}
+              className="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {spokenLanguagesSaving ? t(effectiveLang, 'Saving...') : t(effectiveLang, 'Save languages')}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Delete My Account */}

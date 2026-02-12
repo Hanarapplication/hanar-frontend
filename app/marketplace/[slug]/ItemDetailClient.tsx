@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import { FaHeart, FaRegHeart, FaShareAlt } from 'react-icons/fa';
 import { FaPhoneAlt, FaStore } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
+import ReportButton from '@/components/ReportButton';
 
 type MarketplaceItem = {
   id: string;
@@ -596,14 +597,16 @@ export default function ItemDetailClient() {
         </div>
 
         {/* Report */}
-        <div className="text-right">
-          <button
-            onClick={() => alert('Report submitted. Our team will review this item shortly.')}
-            className="text-sm text-red-500 hover:underline"
-          >
-            🚩 Report this item
-          </button>
-        </div>
+        {item && (
+          <div className="text-right">
+            <ReportButton
+              entityType="item"
+              entityId={item.id}
+              entityTitle={item.title}
+              variant="text"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

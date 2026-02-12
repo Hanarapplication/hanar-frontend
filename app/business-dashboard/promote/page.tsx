@@ -5,11 +5,22 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { ArrowLeft, ImagePlus, Home, Users, Globe, ExternalLink, Check } from 'lucide-react';
+import { ArrowLeft, ImagePlus, Home, Users, Globe, ExternalLink, Check, Target } from 'lucide-react';
+import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
 
 type Placement = 'home_feed' | 'community' | 'universal';
 type LinkType = 'business_page' | 'external';
 type Tier = 'basic' | 'targeted' | 'premium';
+type AudienceType = 'universal' | 'targeted';
+
+type GenderOption = 'all' | 'man' | 'woman' | 'others';
+const GENDER_OPTIONS: { value: GenderOption; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'man', label: 'Man' },
+  { value: 'woman', label: 'Woman' },
+  { value: 'others', label: 'Others' },
+];
+const TARGET_AGE_GROUPS = ['13-17', '18-24', '25-34', '35-44', '45-54', '55+'] as const;
 
 const PLACEMENTS: { value: Placement; label: string; desc: string; icon: React.ReactNode }[] = [
   { value: 'home_feed', label: 'Home feed', desc: 'Banner in the main feed', icon: <Home className="h-5 w-5" /> },
@@ -37,6 +48,12 @@ export default function PromotePage() {
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState(1);
   const [placement, setPlacement] = useState<Placement>('home_feed');
+  const [audienceType, setAudienceType] = useState<AudienceType>('universal');
+  const [genderOption, setGenderOption] = useState<GenderOption>('all');
+  const [targetAgeGroups, setTargetAgeGroups] = useState<string[]>([]);
+  const [targetLanguages, setTargetLanguages] = useState<string[]>([]);
+  const [newTargetLanguageInput, setNewTargetLanguageInput] = useState('');
+  const [targetLocations, setTargetLocations] = useState<string>('');
   const [linkType, setLinkType] = useState<LinkType>('business_page');
   const [linkValue, setLinkValue] = useState('');
   const [description, setDescription] = useState('');
@@ -90,6 +107,16 @@ export default function PromotePage() {
       const form = new FormData();
       form.set('business_id', business.id);
       form.set('placement', placement);
+      form.set('audience_type', audienceType);
+      if (audienceType === 'targeted') {
+        if (genderOption === 'man') form.set('target_genders', JSON.stringify(['man']));
+        else if (genderOption === 'woman') form.set('target_genders', JSON.stringify(['woman']));
+        else if (genderOption === 'others') form.set('target_genders', JSON.stringify(['he', 'she', 'they']));
+        if (targetAgeGroups.length) form.set('target_age_groups', JSON.stringify(targetAgeGroups));
+        if (targetLanguages.length) form.set('target_languages', JSON.stringify(targetLanguages));
+        const locs = targetLocations.trim().split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+        if (locs.length) form.set('target_locations', JSON.stringify(locs));
+      }
       form.set('link_type', linkType);
       form.set('link_value', linkType === 'external' ? linkValue.trim() : '');
       form.set('description', description.trim());
@@ -172,6 +199,149 @@ export default function PromotePage() {
                 </label>
               ))}
             </div>
+
+            {/* Audience: Universal vs Targeted */}
+            <div className="mt-8 pt-6 border-t border-slate-200">
+              <h2 className="text-lg font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                <Target className="h-5 w-5 text-amber-600" />
+                Who should see this promotion?
+              </h2>
+              <p className="text-sm text-slate-500 mb-4">Universal shows to everyone; targeted limits by gender, age, location, or language.</p>
+              <div className="space-y-3 mb-4">
+                <label className={`flex items-center gap-4 rounded-xl border-2 p-4 cursor-pointer transition ${audienceType === 'universal' ? 'border-amber-500 bg-amber-50/50' : 'border-slate-200 hover:border-slate-300'}`}>
+                  <input type="radio" name="audience" value="universal" checked={audienceType === 'universal'} onChange={() => setAudienceType('universal')} className="sr-only" />
+                  <Globe className="h-5 w-5 text-amber-600" />
+                  <div>
+                    <p className="font-medium text-slate-900">Universal</p>
+                    <p className="text-sm text-slate-500">Show to everyone</p>
+                  </div>
+                  {audienceType === 'universal' && <Check className="h-5 w-5 text-amber-600 ml-auto" />}
+                </label>
+                <label className={`flex items-center gap-4 rounded-xl border-2 p-4 cursor-pointer transition ${audienceType === 'targeted' ? 'border-amber-500 bg-amber-50/50' : 'border-slate-200 hover:border-slate-300'}`}>
+                  <input type="radio" name="audience" value="targeted" checked={audienceType === 'targeted'} onChange={() => setAudienceType('targeted')} className="sr-only" />
+                  <Target className="h-5 w-5 text-amber-600" />
+                  <div>
+                    <p className="font-medium text-slate-900">Targeted</p>
+                    <p className="text-sm text-slate-500">Filter by gender, age, location, or language</p>
+                  </div>
+                  {audienceType === 'targeted' && <Check className="h-5 w-5 text-amber-600 ml-auto" />}
+                </label>
+              </div>
+
+              {audienceType === 'targeted' && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-4">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 mb-2">Gender (optional)</p>
+                    <div className="flex flex-wrap gap-2">
+                      {GENDER_OPTIONS.map((opt) => (
+                        <label
+                          key={opt.value}
+                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                            genderOption === opt.value
+                              ? 'border-amber-500 bg-amber-50 text-amber-800'
+                              : 'border-slate-200 bg-white hover:bg-slate-50'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="genderOption"
+                            value={opt.value}
+                            checked={genderOption === opt.value}
+                            onChange={() => setGenderOption(opt.value)}
+                            className="sr-only"
+                          />
+                          <span>{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 mb-2">Age groups (optional)</p>
+                    <div className="flex flex-wrap gap-2">
+                      {TARGET_AGE_GROUPS.map((a) => (
+                        <label key={a} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm cursor-pointer hover:bg-slate-50">
+                          <input type="checkbox" checked={targetAgeGroups.includes(a)} onChange={() => setTargetAgeGroups((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]))} />
+                          <span>{a}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 mb-2">Spoken languages (optional)</p>
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                      {spokenLanguagesWithDialects.map(({ code, label, flag }) => (
+                        <label key={code} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm cursor-pointer hover:bg-slate-50">
+                          <input type="checkbox" checked={targetLanguages.includes(code)} onChange={() => setTargetLanguages((prev) => (prev.includes(code) ? prev.filter((x) => x !== code) : [...prev, code]))} />
+                          <span aria-hidden>{flag}</span>
+                          <span>{label}</span>
+                        </label>
+                      ))}
+                      {targetLanguages.filter((c) => !predefinedLanguageCodes.has(c)).map((custom) => (
+                        <span
+                          key={custom}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700"
+                        >
+                          <span aria-hidden>🌐</span>
+                          <span>{custom}</span>
+                          <button
+                            type="button"
+                            onClick={() => setTargetLanguages((prev) => prev.filter((x) => x !== custom))}
+                            className="ml-1 rounded p-0.5 hover:bg-slate-100"
+                            aria-label="Remove"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        value={newTargetLanguageInput}
+                        onChange={(e) => setNewTargetLanguageInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const v = newTargetLanguageInput.trim();
+                            if (v && !targetLanguages.includes(v)) {
+                              setTargetLanguages((prev) => [...prev, v]);
+                              setNewTargetLanguageInput('');
+                            }
+                          }
+                        }}
+                        placeholder="Add another language"
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm w-48"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = newTargetLanguageInput.trim();
+                          if (v && !targetLanguages.includes(v)) {
+                            setTargetLanguages((prev) => [...prev, v]);
+                            setNewTargetLanguageInput('');
+                          }
+                        }}
+                        className="rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-300"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 mb-1">Locations (optional)</p>
+                    <p className="text-xs text-slate-500 mb-2">Comma-separated state codes or city names (e.g. CA, NY, Dallas). Leave empty for all regions.</p>
+                    <textarea
+                      value={targetLocations}
+                      onChange={(e) => setTargetLocations(e.target.value)}
+                      placeholder="e.g. CA, TX, New York"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button type="button" onClick={() => setStep(2)} className="mt-6 w-full rounded-xl bg-amber-600 py-3 font-semibold text-white hover:bg-amber-500">
               Next: Creative
             </button>

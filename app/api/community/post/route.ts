@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { title, body, tags, lang, image, author, user_id, org_id, author_type, username } = await req.json();
+    const { title, body, tags, lang, image, video, author, user_id, org_id, author_type, username } = await req.json();
 
     // ✅ Validate required fields
     if (!title || typeof title !== 'string' || title.trim().length < 3 || title.length > 100) {
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
         body: body.trim(),
         tags,
         image: image || null,
+        video: video || null,
         language: lang || 'en',
         author: author || 'Anonymous',
         user_id,

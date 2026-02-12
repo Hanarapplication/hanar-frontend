@@ -47,7 +47,7 @@ export async function GET(req: Request) {
 
     const { data, error } = await supabaseAdmin
       .from('business_promotion_requests')
-      .select('id, placement, image_path, link_type, link_value, description, tier, duration_days, price_cents, status, created_at')
+      .select('id, placement, audience_type, target_genders, target_age_groups, target_languages, target_locations, image_path, link_type, link_value, description, tier, duration_days, price_cents, status, created_at')
       .eq('business_id', businessId)
       .order('created_at', { ascending: false });
 
@@ -68,6 +68,7 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const business_id = (formData.get('business_id') as string)?.trim();
     const placement = (formData.get('placement') as string)?.trim();
+    const audience_type = ((formData.get('audience_type') as string)?.trim() || 'universal') as 'universal' | 'targeted';
     const link_type = (formData.get('link_type') as string)?.trim();
     const link_value = (formData.get('link_value') as string)?.trim() || '';
     const description = (formData.get('description') as string)?.trim() || '';
@@ -76,9 +77,39 @@ export async function POST(req: Request) {
     const price_cents = parseInt(String(formData.get('price_cents') || '0'), 10);
     const file = formData.get('image') as File | null;
 
+    let target_genders: string[] | null = null;
+    let target_age_groups: string[] | null = null;
+    let target_languages: string[] | null = null;
+    let target_locations: string[] | null = null;
+    if (audience_type === 'targeted') {
+      try {
+        const tg = formData.get('target_genders');
+        target_genders = tg ? (typeof tg === 'string' ? JSON.parse(tg) : []) : null;
+        if (Array.isArray(target_genders) && target_genders.length === 0) target_genders = null;
+      } catch { target_genders = null; }
+      try {
+        const ta = formData.get('target_age_groups');
+        target_age_groups = ta ? (typeof ta === 'string' ? JSON.parse(ta) : []) : null;
+        if (Array.isArray(target_age_groups) && target_age_groups.length === 0) target_age_groups = null;
+      } catch { target_age_groups = null; }
+      try {
+        const tl = formData.get('target_languages');
+        target_languages = tl ? (typeof tl === 'string' ? JSON.parse(tl) : []) : null;
+        if (Array.isArray(target_languages) && target_languages.length === 0) target_languages = null;
+      } catch { target_languages = null; }
+      try {
+        const tloc = formData.get('target_locations');
+        target_locations = tloc ? (typeof tloc === 'string' ? JSON.parse(tloc) : []) : null;
+        if (Array.isArray(target_locations) && target_locations.length === 0) target_locations = null;
+      } catch { target_locations = null; }
+    }
+
     if (!business_id) return NextResponse.json({ error: 'business_id required' }, { status: 400 });
     if (!['home_feed', 'community', 'universal'].includes(placement)) {
       return NextResponse.json({ error: 'Invalid placement' }, { status: 400 });
+    }
+    if (audience_type !== 'universal' && audience_type !== 'targeted') {
+      return NextResponse.json({ error: 'Invalid audience_type' }, { status: 400 });
     }
     if (!['business_page', 'external'].includes(link_type)) {
       return NextResponse.json({ error: 'Invalid link_type' }, { status: 400 });
@@ -117,6 +148,11 @@ export async function POST(req: Request) {
       .insert({
         business_id,
         placement,
+        audience_type,
+        target_genders: audience_type === 'targeted' ? target_genders : null,
+        target_age_groups: audience_type === 'targeted' ? target_age_groups : null,
+        target_languages: audience_type === 'targeted' ? target_languages : null,
+        target_locations: audience_type === 'targeted' ? target_locations : null,
         image_path,
         link_type,
         link_value: link_value || null,

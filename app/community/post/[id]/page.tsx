@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import PostActionsBar from '@/components/PostActionsBar';
+import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,10 +39,19 @@ export default function CommunityPostPage() {
   const [bannerBottom, setBannerBottom] = useState<{ id: string; image: string; link: string; alt: string } | null>(null);
 
   useEffect(() => {
-    fetch('/api/feed-banners')
+    fetch('/api/user/audience-segment')
       .then((r) => r.json())
+      .then((seg) => {
+        const params = new URLSearchParams();
+        if (seg?.age_group) params.set('age_group', seg.age_group);
+        if (seg?.gender) params.set('gender', seg.gender);
+        if (seg?.preferred_language) params.append('lang', seg.preferred_language);
+        if (Array.isArray(seg?.spoken_languages)) seg.spoken_languages.forEach((l: string) => params.append('lang', l));
+        const qs = params.toString();
+        return fetch(qs ? `/api/feed-banners?${qs}` : '/api/feed-banners').then((r) => r.json());
+      })
       .then((d) => {
-        const list: { id: string; image: string; link: string; alt: string }[] = (d.banners || []).filter((b: { image?: string }) => b.image);
+        const list: { id: string; image: string; link: string; alt: string }[] = (d?.banners || []).filter((b: { image?: string }) => b.image);
         if (list.length === 0) return;
         const shuffled = [...list].sort(() => Math.random() - 0.5);
         setBannerTop(shuffled[0]);
@@ -374,7 +384,13 @@ export default function CommunityPostPage() {
           <h1 className="mt-2 text-xl font-semibold text-slate-800">{post.title}</h1>
           <p className="mt-2 whitespace-pre-wrap text-slate-700 text-sm">{post.body}</p>
 
-          {post.image && (
+          {post.video && (
+            <div className="mt-3">
+              <FeedVideoPlayer src={post.video} />
+            </div>
+          )}
+
+          {post.image && !post.video && (
             <div
               className="mt-3 max-h-80 overflow-hidden rounded-lg border border-slate-100 cursor-pointer"
               onClick={() => setPopupImage(post.image)}
@@ -403,6 +419,8 @@ export default function CommunityPostPage() {
                 toast('Sharing not supported on this device');
               }
             }}
+            postId={post.id}
+            postTitle={post.title}
           />
 
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-sm">

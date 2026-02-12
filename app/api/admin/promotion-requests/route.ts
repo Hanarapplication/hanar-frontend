@@ -31,7 +31,7 @@ export async function GET(req: Request) {
 
     let query = supabaseAdmin
       .from('business_promotion_requests')
-      .select('id, business_id, placement, image_path, link_type, link_value, description, tier, duration_days, price_cents, status, feed_banner_id, created_at')
+      .select('id, business_id, placement, audience_type, target_genders, target_age_groups, target_languages, target_locations, image_path, link_type, link_value, description, tier, duration_days, price_cents, status, feed_banner_id, created_at')
       .order('created_at', { ascending: false });
 
     if (status) query = query.eq('status', status);
@@ -183,6 +183,11 @@ export async function PATCH(req: Request) {
             status: 'on_hold',
             expires_at,
             duration_days: reqRow.duration_days,
+            audience_type: reqRow.audience_type ?? 'universal',
+            target_genders: reqRow.target_genders ?? null,
+            target_age_groups: reqRow.target_age_groups ?? null,
+            target_languages: reqRow.target_languages ?? null,
+            target_locations: reqRow.target_locations ?? null,
           })
           .select('id')
           .single();
@@ -221,6 +226,11 @@ export async function PATCH(req: Request) {
         status: 'active',
         expires_at,
         duration_days: reqRow.duration_days,
+        audience_type: reqRow.audience_type ?? 'universal',
+        target_genders: reqRow.target_genders ?? null,
+        target_age_groups: reqRow.target_age_groups ?? null,
+        target_languages: reqRow.target_languages ?? null,
+        target_locations: reqRow.target_locations ?? null,
       })
       .select('id')
       .single();

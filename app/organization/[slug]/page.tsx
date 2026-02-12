@@ -19,6 +19,7 @@ import {
   Share2,
   Trash2,
 } from 'lucide-react';
+import ReportButton from '@/components/ReportButton';
 
 type OrgProfile = {
   id: string;
@@ -411,6 +412,14 @@ export default function OrganizationProfilePage() {
                     {followLoading ? '...' : isFollowing ? 'Following' : 'Follow'}
                   </button>
                 )}
+                {currentUser?.id !== profile.user_id && (
+                  <ReportButton
+                    entityType="organization"
+                    entityId={profile.id}
+                    entityTitle={profile.name}
+                    variant="icon"
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -544,6 +553,12 @@ export default function OrganizationProfilePage() {
                               <span>Delete</span>
                             </button>
                           )}
+                          <ReportButton
+                            entityType="post"
+                            entityId={post.id}
+                            entityTitle={post.title}
+                            variant="icon"
+                          />
                         </div>
                       </div>
 

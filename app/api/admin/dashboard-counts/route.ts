@@ -122,6 +122,17 @@ export async function GET(req: Request) {
       // table may not exist
     }
 
+    let unreadReports = 0;
+    try {
+      const { count } = await supabaseAdmin
+        .from('reports')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['unread', 'read']);
+      unreadReports = count ?? 0;
+    } catch {
+      // table may not exist yet
+    }
+
     return NextResponse.json({
       businesses_pending_approval: businessesPending ?? 0,
       notification_requests_pending: notificationPending ?? 0,
@@ -130,6 +141,7 @@ export async function GET(req: Request) {
       contact_us_to_review: contactUs,
       feed_banners_on_hold: feedBannersOnHold ?? 0,
       organizations_needing_attention: organizationsNeedingAttention ?? 0,
+      unread_reports: unreadReports,
     });
   } catch (err: unknown) {
     return NextResponse.json(

@@ -10,7 +10,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import { compressImage } from '@/lib/imageCompression';
 import { FaEye, FaEdit } from 'react-icons/fa';
-import { Bold, Italic, Underline as UnderlineIcon, Image as ImageIcon, Tag } from 'lucide-react';
+import { Bold, Italic, Underline as UnderlineIcon, Image as ImageIcon, Tag, Video, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { t } from '@/utils/translations';
 
@@ -31,8 +31,15 @@ export default function CreateCommunityPostPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isBusinessAccount, setIsBusinessAccount] = useState(false);
   const [checkingAccount, setCheckingAccount] = useState(true);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [videoError, setVideoError] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const videoInputRef = useRef<HTMLInputElement | null>(null);
   const { effectiveLang } = useLanguage();
   const router = useRouter();
 
@@ -121,9 +128,94 @@ export default function CreateCommunityPostPage() {
       const url = await handleImageUpload(file);
       setImageUrl(url);
       setImage(file);
+      // Clear video if image is selected
+      clearVideo();
     } catch {
       alert(t(effectiveLang, 'Image processing failed'));
     }
+  };
+
+  const getVideoDuration = (file: File): Promise<number> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        URL.revokeObjectURL(video.src);
+        resolve(video.duration);
+      };
+      video.onerror = () => {
+        URL.revokeObjectURL(video.src);
+        reject(new Error('Failed to load video'));
+      };
+      video.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleVideoUpload = async (file: File) => {
+    const fileName = `${Date.now()}.${file.name.split('.').pop()}`;
+    const filePath = `community-videos/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage.from('community-images').upload(filePath, file);
+    if (uploadError) throw new Error('Video upload failed');
+
+    const { data } = supabase.storage.from('community-images').getPublicUrl(filePath);
+    return data.publicUrl;
+  };
+
+  const handleVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVideoError('');
+
+    // Validate file type
+    if (!file.type.startsWith('video/')) {
+      setVideoError('Please select a video file.');
+      return;
+    }
+
+    // Validate file size (max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      setVideoError('Video must be less than 50MB.');
+      return;
+    }
+
+    try {
+      // Validate duration (max 11 seconds)
+      const duration = await getVideoDuration(file);
+      if (duration > 11) {
+        setVideoError(`Video is ${duration.toFixed(1)}s — maximum is 11 seconds.`);
+        if (videoInputRef.current) videoInputRef.current.value = '';
+        return;
+      }
+
+      setVideoDuration(Math.round(duration * 10) / 10);
+      setVideoPreviewUrl(URL.createObjectURL(file));
+      setVideoFile(file);
+
+      // Clear image if video is selected
+      setImage(null);
+      setImageUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+
+      // Upload
+      setVideoUploading(true);
+      const url = await handleVideoUpload(file);
+      setVideoUrl(url);
+    } catch {
+      setVideoError('Failed to process video.');
+    } finally {
+      setVideoUploading(false);
+    }
+  };
+
+  const clearVideo = () => {
+    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl);
+    setVideoFile(null);
+    setVideoUrl(null);
+    setVideoPreviewUrl(null);
+    setVideoDuration(null);
+    setVideoError('');
+    if (videoInputRef.current) videoInputRef.current.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -156,6 +248,11 @@ export default function CreateCommunityPostPage() {
     const payloadUsername = postAs === 'organization' ? orgUsername : username;
     const payloadOrgId = postAs === 'organization' ? orgId : null;
 
+    if (videoFile && !videoUrl) {
+      alert('Video is still uploading. Please wait.');
+      return;
+    }
+
     const res = await fetch('/api/community/post', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -165,6 +262,7 @@ export default function CreateCommunityPostPage() {
         tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
         lang: effectiveLang,
         image: imageUrl,
+        video: videoUrl,
         author,
         user_id: userId,
         org_id: payloadOrgId,
@@ -258,7 +356,14 @@ export default function CreateCommunityPostPage() {
                     {t(effectiveLang, 'Posted as')}: {postAs === 'anonymous' ? 'Anonymous' : postAs === 'organization' ? orgName : username}
                   </p>
                 </div>
-                {imageUrl && (
+                {videoPreviewUrl && (
+                  <video
+                    src={videoPreviewUrl}
+                    controls
+                    className="max-h-72 w-full rounded-xl object-contain bg-black"
+                  />
+                )}
+                {imageUrl && !videoPreviewUrl && (
                   <img src={imageUrl} alt="Preview" className="max-h-72 w-full rounded-xl object-cover" />
                 )}
                 <div className="prose prose-sm max-w-none text-slate-700" dangerouslySetInnerHTML={{ __html: editor.getHTML() }} />
@@ -352,8 +457,13 @@ export default function CreateCommunityPostPage() {
                 <div>
                   <label className="block text-sm font-medium text-slate-700">{t(effectiveLang, 'Image (optional, max 4MB)')}</label>
                   <label
-                    htmlFor="post-image-upload"
-                    className="mt-2 w-full text-sm text-center border-2 border-dashed border-slate-300 rounded-lg p-4 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-colors flex flex-col items-center justify-center"
+                    htmlFor={videoPreviewUrl ? undefined : 'post-image-upload'}
+                    className={cn(
+                      "mt-2 w-full text-sm text-center border-2 border-dashed rounded-lg p-4 transition-colors flex flex-col items-center justify-center",
+                      videoPreviewUrl
+                        ? 'border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
+                        : 'border-slate-300 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50'
+                    )}
                   >
                     {imageUrl ? (
                       <img src={imageUrl} alt="Post preview" className="w-full h-32 object-cover rounded-md mb-2" />
@@ -371,6 +481,7 @@ export default function CreateCommunityPostPage() {
                       accept="image/*"
                       className="hidden"
                       onChange={handleImageChange}
+                      disabled={!!videoPreviewUrl}
                     />
                   </label>
 
@@ -386,6 +497,82 @@ export default function CreateCommunityPostPage() {
                     >
                       Remove image
                     </button>
+                  )}
+                </div>
+
+                {/* Video Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    {t(effectiveLang, 'Video (optional, max 11 seconds)')}
+                  </label>
+
+                  {videoPreviewUrl ? (
+                    <div className="mt-2 relative rounded-xl overflow-hidden border-2 border-indigo-200 bg-black">
+                      <video
+                        src={videoPreviewUrl}
+                        controls
+                        className="w-full max-h-56 object-contain"
+                      />
+                      <button
+                        type="button"
+                        onClick={clearVideo}
+                        className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 transition"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                      <div className="absolute bottom-2 left-2 flex items-center gap-2">
+                        {videoUploading && (
+                          <span className="rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-semibold text-white animate-pulse">
+                            Uploading...
+                          </span>
+                        )}
+                        {videoUrl && !videoUploading && (
+                          <span className="rounded-full bg-emerald-500 px-2.5 py-1 text-[11px] font-semibold text-white">
+                            Uploaded
+                          </span>
+                        )}
+                        {videoDuration !== null && (
+                          <span className="rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white">
+                            {videoDuration}s / 11s
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <label
+                      htmlFor="post-video-upload"
+                      className={cn(
+                        "mt-2 w-full text-sm text-center border-2 border-dashed rounded-lg p-4 cursor-pointer transition-colors flex flex-col items-center justify-center",
+                        imageUrl
+                          ? 'border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
+                          : 'border-slate-300 hover:border-indigo-500 hover:bg-indigo-50'
+                      )}
+                    >
+                      <div className="flex flex-col items-center text-slate-500">
+                        <Video className="w-8 h-8 mb-2" />
+                        <span className="font-semibold">{t(effectiveLang, 'Click to upload a video')}</span>
+                        <span className="text-xs">{t(effectiveLang, 'MP4, WebM, MOV — max 11 seconds, 50MB')}</span>
+                      </div>
+                      <input
+                        id="post-video-upload"
+                        ref={videoInputRef}
+                        type="file"
+                        accept="video/*"
+                        className="hidden"
+                        onChange={handleVideoChange}
+                        disabled={!!imageUrl}
+                      />
+                    </label>
+                  )}
+
+                  {videoError && (
+                    <p className="mt-2 text-sm text-red-600">{videoError}</p>
+                  )}
+
+                  {!imageUrl && !videoPreviewUrl && (
+                    <p className="mt-1.5 text-xs text-slate-400 text-center">
+                      You can upload either an image or a video, not both.
+                    </p>
                   )}
                 </div>
 

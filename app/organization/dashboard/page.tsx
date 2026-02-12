@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { compressImage } from '@/lib/imageCompression';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
 
 // --- TYPE DEFINITIONS ---
 type OrgProfile = {
@@ -210,6 +211,7 @@ export default function OrganizationDashboard() {
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationBody, setNotificationBody] = useState('');
   const [sendingNotification, setSendingNotification] = useState(false);
+  const [newLanguageInput, setNewLanguageInput] = useState('');
 
   // Add form state for profile editing
   const [form, setForm] = useState({
@@ -225,6 +227,7 @@ export default function OrganizationDashboard() {
     instagram: '',
     facebook: '',
     website: '',
+    spoken_languages: [] as string[],
   });
 
   const router = useRouter();
@@ -289,6 +292,7 @@ export default function OrganizationDashboard() {
             instagram: data.socials?.instagram || '',
             facebook: data.socials?.facebook || '',
             website: data.socials?.website || '',
+            spoken_languages: Array.isArray(data.spoken_languages) ? data.spoken_languages : [],
           });
           setMission(data.mission || '');
           setAddress(data.address || '');
@@ -603,6 +607,7 @@ export default function OrganizationDashboard() {
           facebook: form.facebook,
           website: form.website,
         },
+        spoken_languages: form.spoken_languages?.length ? form.spoken_languages : [],
         updated_at: new Date().toISOString(),
       };
 
@@ -634,6 +639,7 @@ export default function OrganizationDashboard() {
         instagram: fresh.socials?.instagram || '',
         facebook: fresh.socials?.facebook || '',
         website: fresh.socials?.website || '',
+        spoken_languages: Array.isArray(fresh.spoken_languages) ? fresh.spoken_languages : [],
       });
 
       // clear local files after success
@@ -1365,6 +1371,87 @@ export default function OrganizationDashboard() {
                               <Globe className="w-4 h-4 absolute top-1/2 left-3 -translate-y-1/2 text-slate-400" />
                               <input type="text" value={form.website} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} className="form-input pl-9" placeholder="yourwebsite.com"/>
                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Spoken languages (optional)</label>
+                        <p className="text-xs text-slate-500 mb-2">Used for ads and matching. Select languages your organization uses.</p>
+                        <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto rounded-lg border border-slate-200 p-3 bg-slate-50/50">
+                            {spokenLanguagesWithDialects.map((lang) => {
+                                const selected = (form.spoken_languages || []).includes(lang.code);
+                                return (
+                                    <label
+                                        key={lang.code}
+                                        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                                            selected ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200'
+                                        }`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selected}
+                                            onChange={() => setForm((f) => ({
+                                                ...f,
+                                                spoken_languages: selected
+                                                    ? (f.spoken_languages || []).filter((c) => c !== lang.code)
+                                                    : [...(f.spoken_languages || []), lang.code],
+                                            }))}
+                                            className="sr-only"
+                                        />
+                                        <span aria-hidden>{lang.flag}</span>
+                                        <span>{lang.label}</span>
+                                    </label>
+                                );
+                            })}
+                            {(form.spoken_languages || []).filter((c) => !predefinedLanguageCodes.has(c)).map((custom) => (
+                                <span
+                                    key={custom}
+                                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700"
+                                >
+                                    <span aria-hidden>🌐</span>
+                                    <span>{custom}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setForm((f) => ({ ...f, spoken_languages: (f.spoken_languages || []).filter((c) => c !== custom) }))}
+                                        className="ml-1 rounded-full p-0.5 hover:bg-slate-200"
+                                        aria-label="Remove"
+                                    >
+                                        ×
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <input
+                                type="text"
+                                value={newLanguageInput}
+                                onChange={(e) => setNewLanguageInput(e.target.value)}
+                                placeholder="Add another language"
+                                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm w-48"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        const v = newLanguageInput.trim();
+                                        if (v && !(form.spoken_languages || []).includes(v)) {
+                                            setForm((f) => ({ ...f, spoken_languages: [...(f.spoken_languages || []), v] }));
+                                            setNewLanguageInput('');
+                                        }
+                                    }
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const v = newLanguageInput.trim();
+                                    if (v && !(form.spoken_languages || []).includes(v)) {
+                                        setForm((f) => ({ ...f, spoken_languages: [...(f.spoken_languages || []), v] }));
+                                        setNewLanguageInput('');
+                                    }
+                                }}
+                                className="rounded-lg bg-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-300"
+                            >
+                                Add
+                            </button>
                         </div>
                     </div>
                     

@@ -20,7 +20,7 @@ import {
   Package, ShoppingBag, Languages
 } from 'lucide-react';
 import { PhoneInput } from '@/components/PhoneInput';
-import { supportedLanguages } from '@/utils/languages';
+import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
 
 /**
  * Global variables (from Canvas environment, if applicable).
@@ -499,6 +499,7 @@ export default function EditBusinessPage() {
     message: string;
     onConfirm?: () => void;
   }>({ isOpen: false, title: '', message: '' });
+  const [newLanguageInput, setNewLanguageInput] = useState('');
   const [categoryChangeModal, setCategoryChangeModal] = useState<{
     isOpen: boolean;
     nextValue: string;
@@ -2141,8 +2142,8 @@ export default function EditBusinessPage() {
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               Select languages spoken at your business. Customers searching in these languages may see you at the top (premium).
             </p>
-            <div className="flex flex-wrap gap-2">
-              {supportedLanguages.filter((l) => l.code !== 'auto').map((lang) => {
+            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+              {spokenLanguagesWithDialects.map((lang) => {
                 const selected = (form.spoken_languages || []).includes(lang.code);
                 return (
                   <label
@@ -2165,11 +2166,60 @@ export default function EditBusinessPage() {
                       }}
                       className="sr-only"
                     />
-                    <span aria-hidden>{lang.emoji}</span>
-                    <span>{lang.name}</span>
+                    <span aria-hidden>{lang.flag}</span>
+                    <span>{lang.label}</span>
                   </label>
                 );
               })}
+              {(form.spoken_languages || []).filter((c) => !predefinedLanguageCodes.has(c)).map((custom) => (
+                <span
+                  key={custom}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300"
+                >
+                  <span aria-hidden>🌐</span>
+                  <span>{custom}</span>
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, spoken_languages: (prev.spoken_languages || []).filter((c) => c !== custom) }))}
+                    className="ml-1 rounded-full p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600"
+                    aria-label="Remove"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={newLanguageInput}
+                onChange={(e) => setNewLanguageInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const v = newLanguageInput.trim();
+                    if (v && !(form.spoken_languages || []).includes(v)) {
+                      setForm((prev) => ({ ...prev, spoken_languages: [...(prev.spoken_languages || []), v] }));
+                      setNewLanguageInput('');
+                    }
+                  }
+                }}
+                placeholder="Add another language"
+                className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm w-48 text-gray-800 dark:text-gray-200"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const v = newLanguageInput.trim();
+                  if (v && !(form.spoken_languages || []).includes(v)) {
+                    setForm((prev) => ({ ...prev, spoken_languages: [...(prev.spoken_languages || []), v] }));
+                    setNewLanguageInput('');
+                  }
+                }}
+                className="rounded-lg bg-gray-200 dark:bg-gray-600 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500"
+              >
+                Add
+              </button>
             </div>
           </section>
 

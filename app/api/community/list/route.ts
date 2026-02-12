@@ -80,6 +80,7 @@ export async function POST(req: Request) {
         username,
         user_id,
         image,
+        video,
         likes_post,
         replies,
         language,

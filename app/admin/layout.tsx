@@ -18,6 +18,7 @@ const ADMIN_NAV = [
   { label: 'Feed Banners', path: '/admin/feed-banners' },
   { label: 'Promotion Requests', path: '/admin/promotion-requests' },
   { label: 'Marketplace Insights', path: '/admin/marketplace-insights' },
+  { label: 'Reports', path: '/admin/reports' },
   { label: 'Community Moderation', path: '/admin/community-moderation' },
   { label: 'Moderation', path: '/admin/moderation' },
   { label: 'Contact to review', path: '/admin/contact' },

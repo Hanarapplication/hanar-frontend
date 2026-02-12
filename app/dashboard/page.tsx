@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { User, Building2, Heart, ShoppingBag, PenSquare, Camera, Tag, Trash2 } from 'lucide-react';
+import { User, Building2, Heart, ShoppingBag, PenSquare, Camera, Tag, Trash2, ImagePlus, Video, X } from 'lucide-react';
 import { FavoritesSlideMenu } from '@/components/FavoritesSlideMenu';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { useLanguage } from '@/context/LanguageContext';
@@ -50,6 +50,13 @@ type FollowedOrg = {
   logo_url?: string | null;
 };
 
+type ProfileMediaItem = {
+  id: string;
+  url: string;
+  media_type: 'image' | 'video';
+  created_at: string;
+};
+
 const resolveMarketplaceImageUrls = (raw: unknown): string[] => {
   let arr: string[] = [];
   if (Array.isArray(raw)) arr = raw;
@@ -80,6 +87,11 @@ export default function DashboardPage() {
   const [deletingListing, setDeletingListing] = useState(false);
   const [favoritesMenuOpen, setFavoritesMenuOpen] = useState(false);
   const [burgerMenuOpen, setBurgerMenuOpen] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [profileMedia, setProfileMedia] = useState<ProfileMediaItem[]>([]);
+  const [profileMediaLoading, setProfileMediaLoading] = useState(false);
+  const [profileMediaUploading, setProfileMediaUploading] = useState(false);
+  const [deletingProfileMediaId, setDeletingProfileMediaId] = useState<string | null>(null);
   const router = useRouter();
 
   const burgerItems = [
@@ -116,6 +128,8 @@ export default function DashboardPage() {
           router.replace('/organization/dashboard');
           return;
         }
+
+        setCurrentUserId(user.id);
 
         const [{ data: favoriteRows, error: favoritesError }, { data: profData }] = await Promise.all([
           supabase.from('business_favorites').select('business_id').eq('user_id', user.id),
@@ -163,6 +177,67 @@ export default function DashboardPage() {
 
     load();
   }, [router]);
+
+  useEffect(() => {
+    const loadProfileMedia = async () => {
+      if (!currentUserId) return;
+      setProfileMediaLoading(true);
+      try {
+        const res = await fetch(`/api/profile-media?user_id=${encodeURIComponent(currentUserId)}`);
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && Array.isArray(data.media)) setProfileMedia(data.media);
+        else setProfileMedia([]);
+      } catch {
+        setProfileMedia([]);
+      } finally {
+        setProfileMediaLoading(false);
+      }
+    };
+    loadProfileMedia();
+  }, [currentUserId]);
+
+  const uploadProfileMedia = async (file: File, mediaType: 'image' | 'video') => {
+    if (!currentUserId || profileMediaUploading) return;
+    setProfileMediaUploading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const form = new FormData();
+      form.set('file', file);
+      form.set('media_type', mediaType);
+      const res = await fetch('/api/profile-media', {
+        method: 'POST',
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+        body: form,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Upload failed');
+      setProfileMedia((prev) => [data, ...prev]);
+      toast.success(t(effectiveLang, 'Added to your profile'));
+    } catch (err: any) {
+      toast.error(err?.message || t(effectiveLang, 'Upload failed'));
+    } finally {
+      setProfileMediaUploading(false);
+    }
+  };
+
+  const deleteProfileMedia = async (id: string) => {
+    if (!currentUserId || deletingProfileMediaId) return;
+    setDeletingProfileMediaId(id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/profile-media?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
+      if (!res.ok) throw new Error('Delete failed');
+      setProfileMedia((prev) => prev.filter((m) => m.id !== id));
+      toast.success(t(effectiveLang, 'Removed'));
+    } catch {
+      toast.error(t(effectiveLang, 'Failed to remove'));
+    } finally {
+      setDeletingProfileMediaId(null);
+    }
+  };
 
   useEffect(() => {
     const loadFollowedOrgs = async () => {
@@ -484,6 +559,80 @@ export default function DashboardPage() {
             <div className="mt-6 rounded-2xl border border-dashed border-emerald-200 dark:border-gray-600 p-6 text-center text-slate-500 dark:text-gray-400">
               {t(effectiveLang, 'No items listed. You can add 1 item for sale.')}
               <Link href="/marketplace/post" className="mt-3 block text-emerald-600 dark:text-emerald-400 font-semibold hover:underline">{t(effectiveLang, 'Add item for sale')}</Link>
+            </div>
+          )}
+        </div>
+
+        {/* Profile photos & videos (only on profile, not in feed or community) */}
+        <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg shadow-slate-100/60 dark:shadow-black/20 p-6 sm:p-8">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{t(effectiveLang, 'Profile')}</p>
+              <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-gray-100">{t(effectiveLang, 'Photos & videos')}</h2>
+            </div>
+          </div>
+          <p className="mt-2 text-sm text-slate-500 dark:text-gray-400">
+            {t(effectiveLang, 'Shown only on your profile. Not in home feed or community.')}
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-600 cursor-pointer disabled:opacity-50">
+              <ImagePlus className="h-4 w-4" />
+              {t(effectiveLang, 'Add photo')}
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                disabled={profileMediaUploading}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) uploadProfileMedia(f, 'image');
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-600 cursor-pointer disabled:opacity-50">
+              <Video className="h-4 w-4" />
+              {t(effectiveLang, 'Add video')}
+              <input
+                type="file"
+                accept="video/*"
+                className="sr-only"
+                disabled={profileMediaUploading}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) uploadProfileMedia(f, 'video');
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            {profileMediaUploading && <span className="text-sm text-slate-500">{t(effectiveLang, 'Uploading...')}</span>}
+          </div>
+          {profileMediaLoading ? (
+            <div className="mt-6 text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading...')}</div>
+          ) : profileMedia.length === 0 ? (
+            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 dark:border-gray-600 p-6 text-center text-slate-500 dark:text-gray-400">
+              {t(effectiveLang, 'No photos or videos yet. Add some to show on your profile.')}
+            </div>
+          ) : (
+            <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {profileMedia.map((item) => (
+                <div key={item.id} className="relative group rounded-xl overflow-hidden bg-slate-100 dark:bg-gray-700 aspect-square">
+                  {item.media_type === 'image' ? (
+                    <img src={item.url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <video src={item.url} className="h-full w-full object-cover" muted playsInline />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => deleteProfileMedia(item.id)}
+                    disabled={deletingProfileMediaId === item.id}
+                    className="absolute top-2 right-2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70 disabled:opacity-50"
+                    aria-label={t(effectiveLang, 'Remove')}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>

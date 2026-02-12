@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
+import PullToRefresh from '@/components/PullToRefresh';
 
 function getDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 3958.8;
@@ -111,6 +112,27 @@ const getPlanRank = (value?: string | null) => {
   return planRank[key] ?? planRank.default;
 };
 
+const MARKETPLACE_CACHE_KEY = 'hanar_marketplace_cache';
+const MARKETPLACE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function readMarketplaceCache(): { ts: number; items: MarketplaceItem[] } | null {
+  try {
+    const raw = sessionStorage.getItem(MARKETPLACE_CACHE_KEY);
+    if (!raw) return null;
+    const cache = JSON.parse(raw);
+    if (Date.now() - cache.ts > MARKETPLACE_CACHE_TTL) return null;
+    return cache;
+  } catch {
+    return null;
+  }
+}
+
+function writeMarketplaceCache(items: MarketplaceItem[]) {
+  try {
+    sessionStorage.setItem(MARKETPLACE_CACHE_KEY, JSON.stringify({ ts: Date.now(), items }));
+  } catch {}
+}
+
 export default function MarketplacePage() {
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -129,6 +151,7 @@ export default function MarketplacePage() {
   const [showFilters, setShowFilters] = useState(false);
   const [visibleCount, setVisibleCount] = useState(6);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const hasFetchedRef = useRef(false);
 
   const getUserLocation = () => {
     navigator.geolocation.getCurrentPosition(
@@ -271,114 +294,127 @@ export default function MarketplacePage() {
       setTempCoords(JSON.parse(saved));
     }
 
-    const normalizeRetailItem = (row: any): MarketplaceItem => ({
-      id: String(row.id),
-      title: row.title || row.name || row.item_name || 'Retail item',
-      price: row.price ?? row.amount ?? row.cost ?? '',
-      location: row.location || row.city || row.address || '',
-      category: row.category || row.type || 'Retail',
-      condition: row.condition || row.item_condition || '',
-      description: row.description || row.details || null,
-      imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'retail-items'),
-      lat: row.lat ?? row.latitude ?? null,
-      lon: row.lon ?? row.longitude ?? null,
-      created_at: row.created_at || row.createdAt || null,
-      slug: row.slug || row.item_slug || row.listing_slug || `retail-${row.id}`,
-      source: 'retail',
-      business_id: row.business_id || null,
-    });
-
-    const normalizeDealershipItem = (row: any): MarketplaceItem => ({
-      id: String(row.id),
-      title: row.title || row.name || row.vehicle_name || row.model || 'Dealership listing',
-      price: row.price ?? row.amount ?? row.cost ?? '',
-      location: row.location || row.city || row.address || '',
-      category: row.category || row.type || 'Dealership',
-      condition: row.condition || row.item_condition || '',
-      description: row.description || row.details || row.notes || null,
-      imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'car-listings'),
-      lat: row.lat ?? row.latitude ?? null,
-      lon: row.lon ?? row.longitude ?? null,
-      created_at: row.created_at || row.createdAt || null,
-      slug: row.slug || row.item_slug || row.listing_slug || `dealership-${row.id}`,
-      source: 'dealership',
-      business_id: row.business_id || null,
-    });
-
-    const normalizeIndividualItem = (row: any): MarketplaceItem => {
-      const raw = row.image_urls ?? row.imageUrls;
-      const urls = normalizeImages(raw, 'marketplace-images');
-      return {
-        id: String(row.id),
-        title: row.title || 'Listing',
-        price: row.price ?? '',
-        location: row.location || '',
-        category: row.category || 'General',
-        condition: row.condition || '',
-        description: row.description || null,
-        imageUrls: urls,
-        lat: null,
-        lon: null,
-        created_at: row.created_at || null,
-        slug: `individual-${row.id}`,
-        source: 'individual',
-        business_id: null,
-        user_id: row.user_id || null,
-      };
-    };
-
-    const loadItems = async () => {
-      const [retailRes, dealershipRes, individualRes] = await Promise.all([
-        supabase.from('retail_items').select('*').order('created_at', { ascending: false }),
-        supabase.from('dealerships').select('*').order('created_at', { ascending: false }),
-        supabase.from('marketplace_items').select('*').order('created_at', { ascending: false }),
-      ]);
-
-      if (retailRes.error || dealershipRes.error) {
-        console.error('Failed to load marketplace items', retailRes.error || dealershipRes.error);
-        setItems([]);
-        return;
+    if (!hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      const cache = readMarketplaceCache();
+      if (cache) {
+        setItems(cache.items);
+      } else {
+        loadMarketplaceItems();
       }
-
-      const retail = (retailRes.data || []).map(normalizeRetailItem);
-      const dealership = (dealershipRes.data || []).map(normalizeDealershipItem);
-      const individual = (individualRes.data || []).map(normalizeIndividualItem);
-      const combined = [...retail, ...dealership, ...individual].sort(sortByCreatedAt);
-      const businessIds = Array.from(
-        new Set(combined.map((item) => item.business_id).filter(Boolean) as string[])
-      );
-      let verifiedMap = new Map<string, boolean>();
-      let planMap = new Map<string, string>();
-      if (businessIds.length > 0) {
-        const { data: businessRows } = await supabase
-          .from('businesses')
-          .select('id, is_verified, plan')
-          .in('id', businessIds);
-        verifiedMap = new Map(
-          (businessRows || []).map((row: { id: string; is_verified?: boolean | null; plan?: string | null }) => [
-            row.id,
-            Boolean(row.is_verified),
-          ])
-        );
-        planMap = new Map(
-          (businessRows || []).map((row: { id: string; plan?: string | null }) => [row.id, row.plan || ''])
-        );
-      }
-      const withMetadata = combined.map((item) => ({
-        ...item,
-        business_verified: item.business_id ? verifiedMap.get(item.business_id) || false : false,
-        business_plan: item.business_id ? planMap.get(item.business_id) || null : null,
-      }));
-      const ranked = withMetadata.sort((a, b) => {
-        const planDelta = getPlanRank(b.business_plan) - getPlanRank(a.business_plan);
-        if (planDelta !== 0) return planDelta;
-        return sortByCreatedAt(b, a);
-      });
-      setItems(shuffleInChunks(ranked, 8));
-    };
-
-    loadItems();
+    }
   }, []);
+
+  const normalizeRetailItem = (row: any): MarketplaceItem => ({
+    id: String(row.id),
+    title: row.title || row.name || row.item_name || 'Retail item',
+    price: row.price ?? row.amount ?? row.cost ?? '',
+    location: row.location || row.city || row.address || '',
+    category: row.category || row.type || 'Retail',
+    condition: row.condition || row.item_condition || '',
+    description: row.description || row.details || null,
+    imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'retail-items'),
+    lat: row.lat ?? row.latitude ?? null,
+    lon: row.lon ?? row.longitude ?? null,
+    created_at: row.created_at || row.createdAt || null,
+    slug: row.slug || row.item_slug || row.listing_slug || `retail-${row.id}`,
+    source: 'retail',
+    business_id: row.business_id || null,
+  });
+
+  const normalizeDealershipItem = (row: any): MarketplaceItem => ({
+    id: String(row.id),
+    title: row.title || row.name || row.vehicle_name || row.model || 'Dealership listing',
+    price: row.price ?? row.amount ?? row.cost ?? '',
+    location: row.location || row.city || row.address || '',
+    category: row.category || row.type || 'Dealership',
+    condition: row.condition || row.item_condition || '',
+    description: row.description || row.details || row.notes || null,
+    imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'car-listings'),
+    lat: row.lat ?? row.latitude ?? null,
+    lon: row.lon ?? row.longitude ?? null,
+    created_at: row.created_at || row.createdAt || null,
+    slug: row.slug || row.item_slug || row.listing_slug || `dealership-${row.id}`,
+    source: 'dealership',
+    business_id: row.business_id || null,
+  });
+
+  const normalizeIndividualItem = (row: any): MarketplaceItem => {
+    const raw = row.image_urls ?? row.imageUrls;
+    const urls = normalizeImages(raw, 'marketplace-images');
+    return {
+      id: String(row.id),
+      title: row.title || 'Listing',
+      price: row.price ?? '',
+      location: row.location || '',
+      category: row.category || 'General',
+      condition: row.condition || '',
+      description: row.description || null,
+      imageUrls: urls,
+      lat: null,
+      lon: null,
+      created_at: row.created_at || null,
+      slug: `individual-${row.id}`,
+      source: 'individual',
+      business_id: null,
+      user_id: row.user_id || null,
+    };
+  };
+
+  const sortByCreatedAt = (a: MarketplaceItem, b: MarketplaceItem) =>
+    new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+
+  const loadMarketplaceItems = async () => {
+    const [retailRes, dealershipRes, individualRes] = await Promise.all([
+      supabase.from('retail_items').select('*').order('created_at', { ascending: false }),
+      supabase.from('dealerships').select('*').order('created_at', { ascending: false }),
+      supabase.from('marketplace_items').select('*').order('created_at', { ascending: false }),
+    ]);
+
+    if (retailRes.error || dealershipRes.error) {
+      console.error('Failed to load marketplace items', retailRes.error || dealershipRes.error);
+      setItems([]);
+      return;
+    }
+
+    const retail = (retailRes.data || []).map(normalizeRetailItem);
+    const dealership = (dealershipRes.data || []).map(normalizeDealershipItem);
+    const individual = (individualRes.data || []).map(normalizeIndividualItem);
+    const combined = [...retail, ...dealership, ...individual].sort(sortByCreatedAt);
+    const businessIds = Array.from(
+      new Set(combined.map((item) => item.business_id).filter(Boolean) as string[])
+    );
+    let verifiedMap = new Map<string, boolean>();
+    let planMap = new Map<string, string>();
+    if (businessIds.length > 0) {
+      const { data: businessRows } = await supabase
+        .from('businesses')
+        .select('id, is_verified, plan')
+        .in('id', businessIds);
+      verifiedMap = new Map(
+        (businessRows || []).map((row: { id: string; is_verified?: boolean | null; plan?: string | null }) => [
+          row.id,
+          Boolean(row.is_verified),
+        ])
+      );
+      planMap = new Map(
+        (businessRows || []).map((row: { id: string; plan?: string | null }) => [row.id, row.plan || ''])
+      );
+    }
+    const withMetadata = combined.map((item) => ({
+      ...item,
+      business_verified: item.business_id ? verifiedMap.get(item.business_id) || false : false,
+      business_plan: item.business_id ? planMap.get(item.business_id) || null : null,
+    }));
+    const ranked = withMetadata.sort((a, b) => {
+      const planDelta = getPlanRank(b.business_plan) - getPlanRank(a.business_plan);
+      if (planDelta !== 0) return planDelta;
+      return sortByCreatedAt(b, a);
+    });
+    const final = shuffleInChunks(ranked, 8);
+    setItems(final);
+    writeMarketplaceCache(final);
+  };
 
   const getFavoriteKey = (item: MarketplaceItem) => `${item.source}:${item.id}`;
 
@@ -415,9 +451,6 @@ export default function MarketplacePage() {
   };
 
   const favoriteKeys = new Set(favoriteItems.map((fav) => fav.key));
-
-  const sortByCreatedAt = (a: MarketplaceItem, b: MarketplaceItem) =>
-    new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
 
   const normalizeToken = (value: string) => value.toLowerCase().trim();
   const tokens = searchTerm
@@ -548,68 +581,112 @@ export default function MarketplacePage() {
   });
   filteredItems = withRelevance.map(({ item }) => item);
 
+  const handlePullRefresh = useCallback(async () => {
+    try { sessionStorage.removeItem(MARKETPLACE_CACHE_KEY); } catch {}
+    setVisibleCount(6);
+    await loadMarketplaceItems();
+  }, []);
+
   const ItemCard = ({ item }: { item: MarketplaceItem }) => (
-    <div key={item.id} className="relative group border rounded-xl overflow-hidden shadow hover:shadow-lg bg-white">
-      <Link href={`/marketplace/${item.slug}`}>
-        <div className="relative w-full bg-gray-100">
-          <img
-            src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
-            alt={item.title}
-            loading="lazy"
-            decoding="async"
-            className="w-full h-auto max-h-72 object-contain"
-          />
-          {item.business_verified && (
-            <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white shadow">
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-emerald-600 text-[9px] font-bold">
-                H
-              </span>
+    <Link
+      key={item.id}
+      href={`/marketplace/${item.slug}`}
+      className="group relative bg-gradient-to-b from-blue-50/60 to-blue-50/30 dark:from-gray-800 dark:to-gray-800 rounded-lg sm:rounded-xl overflow-hidden shadow-sm hover:shadow-md dark:shadow-gray-900/50 transition-all duration-300 border border-blue-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-gray-500 hover:-translate-y-0.5 flex flex-col h-full text-sm sm:text-base"
+    >
+      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
+        <img
+          src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
+          alt={item.title}
+          loading="lazy"
+          decoding="async"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(item); }}
+          className="absolute top-2 right-2 p-1.5 sm:p-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full shadow hover:bg-white dark:hover:bg-gray-700 transition active:scale-95"
+        >
+          {favoriteKeys.has(getFavoriteKey(item)) ? (
+            <FaHeart className="h-4 w-4 sm:h-5 sm:w-5 text-rose-500 dark:text-rose-400" />
+          ) : (
+            <FaRegHeart className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500 dark:text-gray-400" />
+          )}
+        </button>
+        {item.business_id && (
+          item.business_verified ? (
+            <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-emerald-500/90 backdrop-blur-sm px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm">
+              <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.403 12.652a3 3 0 010-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-5.11-1.36a.75.75 0 10-1.085-1.035l-2.165 2.27-.584-.614a.75.75 0 10-1.085 1.035l1.126 1.182a.75.75 0 001.085 0l2.708-2.839z" clipRule="evenodd" /></svg>
               Verified
+            </span>
+          ) : (
+            <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-indigo-500/90 backdrop-blur-sm px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm">
+              <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.581.814L10 13.197l-4.419 3.617A1 1 0 014 16V4z" clipRule="evenodd" /></svg>
+              Business
+            </span>
+          )
+        )}
+      </div>
+
+      <div className="p-2.5 sm:p-3.5 flex flex-col flex-grow">
+        <div className="flex flex-wrap gap-1 mb-1 sm:mb-1.5">
+          <span className="inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 text-xs font-medium rounded-full w-fit bg-emerald-100 text-emerald-700 border border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700">
+            {getPriceValue(item.price) === null ? item.price : `$${getPriceValue(item.price)}`}
+          </span>
+          {item.condition && (
+            <span className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 text-xs font-medium rounded-full w-fit ${
+              item.condition === 'New'
+                ? 'bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/40 dark:text-green-200 dark:border-green-700'
+                : 'bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700'
+            }`}>
+              {item.condition}
             </span>
           )}
         </div>
-        <div className="p-3 space-y-1">
-          <h3 className="font-semibold text-lg">{item.title}</h3>
-          <p className="text-green-600 font-medium">
-            {getPriceValue(item.price) === null ? item.price : `$${getPriceValue(item.price)}`}
+
+        <h3 className="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors leading-tight line-clamp-2 mb-1 sm:mb-1.5 text-sm sm:text-base">
+          {item.title}
+        </h3>
+
+        {item.description && (
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 italic leading-relaxed line-clamp-2 mb-1.5 sm:mb-2">
+            {item.description}
           </p>
-          {item.description && (
-            <p className="text-sm text-gray-600 line-clamp-2">
-              {item.description}
-            </p>
-          )}
-          <p className="text-sm text-gray-500">{item.location}</p>
-          <span className={`text-xs inline-block mt-1 px-2 py-1 rounded-full ${item.condition === 'New' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-            {item.condition}
-          </span>
-        </div>
-      </Link>
-      <button onClick={() => toggleFavorite(item)} className="absolute top-3 right-3 text-white bg-black/40 rounded-full p-1 hover:bg-black/60">
-        {favoriteKeys.has(getFavoriteKey(item)) ? <FaHeart className="text-red-500" /> : <FaRegHeart className="text-white" />}
-      </button>
-    </div>
+        )}
+
+        {item.location && (
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-1 mt-auto">
+            {item.location}
+          </p>
+        )}
+      </div>
+    </Link>
   );
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <PullToRefresh onRefresh={handlePullRefresh}>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
+    <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-5 sm:pt-6">
       {/* Filters + Title */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Marketplace</h1>
+        <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">Marketplace</h1>
         <button type="button" onClick={() => setShowFilters(!showFilters)} className={`text-sm px-3 py-1.5 rounded-md ${showFilters ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
           {showFilters ? 'Hide Filters' : 'Filters'}
         </button>
       </div>
 
       {/* Search */}
-      <input
-        type="text"
-        placeholder="Search items, phones, cities..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        onKeyDown={handleSearchKeyDown}
-        onBlur={handleSearchBlur}
-        className="w-full p-2 border rounded-md mb-2 text-sm"
-      />
+      <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-blue-100 dark:border-gray-700 -mx-3 sm:-mx-5 px-3 sm:px-5 py-3 sm:py-4 mb-5 sm:mb-6">
+        <div className="relative max-w-3xl mx-auto">
+          <input
+            type="text"
+            placeholder="Search items, phones, cities..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            onBlur={handleSearchBlur}
+            className="w-full pl-3.5 pr-3.5 py-3 sm:py-3.5 bg-white dark:bg-gray-800 border border-blue-200 dark:border-gray-600 rounded-lg sm:rounded-xl text-sm sm:text-base text-gray-900 dark:text-gray-100 placeholder-blue-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400/40 dark:focus:ring-blue-500/40 focus:border-blue-400 dark:focus:border-blue-500 transition shadow-sm"
+          />
+        </div>
+      </div>
       {/* Latest / recent searches */}
       {recentSearches.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -671,20 +748,20 @@ export default function MarketplacePage() {
 
       {/* Items */}
       {items.length === 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-              <div className="skeleton h-48 w-full rounded-none" />
-              <div className="p-4 space-y-2">
-                <div className="skeleton h-4 w-3/4 rounded" />
-                <div className="skeleton h-3.5 w-1/3 rounded" />
+            <div key={i} className="rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+              <div className="skeleton aspect-[4/3] w-full rounded-none" />
+              <div className="p-2.5 sm:p-3.5 space-y-2">
+                <div className="skeleton h-3.5 w-1/3 rounded-full" />
+                <div className="skeleton h-3.5 w-3/4 rounded" />
                 <div className="skeleton h-3 w-1/2 rounded" />
               </div>
             </div>
           ))}
         </div>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
         {filteredItems.slice(0, visibleCount).map((item) => (
           <ItemCard key={item.id} item={item} />
         ))}
@@ -695,12 +772,14 @@ export default function MarketplacePage() {
         <p className="text-center text-gray-500 mt-6">No results found. Try changing your search or filters.</p>
       )}
       {filteredItems.length > visibleCount && (
-        <div className="text-center mt-6">
-          <button onClick={() => setVisibleCount(visibleCount + 6)} className="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition">
+        <div className="text-center mt-8 sm:mt-10">
+          <button onClick={() => setVisibleCount(visibleCount + 6)} className="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition text-sm">
             Show More
           </button>
         </div>
       )}
     </div>
+    </div>
+    </PullToRefresh>
   );
 }

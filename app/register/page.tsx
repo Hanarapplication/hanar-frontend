@@ -11,6 +11,7 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  HelpCircle,
 } from 'lucide-react';
 import { PhoneInput } from '@/components/PhoneInput';
 import { useLanguage } from '@/context/LanguageContext';
@@ -129,6 +130,10 @@ export default function RegisterPage() {
 
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    dateOfBirth: '',
+    gender: '' as '' | 'man' | 'woman' | 'she' | 'he' | 'they',
     fullName: '',
     businessName: '',
     organizationName: '',
@@ -138,6 +143,19 @@ export default function RegisterPage() {
     confirmPassword: '',
     website: '', // honeypot - bots fill this
   });
+
+  const [genderMoreExpanded, setGenderMoreExpanded] = useState(false);
+
+  const GENDER_MAIN = [
+    { value: 'man' as const, label: t(effectiveLang, 'Man') },
+    { value: 'woman' as const, label: t(effectiveLang, 'Woman') },
+    { value: 'more' as const, label: t(effectiveLang, 'More options') },
+  ];
+  const GENDER_MORE_OPTIONS: { value: 'she' | 'he' | 'they'; label: string }[] = [
+    { value: 'she', label: t(effectiveLang, 'She') },
+    { value: 'he', label: t(effectiveLang, 'He') },
+    { value: 'they', label: t(effectiveLang, 'They') },
+  ];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((p) => ({ ...p, [e.target.id]: e.target.value }));
@@ -156,18 +174,31 @@ export default function RegisterPage() {
     return score;
   }, [form.password]);
 
+  const fullName = [form.firstName.trim(), form.lastName.trim()].filter(Boolean).join(' ');
   const name =
     role === 'business'
       ? form.businessName
       : role === 'organization'
       ? form.organizationName
-      : form.fullName;
+      : fullName;
 
   /* ---------- Submit ---------- */
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!form.firstName?.trim()) return toast.error(t(effectiveLang, 'First name is required'));
+    if (!form.lastName?.trim()) return toast.error(t(effectiveLang, 'Last name is required'));
+    if (!form.dateOfBirth?.trim()) return toast.error(t(effectiveLang, 'Date of birth is required'));
+    const dob = new Date(form.dateOfBirth);
+    if (Number.isNaN(dob.getTime())) return toast.error(t(effectiveLang, 'Invalid date of birth'));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (dob >= today) return toast.error(t(effectiveLang, 'Date of birth must be in the past'));
+    const age = (today.getTime() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+    if (age < 13) return toast.error(t(effectiveLang, 'You must be at least 13 years old'));
+    if ((role === 'business' || role === 'organization') && age < 18) return toast.error(t(effectiveLang, 'You must be at least 18 years old to create a business or organization account'));
+    if (role === 'individual' && !form.gender) return toast.error(t(effectiveLang, 'Please select your gender'));
     if (!name || name.length < 3) return toast.error(t(effectiveLang, 'Name too short'));
     if ((role === 'business' || role === 'organization') && !form.phone?.trim()) return toast.error(t(effectiveLang, 'Please enter your phone number'));
     if (!passwordMatch) return toast.error(t(effectiveLang, 'Passwords do not match'));
@@ -183,7 +214,11 @@ export default function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
-          fullName: form.fullName,
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim(),
+          dateOfBirth: form.dateOfBirth.trim(),
+          fullName,
+          gender: role === 'individual' ? form.gender || undefined : undefined,
           email: form.email,
           password: form.password,
           role,
@@ -208,7 +243,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-      <form onSubmit={handleRegister} className="w-full max-w-xl bg-white rounded-3xl p-10 space-y-8 shadow-xl">
+      <form onSubmit={handleRegister} className="w-full max-w-xl mx-auto bg-white rounded-3xl p-10 space-y-8 shadow-xl">
         <div className="flex justify-center">
           <img
             src="/hanar.logo.png"
@@ -226,8 +261,100 @@ export default function RegisterPage() {
           <RoleOption value="organization" label={t(effectiveLang, 'Org')} desc={t(effectiveLang, 'Community')} icon={Landmark} currentRole={role} setRole={setRole} />
         </div>
 
+        <div className="grid grid-cols-2 gap-3">
+          <FloatingInput id="firstName" placeholder={t(effectiveLang, 'First Name')} value={form.firstName} onChange={handleChange} disabled={clicked} />
+          <FloatingInput id="lastName" placeholder={t(effectiveLang, 'Last Name')} value={form.lastName} onChange={handleChange} disabled={clicked} />
+        </div>
+
+        <div>
+          <div className="flex items-center gap-1.5 mb-1">
+            <label htmlFor="dateOfBirth" className="text-xs font-semibold text-indigo-600">
+              {t(effectiveLang, 'Date of Birth')}
+            </label>
+            <div className="relative group inline-flex">
+              <button
+                type="button"
+                className="text-slate-400 hover:text-indigo-600 focus:text-indigo-600 focus:outline-none rounded-full p-0.5"
+                aria-label={t(effectiveLang, 'Why we ask for date of birth')}
+              >
+                <HelpCircle className="h-4 w-4" />
+              </button>
+              <div className="absolute left-0 top-full mt-1 z-10 w-72 rounded-lg border border-slate-200 bg-white p-3 text-left text-xs text-slate-600 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150">
+                <p className="font-semibold text-slate-800 mb-1.5">{t(effectiveLang, 'Why we ask for your date of birth')}</p>
+                <p>
+                  {t(effectiveLang, 'We collect your date of birth to comply with laws that protect minors online (such as COPPA in the US and similar regulations elsewhere). We use it to verify that users meet our minimum age requirement. This helps keep underage users off the platform as required by law and our Terms of Service.')}
+                </p>
+              </div>
+            </div>
+          </div>
+          <FloatingInput id="dateOfBirth" type="date" placeholder={t(effectiveLang, 'Date of Birth')} value={form.dateOfBirth} onChange={handleChange} disabled={clicked} />
+        </div>
+
         {role === 'individual' && (
-          <FloatingInput id="fullName" placeholder={t(effectiveLang, 'Full Name')} value={form.fullName} onChange={handleChange} disabled={clicked} />
+          <div>
+            <label className="mb-2 block text-xs font-semibold text-indigo-600">{t(effectiveLang, 'Gender')}</label>
+            <div className="flex flex-wrap gap-2">
+              {GENDER_MAIN.map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`cursor-pointer rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all ${
+                    opt.value === 'more'
+                      ? genderMoreExpanded
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200'
+                      : form.gender === opt.value
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="gender"
+                    value={opt.value}
+                    checked={opt.value === 'more' ? genderMoreExpanded : form.gender === opt.value}
+                    onChange={() => {
+                      if (opt.value === 'more') {
+                        const willExpand = !genderMoreExpanded;
+                        setGenderMoreExpanded(willExpand);
+                        if (willExpand) setForm((p) => ({ ...p, gender: '' }));
+                      } else {
+                        setGenderMoreExpanded(false);
+                        setForm((p) => ({ ...p, gender: opt.value }));
+                      }
+                    }}
+                    disabled={clicked}
+                    className="sr-only"
+                  />
+                  {opt.label}
+                </label>
+              ))}
+            </div>
+            {genderMoreExpanded && (
+              <div className="mt-2 flex flex-wrap gap-2 pl-0">
+                {GENDER_MORE_OPTIONS.map((opt) => (
+                  <label
+                    key={opt.value}
+                    className={`cursor-pointer rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-all ${
+                      form.gender === opt.value
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-200'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="genderSub"
+                      value={opt.value}
+                      checked={form.gender === opt.value}
+                      onChange={() => setForm((p) => ({ ...p, gender: opt.value }))}
+                      disabled={clicked}
+                      className="sr-only"
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {role === 'business' && (
@@ -242,7 +369,6 @@ export default function RegisterPage() {
                 disabled={clicked}
               />
             </div>
-            <FloatingInput id="fullName" placeholder={t(effectiveLang, 'Owner Name')} value={form.fullName} onChange={handleChange} disabled={clicked} />
             <FloatingInput id="businessName" placeholder={t(effectiveLang, 'Business Name')} value={form.businessName} onChange={handleChange} disabled={clicked} />
           </>
         )}
@@ -259,7 +385,6 @@ export default function RegisterPage() {
                 disabled={clicked}
               />
             </div>
-            <FloatingInput id="fullName" placeholder={t(effectiveLang, 'Representative Name')} value={form.fullName} onChange={handleChange} disabled={clicked} />
             <FloatingInput id="organizationName" placeholder={t(effectiveLang, 'Organization Name')} value={form.organizationName} onChange={handleChange} disabled={clicked} />
           </>
         )}

@@ -41,6 +41,13 @@ type Comment = {
   author_type?: string;
 };
 
+type ProfileMediaItem = {
+  id: string;
+  url: string;
+  media_type: 'image' | 'video';
+  created_at: string;
+};
+
 const userProfileHref = (username: string) => `/profile/${username}`;
 
 const resolveMarketplaceImageUrls = (raw: unknown): string[] => {
@@ -86,6 +93,8 @@ export default function ProfilePage() {
   const [deletingPost, setDeletingPost] = useState<string | null>(null);
   const [listings, setListings] = useState<ProfileListing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(true);
+  const [profileMedia, setProfileMedia] = useState<ProfileMediaItem[]>([]);
+  const [profileMediaLoading, setProfileMediaLoading] = useState(false);
 
   useEffect(() => {
     const loadCurrentUser = async () => {
@@ -195,6 +204,24 @@ export default function ProfilePage() {
     };
 
     loadPosts();
+  }, [profile?.id]);
+
+  useEffect(() => {
+    const loadProfileMedia = async () => {
+      if (!profile?.id) return;
+      setProfileMediaLoading(true);
+      try {
+        const res = await fetch(`/api/profile-media?user_id=${encodeURIComponent(profile.id)}`);
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && Array.isArray(data.media)) setProfileMedia(data.media);
+        else setProfileMedia([]);
+      } catch {
+        setProfileMedia([]);
+      } finally {
+        setProfileMediaLoading(false);
+      }
+    };
+    loadProfileMedia();
   }, [profile?.id]);
 
   useEffect(() => {
@@ -444,6 +471,31 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Photos & videos</h2>
+          {profileMediaLoading ? (
+            <div className="flex justify-center py-8">
+              <Spinner size={28} />
+            </div>
+          ) : profileMedia.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
+              No photos or videos yet.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {profileMedia.map((item) => (
+                <div key={item.id} className="rounded-xl overflow-hidden bg-slate-100 aspect-square">
+                  {item.media_type === 'image' ? (
+                    <img src={item.url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <video src={item.url} className="h-full w-full object-cover" muted playsInline controls />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="mt-8">
           <h2 className="text-lg font-semibold text-slate-900 mb-4">Posts</h2>

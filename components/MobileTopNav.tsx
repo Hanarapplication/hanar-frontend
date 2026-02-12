@@ -10,10 +10,14 @@ import {
 } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
+import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 
 export default function MobileTopNav() {
   const pathname = usePathname();
   const { effectiveLang } = useLanguage();
+
+  // Enable swipe-left / swipe-right between the four feed tabs
+  useSwipeNavigation();
 
   const navItems = [
     { href: '/', icon: <FaHome />, label: t(effectiveLang, 'Home') },

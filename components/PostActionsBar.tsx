@@ -1,3 +1,5 @@
+import ReportButton from '@/components/ReportButton';
+
 type Props = {
   liked: boolean;
   likesCount: number;
@@ -6,6 +8,8 @@ type Props = {
   onComment?: () => void;
   onShare?: () => void;
   canLike?: boolean;
+  postId?: string;
+  postTitle?: string;
 };
 
 export default function PostActionsBar({
@@ -16,6 +20,8 @@ export default function PostActionsBar({
   onComment,
   onShare,
   canLike = true,
+  postId,
+  postTitle,
 }: Props) {
   return (
     <div className="mt-4 flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
@@ -47,6 +53,14 @@ export default function PostActionsBar({
         >
           🔗 Share
         </button>
+        {postId && (
+          <ReportButton
+            entityType="post"
+            entityId={postId}
+            entityTitle={postTitle}
+            variant="pill"
+          />
+        )}
       </div>
       <div className="text-xs text-slate-500 dark:text-gray-400 order-1 sm:order-2">
         <span className="font-semibold text-slate-600 dark:text-gray-200">{likesCount}</span> likes

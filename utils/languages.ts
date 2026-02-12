@@ -1,7 +1,7 @@
 export const supportedLanguages = [
     { code: 'auto', name: 'Auto (Detect)', emoji: '🌍' },
     { code: 'am', name: 'Amharic', emoji: '🇪🇹' },
-    { code: 'ar', name: 'Arabic', emoji: '🟩' }, // Arab League (green square)
+    { code: 'ar', name: 'Arabic', emoji: '🇸🇦' },
     { code: 'az', name: 'Azerbaijani', emoji: '🇦🇿' },
     { code: 'bn', name: 'Bengali', emoji: '🇧🇩' },
     { code: 'de', name: 'German', emoji: '🇩🇪' },
@@ -20,7 +20,7 @@ export const supportedLanguages = [
     { code: 'ka', name: 'Georgian', emoji: '🇬🇪' },
     { code: 'kk', name: 'Kazakh', emoji: '🇰🇿' },
     { code: 'ko', name: 'Korean', emoji: '🇰🇷' },
-    { code: 'ku', name: 'Kurdish', emoji: '🇹🇯' }, // Same as ckb for now
+    { code: 'ku', name: 'Kurdish', emoji: '🇹🇯' },
     { code: 'ms', name: 'Malay', emoji: '🇲🇾' },
     { code: 'my', name: 'Burmese', emoji: '🇲🇲' },
     { code: 'ne', name: 'Nepali', emoji: '🇳🇵' },
@@ -42,4 +42,53 @@ export const supportedLanguages = [
     { code: 'vi', name: 'Vietnamese', emoji: '🇻🇳' },
     { code: 'zh', name: 'Chinese', emoji: '🇨🇳' },
   ];
-  
+
+/** Spoken languages for profiles/ads: one entry per language, multiple flags when spoken in multiple countries. */
+export type SpokenLanguageOption = { code: string; label: string; flag: string };
+
+export const spokenLanguagesWithDialects: SpokenLanguageOption[] = [
+  { code: 'en', label: 'English', flag: '🇺🇸 🇬🇧 🇨🇦 🇦🇺 …' },
+  { code: 'zh', label: 'Chinese', flag: '🇨🇳 🇹🇼 🇭🇰 …' },
+  { code: 'hi', label: 'Hindi', flag: '🇮🇳 …' },
+  { code: 'es', label: 'Spanish', flag: '🇪🇸 🇲🇽 🇦🇷 🇨🇴 …' },
+  { code: 'fr', label: 'French', flag: '🇫🇷 🇨🇦 🇧🇪 …' },
+  { code: 'ar', label: 'Arabic', flag: '🇸🇦 🇪🇬 🇲🇦 🇩🇿 🇮🇶 🇸🇾 …' },
+  { code: 'bn', label: 'Bengali', flag: '🇧🇩 🇮🇳 …' },
+  { code: 'pt', label: 'Portuguese', flag: '🇵🇹 🇧🇷 🇦🇴 …' },
+  { code: 'ru', label: 'Russian', flag: '🇷🇺 …' },
+  { code: 'ur', label: 'Urdu', flag: '🇵🇰 🇮🇳 …' },
+  { code: 'id', label: 'Indonesian', flag: '🇮🇩 …' },
+  { code: 'de', label: 'German', flag: '🇩🇪 🇦🇹 🇨🇭 …' },
+  { code: 'ja', label: 'Japanese', flag: '🇯🇵 …' },
+  { code: 'tr', label: 'Turkish', flag: '🇹🇷 …' },
+  { code: 'ta', label: 'Tamil', flag: '🇮🇳 🇱🇰 …' },
+  { code: 'ko', label: 'Korean', flag: '🇰🇷 …' },
+  { code: 'fa', label: 'Farsi (Persian)', flag: '🇮🇷 🇦🇫 …' },
+  { code: 'ha', label: 'Hausa', flag: '🇳🇬 …' },
+  { code: 'sw', label: 'Swahili', flag: '🇰🇪 🇹🇿 🇺🇬 …' },
+  { code: 'it', label: 'Italian', flag: '🇮🇹 …' },
+  { code: 'pa', label: 'Punjabi', flag: '🇮🇳 🇵🇰 …' },
+  { code: 'th', label: 'Thai', flag: '🇹🇭 …' },
+  { code: 'am', label: 'Amharic', flag: '🇪🇹 …' },
+  { code: 'my', label: 'Burmese', flag: '🇲🇲 …' },
+  { code: 'pl', label: 'Polish', flag: '🇵🇱 …' },
+  { code: 'uz', label: 'Uzbek', flag: '🇺🇿 …' },
+  { code: 'az', label: 'Azerbaijani', flag: '🇦🇿 …' },
+  { code: 'el', label: 'Greek', flag: '🇬🇷 …' },
+  { code: 'he', label: 'Hebrew', flag: '🇮🇱 …' },
+  { code: 'hy', label: 'Armenian', flag: '🇦🇲 …' },
+  { code: 'ka', label: 'Georgian', flag: '🇬🇪 …' },
+  { code: 'kk', label: 'Kazakh', flag: '🇰🇿 …' },
+  { code: 'ku', label: 'Kurdish', flag: '🇹🇯 🇮🇶 …' },
+  { code: 'ms', label: 'Malay', flag: '🇲🇾 🇮🇩 🇸🇬 …' },
+  { code: 'ne', label: 'Nepali', flag: '🇳🇵 🇮🇳 …' },
+  { code: 'ps', label: 'Pashto', flag: '🇦🇫 🇵🇰 …' },
+  { code: 'ro', label: 'Romanian', flag: '🇷🇴 …' },
+  { code: 'so', label: 'Somali', flag: '🇸🇴 …' },
+  { code: 'ug', label: 'Uyghur', flag: '🇨🇳 …' },
+  { code: 'uk', label: 'Ukrainian', flag: '🇺🇦 …' },
+  { code: 'vi', label: 'Vietnamese', flag: '🇻🇳 …' },
+];
+
+/** Set of predefined language codes (for detecting custom/other languages). */
+export const predefinedLanguageCodes = new Set(spokenLanguagesWithDialects.map((l) => l.code));
