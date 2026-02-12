@@ -73,6 +73,8 @@ export async function GET(req: Request) {
       { count: businessesPending },
       { count: notificationPending },
       { count: reportedPosts },
+      { count: feedBannersOnHold },
+      { count: organizationsNeedingAttention },
     ] = await Promise.all([
       supabaseAdmin
         .from('businesses')
@@ -88,6 +90,14 @@ export async function GET(req: Request) {
         .select('*', { count: 'exact', head: true })
         .eq('is_reported', true)
         .or('is_deleted.eq.false,is_deleted.is.null'),
+      supabaseAdmin
+        .from('feed_banners')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'on_hold'),
+      supabaseAdmin
+        .from('organizations')
+        .select('*', { count: 'exact', head: true })
+        .or('moderation_status.eq.on_hold,moderation_status.eq.rejected'),
     ]);
 
     let reportedComments = 0;
@@ -118,6 +128,8 @@ export async function GET(req: Request) {
       reported_posts: reportedPosts ?? 0,
       reported_comments: reportedComments,
       contact_us_to_review: contactUs,
+      feed_banners_on_hold: feedBannersOnHold ?? 0,
+      organizations_needing_attention: organizationsNeedingAttention ?? 0,
     });
   } catch (err: unknown) {
     return NextResponse.json(

@@ -41,6 +41,20 @@ export default function CommunityFeedPage() {
   const [commentsOpen, setCommentsOpen] = useState<Set<string>>(new Set());
   const [commentLoading, setCommentLoading] = useState<Record<string, boolean>>({});
   const [deletingPost, setDeletingPost] = useState<string | null>(null);
+  const [communityBanner, setCommunityBanner] = useState<{ id: string; image: string; link: string; alt: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/feed-banners')
+      .then((r) => r.json())
+      .then((d) => {
+        const list = d.banners || [];
+        if (list.length > 0) {
+          const pick = list[Math.floor(Math.random() * list.length)];
+          if (pick?.image) setCommunityBanner(pick);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const sortPosts = (posts: Post[]): Post[] => {
     if (sortMode === 'popular') {
@@ -59,7 +73,13 @@ export default function CommunityFeedPage() {
       const response = await fetch('/api/community/list', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ search, offset: visiblePosts.length, lang, sortMode }),
+        body: JSON.stringify({
+          search,
+          offset: visiblePosts.length,
+          lang,
+          sortMode,
+          userId: currentUser.id || undefined,
+        }),
       });
       const newPosts: Post[] = await response.json();
       const sorted = sortPosts(newPosts);
@@ -77,7 +97,7 @@ export default function CommunityFeedPage() {
     setVisiblePosts([]);
     setHasMore(true);
     loadMorePosts();
-  }, [search, lang, sortMode]);
+  }, [search, lang, sortMode, currentUser.id]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -311,9 +331,6 @@ export default function CommunityFeedPage() {
 
   return (
     <div className="container mx-auto px-4 pt-0 pb-8">
-      <div className="text-xs text-orange-600 dark:text-orange-400 mb-0 mt-0">
-        Business accounts can’t post.
-      </div>
       <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
         {t(effectiveLang, 'Showing posts in')}: <strong className="dark:text-gray-200">{t(effectiveLang, lang)}</strong>
       </div>
@@ -364,7 +381,47 @@ export default function CommunityFeedPage() {
         )}
       </div>
 
+      {communityBanner?.image && (
+        <div className="mb-6 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden shadow-sm">
+          <Link href={communityBanner.link || '#'} target="_blank" rel="noopener noreferrer" className="block w-full">
+            <div className="relative w-full aspect-[1200/630] bg-slate-100 dark:bg-gray-700">
+              <img
+                src={communityBanner.image}
+                alt={communityBanner.alt || 'Banner'}
+                loading="lazy"
+                decoding="async"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            </div>
+          </Link>
+        </div>
+      )}
+
       <div className="space-y-6">
+        {visiblePosts.length === 0 && loading && (
+          <>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="skeleton h-10 w-10 rounded-full" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="skeleton h-3 w-24 rounded" />
+                    <div className="skeleton h-2.5 w-16 rounded" />
+                  </div>
+                </div>
+                <div className="skeleton h-4 w-2/3 rounded" />
+                <div className="skeleton h-3 w-full rounded" />
+                <div className="skeleton h-3 w-5/6 rounded" />
+                {i % 2 === 1 && <div className="skeleton h-48 w-full rounded-lg" />}
+                <div className="flex gap-6 pt-2">
+                  <div className="skeleton h-3 w-14 rounded" />
+                  <div className="skeleton h-3 w-18 rounded" />
+                  <div className="skeleton h-3 w-12 rounded" />
+                </div>
+              </div>
+            ))}
+          </>
+        )}
         {visiblePosts.map((post, index) => {
           const liked = likedPosts.has(post.id);
           const commentCount = post.community_comments?.[0]?.count || 0;
@@ -500,6 +557,11 @@ export default function CommunityFeedPage() {
         })}
       </div>
 
+      {loading && visiblePosts.length > 0 && (
+        <div className="flex justify-center py-4">
+          <div className="h-6 w-6 rounded-full border-2 border-slate-300 dark:border-gray-600 border-t-blue-600 dark:border-t-blue-400 animate-spin" />
+        </div>
+      )}
       <div ref={bottomRef} className="h-10" />
     </div>
   );

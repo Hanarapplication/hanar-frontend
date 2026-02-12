@@ -1,0 +1,179 @@
+import { NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import sharp from 'sharp';
+
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('Missing Supabase env');
+
+const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+const BUCKET = 'feed-banners';
+
+async function getBusinessOwnerId(businessId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from('businesses')
+    .select('owner_id')
+    .eq('id', businessId)
+    .single();
+  return data?.owner_id ?? null;
+}
+
+async function getAuthUserId(req: Request): Promise<string | null> {
+  const supabaseAuth = createRouteHandlerClient({ cookies });
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (user?.id) return user.id;
+  const authHeader = req.headers.get('authorization') || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!token) return null;
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data?.user?.id) return null;
+  return data.user.id;
+}
+
+/** GET: list my business promotion requests */
+export async function GET(req: Request) {
+  try {
+    const userId = await getAuthUserId(req);
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { searchParams } = new URL(req.url);
+    const businessId = searchParams.get('business_id');
+    if (!businessId) return NextResponse.json({ error: 'business_id required' }, { status: 400 });
+
+    const ownerId = await getBusinessOwnerId(businessId);
+    if (ownerId !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const { data, error } = await supabaseAdmin
+      .from('business_promotion_requests')
+      .select('id, placement, image_path, link_type, link_value, description, tier, duration_days, price_cents, status, created_at')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false });
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ requests: data || [] });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unexpected error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/** POST: submit promotion request (upload banner + details) */
+export async function POST(req: Request) {
+  try {
+    const userId = await getAuthUserId(req);
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const formData = await req.formData();
+    const business_id = (formData.get('business_id') as string)?.trim();
+    const placement = (formData.get('placement') as string)?.trim();
+    const link_type = (formData.get('link_type') as string)?.trim();
+    const link_value = (formData.get('link_value') as string)?.trim() || '';
+    const description = (formData.get('description') as string)?.trim() || '';
+    const tier = (formData.get('tier') as string)?.trim();
+    const duration_days = parseInt(String(formData.get('duration_days') || '0'), 10);
+    const price_cents = parseInt(String(formData.get('price_cents') || '0'), 10);
+    const file = formData.get('image') as File | null;
+
+    if (!business_id) return NextResponse.json({ error: 'business_id required' }, { status: 400 });
+    if (!['home_feed', 'community', 'universal'].includes(placement)) {
+      return NextResponse.json({ error: 'Invalid placement' }, { status: 400 });
+    }
+    if (!['business_page', 'external'].includes(link_type)) {
+      return NextResponse.json({ error: 'Invalid link_type' }, { status: 400 });
+    }
+    if (!['basic', 'targeted', 'premium'].includes(tier)) {
+      return NextResponse.json({ error: 'Invalid tier' }, { status: 400 });
+    }
+    if (!duration_days || duration_days < 1 || !price_cents || price_cents < 0) {
+      return NextResponse.json({ error: 'Invalid duration or price' }, { status: 400 });
+    }
+
+    const ownerId = await getBusinessOwnerId(business_id);
+    if (ownerId !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    let image_path: string | null = null;
+    if (file && typeof file.arrayBuffer === 'function') {
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const compressed = await sharp(buffer)
+        .rotate()
+        .resize(1200, 630, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+      const id = crypto.randomUUID();
+      image_path = `promotion-${id}.jpg`;
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(BUCKET)
+        .upload(image_path, compressed, { contentType: 'image/jpeg', upsert: false });
+      if (uploadError) {
+        return NextResponse.json({ error: 'Upload failed: ' + uploadError.message }, { status: 500 });
+      }
+    }
+
+    const { data: inserted, error: insertError } = await supabaseAdmin
+      .from('business_promotion_requests')
+      .insert({
+        business_id,
+        placement,
+        image_path,
+        link_type,
+        link_value: link_value || null,
+        description: description || null,
+        tier,
+        duration_days,
+        price_cents,
+        status: 'pending_review',
+      })
+      .select()
+      .single();
+
+    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
+    return NextResponse.json({ success: true, request: inserted });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unexpected error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+/** DELETE: remove a promotion request (end campaign). Owner only. If linked to feed_banner, archive it. */
+export async function DELETE(req: Request) {
+  try {
+    const userId = await getAuthUserId(req);
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+    const { data: row, error: fetchErr } = await supabaseAdmin
+      .from('business_promotion_requests')
+      .select('id, business_id, feed_banner_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !row) return NextResponse.json({ error: 'Request not found' }, { status: 404 });
+
+    const ownerId = await getBusinessOwnerId(row.business_id);
+    if (ownerId !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    if (row.feed_banner_id) {
+      await supabaseAdmin
+        .from('feed_banners')
+        .update({ status: 'archived' })
+        .eq('id', row.feed_banner_id);
+    }
+
+    const { error: deleteErr } = await supabaseAdmin
+      .from('business_promotion_requests')
+      .delete()
+      .eq('id', id);
+
+    if (deleteErr) return NextResponse.json({ error: deleteErr.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unexpected error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

@@ -129,15 +129,79 @@ body {
   color: #9ca3af !important;
 }
 
+/* ── Smooth scroll everywhere ── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ── Global button / link feel: snappy press + smooth transitions ── */
+button,
+a,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+select {
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+}
+
+button:active:not(:disabled),
+a:active,
+[role="button"]:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ── Hide scrollbar but keep scrollable (for pill bars etc.) ── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Skeleton shimmer for loading placeholders ── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: 0.5rem;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg, #1f2937 25%, #374151 37%, #1f2937 63%);
+  background-size: 800px 100%;
+}
+
+/* ── Page enter animation (used by transition wrapper) ── */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-page-enter {
+  animation: pageEnter 0.25s ease-out both;
+}
+
 @layer utilities {
   .animate-fade-in {
-    animation: fadeIn 0.3s ease forwards;
+    animation: fadeIn 0.25s ease forwards;
     opacity: 0;
   }
 
   .animate-scale-in {
-    animation: scaleIn 0.3s ease forwards;
-    transform: scale(0.9);
+    animation: scaleIn 0.25s ease forwards;
+    transform: scale(0.95);
   }
 
   @keyframes fadeIn {
@@ -151,16 +215,53 @@ body {
       transform: scale(1);
     }
   }
+
   @keyframes wiggle {
     0%, 100% { transform: rotate(0deg); }
     25% { transform: rotate(-15deg); }
     75% { transform: rotate(15deg); }
   }
-  
+
   .animate-wiggle {
     animation: wiggle 0.5s ease-in-out;
   }
-  
+}
+
+/* ── Smooth image reveal on load ── */
+img {
+  transition: opacity 0.2s ease;
+}
+
+/* ── Smooth accordion / collapsible open ── */
+details > summary {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+/* ── Touch feedback for mobile (subtle tap highlight) ── */
+@media (hover: none) {
+  button:active:not(:disabled),
+  a:active,
+  [role="button"]:active:not(:disabled) {
+    opacity: 0.85;
+  }
+}
+
+/* ── Modal overlay fade-in ── */
+[role="dialog"] {
+  animation: fadeIn 0.15s ease-out;
+}
+
+/* ── Spinner utility ── */
+.spinner {
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 9999px;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Following organizations: force visible white text in dark mode (must come last) */

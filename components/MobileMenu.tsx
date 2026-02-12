@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import LiveRefreshLink from '@/components/LiveRefreshLink';
 import {
   FaTimes,
   FaQuestionCircle,
@@ -79,7 +78,7 @@ export default function MobileMenu({
     <>
       {/* Overlay */}
       <div
-        className={`fixed inset-0 z-50 bg-black/50 transition-opacity ${
+        className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-opacity duration-200 ${
           isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setIsOpen(false)}
@@ -87,29 +86,35 @@ export default function MobileMenu({
 
       {/* Drawer Panel */}
       <aside
-        className={`fixed top-0 right-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform duration-300 ${
+        className={`fixed top-0 right-0 h-full w-64 bg-white dark:bg-gray-900 shadow-2xl z-50 transform transition-transform duration-250 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <span className="font-semibold text-lg text-gray-800">{t(effectiveLang, 'menu')}</span>
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+          <span className="font-semibold text-lg text-gray-800 dark:text-gray-100">{t(effectiveLang, 'menu')}</span>
           <button onClick={() => setIsOpen(false)} className="focus:outline-none" aria-label="Close Menu">
-            <FaTimes className="text-gray-600 hover:text-gray-800 transition" />
+            <FaTimes className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition" />
           </button>
         </div>
 
         <nav className="flex flex-col px-4 py-4 text-sm text-gray-700 space-y-3">
-          <LiveRefreshLink
+          <Link
             href="/"
             onClick={() => setIsOpen(false)}
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >
             <FaHome className="text-gray-500" />
             <span>{t(effectiveLang, 'Home')}</span>
-          </LiveRefreshLink>
+          </Link>
 
           <Link
-            href="/dashboard"
+            href={
+              userRole === 'business'
+                ? '/business-dashboard'
+                : userRole === 'organization'
+                ? '/organization/dashboard'
+                : '/dashboard'
+            }
             onClick={() => setIsOpen(false)}
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
@@ -34,6 +34,64 @@ export default function CommunityPostPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [sortMode, setSortMode] = useState<'latest' | 'popular'>('latest');
   const [popupImage, setPopupImage] = useState<string | null>(null);
+  const [bannerTop, setBannerTop] = useState<{ id: string; image: string; link: string; alt: string } | null>(null);
+  const [bannerBottom, setBannerBottom] = useState<{ id: string; image: string; link: string; alt: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/feed-banners')
+      .then((r) => r.json())
+      .then((d) => {
+        const list: { id: string; image: string; link: string; alt: string }[] = (d.banners || []).filter((b: { image?: string }) => b.image);
+        if (list.length === 0) return;
+        const shuffled = [...list].sort(() => Math.random() - 0.5);
+        setBannerTop(shuffled[0]);
+        if (shuffled.length > 1) setBannerBottom(shuffled[1]);
+      })
+      .catch(() => {});
+  }, []);
+
+  const bannerTopRef = useRef<HTMLDivElement>(null);
+  const bannerTopTracked = useRef(false);
+  const bannerBottomRef = useRef<HTMLDivElement>(null);
+  const bannerBottomTracked = useRef(false);
+
+  useEffect(() => {
+    const el = bannerTopRef.current;
+    if (!el || bannerTopTracked.current || !bannerTop?.id) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting || bannerTopTracked.current) return;
+        bannerTopTracked.current = true;
+        fetch('/api/track-view', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'feed_banner', id: bannerTop.id }),
+        }).catch(() => {});
+      },
+      { threshold: 0.25 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [bannerTop?.id]);
+
+  useEffect(() => {
+    const el = bannerBottomRef.current;
+    if (!el || bannerBottomTracked.current || !bannerBottom?.id) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting || bannerBottomTracked.current) return;
+        bannerBottomTracked.current = true;
+        fetch('/api/track-view', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'feed_banner', id: bannerBottom.id }),
+        }).catch(() => {});
+      },
+      { threshold: 0.25 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [bannerBottom?.id]);
 
   useEffect(() => {
     const fetchPostAndComments = async () => {
@@ -266,6 +324,26 @@ export default function CommunityPostPage() {
   return (
     <div className="min-h-screen bg-slate-100 py-6">
       <div className="max-w-3xl mx-auto px-4 space-y-4">
+        {bannerTop?.image && (() => {
+          const href = bannerTop.link || '#';
+          const isInternal = href.startsWith('/') || href.includes(window.location.hostname);
+          return (
+            <div ref={bannerTopRef} className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+              <Link href={href} {...(isInternal ? {} : { target: '_blank', rel: 'noopener noreferrer' })} className="block w-full">
+                <div className="relative w-full aspect-[3/1] max-h-32 bg-slate-100">
+                  <img
+                    src={bannerTop.image}
+                    alt={bannerTop.alt || 'Banner'}
+                    loading="lazy"
+                    decoding="async"
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                </div>
+              </Link>
+            </div>
+          );
+        })()}
+
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between text-xs text-slate-500">
             <div className="flex flex-wrap items-center gap-2">
@@ -423,6 +501,26 @@ export default function CommunityPostPage() {
             ))}
           </div>
         </div>
+
+        {bannerBottom?.image && (() => {
+          const href = bannerBottom.link || '#';
+          const isInternal = href.startsWith('/') || href.includes(window.location.hostname);
+          return (
+            <div ref={bannerBottomRef} className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+              <Link href={href} {...(isInternal ? {} : { target: '_blank', rel: 'noopener noreferrer' })} className="block w-full">
+                <div className="relative w-full aspect-[3/1] max-h-32 bg-slate-100">
+                  <img
+                    src={bannerBottom.image}
+                    alt={bannerBottom.alt || 'Banner'}
+                    loading="lazy"
+                    decoding="async"
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                </div>
+              </Link>
+            </div>
+          );
+        })()}
       
 
       {showDeleteModal && (

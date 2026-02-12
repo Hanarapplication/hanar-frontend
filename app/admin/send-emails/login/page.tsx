@@ -29,6 +29,7 @@ interface Organization { id: string; full_name: string | null; username: string 
 export default function AdminSendLoginEmailsPage() {
   const [loginAudience, setLoginAudience] = useState<LoginAudience>('all_businesses');
   const [subject, setSubject] = useState('');
+  const [customMessage, setCustomMessage] = useState('');
   const [selectedBusinessId, setSelectedBusinessId] = useState('');
   const [selectedOrgId, setSelectedOrgId] = useState('');
   const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -79,6 +80,7 @@ export default function AdminSendLoginEmailsPage() {
       const payload: Record<string, unknown> = {
         audience: loginAudience,
         subject: subject.trim() || undefined,
+        customMessage: customMessage.trim() || undefined,
       };
       if (loginAudience === 'individual_business') payload.businessId = selectedBusinessId;
       if (loginAudience === 'individual_organization') payload.organizationId = selectedOrgId;
@@ -194,8 +196,23 @@ export default function AdminSendLoginEmailsPage() {
               maxLength={200}
             />
           </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Custom message (optional)</label>
+            <textarea
+              value={customMessage}
+              onChange={(e) => setCustomMessage(e.target.value)}
+              placeholder="e.g. We've added your business to Hanar. You're on our platform for free — come check it out!"
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 resize-y min-h-[80px]"
+              disabled={sending}
+              rows={3}
+              maxLength={2000}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              This appears at the top of the email. If left blank, we'll use: &quot;You're on our platform for free — come check it out!&quot; Then we always include their login credentials below.
+            </p>
+          </div>
           <p className="text-sm text-slate-500">
-            Each recipient will receive an email with their login (email) and a new one-time password. Their password will be updated.
+            Each recipient will receive an email with your message (or the default), then their login (email) and a new one-time password. Their password will be updated.
           </p>
           <button
             type="submit"

@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import LocationPromptModal from '@/components/LocationPrompt';
 import MobileTopNav from '@/components/MobileTopNav';
@@ -24,6 +25,12 @@ export default function ConditionalAppShell({
     segments[1] !== 'plan';
   const isAdminPage = pathname.startsWith('/admin');
 
+  // Re-trigger enter animation on every route change
+  const [animKey, setAnimKey] = useState(pathname);
+  useEffect(() => {
+    setAnimKey(pathname);
+  }, [pathname]);
+
   if (isBusinessSlugPage || isAdminPage) {
     return <>{children}</>;
   }
@@ -34,7 +41,9 @@ export default function ConditionalAppShell({
       <Navbar />
       <MobileTopNav />
       <ClientRedirectTracker />
-      <main>{children}</main>
+      <main key={animKey} className="animate-page-enter">
+        {children}
+      </main>
       <HanarAIWidget />
     </>
   );

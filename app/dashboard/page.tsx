@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { User, Building2, Heart, ShoppingBag, PenSquare, Camera, Tag } from 'lucide-react';
+import { User, Building2, Heart, ShoppingBag, PenSquare, Camera, Tag, Trash2 } from 'lucide-react';
+import { FavoritesSlideMenu } from '@/components/FavoritesSlideMenu';
+import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 
@@ -48,8 +50,6 @@ type FollowedOrg = {
   logo_url?: string | null;
 };
 
-const FAVORITE_ITEMS_KEY = 'favoriteMarketplaceItems';
-
 const resolveMarketplaceImageUrls = (raw: unknown): string[] => {
   let arr: string[] = [];
   if (Array.isArray(raw)) arr = raw;
@@ -78,8 +78,19 @@ export default function DashboardPage() {
   const [myListing, setMyListing] = useState<MyListing | null>(null);
   const [myListingLoading, setMyListingLoading] = useState(true);
   const [deletingListing, setDeletingListing] = useState(false);
-  const [followingOrgsCollapsed, setFollowingOrgsCollapsed] = useState(false);
+  const [favoritesMenuOpen, setFavoritesMenuOpen] = useState(false);
+  const [burgerMenuOpen, setBurgerMenuOpen] = useState(false);
   const router = useRouter();
+
+  const burgerItems = [
+    ...(profile?.username ? [{ label: t(effectiveLang, 'View Profile'), href: `/profile/${profile.username}`, icon: <User className="h-5 w-5 shrink-0" />, color: 'bg-indigo-50 dark:bg-indigo-900/30' }] : []),
+    { label: t(effectiveLang, 'Post to Community'), href: '/community/post', icon: <PenSquare className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
+    { label: t(effectiveLang, 'Sell Item'), href: '/marketplace/post', icon: <Tag className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
+    { label: t(effectiveLang, 'Following organizations'), onClick: () => setFavoritesMenuOpen(true), icon: <Building2 className="h-5 w-5 shrink-0" />, color: 'bg-sky-50 dark:bg-sky-900/30' },
+    { label: t(effectiveLang, 'Favorite businesses'), onClick: () => setFavoritesMenuOpen(true), icon: <Heart className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
+    { label: t(effectiveLang, 'Favorite items'), onClick: () => setFavoritesMenuOpen(true), icon: <Heart className="h-5 w-5 shrink-0" />, color: 'bg-pink-50 dark:bg-pink-900/30' },
+    { label: t(effectiveLang, 'Delete My Account'), href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
+  ];
 
   useEffect(() => {
     const load = async () => {
@@ -126,6 +137,23 @@ export default function DashboardPage() {
           if (error) throw error;
           setFavorites((data as FavoriteBusiness[]) || []);
         }
+
+        const { data: favRows } = await supabase
+          .from('user_marketplace_favorites')
+          .select('item_key, item_snapshot')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true });
+        const items = (favRows || []).map((r: { item_key: string; item_snapshot: Record<string, unknown> }) => ({
+          key: r.item_key,
+          id: (r.item_snapshot?.id as string) ?? '',
+          source: (r.item_snapshot?.source as 'retail' | 'dealership' | 'individual') ?? 'individual',
+          slug: (r.item_snapshot?.slug as string) ?? '',
+          title: (r.item_snapshot?.title as string) ?? '',
+          price: (r.item_snapshot?.price as string | number) ?? '',
+          image: (r.item_snapshot?.image as string) ?? '',
+          location: (r.item_snapshot?.location as string) ?? '',
+        }));
+        setFavoriteItems(items);
       } catch (err: any) {
         toast.error(err?.message || 'Failed to load dashboard');
       } finally {
@@ -210,18 +238,21 @@ export default function DashboardPage() {
     loadMyListing();
   }, []);
 
-  useEffect(() => {
-    const stored = localStorage.getItem(FAVORITE_ITEMS_KEY);
-    if (!stored) {
-      setFavoriteItems([]);
+  const removeFavoriteItem = async (itemKey: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('user_marketplace_favorites')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('item_key', itemKey);
+    if (error) {
+      toast.error(t(effectiveLang, 'Failed to remove'));
       return;
     }
-    try {
-      setFavoriteItems(JSON.parse(stored) as FavoriteItem[]);
-    } catch {
-      setFavoriteItems([]);
-    }
-  }, []);
+    setFavoriteItems((prev) => prev.filter((fav) => fav.key !== itemKey));
+    toast.success(t(effectiveLang, 'Removed'));
+  };
 
   const deleteMyListing = async () => {
     if (!myListing || deletingListing) return;
@@ -302,8 +333,38 @@ export default function DashboardPage() {
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
   }, [favorites]);
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-gray-900 px-4 pt-16 pb-10">
+        <div className="max-w-5xl mx-auto space-y-6">
+          <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-6 sm:p-8">
+            <div className="flex items-center gap-6">
+              <div className="skeleton h-20 w-20 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <div className="skeleton h-5 w-40 rounded" />
+                <div className="skeleton h-3 w-24 rounded" />
+                <div className="flex gap-3 mt-3">
+                  <div className="skeleton h-9 w-28 rounded-xl" />
+                  <div className="skeleton h-9 w-36 rounded-xl" />
+                  <div className="skeleton h-9 w-24 rounded-xl" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-6 sm:p-8 space-y-3">
+            <div className="skeleton h-3 w-16 rounded" />
+            <div className="skeleton h-5 w-32 rounded" />
+            <div className="skeleton h-3 w-64 rounded" />
+            <div className="skeleton h-20 w-full rounded-2xl mt-3" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-gray-900 px-4 py-10">
+    <div className="min-h-screen bg-slate-50 dark:bg-gray-900 px-4 pt-16 pb-10">
+      <DashboardBurgerMenu open={burgerMenuOpen} onOpen={() => setBurgerMenuOpen(true)} onClose={() => setBurgerMenuOpen(false)} items={burgerItems} />
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Profile card */}
         <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg shadow-slate-100/60 dark:shadow-black/20 p-6 sm:p-8">
@@ -427,172 +488,107 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Favorite businesses */}
-        <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg shadow-slate-100/60 dark:shadow-black/20 p-6 sm:p-8">
-          <div className="flex items-center justify-between gap-4">
+        <FavoritesSlideMenu open={favoritesMenuOpen} onClose={() => setFavoritesMenuOpen(false)} title={t(effectiveLang, 'Favorites')}>
+          <div className="space-y-8">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-gray-200">{t(effectiveLang, 'Favorite Businesses')}</p>
-              <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-gray-100">{t(effectiveLang, 'Businesses You Love')}</h2>
-            </div>
-            <span className="text-sm text-slate-500 dark:text-gray-200">{favorites.length} business{favorites.length === 1 ? '' : 'es'}</span>
-          </div>
-
-          {loading ? (
-            <div className="mt-8 text-slate-500 dark:text-gray-200">{t(effectiveLang, 'Loading favorites...')}</div>
-          ) : favorites.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-dashed border-slate-300 dark:border-gray-600 p-6 text-center text-slate-500 dark:text-gray-200">
-              {t(effectiveLang, 'You have no favorite businesses yet. Visit a business page and click the heart to add favorites.')}
-            </div>
-          ) : (
-            <div className="mt-8 space-y-8">
-              {groupedFavorites.map(([category, items]) => (
-                <div key={category}>
-                  {category ? <h3 className="text-lg font-semibold text-slate-900 dark:text-gray-100">{category}</h3> : null}
-                  <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {items.map((biz) => (
-                      <div
-                        key={biz.id}
-                        className="group relative rounded-2xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 dark:hover:border-gray-500 hover:shadow-md"
-                      >
-                        <Link href={`/business/${biz.slug || biz.id}`} className="flex items-center gap-3">
-                          <div className="h-12 w-12 rounded-xl overflow-hidden border border-slate-200 dark:border-gray-600 bg-slate-100 dark:bg-gray-600 shrink-0">
-                            {biz.logo_url ? (
-                              <img
-                                src={biz.logo_url}
-                                alt={biz.business_name || 'Business'}
-                                className="h-full w-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.src = 'https://placehold.co/48x48/94a3b8/ffffff?text=Logo';
-                                  e.currentTarget.onerror = null;
-                                }}
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-500 dark:text-gray-400">
-                                <Building2 className="h-6 w-6" />
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Favorite Businesses')}</h3>
+              {loading ? (
+                <p className="mt-4 text-slate-500">{t(effectiveLang, 'Loading favorites...')}</p>
+              ) : favorites.length === 0 ? (
+                <p className="mt-4 rounded-2xl border border-dashed border-slate-300 dark:border-gray-600 p-6 text-center text-slate-500">{t(effectiveLang, 'You have no favorite businesses yet. Visit a business page and click the heart to add favorites.')}</p>
+              ) : (
+                <div className="mt-3 space-y-4">
+                  {groupedFavorites.map(([category, items]) => (
+                    <div key={category}>
+                      {category ? <p className="text-xs font-semibold uppercase text-slate-500 dark:text-gray-400">{category}</p> : null}
+                      <div className="mt-2 grid gap-2">
+                        {items.map((biz) => (
+                          <div key={biz.id} className="relative flex items-center gap-3 rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-3">
+                            <Link href={`/business/${biz.slug || biz.id}`} onClick={() => setFavoritesMenuOpen(false)} className="flex min-w-0 flex-1 items-center gap-3">
+                              <div className="h-10 w-10 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-gray-700">
+                                {biz.logo_url ? (
+                                  <img src={biz.logo_url} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/40x40'; e.currentTarget.onerror = null; }} />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center"><Building2 className="h-5 w-5 text-slate-500" /></div>
+                                )}
                               </div>
-                            )}
+                              <div className="min-w-0">
+                                <p className="truncate font-semibold text-slate-900 dark:text-white">{biz.business_name || 'Business'}</p>
+                                <p className="text-xs text-slate-500 dark:text-gray-400">{biz.address?.city || ''}{biz.address?.state ? `, ${biz.address.state}` : ''}</p>
+                              </div>
+                            </Link>
+                            <button type="button" onClick={() => removeFavorite(biz.id)} className="shrink-0 rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-400" title={t(effectiveLang, 'Remove from favorites')}>
+                              <Heart className="h-4 w-4 fill-red-500" />
+                            </button>
                           </div>
-                          <div className="min-w-0">
-                            <p className="truncate font-semibold text-slate-900 dark:text-gray-100">{biz.business_name || 'Business'}</p>
-                            <p className="text-xs text-slate-500 dark:text-gray-200">
-                              {biz.address?.city || ''}{biz.address?.state ? `, ${biz.address.state}` : ''}
-                            </p>
-                          </div>
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => removeFavorite(biz.id)}
-                          className="absolute top-3 right-3 rounded-lg p-1.5 text-slate-400 dark:text-gray-500 hover:bg-red-50 dark:hover:bg-red-900/40 hover:text-red-600 dark:hover:text-red-400 transition"
-                          title={t(effectiveLang, 'Remove from favorites')}
-                        >
-                          <Heart className="h-4 w-4 fill-red-500 dark:fill-red-400" />
-                        </button>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-
-          {/* Following organizations – header and empty state use light text in dark mode via globals */}
-          <div className="dashboard-following-orgs mt-10 border-t border-slate-100 dark:border-gray-600 pt-8">
-            <div className="following-orgs-header flex items-center justify-between gap-4 text-slate-900 dark:text-white">
-              <div>
-                <p className="following-orgs-light text-xs font-semibold uppercase tracking-wider dark:text-white">{t(effectiveLang, 'Following')}</p>
-                <h3 className="following-orgs-light mt-1 text-lg font-semibold dark:text-white">{t(effectiveLang, 'Organizations')}</h3>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="following-orgs-light text-sm dark:text-white">{followedOrgs.length} {t(effectiveLang, 'total')}</span>
-                {(followedOrgs.length > 0 || followedOrgsLoading) && (
-                  <button
-                    type="button"
-                    onClick={() => setFollowingOrgsCollapsed((c) => !c)}
-                    className="following-orgs-light text-xs font-medium underline hover:no-underline focus:outline-none dark:text-white"
-                  >
-                    {followingOrgsCollapsed ? t(effectiveLang, 'Show') : t(effectiveLang, 'Hide')}
-                  </button>
-                )}
-              </div>
-            </div>
-            {followedOrgsLoading ? (
-              <div className="following-orgs-header following-orgs-light mt-4 text-sm text-slate-600 dark:text-white">{t(effectiveLang, 'Loading...')}</div>
-            ) : followedOrgs.length === 0 ? (
-              <div className="following-orgs-empty mt-6 rounded-2xl border border-dashed border-indigo-200 dark:border-gray-600 p-6 text-center text-slate-600 dark:text-white">
-                <span className="following-orgs-light text-sm">{t(effectiveLang, 'No organizations followed yet. Visit an organization page and click Follow.')}</span>
-              </div>
-            ) : !followingOrgsCollapsed ? (
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {followedOrgs.map((org) => (
-                  <Link
-                    key={org.user_id}
-                    href={org.username ? `/organization/${org.username}` : '#'}
-                    className="following-orgs-card flex items-center gap-3 rounded-2xl border border-indigo-100 dark:border-gray-400 bg-white dark:bg-gray-100 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 dark:hover:border-gray-400 dark:hover:shadow-md"
-                  >
-                    <div className="h-12 w-12 rounded-xl overflow-hidden border border-indigo-100 dark:border-gray-300 bg-indigo-50 dark:bg-indigo-100 shrink-0">
-                      {org.logo_url ? (
-                        <img src={org.logo_url} alt={org.full_name || 'Org'} className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/48x48/94a3b8/ffffff?text=Org'; e.currentTarget.onerror = null; }} />
-                      ) : (
-                        <div className="following-orgs-light flex h-full w-full items-center justify-center"><Building2 className="h-6 w-6" /></div>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="following-orgs-light truncate font-semibold">{org.full_name || 'Organization'}</p>
-                      <p className="following-orgs-light text-xs">{org.username ? `@${org.username}` : ''}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          {/* Favorite items */}
-          <div className="mt-10 border-t border-slate-100 dark:border-gray-600 pt-8">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-gray-200">{t(effectiveLang, 'Marketplace')}</p>
-                <h3 className="mt-1 text-lg font-semibold text-slate-900 dark:text-gray-100">{t(effectiveLang, 'Favorite Items')}</h3>
-              </div>
-              <span className="text-sm text-slate-500 dark:text-gray-200">{favoriteItems.length} item{favoriteItems.length === 1 ? '' : 's'}</span>
-            </div>
-            {favoriteItems.length === 0 ? (
-              <div className="mt-6 rounded-2xl border border-dashed border-slate-300 dark:border-gray-600 p-6 text-center text-slate-500 dark:text-gray-200">
-                {t(effectiveLang, 'You have no favorite items yet. Browse the marketplace and add some.')}
-              </div>
-            ) : (
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {favoriteItems.map((item) => (
-                  <div
-                    key={item.key}
-                    className="group rounded-2xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 dark:hover:border-gray-500 hover:shadow-md"
-                  >
-                    <Link href={`/marketplace/${item.slug}`} className="block">
-                      <div className="h-32 w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-gray-600">
-                        <img src={item.image || '/placeholder.jpg'} alt={item.title} className="h-full w-full object-contain" loading="lazy" decoding="async" />
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">{t(effectiveLang, 'Following')} – {t(effectiveLang, 'Organizations')}</h3>
+              {followedOrgsLoading ? (
+                <p className="mt-4 text-slate-500">{t(effectiveLang, 'Loading...')}</p>
+              ) : followedOrgs.length === 0 ? (
+                <p className="mt-4 rounded-2xl border border-dashed border-indigo-200 dark:border-gray-600 p-6 text-center text-slate-500">{t(effectiveLang, 'No organizations followed yet. Visit an organization page and click Follow.')}</p>
+              ) : (
+                <div className="mt-3 grid gap-2">
+                  {followedOrgs.map((org) => (
+                    <Link
+                      key={org.user_id}
+                      href={org.username ? `/organization/${org.username}` : '#'}
+                      onClick={() => setFavoritesMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-xl border border-indigo-100 dark:border-gray-600 bg-white dark:bg-gray-800 p-3 hover:border-indigo-200 dark:hover:border-gray-500"
+                    >
+                      <div className="h-10 w-10 shrink-0 rounded-lg overflow-hidden bg-indigo-50 dark:bg-indigo-900/30">
+                        {org.logo_url ? (
+                          <img src={org.logo_url} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/40x40'; e.currentTarget.onerror = null; }} />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center"><Building2 className="h-5 w-5 text-indigo-500" /></div>
+                        )}
                       </div>
-                      <div className="mt-3">
-                        <p className="truncate font-semibold text-slate-900 dark:text-gray-100">{item.title}</p>
-                        <p className="text-xs text-slate-500 dark:text-gray-200">{item.location || ''}</p>
-                        <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-300">{item.price}</p>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-slate-900 dark:text-white">{org.full_name || 'Organization'}</p>
+                        <p className="text-xs text-slate-500 dark:text-gray-400">{org.username ? `@${org.username}` : ''}</p>
                       </div>
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = favoriteItems.filter((fav) => fav.key !== item.key);
-                        setFavoriteItems(next);
-                        localStorage.setItem(FAVORITE_ITEMS_KEY, JSON.stringify(next));
-                      }}
-                      className="mt-3 text-xs text-red-600 dark:text-red-400 hover:underline flex items-center gap-1"
-                    >
-                      <Heart className="h-3 w-3" /> {t(effectiveLang, 'Remove')}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">{t(effectiveLang, 'Favorite Items')}</h3>
+              {favoriteItems.length === 0 ? (
+                <p className="mt-4 rounded-2xl border border-dashed border-emerald-200 dark:border-gray-600 p-6 text-center text-slate-500">{t(effectiveLang, 'You have no favorite items yet. Browse the marketplace and add some.')}</p>
+              ) : (
+                <div className="mt-3 grid gap-2">
+                  {favoriteItems.map((item) => (
+                    <div key={item.key} className="rounded-xl border border-emerald-100 dark:border-gray-600 bg-white dark:bg-gray-800 p-3">
+                      <Link href={`/marketplace/${item.slug}`} onClick={() => setFavoritesMenuOpen(false)} className="block">
+                        <div className="flex gap-3">
+                          <div className="h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-gray-700">
+                            <img src={item.image || '/placeholder.jpg'} alt="" className="h-full w-full object-contain" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-slate-900 dark:text-white">{item.title}</p>
+                            <p className="text-xs text-slate-500 dark:text-gray-400">{item.location || ''}</p>
+                            <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{item.price}</p>
+                          </div>
+                        </div>
+                      </Link>
+                      <button type="button" onClick={() => removeFavoriteItem(item.key)} className="mt-2 text-xs text-red-600 dark:text-red-400 hover:underline flex items-center gap-1">
+                        <Heart className="h-3 w-3" /> {t(effectiveLang, 'Remove')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </FavoritesSlideMenu>
       </div>
     </div>
   );

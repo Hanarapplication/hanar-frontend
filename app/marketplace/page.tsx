@@ -48,7 +48,8 @@ type FavoriteItem = {
   location?: string;
 };
 
-const FAVORITE_ITEMS_KEY = 'favoriteMarketplaceItems';
+const RECENT_SEARCHES_KEY = 'marketplaceRecentSearches';
+const RECENT_SEARCHES_MAX = 10;
 
 const getStorageUrl = (bucket: string, path?: string | null) => {
   if (!path) return '';
@@ -127,6 +128,7 @@ export default function MarketplacePage() {
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [visibleCount, setVisibleCount] = useState(6);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   const getUserLocation = () => {
     navigator.geolocation.getCurrentPosition(
@@ -171,16 +173,97 @@ export default function MarketplacePage() {
     setVisibleCount(6);
   };
 
-  useEffect(() => {
-    const storedFavorites = localStorage.getItem(FAVORITE_ITEMS_KEY);
-    if (storedFavorites) {
+  const addToRecentSearches = async (term: string) => {
+    const t = term.trim().toLowerCase();
+    if (!t) return;
+    let next: string[] = [];
+    setRecentSearches((prev) => {
+      next = [t, ...prev.filter((s) => s !== t)].slice(0, RECENT_SEARCHES_MAX);
+      return next;
+    });
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from('user_marketplace_searches')
+        .upsert(
+          { user_id: user.id, searches: next, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        );
+    } else {
       try {
-        const parsed = JSON.parse(storedFavorites) as FavoriteItem[];
-        setFavoriteItems(parsed);
+        localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
       } catch {
-        setFavoriteItems([]);
+        // ignore
       }
     }
+
+    // Log for admin marketplace insights (radius: applied filter or null = unlimited)
+    const radiusMiles = userCoords ? radius : null;
+    void supabase
+      .from('marketplace_search_log')
+      .insert({
+        user_id: user?.id ?? null,
+        search_term: t,
+        radius_miles: radiusMiles,
+      });
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') addToRecentSearches(searchTerm);
+  };
+
+  const handleSearchBlur = () => {
+    if (searchTerm.trim()) addToRecentSearches(searchTerm);
+  };
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: favRows } = await supabase
+          .from('user_marketplace_favorites')
+          .select('item_key, item_snapshot')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true });
+        const items = (favRows || []).map((r: { item_key: string; item_snapshot: Record<string, unknown> }) => ({
+          key: r.item_key,
+          id: (r.item_snapshot?.id as string) ?? '',
+          source: (r.item_snapshot?.source as 'retail' | 'dealership' | 'individual') ?? 'individual',
+          slug: (r.item_snapshot?.slug as string) ?? '',
+          title: (r.item_snapshot?.title as string) ?? '',
+          price: (r.item_snapshot?.price as string | number) ?? '',
+          image: (r.item_snapshot?.image as string) ?? '',
+          location: (r.item_snapshot?.location as string) ?? '',
+        }));
+        setFavoriteItems(items);
+
+        const { data: row } = await supabase
+          .from('user_marketplace_searches')
+          .select('searches')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        const list = row?.searches;
+        if (Array.isArray(list)) {
+          setRecentSearches(list.slice(0, RECENT_SEARCHES_MAX).map((s) => String(s)));
+        } else {
+          setRecentSearches([]);
+        }
+      } else {
+        setFavoriteItems([]);
+        const storedRecent = localStorage.getItem(RECENT_SEARCHES_KEY);
+        if (storedRecent) {
+          try {
+            const parsed = JSON.parse(storedRecent) as string[];
+            setRecentSearches(Array.isArray(parsed) ? parsed.slice(0, RECENT_SEARCHES_MAX) : []);
+          } catch {
+            setRecentSearches([]);
+          }
+        } else {
+          setRecentSearches([]);
+        }
+      }
+    })();
 
     const saved = localStorage.getItem('userCoords');
     if (saved) {
@@ -299,30 +382,36 @@ export default function MarketplacePage() {
 
   const getFavoriteKey = (item: MarketplaceItem) => `${item.source}:${item.id}`;
 
-  const toggleFavorite = (item: MarketplaceItem) => {
+  const toggleFavorite = async (item: MarketplaceItem) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     const key = getFavoriteKey(item);
-    setFavoriteItems((prev) => {
-      let next: FavoriteItem[];
-      if (prev.some((fav) => fav.key === key)) {
-        next = prev.filter((fav) => fav.key !== key);
-      } else {
-        next = [
-          ...prev,
-          {
-            key,
-            id: item.id,
-            source: item.source,
-            slug: item.slug,
-            title: item.title,
-            price: item.price,
-            image: getFirstImage(item.imageUrls) || '/placeholder.jpg',
-            location: item.location,
-          },
-        ];
-      }
-      localStorage.setItem(FAVORITE_ITEMS_KEY, JSON.stringify(next));
-      return next;
-    });
+    const isFav = favoriteItems.some((fav) => fav.key === key);
+    if (isFav) {
+      const { error } = await supabase
+        .from('user_marketplace_favorites')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('item_key', key);
+      if (!error) setFavoriteItems((prev) => prev.filter((fav) => fav.key !== key));
+    } else {
+      const snapshot = {
+        id: item.id,
+        source: item.source,
+        slug: item.slug,
+        title: item.title,
+        price: item.price,
+        image: getFirstImage(item.imageUrls) || '/placeholder.jpg',
+        location: item.location ?? '',
+      };
+      const { error } = await supabase.from('user_marketplace_favorites').insert({
+        user_id: user.id,
+        item_key: key,
+        item_snapshot: snapshot,
+      });
+      if (!error)
+        setFavoriteItems((prev) => [...prev, { key, ...snapshot }]);
+    }
   };
 
   const favoriteKeys = new Set(favoriteItems.map((fav) => fav.key));
@@ -414,26 +503,50 @@ export default function MarketplacePage() {
     );
   }
 
-  if (sort === 'priceLow') {
-    filteredItems.sort((a, b) => (getPriceValue(a.price) || 0) - (getPriceValue(b.price) || 0));
-  } else if (sort === 'priceHigh') {
-    filteredItems.sort((a, b) => (getPriceValue(b.price) || 0) - (getPriceValue(a.price) || 0));
-  } else if (sort === 'newest') {
-    filteredItems.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-  } else if (userCoords) {
-    filteredItems.sort((a, b) => {
-      const aHasCoords = a.lat != null && a.lon != null;
-      const bHasCoords = b.lat != null && b.lon != null;
+  // Relevance: words from current search + recent searches; boost items that match
+  const currentSearchWords = tokens.map(normalizeToken).filter((w) => w.length >= 2);
+  const recentSearchWords = Array.from(
+    new Set(
+      recentSearches.flatMap((s) =>
+        s
+          .toLowerCase()
+          .split(/\s+/)
+          .map((w) => w.trim())
+          .filter((w) => w.length >= 2)
+      )
+    )
+  );
+  const allRelevanceWords = Array.from(new Set([...currentSearchWords, ...recentSearchWords]));
+
+  const getRelevanceScore = (item: MarketplaceItem) => {
+    const text = `${item.title || ''} ${item.category || ''} ${item.location || ''} ${item.description || ''}`.toLowerCase();
+    let score = 0;
+    for (const word of allRelevanceWords) {
+      if (text.includes(word)) score += currentSearchWords.includes(word) ? 2 : 1;
+    }
+    return score;
+  };
+
+  const withRelevance = filteredItems.map((item) => ({ item, score: getRelevanceScore(item) }));
+  withRelevance.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (sort === 'priceLow') return (getPriceValue(a.item.price) || 0) - (getPriceValue(b.item.price) || 0);
+    if (sort === 'priceHigh') return (getPriceValue(b.item.price) || 0) - (getPriceValue(a.item.price) || 0);
+    if (sort === 'newest') return new Date(b.item.created_at || 0).getTime() - new Date(a.item.created_at || 0).getTime();
+    if (userCoords) {
+      const aHasCoords = a.item.lat != null && a.item.lon != null;
+      const bHasCoords = b.item.lat != null && b.item.lon != null;
       if (aHasCoords && bHasCoords) {
-        const aDist = getDistanceMiles(userCoords.lat, userCoords.lon, a.lat as number, a.lon as number);
-        const bDist = getDistanceMiles(userCoords.lat, userCoords.lon, b.lat as number, b.lon as number);
+        const aDist = getDistanceMiles(userCoords.lat, userCoords.lon, a.item.lat as number, a.item.lon as number);
+        const bDist = getDistanceMiles(userCoords.lat, userCoords.lon, b.item.lat as number, b.item.lon as number);
         if (aDist !== bDist) return aDist - bDist;
       }
       if (aHasCoords && !bHasCoords) return -1;
       if (!aHasCoords && bHasCoords) return 1;
-      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-    });
-  }
+    }
+    return new Date(b.item.created_at || 0).getTime() - new Date(a.item.created_at || 0).getTime();
+  });
+  filteredItems = withRelevance.map(({ item }) => item);
 
   const ItemCard = ({ item }: { item: MarketplaceItem }) => (
     <div key={item.id} className="relative group border rounded-xl overflow-hidden shadow hover:shadow-lg bg-white">
@@ -493,8 +606,26 @@ export default function MarketplacePage() {
         placeholder="Search items, phones, cities..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        className="w-full p-2 border rounded-md mb-4 text-sm"
+        onKeyDown={handleSearchKeyDown}
+        onBlur={handleSearchBlur}
+        className="w-full p-2 border rounded-md mb-2 text-sm"
       />
+      {/* Latest / recent searches */}
+      {recentSearches.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="text-xs text-gray-500">Recent:</span>
+          {recentSearches.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSearchTerm(s)}
+              className="text-xs px-2.5 py-1 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 transition"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Filter Panel */}
       {showFilters && (
@@ -539,6 +670,20 @@ export default function MarketplacePage() {
       )}
 
       {/* Items */}
+      {items.length === 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+              <div className="skeleton h-48 w-full rounded-none" />
+              <div className="p-4 space-y-2">
+                <div className="skeleton h-4 w-3/4 rounded" />
+                <div className="skeleton h-3.5 w-1/3 rounded" />
+                <div className="skeleton h-3 w-1/2 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
         {filteredItems.slice(0, visibleCount).map((item) => (
           <ItemCard key={item.id} item={item} />
@@ -546,8 +691,8 @@ export default function MarketplacePage() {
       </div>
 
       {/* Empty & Pagination */}
-      {filteredItems.length === 0 && (
-        <p className="text-center text-gray-500 mt-6">😔 No results found. Try changing your search or filters.</p>
+      {items.length > 0 && filteredItems.length === 0 && (
+        <p className="text-center text-gray-500 mt-6">No results found. Try changing your search or filters.</p>
       )}
       {filteredItems.length > visibleCount && (
         <div className="text-center mt-6">

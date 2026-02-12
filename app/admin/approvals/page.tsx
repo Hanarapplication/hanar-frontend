@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 // ──────────────────────────────────────────────── Types
 type BusinessStatus = 'pending' | 'approved' | 'hold' | 'archived' | 'rejected';
@@ -308,6 +309,7 @@ function BusinessCard({
   const [selectedPlan, setSelectedPlan] = useState<PlanName>((biz.plan as PlanName) || 'free');
   const [planYears, setPlanYears] = useState<number>(1);
   const [planLoading, setPlanLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     setVerified({
@@ -473,60 +475,54 @@ function BusinessCard({
   const historyCount = biz.note_history?.length || 0;
 
   return (
-    <div className="bg-white rounded-lg shadow p-5 space-y-5 text-sm border border-gray-200">
-      <div className="flex justify-between items-start">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold">{biz.business_name}</h2>
-            {biz.admin_added_at ? (
-              <span className="inline-flex items-center rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800" title="Created by admin">Admin</span>
-            ) : (
-              <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600" title="Created by user">User</span>
-            )}
-          </div>
-          {biz.phone && <p className="text-gray-600">📞 {biz.phone}</p>}
-          {biz.email && <p className="text-gray-600">✉️ {biz.email}</p>}
-
-          <p className="text-xs text-gray-500 mt-1">
-            Visibility: <span className="font-medium">{getUiStatus(biz)}</span>
-          </p>
-
-          <p className="text-xs text-gray-500 mt-1">
-            Plan:{' '}
-            <span className="font-medium">
-              {(biz.plan as PlanName) || 'free'}
-            </span>
-            {' · '}
-            Expires:{' '}
-            <span className="font-medium">
-              {biz.plan_expires_at ? new Date(biz.plan_expires_at).toLocaleDateString() : '—'}
-            </span>
-          </p>
-
-          <p className="text-xs text-gray-500 mt-1">
-            Limits:{' '}
-            <span className="font-medium">
-              Gallery {biz.max_gallery_images ?? 0} · Menu {biz.max_menu_items ?? 0} · Retail{' '}
-              {biz.max_retail_items ?? 0} · Cars {biz.max_car_listings ?? 0}
-            </span>
-          </p>
-        </div>
-
-        <div className="text-right">
+    <div className="bg-white rounded-lg shadow text-sm border border-gray-200 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        className="w-full flex flex-wrap items-center justify-between gap-3 p-5 text-left hover:bg-gray-50 transition"
+      >
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <h2 className="text-lg font-semibold text-gray-900">{biz.business_name}</h2>
+          {biz.admin_added_at ? (
+            <span className="inline-flex items-center rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800" title="Created by admin">Admin</span>
+          ) : (
+            <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600" title="Created by user">User</span>
+          )}
           <StatusBadge status={getUiStatus(biz)} />
+          <span className="text-xs text-gray-500">
+            {(biz.plan as PlanName) || 'free'} · {biz.plan_expires_at ? new Date(biz.plan_expires_at).toLocaleDateString() : '—'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => window.open(`/business/${biz.slug}`, '_blank')}
-            className="mt-2 inline-flex items-center justify-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 shadow-sm transition hover:bg-blue-100"
+            type="button"
+            onClick={(e) => { e.stopPropagation(); window.open(`/business/${biz.slug}`, '_blank'); }}
+            className="inline-flex items-center justify-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600 shadow-sm transition hover:bg-blue-100"
           >
             View Page
           </button>
           <button
-            onClick={() => window.open(`/businesses/edit/${biz.slug}`, '_blank')}
-            className="mt-2 inline-flex items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600 shadow-sm transition hover:bg-emerald-100"
+            type="button"
+            onClick={(e) => { e.stopPropagation(); window.open(`/businesses/edit/${biz.slug}`, '_blank'); }}
+            className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600 shadow-sm transition hover:bg-emerald-100"
           >
             Edit Business
           </button>
+          {expanded ? (
+            <ChevronUp className="h-5 w-5 text-gray-500 shrink-0" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-gray-500 shrink-0" />
+          )}
         </div>
+      </button>
+
+      {expanded && (
+      <div className="px-5 pb-5 pt-0 space-y-5 border-t border-gray-100">
+      <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-gray-600">
+        {biz.phone && <p>📞 {biz.phone}</p>}
+        {biz.email && <p>✉️ {biz.email}</p>}
+        <p>Visibility: <span className="font-medium">{getUiStatus(biz)}</span></p>
+        <p>Limits: Gallery {biz.max_gallery_images ?? 0} · Menu {biz.max_menu_items ?? 0} · Retail {biz.max_retail_items ?? 0} · Cars {biz.max_car_listings ?? 0}</p>
       </div>
 
       {/* PLAN CONTROL */}
@@ -810,6 +806,9 @@ function BusinessCard({
           </div>
         )}
       </div>
+
+      </div>
+      )}
 
       {/* Note History Modal */}
       {showHistory && (

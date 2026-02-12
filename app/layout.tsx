@@ -9,6 +9,11 @@ import FcmTokenHandler from '@/components/FcmTokenHandler';
 export const metadata = {
   title: 'Hanar',
   description: 'Connecting immigrant businesses and marketplaces',
+  manifest: '/manifest.json',
+};
+
+export const viewport = {
+  themeColor: '#4f46e5',
 };
 
 export default function RootLayout({
@@ -19,6 +24,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#4f46e5" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){var d=document.documentElement,v=localStorage.getItem('hanar-dark-mode');d.classList.toggle('dark',v==='true');})();`,

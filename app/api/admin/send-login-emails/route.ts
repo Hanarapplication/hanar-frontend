@@ -93,11 +93,12 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => null);
     if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
 
-    const { audience, businessId, organizationId, subject } = body as {
+    const { audience, businessId, organizationId, subject, customMessage } = body as {
       audience?: Audience;
       businessId?: string;
       organizationId?: string;
       subject?: string;
+      customMessage?: string;
     };
 
     const validAudiences: Audience[] = [
@@ -174,6 +175,11 @@ export async function POST(req: Request) {
 
     const defaultSubject = 'Your Hanar Login Credentials';
     const safeSubject = String(subject || defaultSubject).trim();
+    const defaultIntro = `Your business has been added to Hanar, a cultural community and local business discovery platform.
+Your listing is currently active at no cost.
+
+By claiming your profile, you can update your information, add photos, business hours, services, and connect directly with customers in your area.`;
+    const customIntro = String(customMessage || '').trim();
 
     let sent = 0;
     let failed = 0;
@@ -189,11 +195,15 @@ export async function POST(req: Request) {
         continue;
       }
 
+      const introHtml = customIntro
+        ? `<p>${customIntro.split('\n').map((line) => escapeHtml(line)).join('<br />')}</p>`
+        : `<p>${defaultIntro.split('\n').map((line) => escapeHtml(line)).join('<br />')}</p>`;
       const html = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Your Hanar Login Credentials</h2>
+          <h2>You're on Hanar</h2>
           <p>Hello${r.name ? ` ${r.name}` : ''},</p>
-          <p>Your login credentials have been set. Use them to sign in at the login page:</p>
+          ${introHtml}
+          <p>Your login credentials are below. Use them to sign in at the login page:</p>
           <p><strong>Login (email):</strong> ${escapeHtml(r.email)}</p>
           <p><strong>One-time password:</strong> <code style="background:#f0f0f0;padding:4px 8px;font-size:16px;">${escapeHtml(otp)}</code></p>
           <p>Please change your password after your first login for security.</p>

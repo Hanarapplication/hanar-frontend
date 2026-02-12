@@ -11,6 +11,7 @@ const OWNER_LINKS: { label: string; path: string; description: string }[] = [
   { label: 'Organizations', path: '/admin/organizations', description: 'Manage organizations' },
   { label: 'Create Business / Org', path: '/admin/create', description: 'Create a business or organization' },
   { label: 'Send Emails', path: '/admin/send-emails', description: 'Email businesses or send login + OTP' },
+  { label: 'Send Notifications', path: '/admin/notifications', description: 'Send in-app notifications to organizations, businesses, or individuals (direct or blast)' },
   { label: 'Community Moderation', path: '/admin/community-moderation', description: 'Moderate community content' },
   { label: 'Moderation', path: '/admin/moderation', description: 'Content moderation' },
 ];
@@ -18,8 +19,6 @@ const OWNER_LINKS: { label: string; path: string; description: string }[] = [
 const PLACEHOLDER_LINKS: { label: string; description: string }[] = [
   { label: 'Manage Ad Requests', description: 'Coming soon' },
   { label: 'Manage Homepage Banners', description: 'Coming soon' },
-  { label: 'Send Local Notifications', description: 'Coming soon' },
-  { label: 'Send Global Notifications', description: 'Coming soon' },
   { label: 'Review Reported Content', description: 'Coming soon' },
 ];
 

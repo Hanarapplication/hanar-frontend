@@ -641,6 +641,13 @@ const BusinessProfilePage = () => {
 
                     setBusiness(normalizedBusiness);
 
+                    // Track view (internal count; not shown to public)
+                    fetch('/api/track-view', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'business', id: businessData.id }),
+                    }).catch(() => {});
+
                     const [carRes, menuRes, retailRes] = await Promise.all([
                         supabase.from('dealerships').select('*').eq('business_id', businessData.id),
                         supabase.from('menu_items').select('*').eq('business_id', businessData.id),

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import LiveRefreshLink from '@/components/LiveRefreshLink';
 
 // Mock Data
 const featuredBusinesses = [
@@ -75,7 +74,7 @@ export default function HomeFeedPage() {
           <div key={idx} className="home-feed-card bg-gray-50 rounded-lg shadow-md dark:shadow-lg dark:shadow-black/30 border border-transparent dark:border-gray-700 p-4">
 
             {post.type === 'business' && (
-              <LiveRefreshLink href="/businesses" className="block">
+              <Link href="/businesses" className="block">
                 <img
                   src={post.image}
                   alt={post.name}
@@ -86,11 +85,11 @@ export default function HomeFeedPage() {
                 <h3 className="text-lg font-semibold mt-2 text-gray-900 dark:text-gray-100">{post.name}</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">{post.category}</p>
                 <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">{post.fakeViews} views ❤️</div>
-              </LiveRefreshLink>
+              </Link>
             )}
 
             {post.type === 'item' && (
-              <LiveRefreshLink href="/marketplace" className="block">
+              <Link href="/marketplace" className="block">
                 <img
                   src={post.image}
                   alt={post.title}
@@ -101,7 +100,7 @@ export default function HomeFeedPage() {
                 <h3 className="text-lg font-semibold mt-2 text-gray-900 dark:text-gray-100">{post.title}</h3>
                 <p className="text-green-600 dark:text-green-400 font-bold">{post.price}</p>
                 <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">{post.fakeViews} views ❤️</div>
-              </LiveRefreshLink>
+              </Link>
             )}
 
             {post.type === 'community' && (

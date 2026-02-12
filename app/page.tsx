@@ -12,8 +12,6 @@ type SliderBusiness = { id: string; name: string; category: string; image: strin
 type SliderItem = { id: string; title: string; price: string; image: string };
 type AdBanner = { id: string; image: string; link: string; alt: string };
 
-const adBanners: AdBanner[] = [];
-
 type CommunityPost = {
   id: string;
   title: string;
@@ -259,20 +257,113 @@ const MarketplaceSliderCard = ({ items }: { items: SliderItem[] }) => {
   );
 };
 
-const AdCard = ({ banner }: { banner: AdBanner }) => (
-  <section className="rounded-xl border border-dashed border-amber-200 bg-amber-50/60 p-4 text-center">
-    <Link href={banner.link} target="_blank" rel="noopener noreferrer">
-      <img
-        src={banner.image}
-        alt={banner.alt}
-        loading="lazy"
-        decoding="async"
-        className="w-full h-40 object-cover rounded-lg"
-      />
-    </Link>
-    <p className="mt-2 text-xs text-amber-700">Advertise here • Reach the Hanar community</p>
-  </section>
-);
+function AdCardWithTrack({ banner }: { banner: AdBanner }) {
+  const ref = useRef<HTMLElement>(null);
+  const tracked = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || tracked.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting || tracked.current) return;
+        tracked.current = true;
+        fetch('/api/track-view', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'feed_banner', id: banner.id }),
+        }).catch(() => {});
+      },
+      { threshold: 0.25 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [banner.id]);
+
+  return (
+    <section
+      ref={ref}
+      className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden shadow-sm"
+    >
+      <Link href={banner.link} {...(banner.link.startsWith('/') || (typeof window !== 'undefined' && banner.link.includes(window.location.hostname)) ? {} : { target: '_blank', rel: 'noopener noreferrer' })} className="block w-full">
+        <div className="relative w-full aspect-[1200/630] bg-slate-100 dark:bg-gray-700">
+          <img
+            src={banner.image}
+            alt={banner.alt}
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        </div>
+      </Link>
+    </section>
+  );
+}
+
+function FeedBusinessCardWithTrack({
+  business,
+  formatDateLabel,
+  getBusinessMessage,
+}: {
+  business: Business;
+  formatDateLabel: (value?: string | null) => string;
+  getBusinessMessage: (b: Business) => string;
+}) {
+  const ref = useRef<HTMLElement>(null);
+  const tracked = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || tracked.current || !business.id) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting || tracked.current) return;
+        tracked.current = true;
+        fetch('/api/track-view', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'business', id: business.id }),
+        }).catch(() => {});
+      },
+      { threshold: 0.25 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [business.id]);
+
+  return (
+    <article
+      ref={ref}
+      className="hanar-feed-business-card rounded-xl border border-emerald-200 dark:border-gray-700 bg-emerald-50/60 dark:bg-gray-800 p-5 shadow-sm dark:shadow-lg dark:shadow-black/20"
+    >
+      <div className="flex items-center gap-3">
+        <Link href={`/business/${business.slug}`} className="shrink-0">
+          <img
+            src={business.logo_url || 'https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=600&auto=format&fit=crop'}
+            alt={business.business_name}
+            loading="lazy"
+            decoding="async"
+            className="h-14 w-14 rounded-lg object-cover"
+          />
+        </Link>
+        <div>
+          <Link href={`/business/${business.slug}`} className="text-sm font-semibold text-slate-800 dark:text-gray-100 hover:underline">
+            {business.business_name}
+          </Link>
+          <p className="text-xs text-slate-500 dark:text-gray-400">{business.category || 'Business'}</p>
+          <p className="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            {getBusinessMessage(business)}
+          </p>
+          {business.created_at && (
+            <p className="mt-1 text-[11px] text-slate-400 dark:text-gray-500">
+              Joined {formatDateLabel(business.created_at)}
+            </p>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
 
 export default function Home() {
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
@@ -290,6 +381,7 @@ export default function Home() {
   const [deletingPost, setDeletingPost] = useState<string | null>(null);
   const [commentsOpen, setCommentsOpen] = useState<Set<string>>(new Set());
   const [commentLoading, setCommentLoading] = useState<Record<string, boolean>>({});
+  const [feedBanners, setFeedBanners] = useState<AdBanner[]>([]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -485,7 +577,27 @@ export default function Home() {
       setLoading(false);
     };
 
+    const loadBanners = async () => {
+      try {
+        const res = await fetch('/api/feed-banners');
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && Array.isArray(data.banners)) {
+          setFeedBanners(
+            data.banners.map((b: { id: string; image: string; link: string; alt?: string }) => ({
+              id: b.id,
+              image: b.image,
+              link: b.link || '#',
+              alt: b.alt || 'Banner',
+            }))
+          );
+        }
+      } catch {
+        setFeedBanners([]);
+      }
+    };
+
     loadHomeFeed();
+    loadBanners();
   }, []);
 
   const sortedBusinesses = useMemo(
@@ -845,12 +957,8 @@ const formatDateLabel = (value?: string | null) => {
     } else if (trendingItems.length) {
       pool.push({ type: 'sliderMarketplace' });
     }
-    for (const banner of adBanners) {
-      pool.push({ type: 'ad', banner });
-    }
 
     if (!pool.length && !loading) {
-      if (adBanners[0]) pool.push({ type: 'ad', banner: adBanners[0] });
       for (const business of nearbyBusinesses.slice(0, 6)) {
         pool.push({ type: 'business', business });
       }
@@ -874,12 +982,45 @@ const formatDateLabel = (value?: string | null) => {
     if (feedOrderRef.current === null || feedOrderRef.current.length === 0) {
       return pool;
     }
-    return feedOrderRef.current
+    const ordered = feedOrderRef.current
       .filter((i) => i < pool.length)
       .map((i) => pool[i]);
+
+    if (feedBanners.length === 0) return ordered;
+
+    // Random slots: possibly at top, then every 3rd or 4th item (random)
+    const slotIndices: number[] = [];
+    if (Math.random() < 0.6) slotIndices.push(0);
+    let pos = 3 + Math.floor(Math.random() * 2);
+    while (pos < ordered.length) {
+      slotIndices.push(pos);
+      pos += 3 + Math.floor(Math.random() * 2);
+    }
+
+    // Shuffle banners so each appears once before any repeats
+    const validBanners = feedBanners.filter((b) => !!b.image);
+    const shuffledBanners = shuffleArray([...validBanners.keys()]).map((i) => validBanners[i]);
+    let bannerIdx = 0;
+    const pickBanner = () => {
+      if (shuffledBanners.length === 0) return null;
+      const b = shuffledBanners[bannerIdx % shuffledBanners.length];
+      bannerIdx++;
+      return b;
+    };
+
+    const result: FeedItem[] = [];
+    for (let i = 0; i < ordered.length; i++) {
+      if (slotIndices.includes(i)) {
+        const banner = pickBanner();
+        if (banner) result.push({ type: 'ad', banner });
+      }
+      result.push(ordered[i]);
+    }
+    return result;
   }, [
     communityPosts,
     featuredBusinesses.length,
+    feedBanners,
     loading,
     nearbyBusinesses,
     nearbyMarketplaceItems,
@@ -911,8 +1052,27 @@ const formatDateLabel = (value?: string | null) => {
         </div>
 
         {loading && (
-          <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-sm text-slate-500 dark:text-gray-400">
-            Loading your feed...
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="skeleton h-9 w-9 rounded-full" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="skeleton h-3 w-28 rounded" />
+                    <div className="skeleton h-2.5 w-16 rounded" />
+                  </div>
+                </div>
+                <div className="skeleton h-3.5 w-3/4 rounded" />
+                <div className="skeleton h-3 w-full rounded" />
+                <div className="skeleton h-3 w-5/6 rounded" />
+                {i % 2 === 0 && <div className="skeleton h-44 w-full rounded-lg" />}
+                <div className="flex gap-6 pt-1">
+                  <div className="skeleton h-3 w-12 rounded" />
+                  <div className="skeleton h-3 w-16 rounded" />
+                  <div className="skeleton h-3 w-10 rounded" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -1050,33 +1210,12 @@ const formatDateLabel = (value?: string | null) => {
 
           if (item.type === 'business') {
             return (
-              <article key={`biz-${item.business.id}-${index}`} className="hanar-feed-business-card rounded-xl border border-emerald-200 dark:border-gray-700 bg-emerald-50/60 dark:bg-gray-800 p-5 shadow-sm dark:shadow-lg dark:shadow-black/20">
-                <div className="flex items-center gap-3">
-                  <Link href={`/business/${item.business.slug}`} className="shrink-0">
-                    <img
-                      src={item.business.logo_url || 'https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=600&auto=format&fit=crop'}
-                      alt={item.business.business_name}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-14 w-14 rounded-lg object-cover"
-                    />
-                  </Link>
-                  <div>
-                    <Link href={`/business/${item.business.slug}`} className="text-sm font-semibold text-slate-800 dark:text-gray-100 hover:underline">
-                      {item.business.business_name}
-                    </Link>
-                    <p className="text-xs text-slate-500 dark:text-gray-400">{item.business.category || 'Business'}</p>
-                    <p className="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                      {getBusinessMessage(item.business)}
-                    </p>
-                    {item.business.created_at && (
-                      <p className="mt-1 text-[11px] text-slate-400 dark:text-gray-500">
-                        Joined {formatDateLabel(item.business.created_at)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </article>
+              <FeedBusinessCardWithTrack
+                key={`biz-${item.business.id}-${index}`}
+                business={item.business}
+                formatDateLabel={formatDateLabel}
+                getBusinessMessage={getBusinessMessage}
+              />
             );
           }
 
@@ -1102,9 +1241,10 @@ const formatDateLabel = (value?: string | null) => {
             );
           }
 
-          if (item.type === 'ad') {
-            return <AdCard key={`ad-${item.banner.id}-${index}`} banner={item.banner} />;
+          if (item.type === 'ad' && item.banner?.image) {
+            return <AdCardWithTrack key={`ad-${item.banner.id}-${index}`} banner={item.banner} />;
           }
+          if (item.type === 'ad') return null;
 
           if (item.type === 'item') {
             return (

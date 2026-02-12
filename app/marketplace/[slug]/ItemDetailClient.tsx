@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import LiveRefreshLink from '@/components/LiveRefreshLink';
+
 import { FaHeart, FaRegHeart, FaShareAlt } from 'react-icons/fa';
 import { FaPhoneAlt, FaStore } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
@@ -48,8 +48,6 @@ type FavoriteItem = {
   image: string;
   location?: string;
 };
-
-const FAVORITE_ITEMS_KEY = 'favoriteMarketplaceItems';
 
 const getStorageUrl = (bucket: string, path?: string | null) => {
   if (!path) return '';
@@ -105,16 +103,29 @@ export default function ItemDetailClient() {
   }, []);
 
   useEffect(() => {
-    const stored = localStorage.getItem(FAVORITE_ITEMS_KEY);
-    if (!stored) {
-      setFavoriteItems([]);
-      return;
-    }
-    try {
-      setFavoriteItems(JSON.parse(stored) as FavoriteItem[]);
-    } catch {
-      setFavoriteItems([]);
-    }
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setFavoriteItems([]);
+        return;
+      }
+      const { data: favRows } = await supabase
+        .from('user_marketplace_favorites')
+        .select('item_key, item_snapshot')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+      const items = (favRows || []).map((r: { item_key: string; item_snapshot: Record<string, unknown> }) => ({
+        key: r.item_key,
+        id: (r.item_snapshot?.id as string) ?? '',
+        source: (r.item_snapshot?.source as 'retail' | 'dealership' | 'individual') ?? 'individual',
+        slug: (r.item_snapshot?.slug as string) ?? '',
+        title: (r.item_snapshot?.title as string) ?? '',
+        price: (r.item_snapshot?.price as string | number) ?? '',
+        image: (r.item_snapshot?.image as string) ?? '',
+        location: (r.item_snapshot?.location as string) ?? '',
+      }));
+      setFavoriteItems(items);
+    })();
   }, []);
 
   useEffect(() => {
@@ -266,34 +277,53 @@ export default function ItemDetailClient() {
     };
   }, [slug]);
 
+  // Track view (internal count; not shown to public)
+  useEffect(() => {
+    if (!item?.id) return;
+    const typeMap = { individual: 'marketplace_item', retail: 'retail_item', dealership: 'dealership' } as const;
+    const type = typeMap[item.source];
+    if (!type) return;
+    fetch('/api/track-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, id: item.id }),
+    }).catch(() => {});
+  }, [item?.id, item?.source]);
+
   const getFavoriteKey = (value: MarketplaceItem) => `${value.source}:${value.id}`;
   const isFavorited = item ? favoriteItems.some((fav) => fav.key === getFavoriteKey(item)) : false;
 
-  const toggleFavorite = () => {
+  const toggleFavorite = async () => {
     if (!item) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     const key = getFavoriteKey(item);
-    setFavoriteItems((prev) => {
-      let next: FavoriteItem[];
-      if (prev.some((fav) => fav.key === key)) {
-        next = prev.filter((fav) => fav.key !== key);
-      } else {
-        next = [
-          ...prev,
-          {
-            key,
-            id: item.id,
-            source: item.source,
-            slug: slug || item.id,
-            title: item.title,
-            price: item.price,
-            image: item.images[0] || '/placeholder.jpg',
-            location: item.location,
-          },
-        ];
-      }
-      localStorage.setItem(FAVORITE_ITEMS_KEY, JSON.stringify(next));
-      return next;
-    });
+    const isCurrentlyFav = favoriteItems.some((fav) => fav.key === key);
+    if (isCurrentlyFav) {
+      const { error } = await supabase
+        .from('user_marketplace_favorites')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('item_key', key);
+      if (!error) setFavoriteItems((prev) => prev.filter((fav) => fav.key !== key));
+    } else {
+      const snapshot = {
+        id: item.id,
+        source: item.source,
+        slug: slug || item.id,
+        title: item.title,
+        price: item.price,
+        image: item.images[0] || '/placeholder.jpg',
+        location: item.location ?? '',
+      };
+      const { error } = await supabase.from('user_marketplace_favorites').insert({
+        user_id: user.id,
+        item_key: key,
+        item_snapshot: snapshot,
+      });
+      if (!error)
+        setFavoriteItems((prev) => [...prev, { key, ...snapshot }]);
+    }
   };
 
   const handleNativeShare = () => {

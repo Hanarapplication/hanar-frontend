@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import LiveRefreshLink from '@/components/LiveRefreshLink';
 import { useEffect, useState } from 'react';
 import { FaMapMarkerAlt, FaBell, FaBars } from 'react-icons/fa';
 import { usePathname } from 'next/navigation';
@@ -224,10 +223,10 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="bg-white h-16 flex items-center justify-between px-4 sticky top-0 z-50 transition-all relative border-b border-gray-100">
+      <nav className="bg-white dark:bg-gray-900 h-16 flex items-center justify-between px-4 sticky top-0 z-50 transition-all relative border-b border-gray-100 dark:border-gray-800">
         {/* Logo */}
         <div className="flex items-center">
-          <LiveRefreshLink href="/" className="focus:outline-none">
+          <Link href="/" className="focus:outline-none">
             <img
               src="/hanar.logo.png"
               alt="Hanar Logo"
@@ -235,7 +234,7 @@ export default function Navbar() {
               height={100}
               className="h-10 w-auto transition-transform transform hover:scale-105 focus:scale-105"
             />
-          </LiveRefreshLink>
+          </Link>
         </div>
 
         {/* Right side */}

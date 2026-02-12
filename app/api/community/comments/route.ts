@@ -100,6 +100,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
+    // Notify post author about the new comment (do not notify self)
+    if (inserted?.post_id && inserted?.user_id) {
+      const { data: post } = await supabaseAdmin
+        .from('community_posts')
+        .select('user_id')
+        .eq('id', inserted.post_id)
+        .maybeSingle();
+      const postAuthorId = (post as { user_id?: string } | null)?.user_id;
+      if (postAuthorId && postAuthorId !== inserted.user_id) {
+        const commenterName = inserted.author || inserted.username || 'Someone';
+        const bodySnippet = body.length > 80 ? `${body.slice(0, 80)}…` : body;
+        await supabaseAdmin.from('notifications').insert({
+          user_id: postAuthorId,
+          type: 'comment_on_post',
+          title: 'New comment on your post',
+          body: `${commenterName}: ${bodySnippet}`,
+          url: `/community/post/${inserted.post_id}`,
+          data: { post_id: inserted.post_id, comment_id: inserted.id, commenter_name: commenterName },
+        });
+      }
+    }
+
     let profiles: { profile_pic_url: string | null } | null = null;
     if (inserted?.user_id) {
       const { data: profile } = await supabaseAdmin

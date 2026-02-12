@@ -1,6 +1,6 @@
 'use client';
 
-import LiveRefreshLink from '@/components/LiveRefreshLink';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   FaHome,
@@ -23,23 +23,28 @@ export default function MobileTopNav() {
   ];
 
   return (
-    <nav className="sticky top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 transition-shadow duration-200">
-      <div className="flex justify-around items-center py-3 px-4 shadow-sm">
+    <nav className="sticky top-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 transition-shadow duration-200">
+      <div className="flex justify-around items-center py-2 px-4">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
-            <LiveRefreshLink
+            <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center text-gray-600 transition-colors duration-200 focus:outline-none ${
-                isActive ? 'text-blue-600' : 'hover:text-blue-500'
+              className={`relative flex flex-col items-center py-1.5 px-3 rounded-lg transition-all duration-200 focus:outline-none ${
+                isActive
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >
-              <div className={`text-xl ${isActive ? 'text-red-700' : ''}`}>{item.icon}</div>
-              <span className={`text-xs font-medium mt-1 ${isActive ? 'text-red-700' : ''}`}>
+              <div className={`text-lg transition-transform duration-150 ${isActive ? 'scale-110' : ''}`}>{item.icon}</div>
+              <span className={`text-[10px] font-semibold mt-0.5 ${isActive ? '' : 'font-medium'}`}>
                 {item.label}
               </span>
-            </LiveRefreshLink>
+              {isActive && (
+                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-0.5 w-6 rounded-full bg-blue-600 dark:bg-blue-400" />
+              )}
+            </Link>
           );
         })}
       </div>

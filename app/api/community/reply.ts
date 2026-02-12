@@ -36,6 +36,29 @@ export async function POST(req: Request) {
       .single();
 
     if (error) throw error;
+
+    // Notify post author about the new comment/reply (do not notify self)
+    if (data?.post_id && data?.user_id) {
+      const { data: post } = await supabaseAdmin
+        .from('community_posts')
+        .select('user_id')
+        .eq('id', data.post_id)
+        .maybeSingle();
+      const postAuthorId = (post as { user_id?: string } | null)?.user_id;
+      if (postAuthorId && postAuthorId !== data.user_id) {
+        const commenterName = data.author || data.username || 'Someone';
+        const bodySnippet = body.length > 80 ? `${body.slice(0, 80)}…` : body;
+        await supabaseAdmin.from('notifications').insert({
+          user_id: postAuthorId,
+          type: 'comment_on_post',
+          title: 'New comment on your post',
+          body: `${commenterName}: ${bodySnippet}`,
+          url: `/community/post/${data.post_id}`,
+          data: { post_id: data.post_id, comment_id: data.id, commenter_name: commenterName },
+        });
+      }
+    }
+
     return NextResponse.json({ comment: data }, { status: 201 });
   } catch (err) {
     console.error('Comment reply error:', err);

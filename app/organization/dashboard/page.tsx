@@ -2,6 +2,8 @@
 
 import { useEffect, useState, ChangeEvent, FormEvent, FC } from 'react';
 import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Heart, Calendar, Eye, Megaphone } from 'lucide-react';
+import { FavoritesSlideMenu } from '@/components/FavoritesSlideMenu';
+import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { supabase } from '@/lib/supabaseClient';
 import { compressImage } from '@/lib/imageCompression';
 import { useRouter } from 'next/navigation';
@@ -78,15 +80,13 @@ type NotificationType = {
 type FavoriteItem = {
   key: string;
   id: string;
-  source: 'retail' | 'dealership';
+  source: 'retail' | 'dealership' | 'individual';
   slug: string;
   title: string;
   price: string | number;
   image: string;
   location?: string;
 };
-
-const FAVORITE_ITEMS_KEY = 'favoriteMarketplaceItems';
 
 // Add new type for modal state
 type ModalState = {
@@ -139,8 +139,8 @@ const Notification: FC<NotificationType & { onDismiss: () => void }> = ({ messag
   </div>
 );
 
-const Card: FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
-  <div className={`bg-white rounded-xl shadow-sm p-6 ${className}`}>
+const Card: FC<{ children: React.ReactNode; className?: string; id?: string }> = ({ children, className, id }) => (
+  <div id={id} className={`bg-white rounded-xl shadow-sm p-6 ${className || ''}`}>
     {children}
   </div>
 );
@@ -203,10 +203,9 @@ export default function OrganizationDashboard() {
     logo_url?: string | null;
   }>>([]);
   const [followedOrgsLoading, setFollowedOrgsLoading] = useState(true);
-  const [favoritesOpen, setFavoritesOpen] = useState(false);
-  const [followedOrgsOpen, setFollowedOrgsOpen] = useState(false);
+  const [favoritesMenuOpen, setFavoritesMenuOpen] = useState(false);
+  const [burgerMenuOpen, setBurgerMenuOpen] = useState(false);
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
-  const [favoriteItemsOpen, setFavoriteItemsOpen] = useState(false);
   const [notificationModalOpen, setNotificationModalOpen] = useState(false);
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationBody, setNotificationBody] = useState('');
@@ -256,6 +255,19 @@ export default function OrganizationDashboard() {
           router.push('/login');
           return;
         }
+
+        // Verify user is an organization account before loading org data
+        const { data: regProfile } = await supabase
+          .from('registeredaccounts')
+          .select('organization')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!regProfile?.organization) {
+          router.replace('/dashboard');
+          return;
+        }
+
         let { data, error } = await supabase
           .from('organizations')
           .select('*')
@@ -355,6 +367,23 @@ export default function OrganizationDashboard() {
           if (orgError) throw orgError;
           setFollowedOrgs((orgData as any[]) || []);
         }
+
+        const { data: favRows } = await supabase
+          .from('user_marketplace_favorites')
+          .select('item_key, item_snapshot')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true });
+        const items = (favRows || []).map((r: { item_key: string; item_snapshot: Record<string, unknown> }) => ({
+          key: r.item_key,
+          id: (r.item_snapshot?.id as string) ?? '',
+          source: (r.item_snapshot?.source as 'retail' | 'dealership' | 'individual') ?? 'individual',
+          slug: (r.item_snapshot?.slug as string) ?? '',
+          title: (r.item_snapshot?.title as string) ?? '',
+          price: (r.item_snapshot?.price as string | number) ?? '',
+          image: (r.item_snapshot?.image as string) ?? '',
+          location: (r.item_snapshot?.location as string) ?? '',
+        }));
+        setFavoriteItems(items);
       } catch (err) {
         console.error('Failed to load favorites/organizations', err);
       } finally {
@@ -366,18 +395,17 @@ export default function OrganizationDashboard() {
     loadFavoritesAndOrgs();
   }, []);
 
-  useEffect(() => {
-    const stored = localStorage.getItem(FAVORITE_ITEMS_KEY);
-    if (!stored) {
-      setFavoriteItems([]);
-      return;
-    }
-    try {
-      setFavoriteItems(JSON.parse(stored) as FavoriteItem[]);
-    } catch {
-      setFavoriteItems([]);
-    }
-  }, []);
+  const removeFavoriteItem = async (itemKey: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('user_marketplace_favorites')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('item_key', itemKey);
+    if (error) return;
+    setFavoriteItems((prev) => prev.filter((fav) => fav.key !== itemKey));
+  };
 
   // Load user liked posts from community_post_likes table
   useEffect(() => {
@@ -1160,8 +1188,19 @@ export default function OrganizationDashboard() {
     );
   }
   
+  const burgerItems = [
+    { label: 'Edit Organization', onClick: () => document.getElementById('edit-profile')?.scrollIntoView({ behavior: 'smooth' }), icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
+    { label: 'Send Notification', onClick: () => setNotificationModalOpen(true), icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
+    { label: 'Promote Event / Message', onClick: () => addNotification('Event promotion coming soon.', 'info'), icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
+    { label: 'Following organizations', onClick: () => setFavoritesMenuOpen(true), icon: <Building className="h-5 w-5 shrink-0" />, color: 'bg-sky-50 dark:bg-sky-900/30' },
+    { label: 'Favorite businesses', onClick: () => setFavoritesMenuOpen(true), icon: <Heart className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
+    { label: 'Favorite items', onClick: () => setFavoritesMenuOpen(true), icon: <Heart className="h-5 w-5 shrink-0" />, color: 'bg-pink-50 dark:bg-pink-900/30' },
+    { label: 'Delete My Account', href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
+  ];
+
   return (
-    <div className="bg-slate-50 min-h-screen font-sans">
+    <div className="bg-slate-50 min-h-screen font-sans pt-16">
+        <DashboardBurgerMenu open={burgerMenuOpen} onOpen={() => setBurgerMenuOpen(true)} onClose={() => setBurgerMenuOpen(false)} items={burgerItems} />
         <div className="fixed top-5 right-5 z-50 space-y-3">
             {notifications.map(n => (
                 <Notification key={n.id} {...n} onDismiss={() => dismissNotification(n.id)} />
@@ -1258,7 +1297,7 @@ export default function OrganizationDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           <div className="lg:col-span-1 space-y-8">
-             <Card>
+             <Card id="edit-profile">
                 <form onSubmit={handleSave} className="space-y-6">
                     <h2 className="text-xl font-bold text-slate-800 border-b pb-3 mb-4">Edit Profile</h2>
                     
@@ -1336,196 +1375,93 @@ export default function OrganizationDashboard() {
                 </form>
              </Card>
 
-              <Card>
-                <button
-                  type="button"
-                  onClick={() => setFavoritesOpen((prev) => !prev)}
-                  className="flex w-full items-center justify-between gap-4 text-left"
-                >
+              <FavoritesSlideMenu open={favoritesMenuOpen} onClose={() => setFavoritesMenuOpen(false)} title="Favorites">
+                <div className="space-y-8">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Favorite Businesses</h2>
-                    <span className="text-sm text-slate-500">{favorites.length} total</span>
-                  </div>
-                  <span className="text-sm text-slate-500">{favoritesOpen ? 'Hide' : 'Show'}</span>
-                </button>
-
-                {favoritesOpen && (
-                  <>
-                    {favoritesLoading ? (
-                      <div className="mt-4 text-slate-500">Loading favorites...</div>
-                    ) : favorites.length === 0 ? (
-                      <div className="mt-4 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-slate-500">
-                        No favorites yet.
-                      </div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Following Organizations</h3>
+                    {followedOrgsLoading ? (
+                      <p className="mt-4 text-slate-500">Loading...</p>
+                    ) : followedOrgs.length === 0 ? (
+                      <p className="mt-4 rounded-2xl border border-dashed border-indigo-200 p-6 text-center text-slate-500">No organizations followed yet.</p>
                     ) : (
-                      <div className="mt-5 grid gap-3">
-                        {favorites.map((biz) => (
+                      <div className="mt-3 grid gap-2">
+                        {followedOrgs.map((org) => (
                           <button
-                            key={biz.id}
-                            onClick={() => biz.slug && router.push(`/business/${biz.slug}`)}
-                            className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                            key={org.user_id}
+                            onClick={() => { org.username && router.push(`/organization/${org.username}`); setFavoritesMenuOpen(false); }}
+                            className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-white p-3 text-left hover:border-indigo-200"
                           >
-                            <div className="h-11 w-11 rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
-                              {biz.logo_url ? (
-                                <img
-                                  src={biz.logo_url}
-                                  alt={biz.business_name || 'Business'}
-                                  className="h-full w-full object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.src = 'https://placehold.co/44x44/94a3b8/ffffff?text=Logo';
-                                    e.currentTarget.onerror = null;
-                                  }}
-                                />
+                            <div className="h-10 w-10 rounded-lg overflow-hidden bg-indigo-100">
+                              {org.logo_url ? (
+                                <img src={org.logo_url} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/40x40'; e.currentTarget.onerror = null; }} />
                               ) : (
-                                <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-slate-500">
-                                  Logo
-                                </div>
+                                <div className="flex h-full w-full items-center justify-center text-xs text-indigo-600">Org</div>
                               )}
                             </div>
                             <div className="min-w-0">
-                              <p className="truncate font-semibold text-slate-900">
-                                {biz.business_name || 'Business'}
-                              </p>
-                              <p className="text-xs text-slate-500">
-                                {biz.address?.city || ''}{biz.address?.state ? `, ${biz.address.state}` : ''}
-                              </p>
+                              <p className="truncate font-semibold text-slate-900">{org.full_name || 'Organization'}</p>
+                              <p className="text-xs text-slate-500">{org.username ? `@${org.username}` : ''}</p>
                             </div>
                           </button>
                         ))}
                       </div>
                     )}
-                  </>
-                )}
-              </Card>
-
-              <Card>
-                <button
-                  type="button"
-                  onClick={() => setFavoriteItemsOpen((prev) => !prev)}
-                  className="flex w-full items-center justify-between gap-4 text-left"
-                >
-                  <div>
-                    <h2 className="text-lg font-semibold text-emerald-900">Favorite Items</h2>
-                    <span className="text-sm text-emerald-700">{favoriteItems.length} total</span>
                   </div>
-                  <span className="text-sm text-emerald-700">{favoriteItemsOpen ? 'Hide' : 'Show'}</span>
-                </button>
-
-                {favoriteItemsOpen && (
-                  <>
-                    {favoriteItems.length === 0 ? (
-                      <div className="mt-4 rounded-2xl border border-dashed border-emerald-200 p-6 text-center text-emerald-700">
-                        No favorite items yet.
-                      </div>
+                  <div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Favorite Businesses</h3>
+                    {favoritesLoading ? (
+                      <p className="mt-4 text-slate-500">Loading favorites...</p>
+                    ) : favorites.length === 0 ? (
+                      <p className="mt-4 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-slate-500">No favorites yet.</p>
                     ) : (
-                      <div className="mt-5 grid gap-3">
-                        {favoriteItems.map((item) => (
-                          <div
-                            key={item.key}
-                            className="group rounded-2xl border border-emerald-100 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md"
+                      <div className="mt-3 grid gap-2">
+                        {favorites.map((biz) => (
+                          <button
+                            key={biz.id}
+                            onClick={() => { biz.slug && router.push(`/business/${biz.slug}`); setFavoritesMenuOpen(false); }}
+                            className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-slate-300"
                           >
-                            <Link href={`/marketplace/${item.slug}`} className="flex items-center gap-3">
-                              <div className="h-11 w-11 rounded-xl overflow-hidden border border-emerald-100 bg-emerald-100">
-                                <img
-                                  src={item.image || '/placeholder.jpg'}
-                                  alt={item.title}
-                                  className="h-full w-full object-contain"
-                                  loading="lazy"
-                                  decoding="async"
-                                />
+                            <div className="h-10 w-10 rounded-lg overflow-hidden bg-slate-100">
+                              {biz.logo_url ? (
+                                <img src={biz.logo_url} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/40x40'; e.currentTarget.onerror = null; }} />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">Logo</div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold text-slate-900">{biz.business_name || 'Business'}</p>
+                              <p className="text-xs text-slate-500">{biz.address?.city || ''}{biz.address?.state ? `, ${biz.address.state}` : ''}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Favorite Items</h3>
+                    {favoriteItems.length === 0 ? (
+                      <p className="mt-4 rounded-2xl border border-dashed border-emerald-200 p-6 text-center text-emerald-700">No favorite items yet.</p>
+                    ) : (
+                      <div className="mt-3 grid gap-2">
+                        {favoriteItems.map((item) => (
+                          <div key={item.key} className="rounded-xl border border-emerald-100 bg-white p-3">
+                            <Link href={`/marketplace/${item.slug}`} onClick={() => setFavoritesMenuOpen(false)} className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-lg overflow-hidden bg-emerald-100">
+                                <img src={item.image || '/placeholder.jpg'} alt="" className="h-full w-full object-contain" />
                               </div>
                               <div className="min-w-0">
-                                <p className="truncate font-semibold text-emerald-900">
-                                  {item.title}
-                                </p>
-                                <p className="text-xs text-emerald-700">
-                                  {item.location || ''}
-                                </p>
+                                <p className="truncate font-semibold text-emerald-900">{item.title}</p>
+                                <p className="text-xs text-emerald-700">{item.location || ''}</p>
                               </div>
                             </Link>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const next = favoriteItems.filter((fav) => fav.key !== item.key);
-                                setFavoriteItems(next);
-                                localStorage.setItem(FAVORITE_ITEMS_KEY, JSON.stringify(next));
-                              }}
-                              className="mt-2 text-xs text-red-600 hover:underline"
-                            >
-                              Remove
-                            </button>
+                            <button type="button" onClick={() => removeFavoriteItem(item.key)} className="mt-2 text-xs text-red-600 hover:underline">Remove</button>
                           </div>
                         ))}
                       </div>
                     )}
-                  </>
-                )}
-              </Card>
-
-              <Card>
-                <button
-                  type="button"
-                  onClick={() => setFollowedOrgsOpen((prev) => !prev)}
-                  className="flex w-full items-center justify-between gap-4 text-left"
-                >
-                  <div>
-                    <h2 className="text-lg font-semibold text-indigo-900">Following Organizations</h2>
-                    <span className="text-sm text-indigo-700">{followedOrgs.length} total</span>
                   </div>
-                  <span className="text-sm text-indigo-700">{followedOrgsOpen ? 'Hide' : 'Show'}</span>
-                </button>
-
-                {followedOrgsOpen && (
-                  <>
-                    {followedOrgsLoading ? (
-                      <div className="mt-4 text-indigo-700">Loading organizations...</div>
-                    ) : followedOrgs.length === 0 ? (
-                      <div className="mt-4 rounded-2xl border border-dashed border-indigo-200 p-6 text-center text-indigo-700">
-                        No organizations followed yet.
-                      </div>
-                    ) : (
-                      <div className="mt-5 grid gap-3">
-                        {followedOrgs.map((org) => (
-                          <button
-                            key={org.user_id}
-                            onClick={() => org.username && router.push(`/organization/${org.username}`)}
-                            className="group flex items-center gap-3 rounded-2xl border border-indigo-100 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md"
-                          >
-                            <div className="h-11 w-11 rounded-xl overflow-hidden border border-indigo-100 bg-indigo-100">
-                              {org.logo_url ? (
-                                <img
-                                  src={org.logo_url}
-                                  alt={org.full_name || 'Organization'}
-                                  className="h-full w-full object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.src = 'https://placehold.co/44x44/94a3b8/ffffff?text=Org';
-                                    e.currentTarget.onerror = null;
-                                  }}
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-indigo-700">
-                                  Org
-                                </div>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate font-semibold text-indigo-900">
-                                {org.full_name || 'Organization'}
-                              </p>
-                              <p className="text-xs text-indigo-700">
-                                {org.username ? `@${org.username}` : ''}
-                              </p>
-                            </div>
-                            <span className="ml-auto rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">
-                              Organization
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </Card>
+                </div>
+              </FavoritesSlideMenu>
           </div>
           
         </div>
