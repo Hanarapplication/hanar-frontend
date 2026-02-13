@@ -2,12 +2,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { CheckCircle, X, Layout } from 'lucide-react';
-import { getAllowedProfileThemes, PROFILE_THEME_OPTIONS, resolveProfileTheme } from '@/lib/profileThemes';
-import type { ProfileThemeId } from '@/lib/profileThemes';
+import { CheckCircle, X } from 'lucide-react';
+import { isAppIOS } from '@/utils/isAppIOS';
 
 type Plan = 'free' | 'starter' | 'growth' | 'premium';
 
@@ -39,8 +38,12 @@ function normalizePlan(value: string | null | undefined): Plan | null {
   return null;
 }
 
+const WEB_ACCOUNT_URL = 'https://hanar.net/dashboard/account';
+
 export default function BusinessPlanPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const appIOS = isAppIOS(searchParams);
 
   const DASHBOARD_ROUTE = '/business-dashboard'; // ✅ your real dashboard route
   const CONTACT_ROUTE = '/contact';
@@ -58,9 +61,7 @@ export default function BusinessPlanPage() {
     plan: Plan | null;
     plan_selected_at: string | null;
     trial_end: string | null;
-    profile_theme: string | null;
   } | null>(null);
-  const [savingTheme, setSavingTheme] = useState(false);
 
   const redirectTimerRef = useRef<number | null>(null);
 
@@ -91,7 +92,7 @@ export default function BusinessPlanPage() {
         // Fetch current business
         const { data, error } = await supabase
           .from('businesses')
-          .select('id, plan, plan_selected_at, trial_end, profile_theme')
+          .select('id, plan, plan_selected_at, trial_end')
           .eq('owner_id', userId)
           .maybeSingle();
 
@@ -106,7 +107,6 @@ export default function BusinessPlanPage() {
         const currentPlan = normalizePlan(data.plan);
         const selectedAt = data.plan_selected_at ? String(data.plan_selected_at) : null;
         const trialEnd = data.trial_end ? String(data.trial_end) : null;
-        const profileTheme = data.profile_theme ? String(data.profile_theme) : null;
 
         if (isMounted) {
           setPlans((plansData as BusinessPlan[]) || []);
@@ -115,7 +115,6 @@ export default function BusinessPlanPage() {
             plan: currentPlan,
             plan_selected_at: selectedAt,
             trial_end: trialEnd,
-            profile_theme: profileTheme,
           });
         }
       } catch (err: any) {
@@ -142,6 +141,7 @@ export default function BusinessPlanPage() {
   };
 
   const choosePlan = async (plan: Plan) => {
+    if (appIOS) return;
     if (!biz?.id) {
       toast.error('Business not loaded yet. Refresh and try again.');
       return;
@@ -260,7 +260,27 @@ export default function BusinessPlanPage() {
           </div>
 
           <div className="p-4 sm:p-6 md:p-8 lg:p-10">
-            {plans.length === 0 ? (
+            {appIOS ? (
+              <div className="text-center py-8 sm:py-12 max-w-md mx-auto">
+                <p className="text-base sm:text-lg text-gray-700 dark:text-gray-300 mb-6">
+                  Plan upgrades are managed on the web.
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(WEB_ACCOUNT_URL);
+                      toast.success('Link copied. Open in your browser to manage your plan.');
+                    } catch {
+                      window.open(WEB_ACCOUNT_URL, '_blank');
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
+                >
+                  Open in browser
+                </button>
+              </div>
+            ) : plans.length === 0 ? (
               <div className="text-center py-10 text-gray-600">Loading plans...</div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
@@ -302,56 +322,6 @@ export default function BusinessPlanPage() {
                     />
                   );
                 })}
-              </div>
-            )}
-
-            {/* Profile design: choose layout by plan */}
-            {biz?.id && (
-              <div className="mt-8 sm:mt-10 max-w-xl mx-auto">
-                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 p-4 sm:p-5 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Layout className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Profile page design</h3>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                    Choose how your public business profile looks. More designs unlock with higher plans.
-                  </p>
-                  <select
-                    value={resolveProfileTheme(biz.profile_theme, biz.plan)}
-                    onChange={async (e) => {
-                      const theme = e.target.value as ProfileThemeId;
-                      if (!biz?.id) return;
-                      setSavingTheme(true);
-                      try {
-                        const { data: session } = await supabase.auth.getSession();
-                        const res = await fetch('/api/business/profile-theme', {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json', ...(session?.session?.access_token ? { Authorization: `Bearer ${session.session.access_token}` } : {}) },
-                          body: JSON.stringify({ theme }),
-                        });
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok) throw new Error(data?.error || 'Failed to update');
-                        setBiz((prev) => (prev ? { ...prev, profile_theme: theme } : null));
-                        toast.success('Profile design updated');
-                      } catch (err: any) {
-                        toast.error(err?.message || 'Failed to update design');
-                      } finally {
-                        setSavingTheme(false);
-                      }
-                    }}
-                    disabled={savingTheme}
-                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50"
-                  >
-                    {getAllowedProfileThemes(biz.plan).map((id) => {
-                      const opt = PROFILE_THEME_OPTIONS.find((o) => o.id === id);
-                      return (
-                        <option key={id} value={id}>
-                          {opt ? `${opt.name} – ${opt.description}` : id}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
               </div>
             )}
 

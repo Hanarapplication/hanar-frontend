@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { Edit, Eye, Crown, BarChart3, Megaphone, ChevronDown, ChevronUp, X, Image, Bell, Trash2 } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
+import { isAppIOS, withAppParam } from '@/utils/isAppIOS';
 
 type BusinessStatus = 'pending' | 'approved' | 'rejected' | 'hold' | 'archived';
 type ModerationStatus = 'on_hold' | 'active' | 'rejected';
@@ -121,6 +122,8 @@ function formatExpiryDate(isoDate: string): string {
 
 export default function BusinessDashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const appIOS = isAppIOS(searchParams?.toString() ?? null);
   const [loading, setLoading] = useState(true);
 
   const [business, setBusiness] = useState<{
@@ -296,7 +299,7 @@ export default function BusinessDashboardPage() {
               .eq('id', data.id);
           } else {
             toast('Please choose a plan to continue.');
-            router.replace('/business/plan');
+            router.replace(appIOS ? withAppParam('/dashboard/account', true) : '/business/plan');
             return;
           }
         }
@@ -312,7 +315,7 @@ export default function BusinessDashboardPage() {
     return () => {
       mounted = false;
     };
-  }, [router]);
+  }, [router, appIOS]);
 
   useEffect(() => {
     if (!planSettings) return;
@@ -690,8 +693,8 @@ export default function BusinessDashboardPage() {
         ? `Premium Trial · ${getDaysRemaining(business.trial_end) > 0 ? `${getDaysRemaining(business.trial_end)} days left` : 'Ended'}`
         : business.plan_expires_at && !business.trial_end && business.plan && business.plan !== 'free'
         ? `${String(business.plan).toUpperCase()} Plan · Renews ${formatExpiryDate(business.plan_expires_at)}`
-        : 'Upgrade / Change Plan',
-      href: '/business/plan', icon: <Crown className="h-5 w-5 shrink-0" />, color: 'bg-amber-50 dark:bg-amber-900/30' },
+        : 'Manage Plan',
+      href: appIOS ? withAppParam('/dashboard/account', true) : '/business/plan', icon: <Crown className="h-5 w-5 shrink-0" />, color: 'bg-amber-50 dark:bg-amber-900/30' },
     { label: 'Delete My Account', href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
   ];
 
@@ -781,11 +784,11 @@ export default function BusinessDashboardPage() {
                 View public profile
               </button>
               <button
-                onClick={() => router.push('/business/plan')}
+                onClick={() => router.push(appIOS ? withAppParam('/dashboard/account', true) : '/business/plan')}
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:from-indigo-500 hover:to-blue-500"
               >
                 <Crown className="h-4 w-4" />
-                Upgrade / Change Plan
+                Manage Plan
               </button>
             </div>
           </div>
@@ -1230,7 +1233,7 @@ export default function BusinessDashboardPage() {
                                 Upgrade to Premium to see profile views, item views, and ad performance.
                               </p>
                               <Link
-                                href="/business/plan"
+                                href={appIOS ? withAppParam('/dashboard/account', true) : '/business/plan'}
                                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-500"
                                 onClick={() => setInsightsOpen(false)}
                               >
