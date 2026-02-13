@@ -80,6 +80,21 @@ const normalizeImages = (value: unknown, bucket: string): string[] => {
 
 const getFirstImage = (value: string[] | null | undefined) => (value?.[0] || '');
 
+/** Reduce a full address to "City, State" for card display. */
+function getCityStateFromLocation(location: string | null | undefined): string {
+  const s = (location || '').trim();
+  if (!s) return '';
+  const parts = s.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    const last = parts[parts.length - 1];
+    const statePart = last.replace(/\s*\d{5}(-\d{4})?(\s*$)/, '').trim();
+    const state = /^[A-Za-z]{2}$/.test(statePart) ? statePart : statePart.split(/\s+/)[0] || statePart;
+    const city = parts[parts.length - 2];
+    return [city, state].filter(Boolean).join(', ') || s;
+  }
+  return s;
+}
+
 const getPriceValue = (value: string | number) => {
   if (typeof value === 'number') return value;
   const parsed = Number(String(value).replace(/[^0-9.]/g, ''));
@@ -701,8 +716,8 @@ export default function MarketplacePage() {
             </span>
           )}
           {item.location && (
-            <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-lg bg-slate-200 text-slate-700 dark:bg-slate-600/50 dark:text-slate-200 truncate max-w-[120px]">
-              {item.location}
+            <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-lg bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 truncate max-w-[120px]">
+              {getCityStateFromLocation(item.location) || item.location}
             </span>
           )}
         </div>

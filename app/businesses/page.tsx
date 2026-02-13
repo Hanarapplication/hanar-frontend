@@ -439,9 +439,11 @@ export default function BusinessesPage() {
                     </p>
                   )}
 
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-1 mt-auto">
-                    {locationText === 'Location not available' ? t(effectiveLang, 'Location not available') : locationText}
-                  </p>
+                  <div className="mt-auto inline-block max-w-full rounded border border-blue-700 dark:border-blue-800 bg-blue-700 dark:bg-blue-800 px-1.5 py-0.5">
+                    <p className="text-[10px] font-bold text-white line-clamp-1 truncate max-w-[100px]">
+                      {locationText === 'Location not available' ? t(effectiveLang, 'Location not available') : locationText}
+                    </p>
+                  </div>
 
                   {biz.distance !== undefined && (
                     <div className="mt-2 inline-flex items-center px-2 py-0.5 bg-blue-100/70 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs font-medium rounded-full">
