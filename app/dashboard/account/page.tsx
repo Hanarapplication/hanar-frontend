@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
@@ -9,7 +9,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 import { isAppIOS, withAppParam } from '@/utils/isAppIOS';
 
-export default function DashboardAccountPage() {
+function DashboardAccountContent() {
   const { effectiveLang } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -151,5 +151,13 @@ export default function DashboardAccountPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DashboardAccountPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">Loading...</div>}>
+      <DashboardAccountContent />
+    </Suspense>
   );
 }

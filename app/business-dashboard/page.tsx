@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -120,7 +120,7 @@ function formatExpiryDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export default function BusinessDashboardPage() {
+function BusinessDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const appIOS = isAppIOS(searchParams?.toString() ?? null);
@@ -1261,5 +1261,13 @@ export default function BusinessDashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BusinessDashboardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">Loading...</div>}>
+      <BusinessDashboardContent />
+    </Suspense>
   );
 }

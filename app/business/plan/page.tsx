@@ -1,7 +1,7 @@
 // app/business/plan/page.tsx
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
@@ -40,7 +40,7 @@ function normalizePlan(value: string | null | undefined): Plan | null {
 
 const WEB_ACCOUNT_URL = 'https://hanar.net/dashboard/account';
 
-export default function BusinessPlanPage() {
+function BusinessPlanContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const appIOS = isAppIOS(searchParams);
@@ -352,6 +352,14 @@ export default function BusinessPlanPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function BusinessPlanPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">Loading...</div>}>
+      <BusinessPlanContent />
+    </Suspense>
   );
 }
 
