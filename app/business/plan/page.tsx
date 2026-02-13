@@ -249,7 +249,9 @@ function BusinessPlanContent() {
             </p>
             {isOnPremiumTrial && (
               <p className="mt-3 text-sm font-medium text-amber-200 text-center max-w-2xl mx-auto px-2">
-                Want to keep your business on Premium and unlock all features? Subscribe now to continue.
+                {appIOS
+                  ? 'Manage your plan in your account.'
+                  : 'Want to keep your business on Premium and unlock all features? Subscribe now to continue.'}
               </p>
             )}
             {(!hasSelected || currentPlan === 'free' || currentPlan === 'starter' || currentPlan === 'growth') && !isOnPremiumTrial && (
