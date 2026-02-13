@@ -17,7 +17,7 @@ import { formatBusinessCategory } from '../utils';
 
 export function BrandTemplate(props: BusinessProfileRendererProps) {
   const { business, listings, groupedMenu, isFavorited, selectedImageIndex, onImageIndexChange } = props;
-  const displayCategory = formatBusinessCategory(business.category);
+  const displayCategory = formatBusinessCategory(business.subcategory || business.category);
   const hasAddress = business.address?.street;
 
   return (

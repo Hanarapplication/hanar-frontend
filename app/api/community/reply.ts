@@ -17,6 +17,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
+    const authorTrimmed = typeof author === 'string' ? author.trim() : '';
+    if (authorTrimmed.toLowerCase() === 'anonymous') {
+      return NextResponse.json({ error: 'Anonymous commenting is not allowed. Please comment with your profile.' }, { status: 400 });
+    }
+
     const { data, error } = await supabaseAdmin
       .from('community_comments')
       .insert([

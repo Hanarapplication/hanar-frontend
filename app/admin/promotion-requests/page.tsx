@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Inbox, ExternalLink } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Inbox, ExternalLink, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
 type PromotionRequest = {
@@ -112,6 +112,26 @@ export default function AdminPromotionRequestsPage() {
       setRequests((prev) => prev.filter((r) => r.id !== id));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Reject failed');
+    } finally {
+      setProcessingRequestId(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Permanently delete this promotion request? If approved, the linked feed banner will be archived.')) return;
+    setProcessingRequestId(id);
+    try {
+      const res = await fetch(`/api/admin/promotion-requests?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: await withAuth(),
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Delete failed');
+      toast.success('Promotion request deleted.');
+      setRequests((prev) => prev.filter((r) => r.id !== id));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Delete failed');
     } finally {
       setProcessingRequestId(null);
     }
@@ -237,16 +257,36 @@ export default function AdminPromotionRequestsPage() {
                           >
                             <XCircle className="h-3.5 w-3.5" /> Reject
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(req.id)}
+                            disabled={processingRequestId === req.id}
+                            className="inline-flex items-center gap-1 rounded-lg bg-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-300 disabled:opacity-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Delete
+                          </button>
                         </div>
                       )}
-                      {req.status === 'approved' && req.feed_banner_id && (
-                        <Link
-                          href="/admin/feed-banners"
-                          className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-amber-600 hover:text-amber-700"
-                        >
-                          View in Feed Banners
-                          <ExternalLink className="h-3 w-3" />
-                        </Link>
+                      {(req.status === 'approved' || req.status === 'rejected') && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {req.feed_banner_id && (
+                            <Link
+                              href="/admin/feed-banners"
+                              className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 hover:text-amber-700"
+                            >
+                              View in Feed Banners
+                              <ExternalLink className="h-3 w-3" />
+                            </Link>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(req.id)}
+                            disabled={processingRequestId === req.id}
+                            className="inline-flex items-center gap-1 rounded-lg bg-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-300 disabled:opacity-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Delete
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

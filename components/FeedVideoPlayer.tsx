@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Volume2, VolumeX, Play, Pause } from 'lucide-react';
+import { Volume2, VolumeX, Play, Pause, Maximize2, Minimize2 } from 'lucide-react';
 
 interface FeedVideoPlayerProps {
   src: string;
@@ -29,6 +29,7 @@ export default function FeedVideoPlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-play when visible in viewport (IntersectionObserver)
@@ -140,6 +141,46 @@ export default function FeedVideoPlayer({
     scheduleHide();
   };
 
+  const toggleFullscreen = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const container = containerRef.current;
+    if (!container) return;
+
+    const enterFullscreen = async () => {
+      try {
+        await container.requestFullscreen();
+        setIsFullscreen(true);
+      } catch {
+        // Fullscreen not supported or denied
+      }
+    };
+
+    const exitFullscreen = async () => {
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        setIsFullscreen(false);
+      } catch {
+        setIsFullscreen(false);
+      }
+    };
+
+    if (document.fullscreenElement) {
+      exitFullscreen();
+    } else {
+      enterFullscreen();
+    }
+    scheduleHide();
+  };
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
   const handleProgressClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -226,26 +267,49 @@ export default function FeedVideoPlayer({
                 {formatTime(currentTime)} / {formatTime(duration)}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={toggleMute}
-              className="rounded-full bg-black/40 p-1.5 text-white hover:bg-black/60 transition"
-            >
-              {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={toggleMute}
+                className="rounded-full bg-black/40 p-1.5 text-white hover:bg-black/60 transition"
+                aria-label={muted ? 'Unmute' : 'Mute'}
+              >
+                {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              </button>
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                className="rounded-full bg-black/40 p-1.5 text-white hover:bg-black/60 transition"
+                aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              >
+                {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Mute badge - top right, always visible when muted & playing */}
-      {playing && muted && !showControls && (
-        <button
-          type="button"
-          onClick={toggleMute}
-          className="absolute top-3 right-3 rounded-full bg-black/50 p-2 text-white backdrop-blur-sm transition hover:bg-black/70"
-        >
-          <VolumeX className="h-4 w-4" />
-        </button>
+      {/* Top-right controls: fullscreen (always when playing) + mute (when muted & playing) */}
+      {playing && !showControls && (
+        <div className="absolute top-3 right-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="rounded-full bg-black/50 p-2 text-white backdrop-blur-sm transition hover:bg-black/70"
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          >
+            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </button>
+          {muted && (
+            <button
+              type="button"
+              onClick={toggleMute}
+              className="rounded-full bg-black/50 p-2 text-white backdrop-blur-sm transition hover:bg-black/70"
+            >
+              <VolumeX className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

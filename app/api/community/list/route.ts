@@ -79,6 +79,7 @@ export async function POST(req: Request) {
         author_type,
         username,
         user_id,
+        org_id,
         image,
         video,
         likes_post,
@@ -141,6 +142,23 @@ export async function POST(req: Request) {
       ...p,
       likes_post: likeCounts[p.id] ?? p.likes_post ?? 0,
     }));
+
+    // Enrich with profile pics and org logos
+    const userIds = [...new Set((enriched as { user_id?: string | null }[]).map((p) => p.user_id).filter(Boolean))] as string[];
+    const orgIds = [...new Set((enriched as { org_id?: string | null }[]).map((p) => p.org_id).filter(Boolean))] as string[];
+    const [profilesRes, orgsRes] = await Promise.all([
+      userIds.length > 0 ? supabaseAdmin.from('profiles').select('id, profile_pic_url').in('id', userIds) : Promise.resolve({ data: [] }),
+      orgIds.length > 0 ? supabaseAdmin.from('organizations').select('id, logo_url').in('id', orgIds) : Promise.resolve({ data: [] }),
+    ]);
+    const profileMap = new Map((profilesRes.data || []).map((p: { id: string; profile_pic_url: string | null }) => [p.id, p.profile_pic_url]));
+    const orgMap = new Map((orgsRes.data || []).map((o: { id: string; logo_url: string | null }) => [o.id, o.logo_url]));
+    enriched.forEach((p: { user_id?: string | null; org_id?: string | null; author_type?: string | null } & Record<string, unknown>) => {
+      if (p.author_type === 'organization' && p.org_id) {
+        (p as Record<string, unknown>).logo_url = orgMap.get(p.org_id) ?? null;
+      } else if (p.user_id) {
+        (p as Record<string, unknown>).profile_pic_url = profileMap.get(p.user_id) ?? null;
+      }
+    });
 
     // Algorithm: rank by relevance (language + topic) then by sort mode
     const currentLang = (lang && String(lang)) || 'en';

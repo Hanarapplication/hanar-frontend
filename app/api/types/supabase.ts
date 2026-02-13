@@ -8,6 +8,7 @@ export type Database = {
           slug: string;
           description: string | null;
           category: string | null;
+          subcategory: string | null;
           phone: string | null;
           spoken_languages: string[] | null;
           email: string | null;

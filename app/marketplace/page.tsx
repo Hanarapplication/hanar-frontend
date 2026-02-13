@@ -3,9 +3,10 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 
-import { FaHeart, FaRegHeart } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaMapMarkerAlt } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
 import PullToRefresh from '@/components/PullToRefresh';
+import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 
 function getDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 3958.8;
@@ -152,64 +153,18 @@ export default function MarketplacePage() {
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
-  const [tempCoords, setTempCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [radius, setRadius] = useState(50);
-  const [tempRadius, setTempRadius] = useState(50);
-  const [zipFallback, setZipFallback] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
-  const [tempMinPrice, setTempMinPrice] = useState('');
-  const [tempMaxPrice, setTempMaxPrice] = useState('');
   const [sort, setSort] = useState('');
-  const [tempSort, setTempSort] = useState('');
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
   const [visibleCount, setVisibleCount] = useState(6);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [locationLabel, setLocationLabel] = useState<string | null>(null);
+  const [locationSearchValue, setLocationSearchValue] = useState('');
+  const [tempRadius, setTempRadius] = useState(50);
   const hasFetchedRef = useRef(false);
-
-  const getUserLocation = () => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setTempCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-      () => alert('Location access denied.')
-    );
-  };
-
-  const lookupZipOrCity = async () => {
-    if (!zipFallback) return;
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(zipFallback)}`);
-    const data = await res.json();
-    if (data.length > 0) {
-      setTempCoords({ lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) });
-    } else {
-      alert('Could not find that ZIP or City.');
-    }
-  };
-
-  const clearFilters = () => {
-    setTempCoords(null);
-    setTempRadius(50);
-    setTempMinPrice('');
-    setTempMaxPrice('');
-    setTempSort('');
-    setZipFallback('');
-    setUserCoords(null);
-    setRadius(50);
-    setMinPrice('');
-    setMaxPrice('');
-    setSort('');
-    setVisibleCount(6);
-  };
-
-  const applyFilters = () => {
-    setUserCoords(tempCoords);
-    setRadius(tempRadius);
-    setMinPrice(tempMinPrice);
-    setMaxPrice(tempMaxPrice);
-    setSort(tempSort);
-    setShowFilters(false);
-    setVisibleCount(6);
-  };
 
   const addToRecentSearches = async (term: string) => {
     const t = term.trim().toLowerCase();
@@ -253,6 +208,52 @@ export default function MarketplacePage() {
 
   const handleSearchBlur = () => {
     if (searchTerm.trim()) addToRecentSearches(searchTerm);
+  };
+
+  const handleLocationSelect = (result: AddressResult) => {
+    if (result.lat != null && result.lng != null) {
+      const coords = { lat: result.lat, lon: result.lng };
+      const label = [result.city, result.state].filter(Boolean).join(', ') || result.formatted_address || 'Selected location';
+      setUserCoords(coords);
+      setLocationLabel(label);
+      setLocationSearchValue('');
+      try {
+        localStorage.setItem('userCoords', JSON.stringify(coords));
+        if (label) localStorage.setItem('userLocationLabel', label);
+      } catch {}
+      window.dispatchEvent(new CustomEvent('location:updated', {
+        detail: { ...coords, label, city: result.city, state: result.state, zip: result.zip },
+      }));
+    }
+  };
+
+  const handleUseMyLocation = () => {
+    const stored = localStorage.getItem('userCoords');
+    if (stored) {
+      try {
+        const { lat, lon } = JSON.parse(stored);
+        setUserCoords({ lat, lon });
+        setLocationLabel('Your location');
+        return;
+      } catch { /* ignore */ }
+    }
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        setUserCoords(coords);
+        localStorage.setItem('userCoords', JSON.stringify(coords));
+        setLocationLabel('Your location');
+        window.dispatchEvent(new CustomEvent('location:updated', { detail: coords }));
+      },
+      () => alert('Could not get your location.')
+    );
+  };
+
+  const handleApplyLocation = () => {
+    setRadius(tempRadius);
+    setLocationModalOpen(false);
+    setVisibleCount(6);
   };
 
   useEffect(() => {
@@ -304,11 +305,33 @@ export default function MarketplacePage() {
     })();
 
     const saved = localStorage.getItem('userCoords');
+    let savedLabel: string | null = null;
+    try { savedLabel = localStorage.getItem('userLocationLabel'); } catch {}
     if (saved) {
-      setUserCoords(JSON.parse(saved));
-      setTempCoords(JSON.parse(saved));
+      try {
+        const parsed = JSON.parse(saved) as { lat: number; lon: number };
+        if (parsed?.lat != null && parsed?.lon != null) {
+          setUserCoords(parsed);
+          setLocationLabel(savedLabel || 'Your location');
+        }
+      } catch {
+        /* ignore */
+      }
     }
 
+    const handleLocationUpdated = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { lat?: number; lon?: number; label?: string; city?: string } | undefined;
+      if (detail?.lat != null && detail?.lon != null) {
+        setUserCoords({ lat: detail.lat, lon: detail.lon });
+        if (detail.label) setLocationLabel(detail.label);
+        else setLocationLabel((prev) => prev ?? 'Your location');
+      }
+    };
+    window.addEventListener('location:updated', handleLocationUpdated);
+    return () => window.removeEventListener('location:updated', handleLocationUpdated);
+  }, []);
+
+  useEffect(() => {
     if (!hasFetchedRef.current) {
       hasFetchedRef.current = true;
       const cache = readMarketplaceCache();
@@ -366,8 +389,8 @@ export default function MarketplacePage() {
       condition: row.condition || '',
       description: row.description || null,
       imageUrls: urls,
-      lat: null,
-      lon: null,
+      lat: row.location_lat ?? row.lat ?? row.latitude ?? null,
+      lon: row.location_lng ?? row.lon ?? row.longitude ?? null,
       created_at: row.created_at || null,
       slug: `individual-${row.id}`,
       source: 'individual',
@@ -393,6 +416,8 @@ export default function MarketplacePage() {
       condition: '',
       location: (row.address as string) || '',
       imageUrls,
+      lat: (row.lat as number) ?? (row.latitude as number) ?? null,
+      lon: (row.lon as number) ?? (row.longitude as number) ?? null,
       created_at: (row.created_at as string) || null,
       business_id: (row.business_id as string) || null,
       source: 'real_estate',
@@ -425,10 +450,11 @@ export default function MarketplacePage() {
     let verifiedMap = new Map<string, boolean>();
     let planMap = new Map<string, string>();
     let businessLocationMap = new Map<string, string>();
+    let businessCoordsMap = new Map<string, { lat: number; lon: number }>();
     if (businessIds.length > 0) {
       const { data: businessRows } = await supabase
         .from('businesses')
-        .select('id, is_verified, plan, address')
+        .select('id, is_verified, plan, address, lat, lon')
         .in('id', businessIds);
       verifiedMap = new Map(
         (businessRows || []).map((row: { id: string; is_verified?: boolean | null; plan?: string | null }) => [
@@ -454,6 +480,10 @@ export default function MarketplacePage() {
           return [row.id, loc] as [string, string];
         }).filter(([, loc]) => loc.length > 0)
       );
+      businessCoordsMap = new Map(
+        (businessRows || []).filter((row: { lat?: number | null; lon?: number | null }) => row.lat != null && row.lon != null)
+          .map((row: { id: string; lat: number; lon: number }) => [row.id, { lat: row.lat, lon: row.lon }] as [string, { lat: number; lon: number }])
+      );
     }
     const withMetadata = combined.map((item) => {
       const businessLocation = item.business_id ? businessLocationMap.get(item.business_id) : null;
@@ -461,9 +491,12 @@ export default function MarketplacePage() {
         (businessLocation && businessLocation.length > 0)
           ? businessLocation
           : (item.location && String(item.location).trim()) || '';
+      const businessCoords = item.business_id ? businessCoordsMap.get(item.business_id) : null;
       return {
         ...item,
         location: location || item.location || '',
+        lat: item.lat ?? businessCoords?.lat ?? null,
+        lon: item.lon ?? businessCoords?.lon ?? null,
         business_verified: item.business_id ? verifiedMap.get(item.business_id) || false : false,
         business_plan: item.business_id ? planMap.get(item.business_id) || null : null,
       };
@@ -591,11 +624,15 @@ export default function MarketplacePage() {
     });
   }
   if (userCoords) {
-    filteredItems = filteredItems.filter((i) =>
-      i.lat && i.lon
-        ? getDistanceMiles(userCoords.lat, userCoords.lon, i.lat, i.lon) <= radius
-        : true
-    );
+    const cityFromLabel = (locationLabel || '').split(',')[0]?.trim().toLowerCase() || '';
+    filteredItems = filteredItems.filter((i) => {
+      if (i.lat != null && i.lon != null) {
+        return getDistanceMiles(userCoords.lat, userCoords.lon, i.lat, i.lon) <= radius;
+      }
+      if (!cityFromLabel || cityFromLabel === 'your location') return false;
+      const loc = (i.location || '').toLowerCase();
+      return new RegExp(`\\b${cityFromLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(loc);
+    });
   }
 
   // Relevance: words from current search + recent searches; boost items that match
@@ -624,21 +661,33 @@ export default function MarketplacePage() {
 
   const withRelevance = filteredItems.map((item) => ({ item, score: getRelevanceScore(item) }));
   withRelevance.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
     if (sort === 'priceLow') return (getPriceValue(a.item.price) || 0) - (getPriceValue(b.item.price) || 0);
     if (sort === 'priceHigh') return (getPriceValue(b.item.price) || 0) - (getPriceValue(a.item.price) || 0);
     if (sort === 'newest') return new Date(b.item.created_at || 0).getTime() - new Date(a.item.created_at || 0).getTime();
+    if (sort === 'distance' && userCoords) {
+      const aHasCoords = a.item.lat != null && a.item.lon != null;
+      const bHasCoords = b.item.lat != null && b.item.lon != null;
+      if (aHasCoords && bHasCoords) {
+        const aDist = getDistanceMiles(userCoords.lat, userCoords.lon, a.item.lat as number, a.item.lon as number);
+        const bDist = getDistanceMiles(userCoords.lat, userCoords.lon, b.item.lat as number, b.item.lon as number);
+        return aDist - bDist;
+      }
+      if (aHasCoords && !bHasCoords) return -1;
+      if (!aHasCoords && bHasCoords) return 1;
+      return 0;
+    }
     if (userCoords) {
       const aHasCoords = a.item.lat != null && a.item.lon != null;
       const bHasCoords = b.item.lat != null && b.item.lon != null;
       if (aHasCoords && bHasCoords) {
         const aDist = getDistanceMiles(userCoords.lat, userCoords.lon, a.item.lat as number, a.item.lon as number);
         const bDist = getDistanceMiles(userCoords.lat, userCoords.lon, b.item.lat as number, b.item.lon as number);
-        if (aDist !== bDist) return aDist - bDist;
+        return aDist - bDist;
       }
       if (aHasCoords && !bHasCoords) return -1;
       if (!aHasCoords && bHasCoords) return 1;
     }
+    if (b.score !== a.score) return b.score - a.score;
     return new Date(b.item.created_at || 0).getTime() - new Date(a.item.created_at || 0).getTime();
   });
   filteredItems = withRelevance.map(({ item }) => item);
@@ -728,86 +777,117 @@ export default function MarketplacePage() {
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
-    <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-5 sm:pt-6">
-      {/* Filters + Title */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">Marketplace</h1>
-        <button type="button" onClick={() => setShowFilters(!showFilters)} className={`text-sm px-3 py-1.5 rounded-md ${showFilters ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}`}>
-          {showFilters ? 'Hide Filters' : 'Filters'}
-        </button>
-      </div>
-
-      {/* Search */}
-      <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-blue-100 dark:border-gray-700 -mx-3 sm:-mx-5 px-3 sm:px-5 py-3 sm:py-4 mb-5 sm:mb-6">
-        <div className="relative max-w-3xl mx-auto">
-          <input
-            type="text"
-            placeholder="Search items, phones, cities..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            onBlur={handleSearchBlur}
-            className="w-full pl-3.5 pr-3.5 py-3 sm:py-3.5 bg-white dark:bg-gray-800 border border-blue-200 dark:border-gray-600 rounded-lg sm:rounded-xl text-sm sm:text-base text-gray-900 dark:text-gray-100 placeholder-blue-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400/40 dark:focus:ring-blue-500/40 focus:border-blue-400 dark:focus:border-blue-500 transition shadow-sm"
-          />
-        </div>
-      </div>
-      {/* Latest / recent searches */}
-      {recentSearches.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <span className="text-xs text-gray-500">Recent:</span>
-          {recentSearches.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setSearchTerm(s)}
-              className="text-xs px-2.5 py-1 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 transition"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Filter Panel */}
-      {showFilters && (
-        <div className="bg-gray-50 border rounded-md p-4 mb-6 space-y-3">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <button type="button" onClick={getUserLocation} className="bg-blue-500 text-white text-sm px-3 py-2 rounded-md">
-              📍 Detect Location
-            </button>
+    <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-0 sm:pt-1">
+      {/* Search with location inside - modern style */}
+      <div className="sticky top-0 z-10 -mx-3 sm:-mx-5 px-3 sm:px-5 pt-0 pb-3 mb-6">
+        <div className="relative max-w-2xl mx-auto flex items-stretch gap-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-lg shadow-gray-200/50 dark:shadow-black/20 overflow-hidden transition-shadow hover:shadow-xl hover:shadow-gray-200/60 dark:hover:shadow-black/30">
+          <div className="relative flex-1 min-w-0">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </span>
             <input
               type="text"
-              placeholder="ZIP or City"
-              value={zipFallback}
-              onChange={(e) => setZipFallback(e.target.value)}
-              onBlur={lookupZipOrCity}
-              className="flex-1 p-2 border rounded-md text-sm"
+              placeholder="Search items, phones, cities..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              onBlur={handleSearchBlur}
+              className="w-full pl-12 pr-4 py-4 bg-transparent text-base text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none border-0"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700/50 transition-all"
+                aria-label="Clear search"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
-
-          {tempCoords && (
-            <div>
-              <label className="block text-sm font-medium mb-1">Radius: {tempRadius} miles</label>
-              <input type="range" min="5" max="100" step="5" value={tempRadius} onChange={(e) => setTempRadius(Number(e.target.value))} className="w-full" />
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            <input type="number" placeholder="Min Price" value={tempMinPrice} onChange={(e) => setTempMinPrice(e.target.value)} className="p-2 border rounded-md text-sm" />
-            <input type="number" placeholder="Max Price" value={tempMaxPrice} onChange={(e) => setTempMaxPrice(e.target.value)} className="p-2 border rounded-md text-sm" />
-            <select value={tempSort} onChange={(e) => setTempSort(e.target.value)} className="p-2 border rounded-md text-sm">
-              <option value="">Sort by</option>
-              <option value="newest">Newest</option>
-              <option value="priceLow">Price: Low to High</option>
-              <option value="priceHigh">Price: High to Low</option>
-            </select>
-          </div>
-
-          <div className="flex gap-3 mt-3">
-            <button type="button" onClick={applyFilters} className="bg-green-600 text-white px-4 py-2 rounded-md text-sm">✅ Apply Filters</button>
-            <button type="button" onClick={clearFilters} className="text-red-600 hover:underline text-sm">❌ Clear Filters</button>
-          </div>
+          <div className="w-px bg-gray-200/80 dark:bg-gray-600/80 flex-shrink-0" />
+          <button
+            type="button"
+            onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
+            className="flex items-center gap-2 px-4 sm:px-5 h-full min-h-[56px] text-left hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-colors"
+          >
+            <FaMapMarkerAlt className="w-4 h-4 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
+            <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[110px] sm:max-w-[140px]">
+              {locationLabel || 'Location'}
+            </span>
+            {locationLabel && (
+              <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{radius} mi</span>
+            )}
+          </button>
         </div>
+      </div>
+
+      {/* Location modal */}
+      {locationModalOpen && (
+        <>
+          <div
+            role="presentation"
+            onClick={() => setLocationModalOpen(false)}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+          />
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-slate-200 dark:border-gray-700 p-5 sm:p-6">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Search in this area</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-2">City or address</label>
+                <AddressAutocomplete
+                  value={locationSearchValue}
+                  onSelect={handleLocationSelect}
+                  onChange={setLocationSearchValue}
+                  placeholder="Search city, ZIP, or address..."
+                  mode="locality"
+                  className="w-full"
+                  inputClassName="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-400 text-sm"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleUseMyLocation}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-700 dark:text-gray-300 font-medium text-sm transition-colors"
+              >
+                <FaMapMarkerAlt className="w-4 h-4 text-emerald-600" />
+                Use my current location
+              </button>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-2">Radius: {tempRadius} miles</label>
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  step="5"
+                  value={tempRadius}
+                  onChange={(e) => setTempRadius(Number(e.target.value))}
+                  className="w-full h-2 rounded-lg appearance-none bg-slate-200 dark:bg-gray-600 accent-emerald-500"
+                />
+              </div>
+            </div>
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setLocationModalOpen(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 text-slate-700 dark:text-gray-300 font-medium text-sm hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyLocation}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm transition-colors"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Items */}

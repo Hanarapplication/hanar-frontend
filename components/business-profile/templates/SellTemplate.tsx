@@ -18,7 +18,7 @@ import { formatBusinessCategory } from '../utils';
 /** Sell-focused: listings appear right after hero and actions. */
 export function SellTemplate(props: BusinessProfileRendererProps) {
   const { business, listings, groupedMenu, isFavorited, selectedImageIndex, onImageIndexChange } = props;
-  const displayCategory = formatBusinessCategory(business.category);
+  const displayCategory = formatBusinessCategory(business.subcategory || business.category);
   const hasAddress = business.address?.street;
   const hasListings =
     listings.menu.length > 0 ||

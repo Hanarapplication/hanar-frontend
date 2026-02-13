@@ -16,7 +16,7 @@ import { formatBusinessCategory } from '../utils';
 /** Simple: minimal layout, no socials card, compact. */
 export function SimpleTemplate(props: BusinessProfileRendererProps) {
   const { business, listings, groupedMenu, isFavorited, selectedImageIndex, onImageIndexChange } = props;
-  const displayCategory = formatBusinessCategory(business.category);
+  const displayCategory = formatBusinessCategory(business.subcategory || business.category);
   const hasAddress = business.address?.street;
 
   return (

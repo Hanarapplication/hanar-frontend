@@ -29,11 +29,12 @@ export default function PostActionsBar({
         <button
           onClick={onLike}
           disabled={!canLike || !onLike}
-          className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
             liked ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/50 dark:text-rose-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'
           } ${!canLike || !onLike ? 'cursor-not-allowed opacity-60' : ''}`}
         >
           👍 Like
+          <span className="font-semibold tabular-nums">{likesCount}</span>
         </button>
         <button
           onClick={onComment}

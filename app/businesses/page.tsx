@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { FaSearch, FaHeart, FaRegHeart } from 'react-icons/fa';
+import { FaSearch, FaHeart, FaRegHeart, FaMapMarkerAlt } from 'react-icons/fa';
+import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
 import { useLanguage } from '@/context/LanguageContext';
@@ -34,6 +35,7 @@ interface Business {
   id: string;
   business_name: string;
   category: string;
+  subcategory?: string | null;
   address: any;
   description?: string;
   logo_url: string;
@@ -52,6 +54,10 @@ function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon
   const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+function getDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  return getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) / 1.60934;
 }
 
 const categoryColors: Record<string, string> = {
@@ -114,7 +120,12 @@ export default function BusinessesPage() {
   const [query, setQuery] = useState('');
   const [relatedBusinessIds, setRelatedBusinessIds] = useState<Set<string>>(new Set());
   const [searching, setSearching] = useState(false);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [locationLabel, setLocationLabel] = useState<string | null>(null);
+  const [radius, setRadius] = useState(50);
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [tempRadius, setTempRadius] = useState(50);
+  const [locationSearchValue, setLocationSearchValue] = useState('');
   const [visibleCount, setVisibleCount] = useState(6);
   const bottomRef = useRef<HTMLDivElement>(null);
   const searchCacheRef = useRef<Map<string, Set<string>>>(new Map());
@@ -123,7 +134,7 @@ export default function BusinessesPage() {
   const fetchBusinesses = async () => {
     const { data, error } = await supabase
       .from('businesses')
-      .select('id, business_name, category, address, description, logo_url, slug, lat, lon, spoken_languages, plan')
+      .select('id, business_name, category, subcategory, address, description, logo_url, slug, lat, lon, spoken_languages, plan')
       .eq('moderation_status', 'active')
       .eq('is_archived', false)
       .neq('lifecycle_status', 'archived');
@@ -173,21 +184,72 @@ export default function BusinessesPage() {
     loadFavorites();
   }, []);
 
-  useEffect(() => {
+  const handleLocationSelect = (result: AddressResult) => {
+    if (result.lat != null && result.lng != null) {
+      const coords = { lat: result.lat, lon: result.lng };
+      const label = [result.city, result.state].filter(Boolean).join(', ') || result.formatted_address || 'Selected location';
+      setUserCoords(coords);
+      setLocationLabel(label);
+      setLocationSearchValue('');
+      try {
+        localStorage.setItem('userCoords', JSON.stringify(coords));
+        if (label) localStorage.setItem('userLocationLabel', label);
+      } catch {}
+      window.dispatchEvent(new CustomEvent('location:updated', {
+        detail: { ...coords, label, city: result.city, state: result.state, zip: result.zip },
+      }));
+    }
+  };
+
+  const handleUseMyLocation = () => {
+    const stored = localStorage.getItem('userCoords');
+    if (stored) {
+      try {
+        const { lat, lon } = JSON.parse(stored);
+        setUserCoords({ lat, lon });
+        setLocationLabel('Your location');
+        return;
+      } catch { /* ignore */ }
+    }
+    if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-        setUserLocation(coords);
-        setBusinesses((prev) =>
-          prev.map((b) => ({
-            ...b,
-            distance: b.lat && b.lon ? getDistanceFromLatLonInKm(coords.lat, coords.lon, b.lat, b.lon) : undefined,
-          }))
-        );
+        setUserCoords(coords);
+        setLocationLabel('Your location');
+        try {
+          localStorage.setItem('userCoords', JSON.stringify(coords));
+          localStorage.setItem('userLocationLabel', 'Your location');
+        } catch {}
+        window.dispatchEvent(new CustomEvent('location:updated', { detail: coords }));
       },
-      (err) => console.warn('Geolocation error', err),
-      { enableHighAccuracy: true }
+      () => toast.error('Could not get your location.')
     );
+  };
+
+  useEffect(() => {
+    const saved = localStorage.getItem('userCoords');
+    let savedLabel: string | null = null;
+    try { savedLabel = localStorage.getItem('userLocationLabel'); } catch {}
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as { lat: number; lon: number };
+        if (parsed?.lat != null && parsed?.lon != null) {
+          setUserCoords(parsed);
+          setLocationLabel(savedLabel || 'Your location');
+        }
+      } catch { /* ignore */ }
+    }
+    const handleLocationUpdated = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { lat?: number; lon?: number; label?: string } | undefined;
+      if (detail?.lat != null && detail?.lon != null) {
+        setUserCoords({ lat: detail.lat, lon: detail.lon });
+        if (detail.label) setLocationLabel(detail.label);
+        else setLocationLabel((prev) => prev ?? 'Your location');
+      }
+    };
+    window.addEventListener('location:updated', handleLocationUpdated);
+    return () => window.removeEventListener('location:updated', handleLocationUpdated);
   }, []);
 
   useEffect(() => {
@@ -311,17 +373,39 @@ export default function BusinessesPage() {
     return langs.includes(effectiveLang);
   };
   const isPremium = (b: Business) => (b.plan || '').toLowerCase() === 'premium';
+  const cityFromLabel = (locationLabel || '').split(',')[0]?.trim().toLowerCase() || '';
   const filtered = businesses
     .filter((b) => {
-      if (!normalizedQuery) return true;
-      const matchesText =
-        b.business_name.toLowerCase().includes(normalizedQuery) ||
-        b.category.toLowerCase().includes(normalizedQuery) ||
-        (b.description || '').toLowerCase().includes(normalizedQuery) ||
-        getCityState(b.address).toLowerCase().includes(normalizedQuery);
-      return matchesText || relatedBusinessIds.has(b.id);
+      if (normalizedQuery) {
+        const matchesText =
+          b.business_name.toLowerCase().includes(normalizedQuery) ||
+          (b.category || '').toLowerCase().includes(normalizedQuery) ||
+          (b.subcategory || '').toLowerCase().includes(normalizedQuery) ||
+          (b.description || '').toLowerCase().includes(normalizedQuery) ||
+          getCityState(b.address).toLowerCase().includes(normalizedQuery);
+        if (!matchesText && !relatedBusinessIds.has(b.id)) return false;
+      }
+      if (userCoords) {
+        if (b.lat != null && b.lon != null) {
+          return getDistanceMiles(userCoords.lat, userCoords.lon, b.lat, b.lon) <= radius;
+        }
+        if (!cityFromLabel || cityFromLabel === 'your location') return false;
+        const loc = getCityState(b.address).toLowerCase();
+        return new RegExp(`\\b${cityFromLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(loc);
+      }
+      return true;
     })
     .sort((a, b) => {
+      if (userCoords) {
+        const aHasCoords = a.lat != null && a.lon != null;
+        const bHasCoords = b.lat != null && b.lon != null;
+        if (aHasCoords && bHasCoords) {
+          const aDist = getDistanceMiles(userCoords.lat, userCoords.lon, a.lat!, a.lon!);
+          const bDist = getDistanceMiles(userCoords.lat, userCoords.lon, b.lat!, b.lon!);
+          if (aDist !== bDist) return aDist - bDist;
+        } else if (aHasCoords && !bHasCoords) return -1;
+        else if (!aHasCoords && bHasCoords) return 1;
+      }
       const aMatch = speaksUserLang(a);
       const bMatch = speaksUserLang(b);
       if (aMatch && !bMatch) return -1;
@@ -355,31 +439,109 @@ export default function BusinessesPage() {
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
-      <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-5 sm:pt-6">
-        {/* Search */}
-        <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-blue-100 dark:border-gray-700 -mx-3 sm:-mx-5 px-3 sm:px-5 py-3 sm:py-4 mb-5 sm:mb-6">
-          <div className="flex flex-col sm:flex-row gap-2.5 max-w-3xl mx-auto">
-            <div className="relative flex-1">
-              <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400 dark:text-blue-400 h-4.5 w-4.5 sm:h-5 sm:w-5" />
+      <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-2 sm:pt-3">
+        {/* Search with location inside - modern style */}
+        <div className="sticky top-0 z-10 -mx-3 sm:-mx-5 px-3 sm:px-5 pt-0 pb-4 mb-5 sm:mb-6">
+          <div className="max-w-3xl mx-auto flex items-stretch gap-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-lg shadow-gray-200/50 dark:shadow-black/20 overflow-hidden transition-shadow hover:shadow-xl hover:shadow-gray-200/60 dark:hover:shadow-black/30">
+            <div className="relative flex-1 min-w-0">
+              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 h-5 w-5 pointer-events-none" />
               <input
                 placeholder={t(effectiveLang, 'Find a restaurant, salon, gym...')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full pl-10 pr-3.5 py-3 sm:py-3.5 bg-white dark:bg-gray-800 border border-blue-200 dark:border-gray-600 rounded-lg sm:rounded-xl text-sm sm:text-base text-gray-900 dark:text-gray-100 placeholder-blue-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400/40 dark:focus:ring-blue-500/40 focus:border-blue-400 dark:focus:border-blue-500 transition shadow-sm"
+                className="w-full pl-12 pr-4 py-4 bg-transparent text-base text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none border-0"
               />
               {searching && (
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-blue-500 dark:text-blue-400">
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500 dark:text-gray-400">
                   {t(effectiveLang, 'Searching…')}
                 </span>
               )}
             </div>
+            <div className="w-px bg-gray-200/80 dark:bg-gray-600/80 flex-shrink-0" />
+            <button
+              type="button"
+              onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
+              className="flex items-center gap-2 px-4 sm:px-5 h-full min-h-[56px] text-left hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-colors"
+            >
+              <FaMapMarkerAlt className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+              <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[110px] sm:max-w-[140px]">
+                {locationLabel || t(effectiveLang, 'Location')}
+              </span>
+              {locationLabel && (
+                <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{radius} mi</span>
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Location modal */}
+        {locationModalOpen && (
+          <>
+            <div
+              role="presentation"
+              onClick={() => setLocationModalOpen(false)}
+              className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            />
+            <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-slate-200 dark:border-gray-700 p-5 sm:p-6">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">{t(effectiveLang, 'Search in this area')}</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-2">{t(effectiveLang, 'City or address')}</label>
+                  <AddressAutocomplete
+                    value={locationSearchValue}
+                    onSelect={handleLocationSelect}
+                    onChange={setLocationSearchValue}
+                    placeholder="Search city, ZIP, or address..."
+                    mode="locality"
+                    className="w-full"
+                    inputClassName="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 text-sm"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleUseMyLocation}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-700 dark:text-gray-300 font-medium text-sm transition-colors"
+                >
+                  <FaMapMarkerAlt className="w-4 h-4 text-blue-500" />
+                  {t(effectiveLang, 'Use my current location')}
+                </button>
+                <div>
+                  <label className="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-2">{t(effectiveLang, 'Radius')}: {tempRadius} {t(effectiveLang, 'miles')}</label>
+                  <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    step="5"
+                    value={tempRadius}
+                    onChange={(e) => setTempRadius(Number(e.target.value))}
+                    className="w-full h-2 rounded-lg appearance-none bg-slate-200 dark:bg-gray-600 accent-blue-500"
+                  />
+                </div>
+              </div>
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setLocationModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 text-slate-700 dark:text-gray-300 font-medium text-sm hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  {t(effectiveLang, 'Cancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setRadius(tempRadius); setLocationModalOpen(false); setVisibleCount(6); }}
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 dark:bg-blue-500 text-white font-medium text-sm hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+                >
+                  {t(effectiveLang, 'Apply')}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Cards – 2 per row on mobile, description always visible */}
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
           {visible.map((biz) => {
-            const displayCategory = formatBusinessCategory(biz.category);
+            const displayCategory = formatBusinessCategory(biz.subcategory || biz.category);
             const catColor = categoryColors[displayCategory] || categoryColors.default;
             const locationText = getCityState(biz.address);
 
@@ -445,9 +607,9 @@ export default function BusinessesPage() {
                     </p>
                   </div>
 
-                  {biz.distance !== undefined && (
+                  {userCoords && biz.lat != null && biz.lon != null && (
                     <div className="mt-2 inline-flex items-center px-2 py-0.5 bg-blue-100/70 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs font-medium rounded-full">
-                      ≈ {biz.distance.toFixed(1)} km
+                      ≈ {getDistanceFromLatLonInKm(userCoords.lat, userCoords.lon, biz.lat, biz.lon).toFixed(1)} km
                     </div>
                   )}
                 </div>

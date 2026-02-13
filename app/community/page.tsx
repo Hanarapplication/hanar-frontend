@@ -6,6 +6,7 @@ import { Trash2, Megaphone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase } from '@/lib/supabaseClient';
 import PostActionsBar from '@/components/PostActionsBar';
@@ -53,6 +54,8 @@ interface Post {
   video?: string | null;
   likes_post?: number;
   community_comments?: { count: number }[];
+  profile_pic_url?: string | null;
+  logo_url?: string | null;
 }
 
 export default function CommunityFeedPage() {
@@ -64,7 +67,7 @@ export default function CommunityFeedPage() {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const { lang, effectiveLang } = useLanguage();
   const [isBusinessUser, setIsBusinessUser] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null }>({ id: '', username: null });
+  const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null; displayName: string | null }>({ id: '', username: null, displayName: null });
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [commentsByPost, setCommentsByPost] = useState<Record<string, any[]>>({});
@@ -203,37 +206,54 @@ export default function CommunityFeedPage() {
     checkBusinessAccount();
   }, []);
 
+  const fetchLikedPosts = useCallback(async (userId: string) => {
+    try {
+      const res = await fetch(`/api/community/post/liked?userId=${encodeURIComponent(userId)}`, { credentials: 'include' });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.likedPostIds)) {
+        setLikedPosts(new Set(data.likedPostIds));
+      }
+    } catch {
+      setLikedPosts(new Set());
+    }
+  }, []);
+
   useEffect(() => {
     const loadUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setCurrentUser({ id: '', username: null });
+        setCurrentUser({ id: '', username: null, displayName: null });
         setLikedPosts(new Set());
         return;
       }
 
       const { data: account } = await supabase
         .from('registeredaccounts')
-        .select('username')
+        .select('username, full_name')
         .eq('user_id', user.id)
         .single();
 
-      setCurrentUser({ id: user.id, username: account?.username || null });
-
-      // Fetch user's liked post IDs from community_post_likes
-      try {
-        const res = await fetch(`/api/community/post/liked?userId=${encodeURIComponent(user.id)}`);
-        const data = await res.json();
-        if (res.ok && Array.isArray(data.likedPostIds)) {
-          setLikedPosts(new Set(data.likedPostIds));
-        }
-      } catch {
-        setLikedPosts(new Set());
-      }
+      setCurrentUser({
+        id: user.id,
+        username: account?.username || null,
+        displayName: account?.full_name?.trim() || null,
+      });
+      await fetchLikedPosts(user.id);
     };
 
     loadUser();
-  }, []);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.id) {
+        setCurrentUser((prev) => ({ ...prev, id: session.user.id }));
+        fetchLikedPosts(session.user.id);
+      } else {
+        setCurrentUser({ id: '', username: null, displayName: null });
+        setLikedPosts(new Set());
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [fetchLikedPosts]);
 
   const requireLogin = () => {
     if (!currentUser.id) {
@@ -264,20 +284,7 @@ export default function CommunityFeedPage() {
       return next;
     });
 
-    const method = currentlyLiked ? 'DELETE' : 'POST';
-    const url =
-      method === 'DELETE'
-        ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}&user_id=${encodeURIComponent(currentUser.id)}`
-        : '/api/community/post/like';
-
-    const res = await fetch(url, {
-      method,
-      headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
-      body: method === 'POST' ? JSON.stringify({ post_id: postId, user_id: currentUser.id }) : undefined,
-    });
-
-    if (!res.ok && res.status !== 409) {
-      // Revert on failure
+    const revert = () => {
       setVisiblePosts((prev) =>
         prev.map((post) =>
           post.id === postId
@@ -291,6 +298,46 @@ export default function CommunityFeedPage() {
         else next.delete(postId);
         return next;
       });
+    };
+
+    const method = currentlyLiked ? 'DELETE' : 'POST';
+    const url =
+      method === 'DELETE'
+        ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}`
+        : '/api/community/post/like';
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (method === 'POST') headers['Content-Type'] = 'application/json';
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: method === 'POST' ? JSON.stringify({ post_id: postId }) : undefined,
+        credentials: 'include',
+      });
+
+      if (!res.ok && res.status !== 409) {
+        revert();
+        const err = await res.json().catch(() => ({}));
+        toast.error(err?.error || 'Could not save like. Please try again.');
+        return;
+      }
+
+      // Sync with server response for accurate count
+      const data = await res.json().catch(() => ({}));
+      if (typeof data.likes === 'number') {
+        setVisiblePosts((prev) =>
+          prev.map((post) =>
+            post.id === postId ? { ...post, likes_post: data.likes } : post
+          )
+        );
+      }
+    } catch (err) {
+      revert();
+      toast.error('Could not save like. Please check your connection and try again.');
     }
   };
 
@@ -330,7 +377,7 @@ export default function CommunityFeedPage() {
         text,
         user_id: currentUser.id,
         username: currentUser.username,
-        author: currentUser.username,
+        author: currentUser.displayName || currentUser.username || 'User',
       }),
     });
 
@@ -541,17 +588,23 @@ export default function CommunityFeedPage() {
             >
               {/* Author row */}
               <div className="flex items-center gap-3 mb-3 text-sm text-gray-500 dark:text-gray-400">
+                <img
+                  src={post.logo_url || post.profile_pic_url || '/default-avatar.png'}
+                  alt=""
+                  className="h-9 w-9 flex-shrink-0 rounded-full object-cover"
+                  onError={(e) => { e.currentTarget.src = '/default-avatar.png'; }}
+                />
                 {post.author_type === 'organization' && post.username ? (
                   <Link href={`/organization/${post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
-                    @{post.username}
+                    {post.author || 'Organization'}
                   </Link>
                 ) : post.author_type === 'business' && post.username ? (
                   <Link href={`/business/${post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
-                    @{post.username}
+                    {post.author || 'Business'}
                   </Link>
                 ) : post.username ? (
                   <Link href={`/profile/${post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
-                    @{post.username}
+                    {post.author || 'User'}
                   </Link>
                 ) : (
                   <span className="font-semibold">{post.author}</span>
@@ -637,7 +690,7 @@ export default function CommunityFeedPage() {
                       {comments.map((comment) => (
                         <div key={comment.id} className="rounded-lg bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm">
                           <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
-                            {comment.username || comment.author || 'User'}
+                            {comment.author || comment.username || 'User'}
                           </p>
                           <p className="text-sm text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
                         </div>

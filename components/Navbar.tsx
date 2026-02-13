@@ -56,6 +56,7 @@ export default function Navbar() {
       persistLocation(lat, lon, meta);
       if (label) {
         setLocationLabel(label);
+        try { localStorage.setItem('userLocationLabel', label); } catch {}
         return;
       }
       fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
@@ -68,6 +69,7 @@ export default function Navbar() {
             data.address?.state ||
             data.display_name;
           setLocationLabel(city);
+          try { if (city) localStorage.setItem('userLocationLabel', city); } catch {}
         })
         .catch(() => setLocationLabel(null));
     };
@@ -186,6 +188,7 @@ export default function Navbar() {
   const resetLocation = () => {
     localStorage.removeItem('hasSeenLocationPrompt');
     localStorage.removeItem('userCoords');
+    localStorage.removeItem('userLocationLabel');
     setLocationLabel(null);
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -193,6 +196,9 @@ export default function Navbar() {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
         localStorage.setItem('userCoords', JSON.stringify({ lat, lon }));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('location:updated', { detail: { lat, lon, source: 'gps' } }));
+        }
         supabase.auth.getSession().then(({ data: { session } }) => {
           const accessToken = session?.access_token || '';
           fetch('/api/user-location', {

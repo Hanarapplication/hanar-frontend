@@ -313,13 +313,14 @@ export default function AdminFeedBannersPage() {
       const res = await fetch(`/api/admin/feed-banners?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: await withAuth(),
+        credentials: 'include',
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || 'Delete failed');
       }
       toast.success('Banner deleted');
-      setBanners((prev) => prev.filter((b) => b.id !== id));
+      loadBanners();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Delete failed');
     } finally {

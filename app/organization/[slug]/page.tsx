@@ -612,10 +612,10 @@ export default function OrganizationProfilePage() {
                                     <div className="flex items-center justify-between text-xs text-slate-500">
                                       {comment.username && href ? (
                                         <Link href={href} className="text-indigo-600 hover:underline">
-                                          @{comment.username}
+                                          {comment.author || comment.username || 'User'}
                                         </Link>
                                       ) : (
-                                        <span>{comment.author}</span>
+                                        <span>{comment.author || comment.username || 'User'}</span>
                                       )}
 
                                       <span>{new Date(comment.created_at).toLocaleDateString()}</span>

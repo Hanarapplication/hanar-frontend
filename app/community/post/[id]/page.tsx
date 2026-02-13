@@ -30,6 +30,7 @@ export default function CommunityPostPage() {
   const [loading, setLoading] = useState(true);
   const [userSession, setUserSession] = useState<any>(null);
   const [username, setUsername] = useState('');
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [reported, setReported] = useState(false);
   const [commentLikeStates, setCommentLikeStates] = useState<Record<string, boolean>>({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -161,12 +162,13 @@ export default function CommunityPostPage() {
 
       const { data: profile } = await supabase
         .from('registeredaccounts')
-        .select('username')
+        .select('username, full_name')
         .eq('user_id', session.user.id)
         .maybeSingle();
 
       if (!profile?.username) return;
       setUsername(profile.username);
+      setDisplayName(profile?.full_name?.trim() || null);
 
       const { data: existingLike } = await supabase
         .from('community_post_likes')
@@ -209,7 +211,7 @@ export default function CommunityPostPage() {
         post_id: id,
         user_id: userSession.user.id,
         username,
-        author: username,
+        author: displayName || username || 'User',
         text: newComment.trim(),
       }),
     });
@@ -274,13 +276,19 @@ export default function CommunityPostPage() {
     const method = currentlyLiked ? 'DELETE' : 'POST';
     const url =
       method === 'DELETE'
-        ? `/api/community/post/like?post_id=${encodeURIComponent(id)}&user_id=${encodeURIComponent(userId)}`
+        ? `/api/community/post/like?post_id=${encodeURIComponent(id)}`
         : '/api/community/post/like';
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = {};
+    if (method === 'POST') headers['Content-Type'] = 'application/json';
+    if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
     const res = await fetch(url, {
       method,
-      headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
-      body: method === 'POST' ? JSON.stringify({ post_id: id, user_id: userId }) : undefined,
+      headers,
+      body: method === 'POST' ? JSON.stringify({ post_id: id }) : undefined,
+      credentials: 'include',
     });
 
     if (!res.ok && res.status !== 409) {
@@ -359,15 +367,15 @@ export default function CommunityPostPage() {
             <div className="flex flex-wrap items-center gap-2">
               {post.author_type === 'organization' && post.username ? (
                 <Link href={`/organization/${post.username}`} className="text-indigo-600 hover:underline">
-                  @{post.username}
+                  {post.author || 'Organization'}
                 </Link>
               ) : post.author_type === 'business' && post.username ? (
                 <Link href={`/business/${post.username}`} className="text-indigo-600 hover:underline">
-                  @{post.username}
+                  {post.author || 'Business'}
                 </Link>
               ) : post.username ? (
                 <Link href={`/profile/${post.username}`} className="text-indigo-600 hover:underline">
-                  @{post.username}
+                  {post.author || 'User'}
                 </Link>
               ) : (
                 <span>{post.author}</span>
@@ -497,7 +505,7 @@ export default function CommunityPostPage() {
                     />
                   </div>
                   <Link href={`/profile/${c.username}`} className="text-indigo-600 hover:underline text-xs">
-                    @{c.username}
+                    {c.author || c.username || 'User'}
                   </Link>
                   <span>• {new Date(c.created_at).toLocaleDateString()}</span>
                   {userSession && (

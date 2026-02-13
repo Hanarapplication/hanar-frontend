@@ -75,8 +75,15 @@ export async function POST(req: Request) {
     const body = typeof text === 'string' ? text.trim() : '';
 
     if (!post_id || !body || !user_id) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ error: 'Missing required fields. You must be logged in to comment.' }, { status: 400 });
     }
+
+    const authorVal = typeof author === 'string' ? author.trim() : '';
+    if (authorVal && authorVal.toLowerCase() === 'anonymous') {
+      return NextResponse.json({ error: 'Anonymous commenting is not allowed. Please comment with your profile.' }, { status: 400 });
+    }
+
+    const displayAuthor = authorVal || username || 'User';
 
     const { data: inserted, error } = await supabaseAdmin
       .from('community_comments')
@@ -85,7 +92,7 @@ export async function POST(req: Request) {
           post_id,
           user_id,
           username: username || null,
-          author: author || username || 'User',
+          author: displayAuthor,
           author_type: 'user',
           body,
           parent_id: null,

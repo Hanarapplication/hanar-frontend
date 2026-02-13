@@ -18,7 +18,7 @@ import { formatBusinessCategory } from '../utils';
 /** Prestige: same as Brand with more spacing and emphasis on hero. */
 export function PrestigeTemplate(props: BusinessProfileRendererProps) {
   const { business, listings, groupedMenu, isFavorited, selectedImageIndex, onImageIndexChange } = props;
-  const displayCategory = formatBusinessCategory(business.category);
+  const displayCategory = formatBusinessCategory(business.subcategory || business.category);
   const hasAddress = business.address?.street;
 
   return (

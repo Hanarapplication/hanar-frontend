@@ -3,6 +3,7 @@ import './globals.css';
 import { DarkModeProvider } from '@/context/DarkModeContext';
 import { Toaster } from 'react-hot-toast';
 import ConditionalAppShell from '@/components/ConditionalAppShell';
+import PwaRegistration from '@/components/PwaRegistration';
 import { LanguageProvider } from '@/context/LanguageContext';
 import FcmTokenHandler from '@/components/FcmTokenHandler';
 
@@ -26,6 +27,11 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#4f46e5" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Hanar" />
+        <link rel="apple-touch-icon" href="/hanar.logo.png" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){var d=document.documentElement,v=localStorage.getItem('hanar-dark-mode');d.classList.toggle('dark',v==='true');})();`,
@@ -34,6 +40,7 @@ export default function RootLayout({
       </head>
       <body className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
         <FcmTokenHandler />
+        <PwaRegistration />
         <LanguageProvider>
           <DarkModeProvider>
             <ConditionalAppShell>{children}</ConditionalAppShell>

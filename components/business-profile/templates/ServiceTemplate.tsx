@@ -18,7 +18,7 @@ import { formatBusinessCategory } from '../utils';
 /** Service: hours and contact (directions, address, map) appear early. */
 export function ServiceTemplate(props: BusinessProfileRendererProps) {
   const { business, listings, groupedMenu, isFavorited, selectedImageIndex, onImageIndexChange } = props;
-  const displayCategory = formatBusinessCategory(business.category);
+  const displayCategory = formatBusinessCategory(business.subcategory || business.category);
   const hasAddress = business.address?.street;
 
   return (

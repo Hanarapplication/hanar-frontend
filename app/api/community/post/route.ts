@@ -29,6 +29,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing or invalid user ID' }, { status: 400 });
     }
 
+    if (!author || typeof author !== 'string' || author.trim().toLowerCase() === 'anonymous') {
+      return NextResponse.json({ error: 'Anonymous posting is not allowed. Please post as your profile.' }, { status: 400 });
+    }
+
     const { data: businessAccount } = await supabaseAdmin
       .from('businesses')
       .select('id')
@@ -50,7 +54,7 @@ export async function POST(req: Request) {
         image: image || null,
         video: video || null,
         language: lang || 'en',
-        author: author || 'Anonymous',
+        author: author.trim(),
         user_id,
         org_id: org_id || null,
         author_type: author_type || null,

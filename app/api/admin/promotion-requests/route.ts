@@ -255,3 +255,50 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+/** DELETE: remove a promotion request (admin only). Archives linked feed banner if approved. */
+export async function DELETE(req: Request) {
+  try {
+    if (!(await isAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
+
+    const { data: row, error: fetchErr } = await supabaseAdmin
+      .from('business_promotion_requests')
+      .select('id, image_path, feed_banner_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !row) return NextResponse.json({ error: 'Request not found' }, { status: 404 });
+
+    if (row.feed_banner_id) {
+      await supabaseAdmin
+        .from('feed_banners')
+        .update({ status: 'archived' })
+        .eq('id', row.feed_banner_id);
+    }
+
+    const { error: deleteErr } = await supabaseAdmin
+      .from('business_promotion_requests')
+      .delete()
+      .eq('id', id);
+
+    if (deleteErr) return NextResponse.json({ error: deleteErr.message }, { status: 500 });
+
+    // Only remove image from storage if no feed banner uses it (approved/rejected may have created a banner with same image)
+    if (row.image_path && !row.feed_banner_id) {
+      try {
+        await supabaseAdmin.storage.from(BUCKET).remove([row.image_path]);
+      } catch {
+        // ignore storage cleanup failure
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unexpected error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

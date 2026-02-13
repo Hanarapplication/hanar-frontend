@@ -33,6 +33,7 @@ interface BusinessType {
     id: string;
     business_name: string;
     category: string;
+    subcategory?: string | null;
     moderation_status?: 'on_hold' | 'active' | 'rejected';
     lifecycle_status?: 'unclaimed' | 'trial' | 'active' | 'expired' | 'archived';
     status?: string;
@@ -841,15 +842,16 @@ const BusinessProfilePage = () => {
         return value || '';
     };
 
-    // Derive business type flags from category
-    const isRestaurant = business?.category?.toLowerCase().includes('restaurant') || business?.category?.toLowerCase().includes('food');
-    const isDealership = business?.category?.toLowerCase().includes('dealership') || business?.category?.toLowerCase().includes('auto') || business?.category?.toLowerCase().includes('car');
-    const isRetail = business?.category?.toLowerCase().includes('retail')
+    // Derive business type flags from main category (Dealership, Food, Retail, Real Estate, Services)
+    const mainCat = (business?.category || '').toLowerCase();
+    const isRestaurant = mainCat === 'food' || business?.category?.toLowerCase().includes('restaurant');
+    const isDealership = mainCat === 'dealership' || business?.category?.toLowerCase().includes('auto') || business?.category?.toLowerCase().includes('car');
+    const isRetail = mainCat === 'retail'
         || business?.category?.toLowerCase().includes('store')
         || business?.category?.toLowerCase().includes('shop')
         || business?.category?.toLowerCase().includes('other')
         || business?.category?.toLowerCase().includes('something_else');
-    const displayCategory = formatBusinessCategory(business?.category);
+    const displayCategory = formatBusinessCategory(business?.subcategory || business?.category);
 
 
     // Carousel handlers for main business gallery

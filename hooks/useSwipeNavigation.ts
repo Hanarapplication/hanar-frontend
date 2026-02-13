@@ -5,9 +5,15 @@ import { useRouter, usePathname } from 'next/navigation';
 
 const FEED_ROUTES = ['/', '/community', '/marketplace', '/businesses'];
 
+const isDashboardRoute = (path: string) =>
+  path === '/dashboard' ||
+  path.startsWith('/business-dashboard') ||
+  path.startsWith('/organization/dashboard');
+
 /**
  * Detects horizontal swipe gestures and navigates between the
  * four main feed pages (Home, Community, Marketplace, Businesses).
+ * Disabled on dashboard pages to avoid accidental navigation.
  */
 export function useSwipeNavigation() {
   const router = useRouter();
@@ -17,6 +23,7 @@ export function useSwipeNavigation() {
   const swiping = useRef(false);
 
   const currentIndex = FEED_ROUTES.indexOf(pathname);
+  const shouldEnable = currentIndex >= 0 && !isDashboardRoute(pathname);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     startX.current = e.touches[0].clientX;
@@ -49,12 +56,12 @@ export function useSwipeNavigation() {
   );
 
   useEffect(() => {
-    if (currentIndex === -1) return;
+    if (!shouldEnable) return;
     document.addEventListener('touchstart', handleTouchStart, { passive: true });
     document.addEventListener('touchend', handleTouchEnd);
     return () => {
       document.removeEventListener('touchstart', handleTouchStart);
       document.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [currentIndex, handleTouchStart, handleTouchEnd]);
+  }, [shouldEnable, handleTouchStart, handleTouchEnd]);
 }

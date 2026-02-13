@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
 import { User, Trash2, X, ShoppingBag } from 'lucide-react';
 import PostActionsBar from '@/components/PostActionsBar';
+import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 
 type ProfileListing = {
   id: string;
@@ -21,6 +22,7 @@ type Post = {
   title: string;
   body: string;
   image: string | null;
+  video?: string | null;
   user_id: string;
   created_at: string;
   likes_post: number;
@@ -74,7 +76,7 @@ export default function ProfilePage() {
   const params = useParams();
   const usernameParam = typeof params?.username === 'string' ? params.username : '';
   const router = useRouter();
-  const [profile, setProfile] = useState<{ id: string; username: string; profile_pic_url?: string | null; bio?: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ id: string; username: string; displayName?: string | null; profile_pic_url?: string | null; bio?: string | null } | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
@@ -83,7 +85,7 @@ export default function ProfilePage() {
   const [commentsLoading, setCommentsLoading] = useState<Record<string, boolean>>({});
   const [commentInput, setCommentInput] = useState<Record<string, string>>({});
   const [postingComment, setPostingComment] = useState<Record<string, boolean>>({});
-  const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null; isIndividual: boolean } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null; displayName: string | null; isIndividual: boolean } | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
@@ -109,7 +111,7 @@ export default function ProfilePage() {
         setLikedPosts(new Set());
         return;
       }
-      const { data: reg } = await supabase.from('registeredaccounts').select('username, business, organization').eq('user_id', user.id).maybeSingle();
+      const { data: reg } = await supabase.from('registeredaccounts').select('username, full_name, business, organization').eq('user_id', user.id).maybeSingle();
       const [biz, org] = await Promise.all([
         supabase.from('businesses').select('id').eq('owner_id', user.id).maybeSingle(),
         supabase.from('organizations').select('id').eq('user_id', user.id).maybeSingle(),
@@ -118,6 +120,7 @@ export default function ProfilePage() {
       setCurrentUser({
         id: user.id,
         username: reg?.username || null,
+        displayName: reg?.full_name?.trim() || null,
         isIndividual: !!isIndividual,
       });
       try {
@@ -161,11 +164,18 @@ export default function ProfilePage() {
 
         if (error) throw error;
         if (data) {
-          setProfile({ id: data.id, username: data.username, profile_pic_url: data.profile_pic_url, bio: (data as any).bio ?? null });
+          const { data: regRow } = await supabase.from('registeredaccounts').select('full_name').eq('user_id', data.id).maybeSingle();
+          setProfile({
+            id: data.id,
+            username: data.username,
+            displayName: regRow?.full_name?.trim() || null,
+            profile_pic_url: data.profile_pic_url,
+            bio: (data as any).bio ?? null,
+          });
         } else {
           const { data: regData } = await supabase
             .from('registeredaccounts')
-            .select('user_id')
+            .select('user_id, full_name')
             .eq('username', handle)
             .maybeSingle();
           if (regData) {
@@ -175,9 +185,21 @@ export default function ProfilePage() {
               .eq('id', regData.user_id)
               .maybeSingle();
             if (profData) {
-              setProfile({ id: profData.id, username: profData.username || handle, profile_pic_url: profData.profile_pic_url, bio: (profData as any).bio ?? null });
+              setProfile({
+                id: profData.id,
+                username: profData.username || handle,
+                displayName: regData.full_name?.trim() || null,
+                profile_pic_url: profData.profile_pic_url,
+                bio: (profData as any).bio ?? null,
+              });
             } else {
-              setProfile({ id: regData.user_id, username: handle, profile_pic_url: null, bio: null });
+              setProfile({
+                id: regData.user_id,
+                username: handle,
+                displayName: regData.full_name?.trim() || null,
+                profile_pic_url: null,
+                bio: null,
+              });
             }
           } else {
             setNotFound(true);
@@ -415,12 +437,17 @@ export default function ProfilePage() {
     const method = currentlyLiked ? 'DELETE' : 'POST';
     const url =
       method === 'DELETE'
-        ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}&user_id=${encodeURIComponent(currentUser.id)}`
+        ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}`
         : '/api/community/post/like';
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = {};
+    if (method === 'POST') headers['Content-Type'] = 'application/json';
+    if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
     const res = await fetch(url, {
       method,
-      headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
-      body: method === 'POST' ? JSON.stringify({ post_id: postId, user_id: currentUser.id }) : undefined,
+      headers,
+      body: method === 'POST' ? JSON.stringify({ post_id: postId }) : undefined,
+      credentials: 'include',
     });
     if (!res.ok && res.status !== 409) {
       setPosts((prev) =>
@@ -517,7 +544,7 @@ export default function ProfilePage() {
           text: commentInput[postId].trim(),
           user_id: currentUser.id,
           username: currentUser.username,
-          author: currentUser.username || 'User',
+          author: currentUser.displayName || currentUser.username || 'User',
         }),
       });
       const result = await res.json();
@@ -608,7 +635,8 @@ export default function ProfilePage() {
           </div>
 
           <div className="min-w-0 flex-1 flex flex-col gap-2">
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">@{profile.username}</h1>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white">{profile.displayName || profile.username}</h1>
+            <p className="text-sm text-slate-500 dark:text-gray-400">@{profile.username}</p>
             {profile.bio && <p className="text-sm text-slate-600 dark:text-gray-300">{profile.bio}</p>}
 
             {/* Followers (public); Following count only visible to owner. Owner can click to see list */}
@@ -635,26 +663,24 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* Actions: Follow (only for individuals) or Edit (own profile) */}
+            {/* Actions: Shop (visible to all), Edit (own profile), Follow (only for individuals) */}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {currentUser?.id === profile.id && (
-                <>
-                  <Link
-                    href="/dashboard"
-                    className="rounded-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-700"
-                  >
-                    Edit Profile
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={openShopModal}
-                    className="inline-flex items-center gap-2 rounded-full border border-emerald-300 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-4 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
-                  >
-                    <ShoppingBag className="h-4 w-4" />
-                    My Shop
-                  </button>
-                </>
+                <Link
+                  href="/dashboard"
+                  className="rounded-full border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-700"
+                >
+                  Edit Profile
+                </Link>
               )}
+              <button
+                type="button"
+                onClick={openShopModal}
+                className="inline-flex items-center gap-2 rounded-full border border-emerald-300 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-4 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+              >
+                <ShoppingBag className="h-4 w-4" />
+                {currentUser?.id === profile.id ? 'My Shop' : 'Shop'}
+              </button>
               {canFollow && (
                 <button
                   type="button"
@@ -723,11 +749,15 @@ export default function ProfilePage() {
                       </button>
                     )}
                   </div>
-                  {post.image && (
+                  {post.video ? (
+                    <div className="mt-3 overflow-hidden rounded-xl">
+                      <FeedVideoPlayer src={post.video} />
+                    </div>
+                  ) : post.image ? (
                     <div className="mt-3 overflow-hidden rounded-xl">
                       <img src={post.image} alt="" className="block w-full h-auto max-h-[85vh] object-contain" />
                     </div>
-                  )}
+                  ) : null}
                   <p className="mt-2 text-sm text-slate-600 dark:text-gray-300 whitespace-pre-wrap">{post.body}</p>
                   {post.tags && post.tags.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
@@ -787,7 +817,7 @@ export default function ProfilePage() {
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
                                     <Link href={getHandleHref(c.username, c.author_type)} className="text-indigo-600 dark:text-indigo-400 hover:underline">
-                                      {c.username || c.author || 'User'}
+                                      {c.author || c.username || 'User'}
                                     </Link>
                                   </p>
                                   <p className="text-sm text-slate-600 dark:text-gray-300">{c.body ?? c.text}</p>
@@ -851,7 +881,7 @@ export default function ProfilePage() {
           onClick={() => setShopModalOpen(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="My Shop"
+          aria-label={currentUser?.id === profile.id ? 'My Shop' : 'Shop'}
         >
           <div
             className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col"
@@ -860,7 +890,7 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-gray-700 px-4 py-3 shrink-0">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                 <ShoppingBag className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                My Shop
+                {currentUser?.id === profile.id ? 'My Shop' : `${profile.username}'s Shop`}
               </h2>
               <button
                 type="button"

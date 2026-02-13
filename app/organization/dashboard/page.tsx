@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState, ChangeEvent, FormEvent, FC } from 'react';
-import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Heart, Calendar, Eye, Megaphone } from 'lucide-react';
-import { FavoritesSlideMenu } from '@/components/FavoritesSlideMenu';
+import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Calendar, Eye, Megaphone } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { supabase } from '@/lib/supabaseClient';
 import { compressImage } from '@/lib/imageCompression';
@@ -194,6 +193,7 @@ export default function OrganizationDashboard() {
     business_name: string | null;
     slug: string | null;
     category: string | null;
+    subcategory?: string | null;
     logo_url?: string | null;
     address?: { city?: string; state?: string } | null;
   }>>([]);
@@ -205,7 +205,6 @@ export default function OrganizationDashboard() {
     logo_url?: string | null;
   }>>([]);
   const [followedOrgsLoading, setFollowedOrgsLoading] = useState(true);
-  const [favoritesMenuOpen, setFavoritesMenuOpen] = useState(false);
   const [burgerMenuOpen, setBurgerMenuOpen] = useState(false);
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
   const [notificationModalOpen, setNotificationModalOpen] = useState(false);
@@ -356,7 +355,7 @@ export default function OrganizationDashboard() {
         } else {
           const { data, error } = await supabase
             .from('businesses')
-            .select('id, business_name, slug, category, logo_url, address')
+            .select('id, business_name, slug, category, subcategory, logo_url, address')
             .in('id', businessIds);
 
           if (error) throw error;
@@ -1059,13 +1058,19 @@ export default function OrganizationDashboard() {
       const method = currentlyLiked ? 'DELETE' : 'POST';
       const url =
         method === 'DELETE'
-          ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}&user_id=${encodeURIComponent(profile.user_id)}`
+          ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}`
           : '/api/community/post/like';
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (method === 'POST') headers['Content-Type'] = 'application/json';
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
 
       const res = await fetch(url, {
         method,
-        headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
-        body: method === 'POST' ? JSON.stringify({ post_id: postId, user_id: profile.user_id }) : undefined,
+        headers,
+        body: method === 'POST' ? JSON.stringify({ post_id: postId }) : undefined,
+        credentials: 'include',
       });
 
       if (!res.ok && res.status !== 409) {
@@ -1219,9 +1224,6 @@ export default function OrganizationDashboard() {
     { label: 'Edit Organization', onClick: () => document.getElementById('edit-profile')?.scrollIntoView({ behavior: 'smooth' }), icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
     { label: 'Send Notification', onClick: () => setNotificationModalOpen(true), icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
     { label: 'Promote Event / Message', onClick: () => addNotification('Event promotion coming soon.', 'info'), icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
-    { label: 'Following organizations', onClick: () => setFavoritesMenuOpen(true), icon: <Building className="h-5 w-5 shrink-0" />, color: 'bg-sky-50 dark:bg-sky-900/30' },
-    { label: 'Favorite businesses', onClick: () => setFavoritesMenuOpen(true), icon: <Heart className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
-    { label: 'Favorite items', onClick: () => setFavoritesMenuOpen(true), icon: <Heart className="h-5 w-5 shrink-0" />, color: 'bg-pink-50 dark:bg-pink-900/30' },
     { label: 'Delete My Account', href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
   ];
 
@@ -1494,94 +1496,6 @@ export default function OrganizationDashboard() {
                     </button>
                 </form>
              </Card>
-
-              <FavoritesSlideMenu open={favoritesMenuOpen} onClose={() => setFavoritesMenuOpen(false)} title="Favorites">
-                <div className="space-y-8">
-                  <div>
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-indigo-600">Following Organizations</h3>
-                    {followedOrgsLoading ? (
-                      <p className="mt-4 text-slate-500">Loading...</p>
-                    ) : followedOrgs.length === 0 ? (
-                      <p className="mt-4 rounded-2xl border border-dashed border-indigo-200 p-6 text-center text-slate-500">No organizations followed yet.</p>
-                    ) : (
-                      <div className="mt-3 grid gap-2">
-                        {followedOrgs.map((org) => (
-                          <button
-                            key={org.user_id}
-                            onClick={() => { org.username && router.push(`/organization/${org.username}`); setFavoritesMenuOpen(false); }}
-                            className="flex items-center gap-3 rounded-xl border border-indigo-100 bg-white p-3 text-left hover:border-indigo-200"
-                          >
-                            <div className="h-10 w-10 rounded-lg overflow-hidden bg-indigo-100">
-                              {org.logo_url ? (
-                                <img src={org.logo_url} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/40x40'; e.currentTarget.onerror = null; }} />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-xs text-indigo-600">Org</div>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate font-semibold text-slate-900">{org.full_name || 'Organization'}</p>
-                              <p className="text-xs text-slate-500">{org.username ? `@${org.username}` : ''}</p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Favorite Businesses</h3>
-                    {favoritesLoading ? (
-                      <p className="mt-4 text-slate-500">Loading favorites...</p>
-                    ) : favorites.length === 0 ? (
-                      <p className="mt-4 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-slate-500">No favorites yet.</p>
-                    ) : (
-                      <div className="mt-3 grid gap-2">
-                        {favorites.map((biz) => (
-                          <button
-                            key={biz.id}
-                            onClick={() => { biz.slug && router.push(`/business/${biz.slug}`); setFavoritesMenuOpen(false); }}
-                            className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-slate-300"
-                          >
-                            <div className="h-10 w-10 rounded-lg overflow-hidden bg-slate-100">
-                              {biz.logo_url ? (
-                                <img src={biz.logo_url} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/40x40'; e.currentTarget.onerror = null; }} />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">Logo</div>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate font-semibold text-slate-900">{biz.business_name || 'Business'}</p>
-                              <p className="text-xs text-slate-500">{biz.address?.city || ''}{biz.address?.state ? `, ${biz.address.state}` : ''}</p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Favorite Items</h3>
-                    {favoriteItems.length === 0 ? (
-                      <p className="mt-4 rounded-2xl border border-dashed border-emerald-200 p-6 text-center text-emerald-700">No favorite items yet.</p>
-                    ) : (
-                      <div className="mt-3 grid gap-2">
-                        {favoriteItems.map((item) => (
-                          <div key={item.key} className="rounded-xl border border-emerald-100 bg-white p-3">
-                            <Link href={`/marketplace/${item.slug}`} onClick={() => setFavoritesMenuOpen(false)} className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-lg overflow-hidden bg-emerald-100">
-                                <img src={item.image || '/placeholder.jpg'} alt="" className="h-full w-full object-contain" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="truncate font-semibold text-emerald-900">{item.title}</p>
-                                <p className="text-xs text-emerald-700">{item.location || ''}</p>
-                              </div>
-                            </Link>
-                            <button type="button" onClick={() => removeFavoriteItem(item.key)} className="mt-2 text-xs text-red-600 hover:underline">Remove</button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </FavoritesSlideMenu>
           </div>
           
         </div>

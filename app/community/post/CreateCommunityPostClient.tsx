@@ -27,6 +27,7 @@ export default function CreateCommunityPostClient() {
   const [charLimitToast, setCharLimitToast] = useState(false);
   const [emptyFieldsToast, setEmptyFieldsToast] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [orgUsername, setOrgUsername] = useState<string | null>(null);
@@ -96,11 +97,12 @@ export default function CreateCommunityPostClient() {
       setUserId(user.id);
 
       const [{ data: userData }, { data: orgData }] = await Promise.all([
-        supabase.from('registeredaccounts').select('username').eq('user_id', user.id).single(),
+        supabase.from('registeredaccounts').select('username, full_name').eq('user_id', user.id).single(),
         supabase.from('organizations').select('id,full_name,username').eq('user_id', user.id).single(),
       ]);
 
       if (userData?.username) setUsername(userData.username);
+      if (userData?.full_name) setDisplayName(userData.full_name);
       if (orgData?.full_name) setOrgName(orgData.full_name);
       if (orgData?.id) setOrgId(orgData.id);
       if (orgData?.username) setOrgUsername(orgData.username);
@@ -248,9 +250,8 @@ export default function CreateCommunityPostClient() {
     }
 
     const author =
-      postAs === 'anonymous' ? 'Anonymous' :
       postAs === 'organization' ? (orgName || 'Organization') :
-      username;
+      (displayName || username || 'User');
 
     const authorType = postAs === 'organization' ? 'organization' : null;
     const payloadUsername = postAs === 'organization' ? orgUsername : username;
@@ -292,9 +293,8 @@ export default function CreateCommunityPostClient() {
   const getDirection = () => (effectiveLang === 'ar' ? 'rtl' : 'ltr');
 
   const postAsOptions: { value: string; label: string }[] = [
-    username ? { value: 'personal', label: `@${username}` } : null,
+    username ? { value: 'personal', label: displayName || username } : null,
     orgName ? { value: 'organization', label: orgName } : null,
-    { value: 'anonymous', label: t(effectiveLang, 'Anonymous') },
   ].filter((opt): opt is { value: string; label: string } => opt !== null);
 
   if (checkingAccount) return null;
@@ -364,7 +364,7 @@ export default function CreateCommunityPostClient() {
                 <div>
                   <h2 className="text-2xl font-semibold text-slate-900">{title || t(effectiveLang, 'Untitled Post')}</h2>
                   <p className="mt-1 text-xs text-slate-500">
-                    {t(effectiveLang, 'Posted as')}: {postAs === 'anonymous' ? 'Anonymous' : postAs === 'organization' ? orgName : username}
+                    {t(effectiveLang, 'Posted as')}: {postAs === 'organization' ? orgName : username}
                   </p>
                 </div>
                 {videoPreviewUrl && (

@@ -23,6 +23,15 @@ import {
 import { PhoneInput } from '@/components/PhoneInput';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
+import {
+  BUSINESS_CATEGORIES,
+  normalizeLegacyCategory,
+  getMainCategory,
+  isFoodCategory,
+  isDealershipCategory,
+  isRetailCategory,
+  isRealEstateCategory,
+} from '@/utils/businessCategories';
 
 /**
  * Global variables (from Canvas environment, if applicable).
@@ -68,24 +77,6 @@ const normalizeNumericInput = (value: string, allowDecimal: boolean): string => 
 const SUPABASE_STORAGE_URL_PREFIX =
   `${process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://halgcyrumpbvlkzagfgy.supabase.co'}/storage/v1/object/public/`;
 
-const normalizeBusinessCategory = (value?: string | null): string => {
-  const normalized = (value || '').trim().toLowerCase();
-  if (['other', 'something_else', 'services'].includes(normalized)) return 'Services';
-  if (['retail', 'retails'].includes(normalized)) return 'Retail';
-  if (['restaurant'].includes(normalized)) return 'Restaurant';
-  if (['car dealership', 'car_dealership'].includes(normalized)) return 'Car Dealership';
-  if (['real estate', 'real_estate'].includes(normalized)) return 'Real Estate';
-  return value || '';
-};
-
-const isRetailCategory = (value?: string | null): boolean => {
-  const normalized = normalizeBusinessCategory(value);
-  return normalized === 'Retail';
-};
-
-const isRealEstateCategory = (value?: string | null): boolean => {
-  return normalizeBusinessCategory(value) === 'Real Estate';
-};
 
 /** Normalize address from DB: can be jsonb object or JSON string. Compatible with `businesses.address` as jsonb or text. */
 const parseAddressFromDb = (value: unknown): { street: string; city: string; state: string; zip: string; country: string } => {
@@ -442,6 +433,8 @@ interface BusinessForm {
   name: string;
   description: string;
   type: string;
+  category: string;
+  subcategory: string;
   phone: string;
   email: string;
   website: string;
@@ -479,7 +472,6 @@ interface BusinessForm {
   };
   // Explicitly defined top-level social media and business info fields used directly in the form
   business_name: string;
-  category: string;
   whatsapp: string;
   tiktok: string;
   facebook: string;
@@ -543,6 +535,7 @@ export default function EditBusinessPage() {
     // Initialize top-level social media and business info fields
     business_name: '',
     category: '',
+    subcategory: '',
     whatsapp: '',
     tiktok: '',
     facebook: '',
@@ -573,7 +566,9 @@ export default function EditBusinessPage() {
   const [categoryChangeModal, setCategoryChangeModal] = useState<{
     isOpen: boolean;
     nextValue: string;
+    nextSubcategory?: string;
   }>({ isOpen: false, nextValue: '' });
+  const [categoryPickerMain, setCategoryPickerMain] = useState<string | null>(null);
   const [planCardExpanded, setPlanCardExpanded] = useState(false);
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [isSubmitting, setSubmitting] = useState(false);
@@ -626,14 +621,6 @@ export default function EditBusinessPage() {
   // This is the correct and standard way to declare a ref for an HTMLInputElement.
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Define the available business types for the dropdown
-  const businessTypes = [
-    { value: 'Restaurant', label: 'Restaurant (Menu-based listings)', icon: '🍽️' },
-    { value: 'Car Dealership', label: 'Dealership (Vehicle inventory listings)', icon: '🚗' },
-    { value: 'Retail', label: 'Retail (Clothing, electronics, furniture, etc.)', icon: '🛍️' },
-    { value: 'Real Estate', label: 'Real Estate (Sale, Rent, Lease, Land)', icon: '🏠' },
-    { value: 'Services', label: 'Services (Non-inventory: plumber, tutor, electrician, etc.)', icon: '🔧' },
-  ];
 
   // --- Supabase Auth and User ID Effect ---
   useEffect(() => {
@@ -724,8 +711,11 @@ export default function EditBusinessPage() {
 
         const parsedHours = businessData.hours ? JSON.parse(businessData.hours) : {};
 
+        const { category: mainCategory, subcategory: legacySub } = normalizeLegacyCategory(businessData.category);
+        const dbSubcategory = (businessData as { subcategory?: string | null }).subcategory ?? legacySub ?? '';
+
         let menuItemsFromDb: MenuItem[] = [];
-        if (businessData.category === 'Restaurant' && businessData.id) {
+        if (mainCategory === 'Food' && businessData.id) {
           const { data: menuData, error: menuError } = await supabase
             .from('menu_items')
             .select('*')
@@ -793,7 +783,7 @@ export default function EditBusinessPage() {
         }
 
         let carListingsFromDb: CarListingItem[] = [];
-        if (businessData.category === 'Car Dealership' && businessData.id) {
+        if (mainCategory === 'Dealership' && businessData.id) {
           const { data: carData, error: carError } = await supabase
             .from('dealerships')
             .select('*')
@@ -825,7 +815,7 @@ export default function EditBusinessPage() {
         }
 
         let retailItemsFromDb: RetailItem[] = [];
-        if (isRetailCategory(businessData.category) && businessData.id) {
+        if (mainCategory === 'Retail' && businessData.id) {
             const { data: retailData, error: retailError } = await supabase
               .from('retail_items')
               .select('*')
@@ -888,7 +878,7 @@ export default function EditBusinessPage() {
         }
 
         let realEstateListingsFromDb: RealEstateItem[] = [];
-        if (isRealEstateCategory(businessData.category) && businessData.id) {
+        if (mainCategory === 'Real Estate' && businessData.id) {
           try {
             const { data: reData, error: reError } = await supabase
               .from('real_estate_listings')
@@ -921,7 +911,8 @@ export default function EditBusinessPage() {
         setForm({
           business_name: businessData.business_name || '',
           description: businessData.description || '',
-          category: normalizeBusinessCategory(businessData.category),
+          category: mainCategory,
+          subcategory: dbSubcategory,
           phone: businessData.phone || '',
           email: businessData.email || '',
           whatsapp: businessData.whatsapp || '',
@@ -977,12 +968,13 @@ export default function EditBusinessPage() {
   }, [slug, router, authReady]);
 
 
-  const applyCategoryChange = (nextCategory: string) => {
+  const applyCategoryChange = (nextCategory: string, nextSubcategory?: string) => {
     setForm((prevForm: any) => {
       const newForm = { ...prevForm };
       newForm.category = nextCategory;
-      if (nextCategory !== 'Restaurant') newForm.menu = [];
-      if (nextCategory !== 'Car Dealership') newForm.carListings = [];
+      newForm.subcategory = nextSubcategory ?? '';
+      if (!isFoodCategory(nextCategory)) newForm.menu = [];
+      if (!isDealershipCategory(nextCategory)) newForm.carListings = [];
       if (!isRetailCategory(nextCategory)) newForm.retailItems = [];
       if (!isRealEstateCategory(nextCategory)) newForm.realEstateListings = [];
       return newForm;
@@ -993,10 +985,10 @@ export default function EditBusinessPage() {
     const { name, value } = e.target;
 
     if (name === 'category') {
-      const normalizedNext = normalizeBusinessCategory(value);
-      const normalizedCurrent = normalizeBusinessCategory(form.category);
-      if (normalizedNext === normalizedCurrent) return;
-      setCategoryChangeModal({ isOpen: true, nextValue: normalizedNext });
+      const nextMain = getMainCategory(value) || value;
+      const currentMain = getMainCategory(form.category) || form.category;
+      if (nextMain === currentMain) return;
+      setCategoryChangeModal({ isOpen: true, nextValue: nextMain });
       return;
     }
 
@@ -1610,6 +1602,7 @@ export default function EditBusinessPage() {
         business_name: form.business_name,
         description: form.description,
         category: form.category,
+        subcategory: form.subcategory || null,
         phone: form.phone,
         email: form.email,
         whatsapp: form.whatsapp,
@@ -1643,7 +1636,7 @@ export default function EditBusinessPage() {
 
 
       // 3. Handle Menu Items (separate 'menu_items' table)
-      if (form.category === 'Restaurant') {
+      if (isFoodCategory(form.category)) {
         const menuItemsToProcess = form.menu || [];
         console.log('Processing menu items for Restaurant category:', menuItemsToProcess);
 
@@ -1865,7 +1858,7 @@ export default function EditBusinessPage() {
         });
         await Promise.all(upsertRetailPromises);
         console.log('All retail items processed.');
-      } else if (form.category === 'Car Dealership') {
+      } else if (isDealershipCategory(form.category)) {
         const carListingsToProcess = form.carListings || [];
         console.log('Processing car listings:', carListingsToProcess);
 
@@ -1954,7 +1947,7 @@ export default function EditBusinessPage() {
         });
         await Promise.all(upsertCarPromises);
         console.log('All car listings processed.');
-      } else if (form.category === 'Real Estate') {
+      } else if (isRealEstateCategory(form.category)) {
         const realEstateToProcess = form.realEstateListings || [];
         try {
           const { data: existingRE, error: fetchREError } = await supabase
@@ -2172,10 +2165,10 @@ export default function EditBusinessPage() {
         isOpen={categoryChangeModal.isOpen}
         title="Change business category?"
         message="Changing your category will clear any items that don't belong to the new category. Are you sure you want to continue?"
-        onClose={() => setCategoryChangeModal({ isOpen: false, nextValue: '' })}
+        onClose={() => setCategoryChangeModal({ isOpen: false, nextValue: '', nextSubcategory: undefined })}
         onConfirm={() => {
-          applyCategoryChange(categoryChangeModal.nextValue);
-          setCategoryChangeModal({ isOpen: false, nextValue: '' });
+          applyCategoryChange(categoryChangeModal.nextValue, categoryChangeModal.nextSubcategory);
+          setCategoryChangeModal({ isOpen: false, nextValue: '', nextSubcategory: undefined });
         }}
         backdropClassName="backdrop-blur-sm"
       />
@@ -2318,18 +2311,24 @@ export default function EditBusinessPage() {
               <button
                 type="button"
                 id="category"
-                onClick={() => setCategoryPickerOpen(true)}
+                onClick={() => { setCategoryPickerOpen(true); setCategoryPickerMain(null); }}
                 className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl text-left focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition duration-200 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 flex items-center justify-between gap-2"
               >
                 <span className="truncate">
                   {form.category
-                    ? `${businessTypes.find((t) => t.value === form.category)?.icon ?? ''} ${businessTypes.find((t) => t.value === form.category)?.label ?? form.category}`
+                    ? (() => {
+                        const cat = BUSINESS_CATEGORIES.find((c) => c.value === form.category);
+                        const sub = form.subcategory
+                          ? cat?.subcategories.find((s) => s.value === form.subcategory)?.label ?? form.subcategory
+                          : null;
+                        return cat ? `${cat.icon} ${sub ? `${cat.label} › ${sub}` : cat.label}` : form.category;
+                      })()
                     : 'Select a category'}
                 </span>
                 <ChevronDown size={18} className="text-slate-500 dark:text-slate-400 shrink-0" />
               </button>
 
-              {/* Category picker modal – portaled so it stays in viewport, no scroll to find it */}
+              {/* Category picker modal – main categories then subcategories */}
               {categoryPickerOpen && typeof document !== 'undefined' && createPortal(
                 <div
                   role="dialog"
@@ -2344,42 +2343,61 @@ export default function EditBusinessPage() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
-                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Business Category</h3>
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                        {categoryPickerMain ? BUSINESS_CATEGORIES.find((c) => c.value === categoryPickerMain)?.label ?? 'Subcategory' : 'Business Category'}
+                      </h3>
                       <button
                         type="button"
-                        onClick={() => setCategoryPickerOpen(false)}
+                        onClick={() => categoryPickerMain ? setCategoryPickerMain(null) : setCategoryPickerOpen(false)}
                         className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        aria-label="Close"
+                        aria-label={categoryPickerMain ? 'Back' : 'Close'}
                       >
                         <X size={20} />
                       </button>
                     </div>
                     <div className="overflow-y-auto p-3 sm:p-4 space-y-2 flex-1 min-h-0">
-                      {businessTypes.map((type) => {
-                        const isSelected = form.category === type.value;
-                        return (
+                      {!categoryPickerMain ? (
+                        BUSINESS_CATEGORIES.map((cat) => (
                           <button
-                            key={type.value}
+                            key={cat.value}
                             type="button"
-                            onClick={() => {
-                              const normalizedNext = normalizeBusinessCategory(type.value);
-                              const normalizedCurrent = normalizeBusinessCategory(form.category);
-                              if (normalizedNext !== normalizedCurrent) {
-                                setCategoryChangeModal({ isOpen: true, nextValue: normalizedNext });
-                              }
-                              setCategoryPickerOpen(false);
-                            }}
-                            className={`w-full flex items-center gap-3 px-4 py-3.5 sm:py-4 rounded-xl text-left transition-colors border-2 ${
-                              isSelected
-                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-200'
-                                : 'border-transparent bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
-                            }`}
+                            onClick={() => setCategoryPickerMain(cat.value)}
+                            className="w-full flex items-center gap-3 px-4 py-3.5 sm:py-4 rounded-xl text-left transition-colors border-2 border-transparent bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200"
                           >
-                            <span className="text-xl shrink-0" aria-hidden>{type.icon}</span>
-                            <span className="text-sm font-medium">{type.label}</span>
+                            <span className="text-xl shrink-0" aria-hidden>{cat.icon}</span>
+                            <span className="text-sm font-medium">{cat.label}</span>
                           </button>
-                        );
-                      })}
+                        ))
+                      ) : (
+                        <>
+                          {BUSINESS_CATEGORIES.find((c) => c.value === categoryPickerMain)?.subcategories.map((sub) => {
+                            const isSelected = form.category === categoryPickerMain && form.subcategory === sub.value;
+                            return (
+                              <button
+                                key={sub.value}
+                                type="button"
+                                onClick={() => {
+                                  const currentMain = getMainCategory(form.category);
+                                  if (currentMain !== categoryPickerMain) {
+                                    setCategoryChangeModal({ isOpen: true, nextValue: categoryPickerMain, nextSubcategory: sub.value });
+                                    setCategoryPickerOpen(false);
+                                  } else {
+                                    setForm((prev: any) => ({ ...prev, subcategory: sub.value }));
+                                    setCategoryPickerOpen(false);
+                                  }
+                                }}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors border-2 ${
+                                  isSelected
+                                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-200'
+                                    : 'border-transparent bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
+                                }`}
+                              >
+                                <span className="text-sm font-medium">{sub.label}</span>
+                              </button>
+                            );
+                          })}
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>,
@@ -2654,7 +2672,7 @@ export default function EditBusinessPage() {
           </section>
 
           {/* Dynamic Sections based on Category */}
-          {form.category === 'Restaurant' && (
+          {isFoodCategory(form.category) && (
             <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80 flex justify-between items-center">
                 <span>
@@ -2793,7 +2811,7 @@ export default function EditBusinessPage() {
             </section>
           )}
 
-          {form.category === 'Car Dealership' && (
+          {isDealershipCategory(form.category) && (
             <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80 flex justify-between items-center">
                 <span>
@@ -2949,7 +2967,7 @@ export default function EditBusinessPage() {
             </section>
           )}
 
-          {form.category === 'Real Estate' && (
+          {isRealEstateCategory(form.category) && (
             <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80 flex justify-between items-center">
                 <span>

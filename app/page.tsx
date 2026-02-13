@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useKeenSlider } from 'keen-slider/react';
 import Footer from '@/components/Footer';
 import { Trash2, Megaphone } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
@@ -23,16 +24,20 @@ type CommunityPost = {
   author_type: string | null;
   username: string | null;
   user_id?: string | null;
+  org_id?: string | null;
   image: string | null;
   video?: string | null;
   likes_post: number | null;
   community_comments?: { count: number }[];
+  profile_pic_url?: string | null;
+  logo_url?: string | null;
 };
 
 type Business = {
   id: string;
   business_name: string;
   category: string | null;
+  subcategory?: string | null;
   address: any;
   logo_url: string | null;
   slug: string;
@@ -377,7 +382,7 @@ function FeedBusinessCardWithTrack({
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 dark:text-gray-400">{business.category || 'Business'}</p>
+          <p className="text-xs text-slate-500 dark:text-gray-400">{business.subcategory || business.category || 'Business'}</p>
           <p className="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
             {getBusinessMessage(business)}
           </p>
@@ -433,7 +438,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(8);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null }>({ id: '', username: null });
+  const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null; displayName: string | null }>({ id: '', username: null, displayName: null });
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [commentsByPost, setCommentsByPost] = useState<Record<string, Comment[]>>({});
@@ -446,37 +451,54 @@ export default function Home() {
   const latestPostDateRef = useRef<string | null>(null);
   const hasFetchedRef = useRef(false);
 
+  const fetchLikedPosts = useCallback(async (userId: string) => {
+    try {
+      const res = await fetch(`/api/community/post/liked?userId=${encodeURIComponent(userId)}`, { credentials: 'include' });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.likedPostIds)) {
+        setLikedPosts(new Set(data.likedPostIds));
+      }
+    } catch {
+      setLikedPosts(new Set());
+    }
+  }, []);
+
   useEffect(() => {
     const loadUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setCurrentUser({ id: '', username: null });
+        setCurrentUser({ id: '', username: null, displayName: null });
         setLikedPosts(new Set());
         return;
       }
 
       const { data: account } = await supabase
         .from('registeredaccounts')
-        .select('username')
+        .select('username, full_name')
         .eq('user_id', user.id)
         .single();
 
-      setCurrentUser({ id: user.id, username: account?.username || null });
-
-      // Fetch user's liked post IDs from community_post_likes
-      try {
-        const res = await fetch(`/api/community/post/liked?userId=${encodeURIComponent(user.id)}`);
-        const data = await res.json();
-        if (res.ok && Array.isArray(data.likedPostIds)) {
-          setLikedPosts(new Set(data.likedPostIds));
-        }
-      } catch {
-        setLikedPosts(new Set());
-      }
+      setCurrentUser({
+        id: user.id,
+        username: account?.username || null,
+        displayName: account?.full_name?.trim() || null,
+      });
+      await fetchLikedPosts(user.id);
     };
 
     loadUser();
-  }, []);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user?.id) {
+        setCurrentUser({ id: session.user.id, username: null, displayName: null });
+        fetchLikedPosts(session.user.id);
+      } else {
+        setCurrentUser({ id: '', username: null, displayName: null });
+        setLikedPosts(new Set());
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [fetchLikedPosts]);
 
   useEffect(() => {
     const stored = localStorage.getItem('userCoords');
@@ -504,14 +526,14 @@ export default function Home() {
     const [postsRes, businessRes, orgRes, retailRes, dealershipRes, realEstateRes, individualRes] = await Promise.all([
       supabase
         .from('community_posts')
-        .select('id, title, body, created_at, author, author_type, username, user_id, image, video, likes_post, community_comments(count)')
+        .select('id, title, body, created_at, author, author_type, username, user_id, org_id, image, video, likes_post, community_comments(count)')
         .eq('deleted', false)
         .or('visibility.eq.community,visibility.is.null')
         .order('created_at', { ascending: false })
         .limit(12),
       supabase
         .from('businesses')
-        .select('id, business_name, category, address, logo_url, slug, lat, lon, created_at, plan')
+        .select('id, business_name, category, subcategory, address, logo_url, slug, lat, lon, created_at, plan')
         .eq('moderation_status', 'active')
         .eq('is_archived', false)
         .neq('lifecycle_status', 'archived')
@@ -628,6 +650,22 @@ export default function Home() {
       } catch {
         // keep original likes_post
       }
+      // Enrich with profile pics and org logos
+      const userIds = [...new Set((rawPosts as { user_id?: string | null }[]).map((p) => p.user_id).filter(Boolean))] as string[];
+      const orgIds = [...new Set((rawPosts as { org_id?: string | null }[]).map((p) => p.org_id).filter(Boolean))] as string[];
+      const [profilesRes, orgsRes] = await Promise.all([
+        userIds.length > 0 ? supabase.from('profiles').select('id, profile_pic_url').in('id', userIds) : Promise.resolve({ data: [] }),
+        orgIds.length > 0 ? supabase.from('organizations').select('id, logo_url').in('id', orgIds) : Promise.resolve({ data: [] }),
+      ]);
+      const profileMap = new Map((profilesRes.data || []).map((p: { id: string; profile_pic_url: string | null }) => [p.id, p.profile_pic_url]));
+      const orgMap = new Map((orgsRes.data || []).map((o: { id: string; logo_url: string | null }) => [o.id, o.logo_url]));
+      rawPosts.forEach((p: { user_id?: string | null; org_id?: string | null; author_type?: string | null } & Record<string, unknown>) => {
+        if (p.author_type === 'organization' && p.org_id) {
+          (p as Record<string, unknown>).logo_url = orgMap.get(p.org_id) ?? null;
+        } else if (p.user_id) {
+          (p as Record<string, unknown>).profile_pic_url = profileMap.get(p.user_id) ?? null;
+        }
+      });
     }
 
     const combinedItems = [...normalizedRetail, ...normalizedDealership, ...normalizedRealEstate, ...normalizedIndividual].sort((a, b) =>
@@ -880,7 +918,7 @@ const formatDateLabel = (value?: string | null) => {
       nearbyBusinesses.slice(0, 8).map((biz) => ({
         id: biz.id,
         name: biz.business_name,
-        category: biz.category || '',
+        category: biz.subcategory || biz.category || '',
         image: biz.logo_url || '/placeholder.jpg',
         plan: biz.plan,
       })),
@@ -929,20 +967,7 @@ const formatDateLabel = (value?: string | null) => {
       return next;
     });
 
-    const method = currentlyLiked ? 'DELETE' : 'POST';
-    const url =
-      method === 'DELETE'
-        ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}&user_id=${encodeURIComponent(currentUser.id)}`
-        : '/api/community/post/like';
-
-    const res = await fetch(url, {
-      method,
-      headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
-      body: method === 'POST' ? JSON.stringify({ post_id: postId, user_id: currentUser.id }) : undefined,
-    });
-
-    if (!res.ok && res.status !== 409) {
-      // Revert on failure
+    const revert = () => {
       setCommunityPosts((prev) =>
         prev.map((post) =>
           post.id === postId
@@ -956,6 +981,46 @@ const formatDateLabel = (value?: string | null) => {
         else next.delete(postId);
         return next;
       });
+    };
+
+    const method = currentlyLiked ? 'DELETE' : 'POST';
+    const url =
+      method === 'DELETE'
+        ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}`
+        : '/api/community/post/like';
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (method === 'POST') headers['Content-Type'] = 'application/json';
+      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: method === 'POST' ? JSON.stringify({ post_id: postId }) : undefined,
+        credentials: 'include',
+      });
+
+      if (!res.ok && res.status !== 409) {
+        revert();
+        const err = await res.json().catch(() => ({}));
+        toast.error(err?.error || 'Could not save like. Please try again.');
+        return;
+      }
+
+      // Sync with server response for accurate count
+      const data = await res.json().catch(() => ({}));
+      if (typeof data.likes === 'number') {
+        setCommunityPosts((prev) =>
+          prev.map((post) =>
+            post.id === postId ? { ...post, likes_post: data.likes } : post
+          )
+        );
+      }
+    } catch (err) {
+      revert();
+      toast.error('Could not save like. Please check your connection and try again.');
     }
   };
 
@@ -1051,7 +1116,7 @@ const formatDateLabel = (value?: string | null) => {
         text,
         user_id: currentUser.id,
         username: currentUser.username,
-        author: currentUser.username,
+        author: currentUser.displayName || currentUser.username || 'User',
       }),
     });
 
@@ -1288,9 +1353,31 @@ const formatDateLabel = (value?: string | null) => {
             const comments = commentsByPost[item.post.id] || [];
             return (
               <article key={`post-${item.post.id}-${index}`} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm min-h-[260px] flex flex-col">
-                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-gray-400">
-                  <span>{item.post.author || 'Community'}</span>
-                  <span>{dateLabel}</span>
+                <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-gray-400">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <img
+                      src={item.post.logo_url || item.post.profile_pic_url || '/default-avatar.png'}
+                      alt=""
+                      className="h-8 w-8 flex-shrink-0 rounded-full object-cover"
+                      onError={(e) => { e.currentTarget.src = '/default-avatar.png'; }}
+                    />
+                    {item.post.author_type === 'organization' && item.post.username ? (
+                      <Link href={`/organization/${item.post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline truncate">
+                        {item.post.author || 'Organization'}
+                      </Link>
+                    ) : item.post.author_type === 'business' && item.post.username ? (
+                      <Link href={`/business/${item.post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline truncate">
+                        {item.post.author || 'Business'}
+                      </Link>
+                    ) : item.post.username ? (
+                      <Link href={`/profile/${item.post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline truncate">
+                        {item.post.author || 'User'}
+                      </Link>
+                    ) : (
+                      <span className="font-semibold truncate">{item.post.author || 'Community'}</span>
+                    )}
+                  </div>
+                  <span className="flex-shrink-0">{dateLabel}</span>
                 </div>
                 <Link href={`/community/post/${item.post.id}`}>
                   <h2 className="mt-2 text-lg font-semibold text-slate-800 dark:text-gray-100">{item.post.title}</h2>
@@ -1370,7 +1457,7 @@ const formatDateLabel = (value?: string | null) => {
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
-                                {comment.username || comment.author || 'User'}
+                                {comment.author || comment.username || 'User'}
                               </p>
                               <p className="text-sm text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
                               <div className="flex items-center gap-2 mt-1">

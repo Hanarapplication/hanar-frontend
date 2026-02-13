@@ -1,12 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { User, Users, Globe, Building2, Heart, ShoppingBag, PenSquare, Camera, Tag, Trash2, ImagePlus, Video, X } from 'lucide-react';
-import { FavoritesSlideMenu } from '@/components/FavoritesSlideMenu';
+import { User, Users, Globe, Building2, ShoppingBag, PenSquare, Camera, Tag, Trash2, ImagePlus, Video, X } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
@@ -16,6 +15,7 @@ type FavoriteBusiness = {
   business_name: string | null;
   slug: string | null;
   category: string | null;
+  subcategory?: string | null;
   logo_url?: string | null;
   address?: {
     city?: string;
@@ -94,7 +94,7 @@ export default function DashboardPage() {
   const [favorites, setFavorites] = useState<FavoriteBusiness[]>([]);
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
   const [followedOrgs, setFollowedOrgs] = useState<FollowedOrg[]>([]);
-  const [profile, setProfile] = useState<{ username: string | null; profile_pic_url: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ username: string | null; displayName: string | null; profile_pic_url: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [followedOrgsLoading, setFollowedOrgsLoading] = useState(true);
   const [profilePicUploading, setProfilePicUploading] = useState(false);
@@ -120,13 +120,20 @@ export default function DashboardPage() {
     features: { label: string; enabled: boolean }[];
   }[]>([]);
   const [businessPlansLoading, setBusinessPlansLoading] = useState(false);
-  const [favoritesMenuOpen, setFavoritesMenuOpen] = useState(false);
   const [burgerMenuOpen, setBurgerMenuOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [profileMedia, setProfileMedia] = useState<ProfileMediaItem[]>([]);
   const [profileMediaLoading, setProfileMediaLoading] = useState(false);
   const [profileMediaUploading, setProfileMediaUploading] = useState(false);
   const [deletingProfileMediaId, setDeletingProfileMediaId] = useState<string | null>(null);
+  const [profileEditOpen, setProfileEditOpen] = useState(false);
+  const [editUsername, setEditUsername] = useState('');
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [displayNameStatus, setDisplayNameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const displayNameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
 
   const burgerItems = [
@@ -134,9 +141,6 @@ export default function DashboardPage() {
     { label: t(effectiveLang, 'Followers only'), subtitle: t(effectiveLang, 'Post to your profile — only followers see it'), href: '/community/post?visibility=profile', icon: <Users className="h-5 w-5 shrink-0" />, color: 'bg-violet-50 dark:bg-violet-900/30' },
     { label: t(effectiveLang, 'Public (Community)'), subtitle: t(effectiveLang, 'Post to Community feed — everyone can see it'), href: '/community/post?visibility=community', icon: <Globe className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
     { label: t(effectiveLang, 'Sell Item'), href: '/marketplace/post', icon: <Tag className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
-    { label: t(effectiveLang, 'Following organizations'), onClick: () => setFavoritesMenuOpen(true), icon: <Building2 className="h-5 w-5 shrink-0" />, color: 'bg-sky-50 dark:bg-sky-900/30' },
-    { label: t(effectiveLang, 'Favorite businesses'), onClick: () => setFavoritesMenuOpen(true), icon: <Heart className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
-    { label: t(effectiveLang, 'Favorite items'), onClick: () => setFavoritesMenuOpen(true), icon: <Heart className="h-5 w-5 shrink-0" />, color: 'bg-pink-50 dark:bg-pink-900/30' },
     { label: t(effectiveLang, 'Delete My Account'), href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
   ];
 
@@ -167,13 +171,16 @@ export default function DashboardPage() {
 
         setCurrentUserId(user.id);
 
-        const [{ data: favoriteRows, error: favoritesError }, { data: profData }] = await Promise.all([
+        const [{ data: favoriteRows, error: favoritesError }, { data: profData }, { data: regData }] = await Promise.all([
           supabase.from('business_favorites').select('business_id').eq('user_id', user.id),
           supabase.from('profiles').select('username, profile_pic_url').eq('id', user.id).maybeSingle(),
+          supabase.from('registeredaccounts').select('username, full_name').eq('user_id', user.id).maybeSingle(),
         ]);
 
         if (favoritesError) throw favoritesError;
-        setProfile(profData ? { username: profData.username, profile_pic_url: profData.profile_pic_url } : null);
+        const uname = profData?.username ?? regData?.username ?? null;
+        const displayName = regData?.full_name?.trim() || null;
+        setProfile(profData || regData ? { username: uname, displayName, profile_pic_url: profData?.profile_pic_url ?? null } : null);
 
         const businessIds = (favoriteRows || []).map((row: { business_id: string }) => row.business_id);
 
@@ -200,7 +207,7 @@ export default function DashboardPage() {
         } else {
           supabase
             .from('businesses')
-            .select('id, business_name, slug, category, logo_url, address')
+            .select('id, business_name, slug, category, subcategory, logo_url, address')
             .in('id', businessIds)
             .then(({ data, error }) => {
               if (!error && data) setFavorites(data as FavoriteBusiness[]);
@@ -456,6 +463,126 @@ export default function DashboardPage() {
     }
   };
 
+  useEffect(() => {
+    if (profileEditOpen && profile) {
+      setEditUsername(profile.username || '');
+      setEditDisplayName(profile.displayName || '');
+      setUsernameStatus('idle');
+      setDisplayNameStatus('idle');
+    }
+  }, [profileEditOpen, profile?.username, profile?.displayName]);
+
+  useEffect(() => {
+    if (!profileEditOpen) return;
+    const raw = editUsername.trim().toLowerCase().replace(/^@/, '');
+    if (raw.length < 3) {
+      setUsernameStatus(raw.length === 0 ? 'idle' : 'invalid');
+      return;
+    }
+    if (!/^[a-z0-9_.]+$/.test(raw)) {
+      setUsernameStatus('invalid');
+      return;
+    }
+    if (raw === (profile?.username || '').toLowerCase()) {
+      setUsernameStatus('idle');
+      return;
+    }
+    if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+    setUsernameStatus('checking');
+    usernameCheckRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/account/check-username', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: raw, excludeUserId: currentUserId }),
+        });
+        const data = await res.json();
+        setUsernameStatus(data.available ? 'available' : 'taken');
+      } catch {
+        setUsernameStatus('idle');
+      }
+      usernameCheckRef.current = null;
+    }, 400);
+    return () => {
+      if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+    };
+  }, [editUsername, profileEditOpen, profile?.username, currentUserId]);
+
+  useEffect(() => {
+    if (!profileEditOpen) return;
+    const raw = editDisplayName.trim();
+    if (raw.length === 0) {
+      setDisplayNameStatus('idle');
+      return;
+    }
+    if (raw === (profile?.displayName || '')) {
+      setDisplayNameStatus('idle');
+      return;
+    }
+    if (displayNameCheckRef.current) clearTimeout(displayNameCheckRef.current);
+    setDisplayNameStatus('checking');
+    displayNameCheckRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/account/check-display-name', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ displayName: raw, excludeUserId: currentUserId }),
+        });
+        const data = await res.json();
+        setDisplayNameStatus(data.available ? 'available' : 'taken');
+      } catch {
+        setDisplayNameStatus('idle');
+      }
+      displayNameCheckRef.current = null;
+    }, 400);
+    return () => {
+      if (displayNameCheckRef.current) clearTimeout(displayNameCheckRef.current);
+    };
+  }, [editDisplayName, profileEditOpen, profile?.displayName, currentUserId]);
+
+  const handleSaveProfile = async () => {
+    if (!currentUserId) return;
+    const rawUsername = editUsername.trim().toLowerCase().replace(/^@/, '');
+    const rawDisplay = editDisplayName.trim();
+    if (rawUsername.length < 3) {
+      toast.error(t(effectiveLang, 'Username must be at least 3 characters'));
+      return;
+    }
+    if (usernameStatus === 'taken' || usernameStatus === 'invalid') {
+      toast.error(t(effectiveLang, 'Please fix the username'));
+      return;
+    }
+    if (displayNameStatus === 'taken') {
+      toast.error(t(effectiveLang, 'Display name is already in use'));
+      return;
+    }
+    setProfileSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/account/update-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          username: rawUsername,
+          displayName: rawDisplay || undefined,
+        }),
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Update failed');
+      setProfile((p) => (p ? { ...p, username: rawUsername || p.username, displayName: rawDisplay || null } : null));
+      setProfileEditOpen(false);
+      toast.success(t(effectiveLang, 'Profile updated'));
+    } catch (err: any) {
+      toast.error(err?.message || t(effectiveLang, 'Failed to update profile'));
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   const handleProfilePicChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || profilePicUploading) return;
@@ -504,7 +631,7 @@ export default function DashboardPage() {
   const groupedFavorites = useMemo(() => {
     const groups: Record<string, FavoriteBusiness[]> = {};
     favorites.forEach((biz) => {
-      const key = normalizeCategory(biz.category);
+      const key = normalizeCategory(biz.subcategory || biz.category);
       if (!groups[key]) groups[key] = [];
       groups[key].push(biz);
     });
@@ -578,11 +705,77 @@ export default function DashboardPage() {
             </label>
             <div className="min-w-0 flex-1">
               <h1 className="text-xl font-bold text-slate-900 dark:text-gray-100">
-                {profile?.username ? `@${profile.username}` : t(effectiveLang, 'My Profile')}
+                {profile?.displayName || (profile?.username ? `@${profile.username}` : t(effectiveLang, 'My Profile'))}
               </h1>
               <p className="text-sm text-slate-500 dark:text-gray-400 mt-0.5">
-                {t(effectiveLang, 'Individual dashboard')}
+                {profile?.username ? `@${profile.username}` : t(effectiveLang, 'Individual dashboard')}
               </p>
+
+              {profileEditOpen ? (
+                <div className="mt-4 space-y-3 p-4 rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/50">
+                  <p className="text-sm font-medium text-slate-700 dark:text-gray-200">{t(effectiveLang, 'Edit username & display name')}</p>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-1">{t(effectiveLang, 'Username')} (@handle)</label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        value={editUsername}
+                        onChange={(e) => setEditUsername(e.target.value)}
+                        placeholder="username"
+                        className="flex-1 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                      />
+                      {usernameStatus === 'available' && <span className="text-xs text-emerald-600 dark:text-emerald-400">✓ {t(effectiveLang, 'Available')}</span>}
+                      {usernameStatus === 'taken' && <span className="text-xs text-red-600 dark:text-red-400">✗ {t(effectiveLang, 'Taken')}</span>}
+                      {usernameStatus === 'invalid' && <span className="text-xs text-amber-600 dark:text-amber-400">!</span>}
+                      {usernameStatus === 'checking' && <span className="text-xs text-slate-400 animate-pulse">...</span>}
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">{t(effectiveLang, 'Letters, numbers, underscores, periods. 3–30 chars.')}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-1">{t(effectiveLang, 'Display name')}</label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        value={editDisplayName}
+                        onChange={(e) => setEditDisplayName(e.target.value)}
+                        placeholder={t(effectiveLang, 'Name shown to others')}
+                        className="flex-1 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                      />
+                      {displayNameStatus === 'available' && <span className="text-xs text-emerald-600 dark:text-emerald-400">✓ {t(effectiveLang, 'Available')}</span>}
+                      {displayNameStatus === 'taken' && <span className="text-xs text-red-600 dark:text-red-400">✗ {t(effectiveLang, 'Taken')}</span>}
+                      {displayNameStatus === 'checking' && <span className="text-xs text-slate-400 animate-pulse">...</span>}
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">{t(effectiveLang, 'Must be unique. Shown in feeds and comments.')}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveProfile}
+                      disabled={profileSaving || usernameStatus === 'taken' || usernameStatus === 'invalid' || usernameStatus === 'checking' || displayNameStatus === 'taken' || displayNameStatus === 'checking'}
+                      className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {profileSaving ? t(effectiveLang, 'Saving...') : t(effectiveLang, 'Save')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProfileEditOpen(false)}
+                      className="rounded-lg border border-slate-200 dark:border-gray-600 px-4 py-2 text-sm font-medium text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-700"
+                    >
+                      {t(effectiveLang, 'Cancel')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setProfileEditOpen(true)}
+                  className="mt-2 inline-flex items-center gap-2 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-1.5 text-sm text-slate-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-700"
+                >
+                  <PenSquare className="h-4 w-4" />
+                  {t(effectiveLang, 'Edit username & display name')}
+                </button>
+              )}
+
               <div className="mt-4 flex flex-wrap gap-3">
                 {profile?.username && (
                   <Link
@@ -934,108 +1127,6 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-
-        <FavoritesSlideMenu open={favoritesMenuOpen} onClose={() => setFavoritesMenuOpen(false)} title={t(effectiveLang, 'Favorites')}>
-          <div className="space-y-8">
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Favorite Businesses')}</h3>
-              {loading ? (
-                <p className="mt-4 text-slate-500">{t(effectiveLang, 'Loading favorites...')}</p>
-              ) : favorites.length === 0 ? (
-                <p className="mt-4 rounded-2xl border border-dashed border-slate-300 dark:border-gray-600 p-6 text-center text-slate-500">{t(effectiveLang, 'You have no favorite businesses yet. Visit a business page and click the heart to add favorites.')}</p>
-              ) : (
-                <div className="mt-3 space-y-4">
-                  {groupedFavorites.map(([category, items]) => (
-                    <div key={category}>
-                      {category ? <p className="text-xs font-semibold uppercase text-slate-500 dark:text-gray-400">{category}</p> : null}
-                      <div className="mt-2 grid gap-2">
-                        {items.map((biz) => (
-                          <div key={biz.id} className="relative flex items-center gap-3 rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-3">
-                            <Link href={`/business/${biz.slug || biz.id}`} onClick={() => setFavoritesMenuOpen(false)} className="flex min-w-0 flex-1 items-center gap-3">
-                              <div className="h-10 w-10 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-gray-700">
-                                {biz.logo_url ? (
-                                  <img src={biz.logo_url} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/40x40'; e.currentTarget.onerror = null; }} />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center"><Building2 className="h-5 w-5 text-slate-500" /></div>
-                                )}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="truncate font-semibold text-slate-900 dark:text-white">{biz.business_name || 'Business'}</p>
-                                <p className="text-xs text-slate-500 dark:text-gray-400">{biz.address?.city || ''}{biz.address?.state ? `, ${biz.address.state}` : ''}</p>
-                              </div>
-                            </Link>
-                            <button type="button" onClick={() => removeFavorite(biz.id)} className="shrink-0 rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/40 dark:hover:text-red-400" title={t(effectiveLang, 'Remove from favorites')}>
-                              <Heart className="h-4 w-4 fill-red-500" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-400">{t(effectiveLang, 'Following')} – {t(effectiveLang, 'Organizations')}</h3>
-              {followedOrgsLoading ? (
-                <p className="mt-4 text-slate-500">{t(effectiveLang, 'Loading...')}</p>
-              ) : followedOrgs.length === 0 ? (
-                <p className="mt-4 rounded-2xl border border-dashed border-indigo-200 dark:border-gray-600 p-6 text-center text-slate-500">{t(effectiveLang, 'No organizations followed yet. Visit an organization page and click Follow.')}</p>
-              ) : (
-                <div className="mt-3 grid gap-2">
-                  {followedOrgs.map((org) => (
-                    <Link
-                      key={org.user_id}
-                      href={org.username ? `/organization/${org.username}` : '#'}
-                      onClick={() => setFavoritesMenuOpen(false)}
-                      className="flex items-center gap-3 rounded-xl border border-indigo-100 dark:border-gray-600 bg-white dark:bg-gray-800 p-3 hover:border-indigo-200 dark:hover:border-gray-500"
-                    >
-                      <div className="h-10 w-10 shrink-0 rounded-lg overflow-hidden bg-indigo-50 dark:bg-indigo-900/30">
-                        {org.logo_url ? (
-                          <img src={org.logo_url} alt="" className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/40x40'; e.currentTarget.onerror = null; }} />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center"><Building2 className="h-5 w-5 text-indigo-500" /></div>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-slate-900 dark:text-white">{org.full_name || 'Organization'}</p>
-                        <p className="text-xs text-slate-500 dark:text-gray-400">{org.username ? `@${org.username}` : ''}</p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">{t(effectiveLang, 'Favorite Items')}</h3>
-              {favoriteItems.length === 0 ? (
-                <p className="mt-4 rounded-2xl border border-dashed border-emerald-200 dark:border-gray-600 p-6 text-center text-slate-500">{t(effectiveLang, 'You have no favorite items yet. Browse the marketplace and add some.')}</p>
-              ) : (
-                <div className="mt-3 grid gap-2">
-                  {favoriteItems.map((item) => (
-                    <div key={item.key} className="rounded-xl border border-emerald-100 dark:border-gray-600 bg-white dark:bg-gray-800 p-3">
-                      <Link href={`/marketplace/${item.slug}`} onClick={() => setFavoritesMenuOpen(false)} className="block">
-                        <div className="flex gap-3">
-                          <div className="h-12 w-12 shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-gray-700">
-                            <img src={item.image || '/placeholder.jpg'} alt="" className="h-full w-full object-contain" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate font-semibold text-slate-900 dark:text-white">{item.title}</p>
-                            <p className="text-xs text-slate-500 dark:text-gray-400">{item.location || ''}</p>
-                            <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{item.price}</p>
-                          </div>
-                        </div>
-                      </Link>
-                      <button type="button" onClick={() => removeFavoriteItem(item.key)} className="mt-2 text-xs text-red-600 dark:text-red-400 hover:underline flex items-center gap-1">
-                        <Heart className="h-3 w-3" /> {t(effectiveLang, 'Remove')}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </FavoritesSlideMenu>
       </div>
     </div>
   );

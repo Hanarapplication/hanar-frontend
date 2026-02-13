@@ -115,7 +115,13 @@ export default function MobileMenu({
                 ? '/organization/dashboard'
                 : '/dashboard'
             }
-            onClick={() => setIsOpen(false)}
+            onClick={(e) => {
+              setIsOpen(false);
+              if (!loggedIn) {
+                e.preventDefault();
+                router.push('/login');
+              }
+            }}
             className="flex items-center gap-2 hover:bg-gray-100 rounded-md p-2 transition-colors duration-200 focus:outline-none"
           >
             <FaThLarge className="text-gray-500" />

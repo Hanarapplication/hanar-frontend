@@ -14,6 +14,7 @@ export interface BusinessProfileData {
   business_name: string;
   slug: string;
   category?: string | null;
+  subcategory?: string | null;
   description: string;
   phone?: string | null;
   email?: string | null;

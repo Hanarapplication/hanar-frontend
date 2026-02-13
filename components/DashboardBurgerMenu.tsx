@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { X, Menu, ArrowLeft } from 'lucide-react';
 
@@ -21,7 +21,11 @@ type DashboardBurgerMenuProps = {
   items: MenuItem[];
 };
 
+const SWIPE_THRESHOLD = 50;
+
 export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardBurgerMenuProps) {
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+
   useEffect(() => {
     if (!open) return;
     const handleEscape = (e: KeyboardEvent) => {
@@ -42,6 +46,18 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
         <button
           type="button"
           onClick={onOpen}
+          onTouchStart={(e) => {
+            touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+          }}
+          onTouchEnd={(e) => {
+            if (!touchStart.current) return;
+            const dx = e.changedTouches[0].clientX - touchStart.current.x;
+            const dy = e.changedTouches[0].clientY - touchStart.current.y;
+            touchStart.current = null;
+            if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
+              e.preventDefault();
+            }
+          }}
           className="flex w-full items-center gap-3 bg-rose-800 px-5 py-3.5 text-white hover:bg-rose-700 transition"
           aria-label="Open menu"
         >

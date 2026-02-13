@@ -89,6 +89,7 @@ export default function LocationPromptModal() {
     const zipValue = result.zip || null;
     const label = result.formatted_address || [result.city, result.state, result.zip].filter(Boolean).join(', ');
     localStorage.setItem('userCoords', JSON.stringify(coords));
+    try { if (label) localStorage.setItem('userLocationLabel', label); } catch {}
     localStorage.setItem('hasSeenLocationPrompt', 'true');
     persistLocation(coords.lat, coords.lon, {
       city: cityValue,
