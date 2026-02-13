@@ -21,6 +21,15 @@ import {
 } from 'lucide-react';
 import ReportButton from '@/components/ReportButton';
 
+/** Ensure social/website URLs open externally in a new tab (absolute URL). */
+function ensureExternalUrl(url: string | undefined | null): string {
+  if (!url || typeof url !== 'string') return '#';
+  const t = url.trim();
+  if (!t) return '#';
+  if (t.startsWith('http://') || t.startsWith('https://')) return t;
+  return `https://${t}`;
+}
+
 type OrgProfile = {
   id: string;
   user_id: string;
@@ -453,26 +462,25 @@ export default function OrganizationProfilePage() {
             </div>
 
             {hasSocials && (
-              <div className="rounded-xl bg-white p-6 shadow-sm">
-                <h2 className="mb-3 text-lg font-semibold text-slate-800">Socials</h2>
-                <div className="space-y-3 text-sm text-slate-600">
+              <div className="rounded-2xl bg-white p-6 shadow-lg border border-slate-200/80">
+                <div className="flex flex-nowrap items-center justify-start gap-2">
                   {profile.socials?.website && (
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-4 w-4 text-slate-400" />
-                      <span>{profile.socials.website}</span>
-                    </div>
+                    <a href={ensureExternalUrl(profile.socials.website)} target="_blank" rel="noopener noreferrer" aria-label="Website" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-slate-100 text-slate-700 font-medium text-xs transition-all duration-200 hover:bg-indigo-600 hover:text-white hover:shadow-md hover:scale-[1.05] shrink-0 [&>svg]:hover:text-white">
+                      <Globe className="h-4 w-4 shrink-0 text-indigo-600" />
+                      <span>Website</span>
+                    </a>
                   )}
                   {profile.socials?.instagram && (
-                    <div className="flex items-center gap-2">
-                      <Instagram className="h-4 w-4 text-slate-400" />
-                      <span>{profile.socials.instagram}</span>
-                    </div>
+                    <a href={ensureExternalUrl(profile.socials.instagram)} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-slate-100 text-slate-700 font-medium text-xs transition-all duration-200 hover:bg-gradient-to-r hover:from-[#f9ce34] hover:via-[#ee2a7b] hover:to-[#6228d7] hover:text-white hover:shadow-md hover:scale-[1.05] shrink-0 [&>svg]:hover:text-white">
+                      <Instagram className="h-4 w-4 shrink-0 text-[#E4405F]" />
+                      <span>Instagram</span>
+                    </a>
                   )}
                   {profile.socials?.facebook && (
-                    <div className="flex items-center gap-2">
-                      <Facebook className="h-4 w-4 text-slate-400" />
-                      <span>{profile.socials.facebook}</span>
-                    </div>
+                    <a href={ensureExternalUrl(profile.socials.facebook)} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-slate-100 text-slate-700 font-medium text-xs transition-all duration-200 hover:bg-[#1877f2] hover:text-white hover:shadow-md hover:scale-[1.05] shrink-0 [&>svg]:hover:text-white">
+                      <Facebook className="h-4 w-4 shrink-0 text-[#1877F2]" />
+                      <span>Facebook</span>
+                    </a>
                   )}
                 </div>
               </div>

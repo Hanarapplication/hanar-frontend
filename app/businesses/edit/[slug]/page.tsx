@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient'; // Import your Supabase client
 import { compressImage } from '@/lib/imageCompression';
@@ -17,7 +18,7 @@ import {
   HeartHandshake, DollarSign, Shirt, Laptop, ClipboardList, Video, MessageSquare, MapPin,
   Clock as ClockIcon, ExternalLink, Hash, Text, Info, List, Factory,
   Car as CarIcon, DollarSign as DollarIcon, Calendar as CalendarIcon, Wrench,
-  Package, ShoppingBag, Languages
+  Package, ShoppingBag, Languages, ChevronDown
 } from 'lucide-react';
 import { PhoneInput } from '@/components/PhoneInput';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
@@ -69,16 +70,46 @@ const SUPABASE_STORAGE_URL_PREFIX =
 
 const normalizeBusinessCategory = (value?: string | null): string => {
   const normalized = (value || '').trim().toLowerCase();
-  if (['other', 'something_else'].includes(normalized)) return 'something_else';
+  if (['other', 'something_else', 'services'].includes(normalized)) return 'Services';
   if (['retail', 'retails'].includes(normalized)) return 'Retail';
   if (['restaurant'].includes(normalized)) return 'Restaurant';
   if (['car dealership', 'car_dealership'].includes(normalized)) return 'Car Dealership';
+  if (['real estate', 'real_estate'].includes(normalized)) return 'Real Estate';
   return value || '';
 };
 
 const isRetailCategory = (value?: string | null): boolean => {
   const normalized = normalizeBusinessCategory(value);
-  return normalized === 'Retail' || normalized === 'something_else';
+  return normalized === 'Retail';
+};
+
+const isRealEstateCategory = (value?: string | null): boolean => {
+  return normalizeBusinessCategory(value) === 'Real Estate';
+};
+
+/** Normalize address from DB: can be jsonb object or JSON string. Compatible with `businesses.address` as jsonb or text. */
+const parseAddressFromDb = (value: unknown): { street: string; city: string; state: string; zip: string; country: string } => {
+  const empty = { street: '', city: '', state: '', zip: '', country: '' };
+  if (value == null) return empty;
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    const o = value as Record<string, unknown>;
+    return {
+      street: typeof o.street === 'string' ? o.street : '',
+      city: typeof o.city === 'string' ? o.city : '',
+      state: typeof o.state === 'string' ? o.state : '',
+      zip: typeof o.zip === 'string' ? o.zip : '',
+      country: typeof o.country === 'string' ? o.country : '',
+    };
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value) as Record<string, unknown>;
+      return parseAddressFromDb(parsed);
+    } catch {
+      return empty;
+    }
+  }
+  return empty;
 };
 
 const extractStoragePath = (value: string, buckets: string[]): string => {
@@ -126,7 +157,7 @@ interface ImageFileObject {
  * @param {'menu_item' | 'retail_item' | 'car_listing'} bucketType - The type of item the image belongs to, to determine the correct Supabase bucket.
  * @returns {string} The public URL for the image or a placeholder if invalid.
  */
-const getImageUrl = (image: any, bucketType: 'menu_item' | 'retail_item' | 'car_listing' | 'gallery_image') => {
+const getImageUrl = (image: any, bucketType: 'menu_item' | 'retail_item' | 'car_listing' | 'gallery_image' | 'real_estate_item') => {
 
   let bucketName: string;
   switch (bucketType) {
@@ -138,6 +169,9 @@ const getImageUrl = (image: any, bucketType: 'menu_item' | 'retail_item' | 'car_
       break;
     case 'retail_item':
       bucketName = 'retail-items';
+      break;
+    case 'real_estate_item':
+      bucketName = 'real-estate-listings'; // legacy paths may be in business-uploads; resolved in buildPublicUrl below
       break;
     case 'gallery_image':
       bucketName = 'business-uploads'; // Gallery images go to 'business-uploads'
@@ -154,10 +188,14 @@ const getImageUrl = (image: any, bucketType: 'menu_item' | 'retail_item' | 'car_
   const buildPublicUrl = (path: string) => {
     if (!path) return '';
     if (path.startsWith('http')) return path;
-    if (path.startsWith(`${bucketName}/`)) {
+    // Legacy real estate images may be stored under business-uploads
+    const effectiveBucket = (bucketType === 'real_estate_item' && path.includes('business-uploads'))
+      ? 'business-uploads'
+      : bucketName;
+    if (path.startsWith(`${effectiveBucket}/`)) {
       return `${SUPABASE_STORAGE_URL_PREFIX}${path}`;
     }
-    return `${SUPABASE_STORAGE_URL_PREFIX}${bucketName}/${path}`;
+    return `${SUPABASE_STORAGE_URL_PREFIX}${effectiveBucket}/${path}`;
   };
   // If it's an existing URL from the DB, it might be a string or an object with 'preview'
   if (typeof image === 'string') {
@@ -165,7 +203,6 @@ const getImageUrl = (image: any, bucketType: 'menu_item' | 'retail_item' | 'car_
   }
   // If it's an object from DB (like {id, preview, file: null, isNew: false})
   if (image && image.preview) {
-    // If image.preview is already a full URL, return as is
     return buildPublicUrl(image.preview);
   }
   // Fallback if no valid image source is found
@@ -222,17 +259,26 @@ function CustomModal({ isOpen, title, message, onClose, onConfirm, backdropClass
 }) {
   if (!isOpen) return null;
 
-  return (
-    <div className={`fixed inset-0 bg-black/20 backdrop-blur-md flex items-center justify-center z-50 p-4 font-inter ${backdropClassName}`}>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 max-w-sm w-full transform transition-all duration-300 scale-100 opacity-100 text-gray-800 dark:text-gray-200">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+  const modalEl = (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      className={`fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/50 backdrop-blur-md font-inter overflow-y-auto ${backdropClassName}`}
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+    >
+      <div
+        className="relative bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-6 max-w-sm w-full text-gray-800 dark:text-gray-200 my-auto max-h-[85vh] flex flex-col"
+        style={{ boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}
+      >
+        <div className="flex justify-between items-center mb-4 shrink-0">
+          <h3 id="modal-title" className="text-lg font-semibold pr-8">{title}</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 absolute top-4 right-4">
             <X size={20} />
           </button>
         </div>
-        <p className="text-gray-600 dark:text-gray-300 mb-6">{message}</p>
-        <div className="flex justify-end gap-3">
+        <p className="text-gray-600 dark:text-gray-300 mb-6 overflow-y-auto flex-1 min-h-0">{message}</p>
+        <div className="flex justify-end gap-3 shrink-0">
           <button
             onClick={onClose}
             className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200 shadow-md"
@@ -249,6 +295,11 @@ function CustomModal({ isOpen, title, message, onClose, onConfirm, backdropClass
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalEl, document.body);
+  }
+  return modalEl;
 }
 
 /**
@@ -273,14 +324,14 @@ const FormInput = ({ name, value, onChange, placeholder, type = 'text', icon: Ic
   [key: string]: any; // For other props
 }) => (
   <div className="relative flex items-center">
-    {Icon && <Icon size={18} className="absolute left-3 text-gray-400" />}
+    {Icon && <Icon size={18} className="absolute left-3.5 text-slate-400 dark:text-slate-500" />}
     <input
       name={name}
       value={value}
       onChange={onChange}
       placeholder={placeholder}
       type={type}
-      className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${Icon ? 'pl-10' : ''}`}
+      className={`w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-400 transition duration-200 ${Icon ? 'pl-10' : ''}`}
       {...props}
     />
   </div>
@@ -308,14 +359,14 @@ const FormTextarea = ({ name, value, onChange, placeholder, rows = 2, icon: Icon
   [key: string]: any; // For other props
 }) => (
   <div className="relative flex items-start">
-    {Icon && <Icon size={18} className="absolute left-3 top-3 text-gray-400" />}
+    {Icon && <Icon size={18} className="absolute left-3.5 top-3.5 text-slate-400 dark:text-slate-500" />}
     <textarea
       name={name}
       value={value}
       onChange={onChange}
       placeholder={placeholder}
       rows={rows}
-      className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${Icon ? 'pl-10' : ''}`}
+      className={`w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-400 transition duration-200 resize-none ${Icon ? 'pl-10' : ''}`}
       {...props}
     />
   </div>
@@ -369,6 +420,22 @@ interface RetailItem {
 }
 
 /**
+ * Interface for a real estate listing.
+ */
+interface RealEstateItem {
+  id: string;
+  title: string;
+  price: string;
+  propertyType: string;
+  address: string;
+  description: string;
+  images: ImageFileObject[];
+  _isNew: boolean;
+  _isDeleted: boolean;
+  _isHiding: boolean;
+}
+
+/**
  * Interface for the main business form data.
  */
 interface BusinessForm {
@@ -386,6 +453,7 @@ interface BusinessForm {
   menu: MenuItem[]; // Typed specifically
   carListings: CarListingItem[]; // Typed specifically
   retailItems: RetailItem[]; // Typed specifically
+  realEstateListings: RealEstateItem[]; // Typed specifically
   address: {
     street: string;
     city: string;
@@ -448,6 +516,7 @@ export default function EditBusinessPage() {
     menu: [],
     carListings: [],
     retailItems: [],
+    realEstateListings: [],
     address: {
       street: '',
       city: '',
@@ -505,6 +574,8 @@ export default function EditBusinessPage() {
     isOpen: boolean;
     nextValue: string;
   }>({ isOpen: false, nextValue: '' });
+  const [planCardExpanded, setPlanCardExpanded] = useState(false);
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [isSubmitting, setSubmitting] = useState(false);
 
   // Store the original business ID after fetching to use for dynamic content
@@ -518,11 +589,13 @@ export default function EditBusinessPage() {
     max_menu_items: number;
     max_retail_items: number;
     max_car_listings: number;
+    max_real_estate_listings: number;
   }>({
     max_gallery_images: 5, // Default fallback
     max_menu_items: 0, // Default fallback
     max_retail_items: 0, // Default fallback
-    max_car_listings: 0, // Default fallback
+    max_car_listings: 0,
+    max_real_estate_listings: 0,
   });
   
   // Plan status information
@@ -555,10 +628,11 @@ export default function EditBusinessPage() {
 
   // Define the available business types for the dropdown
   const businessTypes = [
-    { value: 'Restaurant', label: 'Restaurant', icon: '🍽️' },
-    { value: 'Car Dealership', label: 'Car Dealership', icon: '🚗' },
-    { value: 'Retail', label: 'Retail (Clothing, Electronics, etc.)', icon: '🛍️' },
-    { value: 'something_else', label: 'Other / Service', icon: '❓' }, // Ensure 'something_else' is an option
+    { value: 'Restaurant', label: 'Restaurant (Menu-based listings)', icon: '🍽️' },
+    { value: 'Car Dealership', label: 'Dealership (Vehicle inventory listings)', icon: '🚗' },
+    { value: 'Retail', label: 'Retail (Clothing, electronics, furniture, etc.)', icon: '🛍️' },
+    { value: 'Real Estate', label: 'Real Estate (Sale, Rent, Lease, Land)', icon: '🏠' },
+    { value: 'Services', label: 'Services (Non-inventory: plumber, tutor, electrician, etc.)', icon: '🔧' },
   ];
 
   // --- Supabase Auth and User ID Effect ---
@@ -616,6 +690,7 @@ export default function EditBusinessPage() {
           max_menu_items: businessData.max_menu_items ?? 0,
           max_retail_items: businessData.max_retail_items ?? 0,
           max_car_listings: businessData.max_car_listings ?? 0,
+          max_real_estate_listings: businessData.max_real_estate_listings ?? businessData.max_car_listings ?? 0,
         });
         
         // Set plan status information
@@ -812,6 +887,37 @@ export default function EditBusinessPage() {
             }
         }
 
+        let realEstateListingsFromDb: RealEstateItem[] = [];
+        if (isRealEstateCategory(businessData.category) && businessData.id) {
+          try {
+            const { data: reData, error: reError } = await supabase
+              .from('real_estate_listings')
+              .select('*')
+              .eq('business_id', businessData.id)
+              .order('created_at', { ascending: true });
+
+            if (!reError && reData && reData.length > 0) {
+              const sorted = [...reData].sort((a: any, b: any) =>
+                new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+              );
+              realEstateListingsFromDb = sorted.map((item: any) => ({
+                id: item.id,
+                title: item.title || item.name || '',
+                price: item.price != null ? String(item.price) : '',
+                propertyType: item.property_type || item.propertyType || '',
+                address: item.address || '',
+                description: item.description || '',
+                images: mapImagesToPreviewObjects(Array.isArray(item.images) ? item.images : item.image_url ? [item.image_url] : []),
+                _isNew: false,
+                _isDeleted: false,
+                _isHiding: false,
+              }));
+            }
+          } catch (e) {
+            console.warn('Real estate listings fetch skipped (table may not exist yet):', e);
+          }
+        }
+
         setForm({
           business_name: businessData.business_name || '',
           description: businessData.description || '',
@@ -820,7 +926,7 @@ export default function EditBusinessPage() {
           email: businessData.email || '',
           whatsapp: businessData.whatsapp || '',
           website: businessData.website || '',
-          address: businessData.address || { street: '', city: '', state: '', zip: '', country: '' },
+          address: parseAddressFromDb(businessData.address),
           facebook: businessData.facebook || '',
           instagram: businessData.instagram || '',
           twitter: businessData.twitter || '',
@@ -830,6 +936,7 @@ export default function EditBusinessPage() {
           menu: menuItemsFromDb,
           carListings: carListingsFromDb,
           retailItems: retailItemsFromDb,
+          realEstateListings: realEstateListingsFromDb,
           logo: null,
           _logoUrl: businessData.logo_url || null,
           images: [],
@@ -877,6 +984,7 @@ export default function EditBusinessPage() {
       if (nextCategory !== 'Restaurant') newForm.menu = [];
       if (nextCategory !== 'Car Dealership') newForm.carListings = [];
       if (!isRetailCategory(nextCategory)) newForm.retailItems = [];
+      if (!isRealEstateCategory(nextCategory)) newForm.realEstateListings = [];
       return newForm;
     });
   };
@@ -911,7 +1019,7 @@ export default function EditBusinessPage() {
    * @param {string} [dynamicItemId] - Required for item-specific images (menu, retail, car) to create a unique folder.
    * @returns {Promise<string>} The public URL of the uploaded file.
    */
-  async function uploadFile(file: File, fileType: 'logo' | 'gallery' | 'menu_item' | 'retail_item' | 'car_listing', dynamicItemId?: string): Promise<string> {
+  async function uploadFile(file: File, fileType: 'logo' | 'gallery' | 'menu_item' | 'retail_item' | 'car_listing' | 'real_estate_item', dynamicItemId?: string): Promise<string> {
     if (!businessId) throw new Error("Business ID is missing for file upload context. Cannot upload files.");
 
     const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -954,6 +1062,12 @@ export default function EditBusinessPage() {
       case 'gallery':
         bucketName = 'business-uploads';
         filePath = `${userIdForPath}/business-uploads/gallerys/${Date.now()}-${compressed.name}`;
+        console.log(`[uploadFile] Attempting to upload to bucket: ${bucketName}, path: ${filePath}`);
+        break;
+      case 'real_estate_item':
+        if (!dynamicItemId) throw new Error("Real Estate Item ID is required for real estate listing image upload.");
+        bucketName = 'real-estate-listings';
+        filePath = `${userIdForPath}/real-estate/${dynamicItemId}/${Date.now()}-${compressed.name}`;
         console.log(`[uploadFile] Attempting to upload to bucket: ${bucketName}, path: ${filePath}`);
         break;
       default:
@@ -1355,7 +1469,79 @@ export default function EditBusinessPage() {
     setDeleteModal({ isOpen: true, type: 'retail', index });
   };
 
-  const handleDragEnd = (event: any, listType: 'menu' | 'carListings' | 'retailItems') => {
+  const handleRealEstateItemChange = (index: number, field: string, value: string | FileList | null) => {
+    setForm((prevForm) => {
+      const updatedItems = [...prevForm.realEstateListings];
+      let updatedItem = { ...updatedItems[index] };
+      if (field === 'images') {
+        const newFiles = Array.from(value as FileList || []);
+        const currentImages = updatedItem.images || [];
+        const maxImages = Math.max(1, planLimits.max_gallery_images || 0);
+        if (currentImages.length + newFiles.length > maxImages) {
+          setModal({ isOpen: true, title: 'Upload Limit Exceeded', message: `Your plan allows a maximum of ${maxImages} images per listing.`, onConfirm: () => {} });
+          return prevForm;
+        }
+        const newImageObjects: ImageFileObject[] = newFiles.map(file => ({
+          id: generateUUID(),
+          file,
+          preview: URL.createObjectURL(file),
+          isNew: true,
+        }));
+        const existingImages = currentImages.filter((img: ImageFileObject) => !img.isNew);
+        updatedItem.images = [...existingImages, ...newImageObjects];
+      } else {
+        (updatedItem as any)[field] = value;
+      }
+      updatedItems[index] = updatedItem;
+      return { ...prevForm, realEstateListings: updatedItems };
+    });
+  };
+
+  const removeRealEstateItemImage = (itemIndex: number, imageIdToRemove: string) => {
+    setForm((prevForm) => {
+      const updatedItems = [...prevForm.realEstateListings];
+      const updatedImages = updatedItems[itemIndex].images.filter((img: ImageFileObject) => img.id !== imageIdToRemove);
+      updatedItems[itemIndex] = { ...updatedItems[itemIndex], images: updatedImages };
+      return { ...prevForm, realEstateListings: updatedItems };
+    });
+  };
+
+  const addRealEstateListing = () => {
+    const currentCount = form.realEstateListings.length;
+    if (currentCount >= planLimits.max_real_estate_listings) {
+      setModal({
+        isOpen: true,
+        title: 'Plan Limit Reached',
+        message: `Your plan allows a maximum of ${planLimits.max_real_estate_listings} real estate listings. Please upgrade your plan to add more.`,
+        onConfirm: () => {},
+      });
+      return;
+    }
+    setForm((prevForm) => ({
+      ...prevForm,
+      realEstateListings: [
+        ...prevForm.realEstateListings,
+        {
+          id: generateUUID(),
+          title: '',
+          price: '',
+          propertyType: '',
+          address: '',
+          description: '',
+          images: [],
+          _isNew: true,
+          _isDeleted: false,
+          _isHiding: false,
+        },
+      ],
+    }));
+  };
+
+  const removeRealEstateListing = (index: number) => {
+    setDeleteModal({ isOpen: true, type: 'real_estate', index });
+  };
+
+  const handleDragEnd = (event: any, listType: 'menu' | 'carListings' | 'retailItems' | 'realEstateListings') => {
     const { active, over } = event;
     if (active.id !== over.id) {
       setForm((prevForm) => {
@@ -1419,6 +1605,7 @@ export default function EditBusinessPage() {
       console.log('Final gallery URLs:', finalGalleryUrls);
 
 
+      // businesses.address: expect one column "address" (jsonb). Value = { street, city, state, zip, country }. On load we support object or JSON string (parseAddressFromDb).
       const updateData: any = {
         business_name: form.business_name,
         description: form.description,
@@ -1767,33 +1954,79 @@ export default function EditBusinessPage() {
         });
         await Promise.all(upsertCarPromises);
         console.log('All car listings processed.');
+      } else if (form.category === 'Real Estate') {
+        const realEstateToProcess = form.realEstateListings || [];
+        try {
+          const { data: existingRE, error: fetchREError } = await supabase
+            .from('real_estate_listings')
+            .select('id')
+            .eq('business_id', businessId);
+          if (fetchREError) throw fetchREError;
+          const existingIds = new Set((existingRE || []).map((r: any) => r.id));
+          const currentIds = new Set(realEstateToProcess.map((item: RealEstateItem) => item.id));
+          const idsToDelete = Array.from(existingIds).filter(id => !currentIds.has(id));
+          if (idsToDelete.length > 0) {
+            const { error: delErr } = await supabase.from('real_estate_listings').delete().in('id', idsToDelete);
+            if (delErr) throw delErr;
+          }
+          for (const item of realEstateToProcess) {
+            const newImageFiles = item.images.filter((img: ImageFileObject) => img.file instanceof File);
+            const uploadedFullUrls = await Promise.all(
+              newImageFiles.map((img: ImageFileObject) => uploadFile(img.file as File, 'real_estate_item', item.id))
+            );
+            const uploadedPaths = uploadedFullUrls.map(url => extractStoragePath(url, ['real-estate-listings', 'business-uploads'])).filter(Boolean);
+            const existingPaths = item.images.filter((img: ImageFileObject) => !img.isNew).map((img: ImageFileObject) => extractStoragePath(img.preview, ['real-estate-listings', 'business-uploads'])).filter(Boolean);
+            const allPaths = [...existingPaths, ...uploadedPaths];
+            const row: Record<string, unknown> = {
+              business_id: businessId,
+              title: item.title || '',
+              price: parseFloat(normalizeNumberString(item.price)) || null,
+              property_type: item.propertyType || null,
+              address: item.address || '',
+              description: item.description || '',
+              images: allPaths,
+            };
+            if (item._isNew) {
+              row.id = item.id;
+              const { error: insertErr } = await supabase.from('real_estate_listings').insert([row]);
+              if (insertErr) {
+                console.error('Real estate insert error:', insertErr);
+                throw new Error(`Real estate listing failed: ${insertErr.message}`);
+              }
+            } else if (item.id) {
+              const { error: updateErr } = await supabase.from('real_estate_listings').update(row).eq('id', item.id);
+              if (updateErr) {
+                console.error('Real estate update error:', updateErr);
+                throw new Error(`Real estate listing update failed: ${updateErr.message}`);
+              }
+            }
+          }
+          console.log('All real estate listings processed.');
+        } catch (reErr: any) {
+          console.error('Real estate listings save error:', reErr);
+          setModal({
+            isOpen: true,
+            title: 'Real Estate Save Error',
+            message: reErr?.message || 'Failed to save real estate listings. Check that the real_estate_listings table exists and RLS allows insert/update.',
+            onConfirm: () => {},
+          });
+          setIsSaving(false);
+          setSubmitting(false);
+          return;
+        }
       } else {
-        // If category is not Restaurant, Retail, or Car Dealership, clear associated items
+        // If category is not Restaurant, Retail, Car Dealership, or Real Estate, clear associated items
         if (businessId) {
           console.log('Category changed, clearing associated dynamic items for businessId:', businessId);
-          // Clear menu items
-          const { error: deleteMenuItemsError } = await supabase
-            .from('menu_items')
-            .delete()
-            .eq('business_id', businessId);
+          const { error: deleteMenuItemsError } = await supabase.from('menu_items').delete().eq('business_id', businessId);
           if (deleteMenuItemsError) console.error('Error clearing menu items:', deleteMenuItemsError);
-          else console.log('Successfully cleared all menu items for businessId:', businessId);
-
-          // Clear retail items
-          const { error: deleteRetailItemsError } = await supabase
-            .from('retail_items')
-            .delete()
-            .eq('business_id', businessId);
+          const { error: deleteRetailItemsError } = await supabase.from('retail_items').delete().eq('business_id', businessId);
           if (deleteRetailItemsError) console.error('Error clearing retail items:', deleteRetailItemsError);
-          else console.log('Successfully cleared all retail items for businessId:', businessId);
-
-          // Clear dealership items
-          const { error: deleteDealershipItemsError } = await supabase
-            .from('dealerships')
-            .delete()
-            .eq('business_id', businessId);
+          const { error: deleteDealershipItemsError } = await supabase.from('dealerships').delete().eq('business_id', businessId);
           if (deleteDealershipItemsError) console.error('Error clearing dealership items:', deleteDealershipItemsError);
-          else console.log('Successfully cleared all dealership items for businessId:', businessId);
+          try {
+            await supabase.from('real_estate_listings').delete().eq('business_id', businessId);
+          } catch (_) {}
         }
       }
 
@@ -1809,7 +2042,7 @@ export default function EditBusinessPage() {
 
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
-    type: 'menu' | 'car' | 'retail';
+    type: 'menu' | 'car' | 'retail' | 'real_estate';
     index: number;
   }>({ isOpen: false, type: 'menu', index: -1 });
 
@@ -1863,22 +2096,30 @@ export default function EditBusinessPage() {
         case 'retail': {
           const item = form.retailItems[deleteModal.index];
           if (!item._isNew) {
-            // Delete from database
-            const { error } = await supabase
-              .from('retail_items')
-              .delete()
-              .eq('id', item.id);
-            
-            if (error) {
-              console.error('Retail item delete error:', error);
-              throw error;
-            }
+            const { error } = await supabase.from('retail_items').delete().eq('id', item.id);
+            if (error) { console.error('Retail item delete error:', error); throw error; }
           }
-          // Remove from form state
           setForm((prevForm) => {
             const updatedItems = [...prevForm.retailItems];
             updatedItems.splice(deleteModal.index, 1);
             return { ...prevForm, retailItems: updatedItems };
+          });
+          break;
+        }
+        case 'real_estate': {
+          const item = form.realEstateListings[deleteModal.index];
+          if (!item._isNew) {
+            try {
+              const { error } = await supabase.from('real_estate_listings').delete().eq('id', item.id);
+              if (error) { console.error('Real estate listing delete error:', error); throw error; }
+            } catch (e) {
+              console.warn('Real estate listing delete skipped (table may not exist):', e);
+            }
+          }
+          setForm((prevForm) => {
+            const updatedItems = [...prevForm.realEstateListings];
+            updatedItems.splice(deleteModal.index, 1);
+            return { ...prevForm, realEstateListings: updatedItems };
           });
           break;
         }
@@ -1891,10 +2132,16 @@ export default function EditBusinessPage() {
     }
   };
 
-  if (!form.business_name && !businessId && !authReady) { // More robust check for loading
+  if (!form.business_name && !businessId && !authReady) {
     return (
-      <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-        <div className="text-xl font-semibold">Loading business data...</div>
+      <div className="flex justify-center items-center min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300">
+        <div className="flex flex-col items-center gap-3">
+          <svg className="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Loading business data...</span>
+        </div>
       </div>
     );
   }
@@ -1912,7 +2159,7 @@ export default function EditBusinessPage() {
 
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4 sm:p-6 lg:p-8 font-inter">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 sm:p-6 lg:p-8 font-inter">
       <CustomModal
         isOpen={modal.isOpen}
         title={modal.title}
@@ -1941,121 +2188,108 @@ export default function EditBusinessPage() {
         onConfirm={handleDeleteConfirm}
       />
 
-      <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sm:p-8">
-        <h1 className="text-3xl font-bold text-center mb-8 text-blue-600 dark:text-blue-400">Edit Business Details</h1>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="max-w-4xl mx-auto bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200/80 dark:border-slate-700/80 overflow-hidden">
+        <div className="px-6 sm:px-8 pt-8 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Edit Business Details</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Update your business information and listings.</p>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-8">
           {/* Plan Status Section */}
           {planStatus.plan && (
-            <section className="p-6 border-2 border-blue-200 dark:border-blue-700 rounded-lg shadow-sm bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
-                    <Package size={24} className="text-blue-600 dark:text-blue-400" />
-                    Current Plan: <span className="text-blue-600 dark:text-blue-400 capitalize">{planStatus.plan}</span>
-                  </h2>
-                  {planStatus.plan_expires_at && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Expires: <span className="font-medium">{new Date(planStatus.plan_expires_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                    </p>
-                  )}
+            <section className="rounded-2xl bg-gradient-to-br from-indigo-50 to-slate-50 dark:from-indigo-950/30 dark:to-slate-900/50 border border-indigo-100/80 dark:border-indigo-900/50 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setPlanCardExpanded((prev) => !prev)}
+                className="w-full p-6 flex items-center justify-between flex-wrap gap-4 text-left hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20 transition-colors"
+                aria-expanded={planCardExpanded}
+              >
+                <div className="flex items-center gap-3">
+                  <Package size={22} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                      Current Plan: <span className="text-indigo-600 dark:text-indigo-400 capitalize">{planStatus.plan}</span>
+                    </h2>
+                    {planStatus.plan_expires_at && (
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                        Expires <span className="font-medium text-slate-700 dark:text-slate-300">{new Date(planStatus.plan_expires_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                      </p>
+                    )}
+                  </div>
+                  <ChevronDown
+                    size={20}
+                    className={`text-slate-500 dark:text-slate-400 shrink-0 transition-transform duration-200 ${planCardExpanded ? 'rotate-180' : ''}`}
+                  />
                 </div>
                 <button
                   type="button"
-                  onClick={() => router.push('/business/plan')}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 text-sm font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push('/business/plan');
+                  }}
+                  className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 active:scale-[0.98] transition-all duration-200 shadow-sm"
                 >
                   Upgrade Plan
                 </button>
-              </div>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-blue-200 dark:border-blue-700">
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Gallery Images</div>
-                  <div className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                    {combinedGalleryImages.length} / {planLimits.max_gallery_images}
-                  </div>
+              </button>
+              {planCardExpanded && (
+              <div className="px-6 pb-6 pt-0 space-y-5 border-t border-indigo-100/80 dark:border-indigo-900/50">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-4">
+                <div className="bg-white/80 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Gallery</div>
+                  <div className="text-xl font-bold text-slate-800 dark:text-slate-100 tabular-nums">{combinedGalleryImages.length}<span className="text-slate-400 dark:text-slate-500 font-normal">/{planLimits.max_gallery_images}</span></div>
                 </div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Menu Items</div>
-                  <div className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                    {form.menu.length} / {planLimits.max_menu_items}
-                  </div>
+                <div className="bg-white/80 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Menu</div>
+                  <div className="text-xl font-bold text-slate-800 dark:text-slate-100 tabular-nums">{form.menu.length}<span className="text-slate-400 dark:text-slate-500 font-normal">/{planLimits.max_menu_items}</span></div>
                 </div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Retail Items</div>
-                  <div className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                    {form.retailItems.length} / {planLimits.max_retail_items}
-                  </div>
+                <div className="bg-white/80 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Retail</div>
+                  <div className="text-xl font-bold text-slate-800 dark:text-slate-100 tabular-nums">{form.retailItems.length}<span className="text-slate-400 dark:text-slate-500 font-normal">/{planLimits.max_retail_items}</span></div>
                 </div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Car Listings</div>
-                  <div className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                    {form.carListings.length} / {planLimits.max_car_listings}
-                  </div>
+                <div className="bg-white/80 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Dealership</div>
+                  <div className="text-xl font-bold text-slate-800 dark:text-slate-100 tabular-nums">{form.carListings.length}<span className="text-slate-400 dark:text-slate-500 font-normal">/{planLimits.max_car_listings}</span></div>
+                </div>
+                <div className="bg-white/80 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Real Estate</div>
+                  <div className="text-xl font-bold text-slate-800 dark:text-slate-100 tabular-nums">{form.realEstateListings.length}<span className="text-slate-400 dark:text-slate-500 font-normal">/{planLimits.max_real_estate_listings}</span></div>
                 </div>
               </div>
-              
-              {/* Plan Features */}
-              <div className="mt-4 pt-4 border-t border-blue-200 dark:border-blue-700">
-                <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Plan Features:</div>
-                <div className="flex flex-wrap gap-3">
-                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${
-                    planFeatures.allow_social_links 
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' 
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                  }`}>
-                    {planFeatures.allow_social_links ? '✓' : '✗'} Social Links
-                  </div>
-                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${
-                    planFeatures.allow_whatsapp 
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' 
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                  }`}>
-                    {planFeatures.allow_whatsapp ? '✓' : '✗'} WhatsApp
-                  </div>
-                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${
-                    planFeatures.allow_promoted 
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' 
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                  }`}>
-                    {planFeatures.allow_promoted ? '✓' : '✗'} Promoted
-                  </div>
-                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium ${
-                    planFeatures.allow_qr 
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' 
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                  }`}>
-                    {planFeatures.allow_qr ? '✓' : '✗'} QR Code
-                  </div>
+              <div className="pt-4 border-t border-indigo-100/80 dark:border-indigo-900/50">
+                <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Plan features</div>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { key: 'social', label: 'Social Links', on: planFeatures.allow_social_links },
+                    { key: 'whatsapp', label: 'WhatsApp', on: planFeatures.allow_whatsapp },
+                    { key: 'promoted', label: 'Promoted', on: planFeatures.allow_promoted },
+                    { key: 'qr', label: 'QR Code', on: planFeatures.allow_qr },
+                  ].map(({ key, label, on }) => (
+                    <span key={key} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${on ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200' : 'bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400'}`}>
+                      {on ? '✓' : '—'} {label}
+                    </span>
+                  ))}
                   {planStatus.plan && planStatus.plan !== 'free' && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
-                      ✓ Custom Website Link
-                    </div>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200">✓ Custom Website</span>
                   )}
                   {planStatus.plan && (planStatus.plan === 'growth' || planStatus.plan === 'premium') && (
                     <>
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
-                        ✓ Customer Notifications
-                      </div>
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
-                        ✓ Business Analytics
-                      </div>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200">✓ Notifications</span>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200">✓ Analytics</span>
                     </>
                   )}
                   {planStatus.plan && planStatus.plan === 'premium' && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
-                      ✓ Advertising & Promotion
-                    </div>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200">✓ Advertising</span>
                   )}
                 </div>
               </div>
+              </div>
+              )}
             </section>
           )}
 
           {/* General Business Information */}
-          <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Basic Information</h2>
+          <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Basic Information</h2>
             <FormInput
               name="business_name"
               value={form.business_name}
@@ -2072,44 +2306,93 @@ export default function EditBusinessPage() {
               icon={Info}
             />
             <div className="flex items-center justify-between text-xs">
-              <span className={isDescriptionTooLong ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'}>
+              <span className={isDescriptionTooLong ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}>
                 {descriptionCount}/{descriptionLimit}
               </span>
               {isDescriptionTooLong && (
-                <span className="text-red-600">Description exceeds 120 characters.</span>
+                <span className="text-red-600 dark:text-red-400">Description exceeds 120 characters.</span>
               )}
             </div>
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Business Category</label>
-              <div className="relative">
-                <select
-                  id="category"
-                  name="category"
-                  value={form.category}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 pr-10"
+              <label htmlFor="category" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Business Category</label>
+              <button
+                type="button"
+                id="category"
+                onClick={() => setCategoryPickerOpen(true)}
+                className="w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl text-left focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition duration-200 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 flex items-center justify-between gap-2"
+              >
+                <span className="truncate">
+                  {form.category
+                    ? `${businessTypes.find((t) => t.value === form.category)?.icon ?? ''} ${businessTypes.find((t) => t.value === form.category)?.label ?? form.category}`
+                    : 'Select a category'}
+                </span>
+                <ChevronDown size={18} className="text-slate-500 dark:text-slate-400 shrink-0" />
+              </button>
+
+              {/* Category picker modal – portaled so it stays in viewport, no scroll to find it */}
+              {categoryPickerOpen && typeof document !== 'undefined' && createPortal(
+                <div
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Choose business category"
+                  className="fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-sm overflow-y-auto"
+                  style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+                  onClick={() => setCategoryPickerOpen(false)}
                 >
-                  <option value="" disabled>Select a category</option>
-                  {businessTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.icon} {type.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
-                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                  </svg>
-                </div>
-              </div>
+                  <div
+                    className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-xl overflow-hidden flex flex-col my-auto max-h-[85vh]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Business Category</h3>
+                      <button
+                        type="button"
+                        onClick={() => setCategoryPickerOpen(false)}
+                        className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        aria-label="Close"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                    <div className="overflow-y-auto p-3 sm:p-4 space-y-2 flex-1 min-h-0">
+                      {businessTypes.map((type) => {
+                        const isSelected = form.category === type.value;
+                        return (
+                          <button
+                            key={type.value}
+                            type="button"
+                            onClick={() => {
+                              const normalizedNext = normalizeBusinessCategory(type.value);
+                              const normalizedCurrent = normalizeBusinessCategory(form.category);
+                              if (normalizedNext !== normalizedCurrent) {
+                                setCategoryChangeModal({ isOpen: true, nextValue: normalizedNext });
+                              }
+                              setCategoryPickerOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-4 py-3.5 sm:py-4 rounded-xl text-left transition-colors border-2 ${
+                              isSelected
+                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-200'
+                                : 'border-transparent bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
+                            }`}
+                          >
+                            <span className="text-xl shrink-0" aria-hidden>{type.icon}</span>
+                            <span className="text-sm font-medium">{type.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>,
+                document.body
+              )}
             </div>
           </section>
 
           {/* Contact Information */}
-          <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Contact Information</h2>
+          <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Contact Information</h2>
             <div>
-              <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                 <Phone className="h-4 w-4" />
                 Phone Number
               </label>
@@ -2124,8 +2407,8 @@ export default function EditBusinessPage() {
             {planFeatures.allow_whatsapp ? (
               <FormInput name="whatsapp" value={form.whatsapp} onChange={handleChange} placeholder="WhatsApp Number (optional)" type="tel" icon={MessageSquare} />
             ) : (
-              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+              <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200/80 dark:border-amber-800/50">
+                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
                   <Info size={18} />
                   <span className="text-sm font-medium">WhatsApp is not available on your current plan. Upgrade to enable this feature.</span>
                 </div>
@@ -2134,13 +2417,13 @@ export default function EditBusinessPage() {
             <FormInput name="website" value={form.website} onChange={handleChange} placeholder="Website URL" type="url" icon={ExternalLink} />
           </section>
 
-          {/* Spoken languages (optional) – helps users find businesses that speak their language */}
-          <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
-              <Languages className="h-6 w-6 text-indigo-600" />
-              Spoken languages (optional)
+          {/* Spoken languages (optional) */}
+          <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1 flex items-center gap-2">
+              <Languages className="h-5 w-5 text-indigo-500" />
+              Spoken languages
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
               Select languages spoken at your business. Customers searching in these languages may see you at the top (premium).
             </p>
             <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
@@ -2149,10 +2432,10 @@ export default function EditBusinessPage() {
                 return (
                   <label
                     key={lang.code}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm cursor-pointer transition-all duration-200 ${
                       selected
-                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-                        : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-300'
+                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-200 shadow-sm'
+                        : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-500'
                     }`}
                   >
                     <input
@@ -2175,7 +2458,7 @@ export default function EditBusinessPage() {
               {(form.spoken_languages || []).filter((c) => !predefinedLanguageCodes.has(c)).map((custom) => (
                 <span
                   key={custom}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-1.5 text-sm text-slate-700 dark:text-slate-300"
                 >
                   <span aria-hidden>🌐</span>
                   <span>{custom}</span>
@@ -2206,7 +2489,7 @@ export default function EditBusinessPage() {
                   }
                 }}
                 placeholder="Add another language"
-                className="rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm w-48 text-gray-800 dark:text-gray-200"
+                className="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-sm w-48 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
               <button
                 type="button"
@@ -2217,7 +2500,7 @@ export default function EditBusinessPage() {
                     setNewLanguageInput('');
                   }
                 }}
-                className="rounded-lg bg-gray-200 dark:bg-gray-600 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500"
+                className="rounded-xl bg-slate-100 dark:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
               >
                 Add
               </button>
@@ -2225,10 +2508,10 @@ export default function EditBusinessPage() {
           </section>
 
           {/* Address */}
-          <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Address</h2>
+          <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Address</h2>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search address (suggestions as you type)</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Search address</label>
               <AddressAutocomplete
                 value={[form.address.street, form.address.city, form.address.state, form.address.zip, form.address.country].filter(Boolean).join(', ')}
                 onSelect={(result: AddressResult) => {
@@ -2245,30 +2528,25 @@ export default function EditBusinessPage() {
                 }}
                 placeholder="Type address, city, or ZIP..."
                 mode="full"
-                inputClassName="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-800"
+                inputClassName="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-4 py-2.5 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
             </div>
-            <FormInput name="address.street" value={form.address.street} onChange={handleChange} placeholder="Street Address" icon={MapPin} />
-            <FormInput name="address.city" value={form.address.city} onChange={handleChange} placeholder="City" />
-            <FormInput name="address.state" value={form.address.state} onChange={handleChange} placeholder="State/Province" />
-            <FormInput name="address.zip" value={form.address.zip} onChange={handleChange} placeholder="Zip/Postal Code" />
-            <FormInput name="address.country" value={form.address.country} onChange={handleChange} placeholder="Country" />
           </section>
 
           {/* Social Media */}
           {planFeatures.allow_social_links ? (
-            <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-              <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Social Media</h2>
+            <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Social Media</h2>
               <FormInput name="facebook" value={form.facebook} onChange={handleChange} placeholder="Facebook Profile URL" icon={Facebook} />
               <FormInput name="instagram" value={form.instagram} onChange={handleChange} placeholder="Instagram Profile URL" icon={Instagram} />
               <FormInput name="twitter" value={form.twitter} onChange={handleChange} placeholder="Twitter/X Profile URL" icon={Twitter} />
               <FormInput name="tiktok" value={form.tiktok} onChange={handleChange} placeholder="TikTok Profile URL" icon={Video} />
             </section>
           ) : (
-            <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-              <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Social Media</h2>
-              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+            <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Social Media</h2>
+              <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200/80 dark:border-amber-800/50">
+                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
                   <Info size={18} />
                   <span className="text-sm font-medium">Social media links are not available on your current plan. Upgrade to enable this feature.</span>
                 </div>
@@ -2277,12 +2555,12 @@ export default function EditBusinessPage() {
           )}
 
           {/* Business Hours */}
-          <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Business Hours</h2>
+          <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Business Hours</h2>
             {daysOfWeek.map(day => (
               <div key={day} className="grid grid-cols-2 gap-4 items-center">
-                <label className="text-gray-700 dark:text-gray-300 font-medium flex items-center">
-                  <ClockIcon size={18} className="mr-2 text-gray-500" />
+                <label className="text-slate-700 dark:text-slate-300 font-medium flex items-center">
+                  <ClockIcon size={18} className="mr-2 text-slate-500" />
                   {day}
                 </label>
                 <FormInput
@@ -2297,35 +2575,34 @@ export default function EditBusinessPage() {
           </section>
 
           {/* Logo Upload */}
-          <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">Business Logo</h2>
+          <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Business Logo</h2>
             <input
               type="file"
               accept="image/*"
               onChange={handleLogoChange}
               ref={fileInputRef} 
-              className="block w-full text-sm text-gray-900 dark:text-gray-100
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-md file:border-0
-                file:text-sm file:font-semibold
-                file:bg-blue-50 file:text-blue-700
-                hover:file:bg-blue-100 transition duration-200
-                dark:file:bg-blue-900 dark:file:text-blue-200 dark:hover:file:bg-blue-800"
+              className="block w-full text-sm text-slate-900 dark:text-slate-100
+                file:mr-4 file:py-2.5 file:px-4
+                file:rounded-xl file:border-0
+                file:text-sm file:font-medium
+                file:bg-indigo-50 file:text-indigo-700
+                hover:file:bg-indigo-100 transition duration-200
+                dark:file:bg-indigo-900/40 dark:file:text-indigo-200 dark:hover:file:bg-indigo-800/40"
             />
             {logoPreview && (
-              <div className="mt-4 flex items-center space-x-4">
-                <img src={logoPreview} alt="Logo Preview" className="w-24 h-24 object-contain rounded-md border border-gray-300 dark:border-gray-600 p-1" />
+              <div className="mt-4 flex items-center gap-4">
+                <img src={logoPreview} alt="Logo Preview" className="w-24 h-24 object-contain rounded-xl border border-slate-200 dark:border-slate-600 p-2 bg-slate-50 dark:bg-slate-800/50" />
                 <button
                   type="button"
                   onClick={() => {
                     setLogoPreview(null);
                     setForm((prevForm) => ({ ...prevForm, logo: null, _logoUrl: null }));
-                    // Safely clear file input value
                     if (fileInputRef.current) {
                       fileInputRef.current.value = '';
                     }
                   }}
-                  className="p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors duration-200"
+                  className="p-2.5 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
                 >
                   <Trash2 size={20} />
                 </button>
@@ -2334,29 +2611,26 @@ export default function EditBusinessPage() {
           </section>
 
           {/* Gallery Images Upload */}
-          <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
-              Gallery Images (Max {planLimits.max_gallery_images})
-              <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
-                ({combinedGalleryImages.length} / {planLimits.max_gallery_images})
-              </span>
+          <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">
+              Gallery <span className="text-slate-500 dark:text-slate-400 font-normal">({combinedGalleryImages.length} / {planLimits.max_gallery_images})</span>
             </h2>
             <input
               type="file"
               accept="image/*"
               multiple
               onChange={handleGalleryChange}
-              className="block w-full text-sm text-gray-900 dark:text-gray-100
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-md file:border-0
-                file:text-sm file:font-semibold
-                file:bg-blue-50 file:text-blue-700
-                hover:file:bg-blue-100 transition duration-200
-                dark:file:bg-blue-900 dark:file:text-blue-200 dark:hover:file:bg-blue-800"
+              className="block w-full text-sm text-slate-900 dark:text-slate-100
+                file:mr-4 file:py-2.5 file:px-4
+                file:rounded-xl file:border-0
+                file:text-sm file:font-medium
+                file:bg-indigo-50 file:text-indigo-700
+                hover:file:bg-indigo-100 transition duration-200
+                dark:file:bg-indigo-900/40 dark:file:text-indigo-200 dark:hover:file:bg-indigo-800/40"
             />
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {combinedGalleryImages.map((img: ImageFileObject, index: number) => (
-                <div key={img.id} className="relative group w-full h-24 sm:h-32 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                <div key={img.id} className="relative group w-full aspect-square max-h-32 bg-slate-100 dark:bg-slate-700/50 rounded-xl overflow-hidden border border-slate-200/60 dark:border-slate-600/60">
                   <img
                     src={img.preview}
                     alt={`Gallery Image ${index + 1}`}
@@ -2381,11 +2655,11 @@ export default function EditBusinessPage() {
 
           {/* Dynamic Sections based on Category */}
           {form.category === 'Restaurant' && (
-            <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-              <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4 flex justify-between items-center">
+            <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80 flex justify-between items-center">
                 <span>
                   Restaurant Menu Items
-                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+                  <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">
                     ({form.menu.length} / {planLimits.max_menu_items})
                   </span>
                 </span>
@@ -2393,13 +2667,13 @@ export default function EditBusinessPage() {
                   type="button"
                   onClick={addMenuItem}
                   disabled={form.menu.length >= planLimits.max_menu_items}
-                  className={`px-3 py-1 rounded-md transition-colors duration-200 flex items-center text-sm ${
+                  className={`px-4 py-2 rounded-xl transition-all duration-200 flex items-center text-sm font-medium ${
                     form.menu.length >= planLimits.max_menu_items
-                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                      : 'bg-green-600 text-white hover:bg-green-700'
+                      ? 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98]'
                   }`}
                 >
-                  <Plus size={16} className="mr-1" /> Add Menu Item
+                  <Plus size={16} className="mr-1.5" /> Add Menu Item
                 </button>
               </h2>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => handleDragEnd(event, 'menu')}>
@@ -2520,11 +2794,11 @@ export default function EditBusinessPage() {
           )}
 
           {form.category === 'Car Dealership' && (
-            <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-              <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4 flex justify-between items-center">
+            <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80 flex justify-between items-center">
                 <span>
-                  Car Listings
-                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+                  Dealership Listings
+                  <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">
                     ({form.carListings.length} / {planLimits.max_car_listings})
                   </span>
                 </span>
@@ -2532,19 +2806,19 @@ export default function EditBusinessPage() {
                   type="button"
                   onClick={addCarListing}
                   disabled={form.carListings.length >= planLimits.max_car_listings}
-                  className={`px-3 py-1 rounded-md transition-colors duration-200 flex items-center text-sm ${
+                  className={`px-4 py-2 rounded-xl transition-all duration-200 flex items-center text-sm font-medium ${
                     form.carListings.length >= planLimits.max_car_listings
-                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                      : 'bg-green-600 text-white hover:bg-green-700'
+                      ? 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98]'
                   }`}
                 >
-                  <Plus size={16} className="mr-1" /> Add Car Listing
+                  <Plus size={16} className="mr-1.5" /> Add Listing
                 </button>
               </h2>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => handleDragEnd(event, 'carListings')}>
                 <SortableContext items={form.carListings.map((item: CarListingItem) => item.id)} strategy={verticalListSortingStrategy}>
                   {form.carListings.length === 0 && (
-                    <p className="text-gray-500 dark:text-gray-400 text-center py-4">No car listings added yet.</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-center py-4">No listings added yet.</p>
                   )}
                   {form.carListings.map((item: CarListingItem, index: number) => (
                     <SortableItem key={item.id} id={item.id}>
@@ -2556,11 +2830,11 @@ export default function EditBusinessPage() {
                               type="button"
                               onClick={() => removeCarListing(index)}
                               className="absolute top-2 right-2 p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors duration-200 z-10"
-                              title="Remove car listing"
+                              title="Remove listing"
                             >
                               <X size={24} />
                             </button>
-                            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-3">Car #{index + 1}</h3>
+                            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-3">Listing #{index + 1}</h3>
                             <FormInput
                               name="title"
                               value={item.title}
@@ -2611,7 +2885,7 @@ export default function EditBusinessPage() {
                               <p className="line-clamp-2">{item.description}</p>
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Car Images (Max 8)</label>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Images (Max 8)</label>
                               <input
                                 type="file"
                                 accept="image/*"
@@ -2630,7 +2904,7 @@ export default function EditBusinessPage() {
                                     <div key={image.id || imageIndex} className="relative group">
                                       <img
                                         src={getImageUrl(image, 'car_listing')}
-                                        alt={`Car image ${imageIndex + 1}`}
+                                        alt={`Listing image ${imageIndex + 1}`}
                                         className="w-full h-24 object-cover rounded-lg"
                                         onError={(e) => {
                                           e.currentTarget.src = 'https://placehold.co/300x200/cccccc/333333?text=Image+Not+Found';
@@ -2675,12 +2949,156 @@ export default function EditBusinessPage() {
             </section>
           )}
 
+          {form.category === 'Real Estate' && (
+            <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80 flex justify-between items-center">
+                <span>
+                  Real Estate Listings
+                  <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">
+                    ({form.realEstateListings.length} / {planLimits.max_real_estate_listings})
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={addRealEstateListing}
+                  disabled={form.realEstateListings.length >= planLimits.max_real_estate_listings}
+                  className={`px-4 py-2 rounded-xl transition-all duration-200 flex items-center text-sm font-medium ${
+                    form.realEstateListings.length >= planLimits.max_real_estate_listings
+                      ? 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98]'
+                  }`}
+                >
+                  <Plus size={16} className="mr-1.5" /> Add Listing
+                </button>
+              </h2>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => handleDragEnd(event, 'realEstateListings')}>
+                <SortableContext items={form.realEstateListings.map((item: RealEstateItem) => item.id)} strategy={verticalListSortingStrategy}>
+                  {form.realEstateListings.length === 0 && (
+                    <p className="text-gray-500 dark:text-gray-400 text-center py-4">No real estate listings yet. Add a property to get started.</p>
+                  )}
+                  {form.realEstateListings.map((item: RealEstateItem, index: number) => (
+                    <SortableItem key={item.id} id={item.id}>
+                      <div className={`relative p-4 border rounded-lg mb-4 shadow-sm transition-all duration-300
+                          ${item._isHiding ? 'opacity-50 blur-sm pointer-events-none' : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700'}`}>
+                        {!item._isHiding ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => removeRealEstateListing(index)}
+                              className="absolute top-2 right-2 p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors duration-200 z-10"
+                              title="Remove listing"
+                            >
+                              <X size={24} />
+                            </button>
+                            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-3">Listing #{index + 1}</h3>
+                            <FormInput
+                              name="title"
+                              value={item.title}
+                              onChange={(e) => handleRealEstateItemChange(index, 'title', e.target.value)}
+                              placeholder="Property title (e.g., 3BR House with Garden)"
+                              icon={Building}
+                            />
+                            <FormInput
+                              name="price"
+                              value={formatCurrencyDisplay(item.price)}
+                              onChange={(e) => handleRealEstateItemChange(index, 'price', normalizeNumericInput(e.target.value, true))}
+                              placeholder="Price"
+                              type="text"
+                              icon={DollarSign}
+                            />
+                            <FormInput
+                              name="propertyType"
+                              value={item.propertyType}
+                              onChange={(e) => handleRealEstateItemChange(index, 'propertyType', e.target.value)}
+                              placeholder="Type (e.g., House, Apartment, Land)"
+                              icon={Tag}
+                            />
+                            <FormInput
+                              name="address"
+                              value={item.address}
+                              onChange={(e) => handleRealEstateItemChange(index, 'address', e.target.value)}
+                              placeholder="Address"
+                              icon={MapPin}
+                            />
+                            <FormTextarea
+                              name="description"
+                              value={item.description}
+                              onChange={(e) => handleRealEstateItemChange(index, 'description', e.target.value)}
+                              placeholder="Property description and features"
+                              rows={3}
+                              icon={Info}
+                            />
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Images</label>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e) => handleRealEstateItemChange(index, 'images', e.target.files)}
+                                className="block w-full text-sm text-gray-500
+                                  file:mr-4 file:py-2 file:px-4
+                                  file:rounded-md file:border-0
+                                  file:text-sm file:font-semibold
+                                  file:bg-blue-50 file:text-blue-700
+                                  hover:file:bg-blue-100"
+                              />
+                              {item.images && item.images.length > 0 && (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {item.images.map((img: ImageFileObject) => (
+                                    <div key={img.id} className="relative group w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-md overflow-hidden">
+                                      <img
+                                        src={getImageUrl(img, 'real_estate_item')}
+                                        alt="Listing"
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          e.currentTarget.src = 'https://placehold.co/300x200/cccccc/333333?text=Image+Not+Found';
+                                          e.currentTarget.onerror = null;
+                                        }}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => removeRealEstateItemImage(index, img.id)}
+                                        className="absolute top-0 right-0 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
+                                        title="Remove image"
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-center py-8 text-red-500 font-semibold">
+                            This item is marked for deletion.
+                            <button
+                              type="button"
+                              onClick={() => setForm((prevForm) => {
+                                const updated = [...prevForm.realEstateListings];
+                                updated[index] = { ...updated[index], _isDeleted: false, _isHiding: false };
+                                return { ...prevForm, realEstateListings: updated };
+                              })}
+                              className="ml-2 text-blue-600 hover:underline"
+                            >
+                              Undo
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </SortableItem>
+                  ))}
+                </SortableContext>
+              </DndContext>
+            </section>
+          )}
+
           {isRetailCategory(form.category) && (
-            <section className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm space-y-4">
-              <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4 flex justify-between items-center">
+            <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80 flex justify-between items-center">
                 <span>
                   Retail Items
-                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+                  <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">
                     ({form.retailItems.length} / {planLimits.max_retail_items})
                   </span>
                 </span>
@@ -2688,13 +3106,13 @@ export default function EditBusinessPage() {
                   type="button"
                   onClick={addRetailItem}
                   disabled={form.retailItems.length >= planLimits.max_retail_items}
-                  className={`px-3 py-1 rounded-md transition-colors duration-200 flex items-center text-sm ${
+                  className={`px-4 py-2 rounded-xl transition-all duration-200 flex items-center text-sm font-medium ${
                     form.retailItems.length >= planLimits.max_retail_items
-                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                      : 'bg-green-600 text-white hover:bg-green-700'
+                      ? 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98]'
                   }`}
                 >
-                  <Plus size={16} className="mr-1" /> Add Retail Item
+                  <Plus size={16} className="mr-1.5" /> Add Retail Item
                 </button>
               </h2>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => handleDragEnd(event, 'retailItems')}>
@@ -2815,17 +3233,17 @@ export default function EditBusinessPage() {
           )}
 
           {/* Submit Button */}
-          <div className="flex justify-center">
+          <div className="flex justify-center pt-4">
             <button
               type="submit"
-              className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition-all duration-300 transform hover:scale-105"
+              className="min-w-[200px] px-8 py-3.5 bg-indigo-600 text-white font-semibold rounded-xl shadow-lg shadow-indigo-500/25 hover:bg-indigo-700 hover:shadow-indigo-500/30 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 active:scale-[0.98] transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100"
               disabled={isSubmitting}
             >
               {isSaving ? (
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
                   Saving...
                 </span>

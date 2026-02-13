@@ -51,6 +51,7 @@ interface Business {
   max_menu_items?: number | null;
   max_retail_items?: number | null;
   max_car_listings?: number | null;
+  max_real_estate_listings?: number | null;
 
   allow_social_links?: boolean | null;
   allow_whatsapp?: boolean | null;
@@ -118,7 +119,7 @@ export default function AdminApprovalsPage() {
         moderation_status, lifecycle_status, is_archived, verified_info,
         admin_note, note_history, updated_at,
         plan, plan_expires_at,
-        max_gallery_images, max_menu_items, max_retail_items, max_car_listings,
+        max_gallery_images, max_menu_items, max_retail_items, max_car_listings, max_real_estate_listings,
         allow_social_links, allow_whatsapp, allow_promoted, allow_reviews, allow_qr,
         admin_added_at
       `
@@ -367,7 +368,20 @@ function BusinessCard({
 
     const success = await saveUpdates(updates, hasNote ? noteText : undefined);
 
-    if (success) toast.success(`${action} successful`);
+    if (success) {
+      if (newStatus === 'approved') {
+        try {
+          await fetch('/api/admin/send-approval-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'business', id: biz.id }),
+          });
+        } catch {
+          // Non-blocking: approval succeeded; notification is best-effort
+        }
+      }
+      toast.success(`${action} successful`);
+    }
   };
 
   const confirmAndDelete = async () => {
@@ -522,7 +536,7 @@ function BusinessCard({
         {biz.phone && <p>📞 {biz.phone}</p>}
         {biz.email && <p>✉️ {biz.email}</p>}
         <p>Visibility: <span className="font-medium">{getUiStatus(biz)}</span></p>
-        <p>Limits: Gallery {biz.max_gallery_images ?? 0} · Menu {biz.max_menu_items ?? 0} · Retail {biz.max_retail_items ?? 0} · Cars {biz.max_car_listings ?? 0}</p>
+        <p>Limits: Gallery {biz.max_gallery_images ?? 0} · Menu {biz.max_menu_items ?? 0} · Retail {biz.max_retail_items ?? 0} · Cars {biz.max_car_listings ?? 0} · Real estate {biz.max_real_estate_listings ?? 0}</p>
       </div>
 
       {/* PLAN CONTROL */}

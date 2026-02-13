@@ -137,6 +137,9 @@ export default function BusinessDashboardPage() {
     logo_url?: string | null;
     lat?: number | null;
     lon?: number | null;
+    profile_template?: string | null;
+    theme?: string | null;
+    accent_color?: string | null;
   } | null>(null);
   const [favorites, setFavorites] = useState<FavoriteBusiness[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(true);
@@ -237,7 +240,7 @@ export default function BusinessDashboardPage() {
 
         const { data, error } = await supabase
           .from('businesses')
-          .select('id, business_name, slug, moderation_status, lifecycle_status, is_archived, plan, plan_selected_at, trial_end, plan_expires_at, logo_url, lat, lon')
+          .select('id, business_name, slug, moderation_status, lifecycle_status, is_archived, plan, plan_selected_at, trial_end, plan_expires_at, logo_url, lat, lon, profile_template, theme, accent_color')
           .eq('owner_id', userId)
           .maybeSingle();
 
@@ -264,6 +267,9 @@ export default function BusinessDashboardPage() {
             logo_url: data.logo_url ?? null,
             lat: typeof data.lat === 'number' ? data.lat : null,
             lon: typeof data.lon === 'number' ? data.lon : null,
+            profile_template: data.profile_template ? String(data.profile_template) : null,
+            theme: data.theme ? String(data.theme) : null,
+            accent_color: data.accent_color ? String(data.accent_color) : null,
           });
         }
 

@@ -29,7 +29,7 @@ configPromise.then(function (config) {
   messaging.onBackgroundMessage(function (payload) {
     var title = (payload.notification && payload.notification.title) || payload.data?.title || 'Hanar';
     var body = (payload.notification && payload.notification.body) || payload.data?.body || '';
-    var icon = (payload.notification && payload.notification.icon) || payload.data?.icon || '/hanar-logo.png';
+    var icon = (payload.notification && payload.notification.icon) || payload.data?.icon || '/hanar.logo.png';
     var url = payload.data?.url || '/';
     var options = {
       body: body || 'New notification',
@@ -45,12 +45,13 @@ configPromise.then(function (config) {
 
 self.addEventListener('notificationclick', function (event) {
   event.notification.close();
-  var url = event.notification.data?.url || '/';
+  var path = event.notification.data?.url || '/';
+  var url = new URL(path, self.location.origin).href;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
       for (var i = 0; i < clientList.length; i++) {
         var client = clientList[i];
-        if (client.url && 'focus' in client) {
+        if (client.url && 'focus' in client && typeof client.navigate === 'function') {
           client.navigate(url);
           return client.focus();
         }

@@ -9,9 +9,10 @@ import {
     FaInstagram, FaFacebook, FaTiktok, FaGlobe,
     FaShareAlt, FaArrowLeft, FaArrowRight,
     FaPhone, FaEnvelope, FaMapPin,
-    FaWhatsapp, FaTwitter, FaDirections,
+    FaWhatsapp, FaDirections,
     FaHeart, FaRegHeart
 } from 'react-icons/fa'; // These imports remain as per your original code
+import { FaXTwitter } from 'react-icons/fa6';
 import { motion } from 'framer-motion'; // This import remains as per your original code
 import Script from 'next/script'; // This import remains as per your original code
 import Image from 'next/image'; // Added for Image component
@@ -20,7 +21,8 @@ import {
     Car, Calendar, Gauge, HeartHandshake,
     Store as StoreIcon,
     ClipboardList as ClipboardListIcon,
-    X, DollarSign, Eye, ChevronLeft, ChevronRight, Tag // Added Tag for retail item category in modal
+    Home, MapPin,
+    X, DollarSign, Eye, ChevronLeft, ChevronRight, ChevronDown, Tag // Added Tag for retail item category in modal
 } from 'lucide-react'; // These imports remain as per your original code
 
 import { cn } from '@/lib/utils'; // This import remains as per your original code
@@ -95,6 +97,16 @@ interface RetailItem {
     category: string;
 }
 
+interface RealEstateListing {
+    id: string;
+    title: string;
+    price: string;
+    propertyType: string;
+    address: string;
+    description: string;
+    images: string[];
+}
+
 interface ModalProps {
     title: string;
     onClose: () => void;
@@ -132,8 +144,8 @@ const Modal = ({ title, onClose, children }: ModalProps) => {
 
 // --- NEW DetailedViewModal Component ---
 interface DetailedViewModalProps {
-    item: MenuItem | CarListing | RetailItem; // Union type for item data
-    type: 'menu' | 'car' | 'retail';
+    item: MenuItem | CarListing | RetailItem | RealEstateListing;
+    type: 'menu' | 'car' | 'retail' | 'real_estate';
     onClose: () => void;
 }
 
@@ -147,6 +159,7 @@ const DetailedViewModal = ({ item, type, onClose }: DetailedViewModalProps) => {
     const modalTitle =
         type === 'menu' ? (item as MenuItem).name :
         type === 'car' ? (item as CarListing).title :
+        type === 'real_estate' ? (item as RealEstateListing).title :
         (item as RetailItem).name;
 
     useEffect(() => {
@@ -235,11 +248,11 @@ const DetailedViewModal = ({ item, type, onClose }: DetailedViewModalProps) => {
                         </div>
                     )}
 
-                    {/* Price for Menu and Retail Items */}
-                    {(type === 'menu' || type === 'retail') && (item as MenuItem | RetailItem).price && (
+                    {/* Price for Menu, Retail, and Real Estate Items */}
+                    {(type === 'menu' || type === 'retail' || type === 'real_estate') && (item as MenuItem | RetailItem | RealEstateListing).price && (
                         <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
                             <DollarSign size={18} className="text-gray-500" />
-                            <span className="text-gray-700 dark:text-gray-300">Price: ${(item as MenuItem | RetailItem).price}</span>
+                            <span className="text-gray-700 dark:text-gray-300">Price: ${(item as MenuItem | RetailItem | RealEstateListing).price}</span>
                         </div>
                     )}
 
@@ -272,6 +285,22 @@ const DetailedViewModal = ({ item, type, onClose }: DetailedViewModalProps) => {
                         <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
                             <Tag size={18} className="text-gray-500" />
                             <span className="text-gray-700 dark:text-gray-300">Category: {(item as RetailItem).category}</span>
+                        </div>
+                    )}
+
+                    {/* Real Estate Address */}
+                    {type === 'real_estate' && (item as RealEstateListing).address && (
+                        <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                            <MapPin size={18} className="text-gray-500" />
+                            <span className="text-gray-700 dark:text-gray-300">{(item as RealEstateListing).address}</span>
+                        </div>
+                    )}
+
+                    {/* Real Estate Property Type */}
+                    {type === 'real_estate' && (item as RealEstateListing).propertyType && (
+                        <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                            <Home size={18} className="text-gray-500" />
+                            <span className="text-gray-700 dark:text-gray-300">Type: {(item as RealEstateListing).propertyType}</span>
                         </div>
                     )}
 
@@ -355,7 +384,7 @@ const BusinessMap = ({ address }: { address: BusinessType['address'] }) => {
     }, [initMap]);
 
     return (
-        <div className="pt-4 px-0">
+        <div className="w-full">
             {GOOGLE_MAPS_API_KEY && !isLoaded && (
                 <Script
                     src={`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMapCallback`}
@@ -368,8 +397,8 @@ const BusinessMap = ({ address }: { address: BusinessType['address'] }) => {
             <div
                 ref={mapRef}
                 className={cn(
-                    "w-full h-[200px] sm:h-[250px] rounded-xl shadow-lg",
-                    "overflow-hidden border border-gray-200 dark:border-gray-700",
+                    "w-full h-[200px] sm:h-[250px] rounded-none sm:rounded-b-xl",
+                    "overflow-hidden",
                     "transition-all duration-300",
                     !isLoaded ? "opacity-0" : "opacity-100"
                 )}
@@ -397,6 +426,7 @@ const BusinessProfilePage = () => {
     const [menu, setMenu] = useState<MenuItem[]>([]);
     const [carListings, setCarListings] = useState<CarListing[]>([]);
     const [retailItems, setRetailItems] = useState<RetailItem[]>([]);
+    const [realEstateListings, setRealEstateListings] = useState<RealEstateListing[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [isFavorited, setIsFavorited] = useState(false);
@@ -412,6 +442,7 @@ const BusinessProfilePage = () => {
     const [visibleMenuCount, setVisibleMenuCount] = useState(ITEMS_PER_BATCH);
     const [visibleCarCount, setVisibleCarCount] = useState(ITEMS_PER_BATCH);
     const [visibleRetailCount, setVisibleRetailCount] = useState(ITEMS_PER_BATCH);
+    const [visibleRealEstateCount, setVisibleRealEstateCount] = useState(ITEMS_PER_BATCH);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const loadMoreRef = useRef<HTMLDivElement>(null);
     const loadMoreTimerRef = useRef<number | null>(null);
@@ -421,20 +452,22 @@ const BusinessProfilePage = () => {
 
     // Add new state for detailed view of individual item cards
     const [selectedItemForDetails, setSelectedItemForDetails] = useState<{
-        type: 'menu' | 'car' | 'retail';
-        item: MenuItem | CarListing | RetailItem;
+        type: 'menu' | 'car' | 'retail' | 'real_estate';
+        item: MenuItem | CarListing | RetailItem | RealEstateListing;
     } | null>(null);
 
     useEffect(() => {
         setVisibleMenuCount(ITEMS_PER_BATCH);
         setVisibleCarCount(ITEMS_PER_BATCH);
         setVisibleRetailCount(ITEMS_PER_BATCH);
-    }, [menu.length, carListings.length, retailItems.length]);
+        setVisibleRealEstateCount(ITEMS_PER_BATCH);
+    }, [menu.length, carListings.length, retailItems.length, realEstateListings.length]);
 
     const hasMoreItems =
         visibleMenuCount < menu.length ||
         visibleCarCount < carListings.length ||
-        visibleRetailCount < retailItems.length;
+        visibleRetailCount < retailItems.length ||
+        visibleRealEstateCount < realEstateListings.length;
 
     useEffect(() => {
         if (!hasMoreItems || !loadMoreRef.current) return;
@@ -450,6 +483,7 @@ const BusinessProfilePage = () => {
                 setVisibleMenuCount((prev) => Math.min(prev + ITEMS_PER_BATCH, menu.length));
                 setVisibleCarCount((prev) => Math.min(prev + ITEMS_PER_BATCH, carListings.length));
                 setVisibleRetailCount((prev) => Math.min(prev + ITEMS_PER_BATCH, retailItems.length));
+                setVisibleRealEstateCount((prev) => Math.min(prev + ITEMS_PER_BATCH, realEstateListings.length));
                 window.setTimeout(() => {
                     if (loadMoreTimerRef.current) {
                         window.clearTimeout(loadMoreTimerRef.current);
@@ -462,7 +496,7 @@ const BusinessProfilePage = () => {
         );
         observer.observe(loadMoreRef.current);
         return () => observer.disconnect();
-    }, [hasMoreItems, menu.length, carListings.length, retailItems.length]);
+    }, [hasMoreItems, menu.length, carListings.length, retailItems.length, realEstateListings.length]);
 
     // Delete functions (UNCHANGED)
     const deleteMenuItem = async (itemId: string) => {
@@ -471,7 +505,7 @@ const BusinessProfilePage = () => {
         setDeleteLoading(itemId);
         try {
             const { error } = await supabase
-                .from('menuitems')
+                .from('menu_items')
                 .delete()
                 .eq('id', itemId)
                 .eq('business_id', business.id);
@@ -579,7 +613,6 @@ const BusinessProfilePage = () => {
                     .select('*')
                     .eq('slug', slug)
                     .in('moderation_status', ['active', 'on_hold'])
-                    .in('status', ['active', 'unclaimed'])
                     .eq('is_archived', false)
                     .neq('lifecycle_status', 'archived')
                     .single();
@@ -649,10 +682,11 @@ const BusinessProfilePage = () => {
                         body: JSON.stringify({ type: 'business', id: businessData.id }),
                     }).catch(() => {});
 
-                    const [carRes, menuRes, retailRes] = await Promise.all([
+                    const [carRes, menuRes, retailRes, realEstateRes] = await Promise.all([
                         supabase.from('dealerships').select('*').eq('business_id', businessData.id),
                         supabase.from('menu_items').select('*').eq('business_id', businessData.id),
                         supabase.from('retail_items').select('*').eq('business_id', businessData.id),
+                        supabase.from('real_estate_listings').select('*').eq('business_id', businessData.id),
                     ]);
 
                     if (carRes.error) {
@@ -743,6 +777,26 @@ const BusinessProfilePage = () => {
                             description: item.description || '',
                             category: item.category,
                             images: processDbImages(item.images, 'retail-items'),
+                        })));
+                    }
+
+                    if (realEstateRes.error) {
+                        console.error('Error fetching real estate listings:', realEstateRes.error);
+                        setRealEstateListings([]);
+                    } else {
+                        const sortedRealEstateData = (realEstateRes.data || []).slice().sort((a: any, b: any) => {
+                            const aTime = new Date(a.updated_at || a.created_at || 0).getTime();
+                            const bTime = new Date(b.updated_at || b.created_at || 0).getTime();
+                            return bTime - aTime;
+                        });
+                        setRealEstateListings(sortedRealEstateData.map((item: any) => ({
+                            id: item.id,
+                            title: item.title || '',
+                            price: item.price != null ? String(item.price) : '',
+                            propertyType: item.property_type || '',
+                            address: item.address || '',
+                            description: item.description || '',
+                            images: processDbImages(item.images, 'real-estate-listings'),
                         })));
                     }
 
@@ -982,7 +1036,7 @@ const BusinessProfilePage = () => {
             className="relative px-0 pt-0 pb-4 min-h-screen font-inter bg-gray-100 dark:bg-gray-900 overflow-x-clip lg:max-w-5xl lg:mx-auto"
         >
             {/* Hanar logo - back to businesses */}
-            <div className="sticky top-0 z-30 mb-0 py-3 px-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur border-b border-gray-200 dark:border-gray-700">
+            <div className="sticky top-0 z-30 mb-0 py-3 px-4 bg-blue-600 dark:bg-blue-800 backdrop-blur border-b border-blue-500 dark:border-blue-700">
                 <Link href="/businesses" className="inline-block" aria-label="Back to Hanar">
                     <img src="/hanar.logo.png" alt="Hanar" className="h-8 w-auto object-contain" />
                 </Link>
@@ -1048,7 +1102,7 @@ const BusinessProfilePage = () => {
                         {carListings.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {carListings.map((item) => (
-                                    <div key={item.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden flex flex-col">
+                                    <div key={item.id} className="bg-white dark:bg-gray-800 shadow-sm overflow-hidden flex flex-col">
                                         {item.images && item.images.length > 0 && item.images[0] && (
                                             <div className="w-full h-48 relative flex-shrink-0">
                                                 <img
@@ -1109,9 +1163,9 @@ const BusinessProfilePage = () => {
                     {retailItems.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {retailItems.map((item) => (
-                                <div key={item.id} className="bg-gray-100 dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden flex flex-col">
+                                <div key={item.id} className="bg-gray-100 dark:bg-gray-800 shadow-sm overflow-hidden flex flex-col">
                                     {item.images?.[0] && (
-                                        <div className="w-full h-48 relative flextake-shrink-0">
+                                        <div className="w-full h-48 relative flex-shrink-0">
                                             <img
                                                 src={item.images[0]}
                                                 alt={item.name}
@@ -1159,15 +1213,15 @@ const BusinessProfilePage = () => {
                 />
             )}
 
-            <motion.div className="w-full space-y-6 bg-gray-100 dark:bg-slate-900/80 backdrop-blur lg:px-6 lg:pt-4">
+            <motion.div className="w-full space-y-0 bg-gray-100 dark:bg-slate-900/80 backdrop-blur lg:px-6 lg:pt-4">
                 {business.moderation_status !== 'active' && (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                         Your business is currently pending approval. You can still view and edit your business profile and online
                         shop, but it will not be visible to other users until it has been approved.
                     </div>
                 )}
                 {/* Gallery + action bar - full width, buttons directly under gallery */}
-                <div className="relative left-1/2 -translate-x-1/2 w-screen max-w-none lg:static lg:left-0 lg:translate-x-0 lg:w-full lg:rounded-xl lg:overflow-hidden">
+                <div className="relative left-1/2 -translate-x-1/2 w-screen max-w-none lg:static lg:left-0 lg:translate-x-0 lg:w-full lg:overflow-hidden">
                     {business.images?.length ? (
                         <div
                             className="relative overflow-hidden w-full aspect-video lg:aspect-auto lg:h-[420px] flex items-center justify-center group bg-black/5 dark:bg-black/20"
@@ -1239,12 +1293,12 @@ const BusinessProfilePage = () => {
                     </div>
                 </div>
                 {/* Name + Description - scrolls away with page */}
-                <motion.div className="rounded-xl border-2 border-slate-400 dark:border-slate-500 shadow-md bg-white dark:bg-slate-900">
-                    <div className="rounded-[8px] p-4 sm:p-6 bg-white dark:bg-slate-900">
+                <motion.div className="border-t border-b border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900">
+                    <div className="p-4 sm:p-6 bg-white dark:bg-slate-900">
                         <div className="relative flex justify-between items-start flex-col sm:flex-row">
                             <div className="flex items-center gap-4 mb-0 sm:mb-0">
                                 {business.logo_url && (
-                                    <div className="w-24 sm:w-28 h-24 sm:h-28 flex-shrink-0 rounded-xl overflow-hidden shadow-md border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-gray-900">
+                                    <div className="w-24 sm:w-28 h-24 sm:h-28 flex-shrink-0 overflow-hidden shadow-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-gray-900">
                                         <img
                                             src={business.logo_url}
                                             alt="Business Logo"
@@ -1275,100 +1329,88 @@ const BusinessProfilePage = () => {
                         <p className="mt-2 font-normal text-[#444] dark:text-gray-300 leading-relaxed whitespace-pre-line">
                             {business.description}
                         </p>
+                        {(hasHours || hasSocials) && (
+                            <>
+                            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600 flex flex-wrap items-center gap-2">
+                                {hasHours && (
+                                    <>
+                                        <span className="inline-flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-200">
+                                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                            Today: <span className="font-semibold">{todayHours}</span>
+                                        </span>
+                                        <button
+                                            onClick={() => setShowHours((prev) => !prev)}
+                                            className="p-1 rounded-md bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-colors"
+                                            aria-label={showHours ? 'Hide hours' : 'View all hours'}
+                                        >
+                                            <ChevronDown size={16} className={cn('transition-transform', showHours && 'rotate-180')} />
+                                        </button>
+                                    </>
+                                )}
+                                {hasSocials && (
+                                    <span className="inline-flex items-center gap-8 rounded-lg bg-gray-100 dark:bg-gray-700 px-5 py-2">
+                                        {business.instagram && (<a href={business.instagram} target="_blank" rel="noopener noreferrer" className="text-[#E4405F] hover:opacity-80" aria-label="Instagram"><FaInstagram size={18} /></a>)}
+                                        {business.facebook && (<a href={business.facebook} target="_blank" rel="noopener noreferrer" className="text-[#1877F2] hover:opacity-80" aria-label="Facebook"><FaFacebook size={18} /></a>)}
+                                        {business.tiktok && (<a href={business.tiktok} target="_blank" rel="noopener noreferrer" className="text-gray-900 dark:text-gray-100 hover:opacity-80" aria-label="TikTok"><FaTiktok size={18} /></a>)}
+                                        {business.twitter && (<a href={business.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-900 dark:text-gray-100 hover:opacity-80" aria-label="X"><FaXTwitter size={18} /></a>)}
+                                    </span>
+                                )}
+                            </div>
+                            {hasHours && showHours && (
+                                    <div className="mt-4 border border-slate-300 dark:border-slate-600 overflow-hidden bg-white dark:bg-gray-800 rounded-lg">
+                                        {normalizedHours ? (
+                                            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                                                {hoursEntries.map(([day, hours]) => {
+                                                    const isToday = day.toLowerCase() === todayKey;
+                                                    return (
+                                                        <div
+                                                            key={day}
+                                                            className={`flex items-center justify-between px-3 py-2 text-sm ${
+                                                                isToday
+                                                                    ? 'bg-indigo-50 text-indigo-900 dark:bg-indigo-900/30 dark:text-indigo-200'
+                                                                    : 'text-gray-700 dark:text-gray-300'
+                                                            }`}
+                                                        >
+                                                            <span className="capitalize font-medium">{day}</span>
+                                                            <span className={`${isToday ? 'font-semibold' : 'text-gray-600 dark:text-gray-400'}`}>
+                                                                {hours || 'Closed'}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : fallbackHoursText ? (
+                                            <div className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">{fallbackHoursText}</div>
+                                        ) : (
+                                            <div className="px-3 py-2 text-sm text-gray-400 italic">Hours not provided</div>
+                                        )}
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
                 </motion.div>
-                {/* Contact */}
+                {/* Contact / Location - stuck to description/hours card, map card same size as map */}
                 {hasContactInfo && (
-                <motion.div className="rounded-xl p-4 sm:p-6 shadow-md space-y-3 bg-white dark:bg-slate-900/90 border-2 border-slate-300 dark:border-slate-600">
-                    <h2 className="text-xl font-semibold text-[#333] dark:text-gray-100">Contact</h2>
+                <motion.div className="rounded-b-xl border-2 border-t-0 border-slate-300 dark:border-slate-600 p-0 bg-white dark:bg-slate-900/90 shadow-sm overflow-hidden">
                     {business.address?.street && (
-                        <div className="mt-6">
-                            <h3 className="text-lg font-semibold text-[#333] dark:text-gray-100 flex items-center gap-1 mb-2">
-                                <FaMapPin size={18} /> Location
-                            </h3>
-                            <div className="flex items-start gap-2 mb-4">
-                                <p className="text-sm text-[#666] dark:text-gray-300">
-                                    <a href={getMapUrl(business.address)} target="_blank" rel="noopener noreferrer" className="text-blue-500 dark:text-blue-400 hover:underline">
-                                        {business.address.street}, {business.address.city}, {business.address.state} {business.address.zip}
-                                    </a>
-                                </p>
+                        <div className="w-full">
+                            <div className="px-0 sm:px-3 pt-3 pb-2 flex justify-center">
                                 <button
                                     onClick={() => { const mapUrl = getMapUrl(business.address); window.open(mapUrl, '_blank'); }}
-                                    className="mt-1 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded text-sm flex items-center gap-2 whitespace-nowrap"
-                                ><FaDirections size={16} /><span>Get Directions</span></button>
+                                    className="w-full sm:w-auto bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-none sm:rounded text-sm flex items-center justify-center gap-2"
+                                ><FaDirections size={16} /><span>Get Directions{business.address?.street || business.address?.city || business.address?.state || business.address?.zip ? ` · ${[business.address?.street, business.address?.city, business.address?.state, business.address?.zip].filter(Boolean).join(', ')}` : ''}</span></button>
                             </div>
-                            <hr className="my-4 border-gray-200 dark:border-gray-700" />
-                            <div className="w-full"><BusinessMap address={business.address} /></div>
-                        </div>
-                    )}
-                </motion.div>
-                )}
-                {/* Socials */}
-                {hasSocials && (
-                <motion.div className="rounded-xl p-4 sm:p-6 shadow-md bg-slate-50 dark:bg-slate-900/80 border-2 border-slate-300 dark:border-slate-600">
-                    <h2 className="text-xl font-semibold text-[#333] dark:text-gray-100">Socials</h2>
-                    <ul className="list-none space-y-2">
-                        {business.instagram && (<li className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><FaInstagram className="text-blue-500 dark:text-blue-400" size={18} /><a href={business.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-blue-500 dark:hover:text-blue-400 hover:underline">Instagram</a></li>)}
-                        {business.facebook && (<li className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><FaFacebook className="text-blue-600 dark:text-blue-400" size={18} /><a href={business.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline">Facebook</a></li>)}
-                        {business.tiktok && (<li className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><FaTiktok className="text-black dark:text-gray-100" size={18} /><a href={business.tiktok} target="_blank" rel="noopener noreferrer" className="hover:text-gray-800 dark:hover:text-gray-200 hover:underline">TikTok</a></li>)}
-                        {business.twitter && (<li className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><FaTwitter className="text-blue-400 dark:text-blue-300" size={18} /><a href={business.twitter} target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 dark:hover:text-blue-300 hover:underline">Twitter</a></li>)}
-                    </ul>
-                </motion.div>
-                )}
-                {/* Hours */}
-                {hasHours && (
-                <motion.div className="rounded-xl p-4 sm:p-6 shadow-md bg-slate-50 dark:bg-slate-900/80 border-2 border-slate-300 dark:border-slate-600">
-                    <div className="flex items-start justify-between gap-4">
-                        <div>
-                            <h2 className="text-xl font-semibold text-[#333] dark:text-gray-100">Hours</h2>
-                            <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-gray-100 dark:bg-gray-700 px-3 py-1 text-xs font-medium text-gray-700 dark:text-gray-200">
-                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                                Today: <span className="font-semibold">{todayHours}</span>
+                            <div className="w-full relative rounded-none sm:rounded-b-xl overflow-hidden">
+                                <BusinessMap address={business.address} />
                             </div>
-                        </div>
-                        <button
-                            onClick={() => setShowHours((prev) => !prev)}
-                            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-200 transition-colors"
-                        >
-                            {showHours ? 'Hide hours' : 'View all hours'}
-                        </button>
-                    </div>
-
-                    {showHours && (
-                        <div className="mt-4 border-2 border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
-                            {normalizedHours ? (
-                                <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                                    {hoursEntries.map(([day, hours]) => {
-                                        const isToday = day.toLowerCase() === todayKey;
-                                        return (
-                                            <div
-                                                key={day}
-                                                className={`flex items-center justify-between px-3 py-2 text-sm ${
-                                                    isToday
-                                                        ? 'bg-indigo-50 text-indigo-900 dark:bg-indigo-900/30 dark:text-indigo-200'
-                                                        : 'text-gray-700 dark:text-gray-300'
-                                                }`}
-                                            >
-                                                <span className="capitalize font-medium">{day}</span>
-                                                <span className={`${isToday ? 'font-semibold' : 'text-gray-600 dark:text-gray-400'}`}>
-                                                    {hours || 'Closed'}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : fallbackHoursText ? (
-                                <div className="px-3 py-2 text-sm text-gray-600 dark:text-gray-400">{fallbackHoursText}</div>
-                            ) : (
-                                <div className="px-3 py-2 text-sm text-gray-400 italic">Hours not provided</div>
-                            )}
                         </div>
                     )}
                 </motion.div>
                 )}
                 {/* === ALL ITEMS SECTION AT THE BOTTOM === */}
-                {(menu.length > 0 || carListings.length > 0 || retailItems.length > 0) && (
-                    <motion.div className="mt-10 rounded-xl p-4 sm:p-6 shadow-lg space-y-10 bg-white dark:bg-gray-800 border-2 border-slate-300 dark:border-slate-600">
+                {(menu.length > 0 || carListings.length > 0 || retailItems.length > 0 || realEstateListings.length > 0) && (
+                    <motion.div className="mt-4 border-b border-slate-300 dark:border-slate-600 p-4 sm:p-6 space-y-10 bg-white dark:bg-gray-800">
                         {/* Menu */}
                         {menu.length > 0 && (
                             <div>
@@ -1438,7 +1480,7 @@ const BusinessProfilePage = () => {
                                     {carListings.slice(0, visibleCarCount).map((car) => (
                                         <div
                                             key={car.id}
-                                            className="shadow-md sm:shadow-sm overflow-hidden relative flex flex-col bg-slate-100 dark:bg-gray-700 border-2 border-slate-300 dark:border-slate-600 rounded-lg"
+                                            className="shadow-md sm:shadow-sm overflow-hidden relative flex flex-col bg-slate-100 dark:bg-gray-700 border border-slate-300 dark:border-slate-600"
                                         >
                                             {car.images && car.images.length > 0 && car.images[0] && (
                                                 <div className="w-full h-36 sm:h-48 relative flex-shrink-0 mb-3">
@@ -1490,7 +1532,7 @@ const BusinessProfilePage = () => {
                                     {retailItems.slice(0, visibleRetailCount).map((item) => (
                                         <div
                                             key={item.id}
-                                            className="shadow-md sm:shadow-sm overflow-hidden relative flex flex-col bg-white dark:bg-gray-700 border-2 border-slate-300 dark:border-slate-600 rounded-lg"
+                                            className="shadow-md sm:shadow-sm overflow-hidden relative flex flex-col bg-white dark:bg-gray-700 border border-slate-300 dark:border-slate-600"
                                         >
                                             {item.images?.[0] && (
                                                 <div className="w-full h-36 sm:h-48 relative flex-shrink-0 mb-3">
@@ -1529,6 +1571,55 @@ const BusinessProfilePage = () => {
                                 </div>
                             </div>
                         )}
+                        {/* Real Estate Listings */}
+                        {realEstateListings.length > 0 && (
+                            <div className="rounded-xl border-2 border-slate-300 dark:border-slate-600 p-4 sm:p-6 bg-slate-50 dark:bg-slate-900/80 shadow-sm">
+                                <h2 className="text-xl font-semibold text-[#333] dark:text-gray-100 mb-4 flex items-center gap-2">
+                                    <Home size={20} /> Real Estate
+                                </h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {realEstateListings.slice(0, visibleRealEstateCount).map((item) => (
+                                        <div
+                                            key={item.id}
+                                            className="shadow-md sm:shadow-sm overflow-hidden relative flex flex-col bg-white dark:bg-gray-700 border border-slate-300 dark:border-slate-600"
+                                        >
+                                            {item.images?.[0] && (
+                                                <div className="w-full h-36 sm:h-48 relative flex-shrink-0 mb-3">
+                                                    <img
+                                                        src={item.images[0]}
+                                                        alt={item.title}
+                                                        className="w-full h-full object-cover"
+                                                        onError={(e) => { e.currentTarget.src = 'https://placehold.co/300x200/cccccc/333333?text=Property'; e.currentTarget.onerror = null; }}
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className="p-4 flex flex-col flex-grow">
+                                                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{item.title}</h3>
+                                                <p className="text-blue-600 dark:text-blue-400 font-bold mt-1">{item.price ? `$${item.price}` : ''}</p>
+                                                {item.address && <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-1">{item.address}</p>}
+                                                <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mt-1">{item.description}</p>
+                                                <div className="mt-auto pt-3 flex gap-2">
+                                                    <button
+                                                        onClick={() => setSelectedItemForDetails({ type: 'real_estate', item })}
+                                                        className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
+                                                    >
+                                                        <Eye size={18} />
+                                                        View Details
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleItemShare(item.title)}
+                                                        className="px-3 py-2.5 bg-white text-gray-700 rounded-lg hover:bg-gray-100 transition-colors flex items-center justify-center gap-2 font-medium shadow-sm border border-gray-200"
+                                                    >
+                                                        <FaShareAlt size={16} />
+                                                        Share
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </motion.div>
                 )}
                 {/* === END ITEMS SECTION === */}
@@ -1544,16 +1635,6 @@ const BusinessProfilePage = () => {
                 )}
             </motion.div>
 
-            {/* Floating call button - visible when scrolled and business has phone */}
-            {business.phone && (
-                <a
-                    href={`tel:${business.phone}`}
-                    className="fixed bottom-32 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full bg-green-600 text-white shadow-xl shadow-black/25 transition-all duration-300 hover:bg-green-700 hover:scale-105 hover:shadow-2xl hover:shadow-black/30 focus:outline-none focus:ring-4 focus:ring-green-400/50"
-                    aria-label="Call business"
-                >
-                    <FaPhone size={22} />
-                </a>
-            )}
         </motion.div>
     );
 };

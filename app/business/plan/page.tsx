@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { CheckCircle, X } from 'lucide-react';
+import { CheckCircle, X, Layout } from 'lucide-react';
+import { getAllowedProfileThemes, PROFILE_THEME_OPTIONS, resolveProfileTheme } from '@/lib/profileThemes';
+import type { ProfileThemeId } from '@/lib/profileThemes';
 
 type Plan = 'free' | 'starter' | 'growth' | 'premium';
 
@@ -16,6 +18,7 @@ interface BusinessPlan {
   max_menu_items: number;
   max_retail_items: number;
   max_car_listings: number;
+  max_real_estate_listings?: number;
   allow_social_links: boolean;
   allow_whatsapp: boolean;
   allow_promoted: boolean;
@@ -55,7 +58,9 @@ export default function BusinessPlanPage() {
     plan: Plan | null;
     plan_selected_at: string | null;
     trial_end: string | null;
+    profile_theme: string | null;
   } | null>(null);
+  const [savingTheme, setSavingTheme] = useState(false);
 
   const redirectTimerRef = useRef<number | null>(null);
 
@@ -86,7 +91,7 @@ export default function BusinessPlanPage() {
         // Fetch current business
         const { data, error } = await supabase
           .from('businesses')
-          .select('id, plan, plan_selected_at, trial_end')
+          .select('id, plan, plan_selected_at, trial_end, profile_theme')
           .eq('owner_id', userId)
           .maybeSingle();
 
@@ -101,6 +106,7 @@ export default function BusinessPlanPage() {
         const currentPlan = normalizePlan(data.plan);
         const selectedAt = data.plan_selected_at ? String(data.plan_selected_at) : null;
         const trialEnd = data.trial_end ? String(data.trial_end) : null;
+        const profileTheme = data.profile_theme ? String(data.profile_theme) : null;
 
         if (isMounted) {
           setPlans((plansData as BusinessPlan[]) || []);
@@ -109,6 +115,7 @@ export default function BusinessPlanPage() {
             plan: currentPlan,
             plan_selected_at: selectedAt,
             trial_end: trialEnd,
+            profile_theme: profileTheme,
           });
         }
       } catch (err: any) {
@@ -298,6 +305,56 @@ export default function BusinessPlanPage() {
               </div>
             )}
 
+            {/* Profile design: choose layout by plan */}
+            {biz?.id && (
+              <div className="mt-8 sm:mt-10 max-w-xl mx-auto">
+                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 p-4 sm:p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Layout className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Profile page design</h3>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    Choose how your public business profile looks. More designs unlock with higher plans.
+                  </p>
+                  <select
+                    value={resolveProfileTheme(biz.profile_theme, biz.plan)}
+                    onChange={async (e) => {
+                      const theme = e.target.value as ProfileThemeId;
+                      if (!biz?.id) return;
+                      setSavingTheme(true);
+                      try {
+                        const { data: session } = await supabase.auth.getSession();
+                        const res = await fetch('/api/business/profile-theme', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json', ...(session?.session?.access_token ? { Authorization: `Bearer ${session.session.access_token}` } : {}) },
+                          body: JSON.stringify({ theme }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(data?.error || 'Failed to update');
+                        setBiz((prev) => (prev ? { ...prev, profile_theme: theme } : null));
+                        toast.success('Profile design updated');
+                      } catch (err: any) {
+                        toast.error(err?.message || 'Failed to update design');
+                      } finally {
+                        setSavingTheme(false);
+                      }
+                    }}
+                    disabled={savingTheme}
+                    className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50"
+                  >
+                    {getAllowedProfileThemes(biz.plan).map((id) => {
+                      const opt = PROFILE_THEME_OPTIONS.find((o) => o.id === id);
+                      return (
+                        <option key={id} value={id}>
+                          {opt ? `${opt.name} – ${opt.description}` : id}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              </div>
+            )}
+
             <div className="mt-6 sm:mt-8 lg:mt-10 text-center">
               <button
                 onClick={() => router.replace(DASHBOARD_ROUTE)}
@@ -353,17 +410,17 @@ function PlanCard({
   loading: boolean;
   onClick: () => void | Promise<void>;
 }) {
-  // Note: Starter plan should have 5 car listings (update database accordingly)
-  // For now, display what's in the database
-  const carListingsValue = planData.max_car_listings === 9999 
-    ? 'Unlimited' 
-    : (planData.plan.toLowerCase() === 'starter' && planData.max_car_listings < 5 ? 5 : planData.max_car_listings);
-  
+  // Car and real estate: free 0, starter 5, growth 10, premium 999 (same as DB)
+  const carListingsValue = planData.max_car_listings >= 9999 ? 'Unlimited' : (planData.plan.toLowerCase() === 'starter' && planData.max_car_listings < 5 ? 5 : planData.max_car_listings);
+  const maxRealEstate = planData.max_real_estate_listings ?? planData.max_car_listings;
+  const realEstateListingsValue = maxRealEstate >= 9999 ? 'Unlimited' : (planData.plan.toLowerCase() === 'starter' && maxRealEstate < 5 ? 5 : maxRealEstate);
+
   const features = [
     { label: 'Gallery Images', value: planData.max_gallery_images === 9999 ? 'Unlimited' : planData.max_gallery_images },
     { label: 'Menu Items', value: planData.max_menu_items === 9999 ? 'Unlimited' : planData.max_menu_items },
     { label: 'Retail Items', value: planData.max_retail_items === 9999 ? 'Unlimited' : planData.max_retail_items },
-    { label: 'Car Listings', value: carListingsValue },
+    { label: 'Dealership Listings', value: carListingsValue },
+    { label: 'Real Estate Listings', value: realEstateListingsValue },
     {
       label: 'Follower Notifications / Week',
       value: planData.max_follower_notifications_per_week || 0,

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
+import { sendApprovalNotification } from '@/lib/sendApprovalNotification';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -245,6 +246,8 @@ export async function PATCH(req: Request) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', id);
+
+    await sendApprovalNotification('promotion', id);
 
     return NextResponse.json({ success: true, status: 'approved', feed_banner_id: banner.id });
   } catch (err) {

@@ -12,7 +12,7 @@ export async function GET() {
     const { data: rows, error } = await supabaseAdmin
       .from('business_plans')
       .select(
-        'plan, price_yearly, max_gallery_images, max_menu_items, max_retail_items, max_car_listings, ' +
+        'plan, price_yearly, max_gallery_images, max_menu_items, max_retail_items, max_car_listings, max_real_estate_listings, ' +
         'allow_social_links, allow_whatsapp, allow_promoted, allow_reviews, allow_qr, ' +
         'follower_notifications_enabled, max_follower_notifications_per_week, max_follower_notifications_per_day, ' +
         'min_minutes_between_notifications, max_area_blasts_per_month, area_blast_requires_admin_approval, max_blast_radius_miles'
@@ -32,14 +32,17 @@ export async function GET() {
       const maxGallery = r.max_gallery_images != null ? Number(r.max_gallery_images) : 0;
       const maxMenu = r.max_menu_items != null ? Number(r.max_menu_items) : 0;
       const maxRetail = r.max_retail_items != null ? Number(r.max_retail_items) : 0;
-      let maxListings = r.max_car_listings != null ? Number(r.max_car_listings) : 0;
-      if (plan === 'starter' && maxListings < 5) maxListings = 5;
-
+      // Car and real estate: free 0, starter 5, growth 10, premium 999 (from DB; floor starter at 5)
+      let maxCarListings = r.max_car_listings != null ? Number(r.max_car_listings) : 0;
+      if (plan === 'starter' && maxCarListings < 5) maxCarListings = 5;
+      let maxRealEstateListings = r.max_real_estate_listings != null ? Number(r.max_real_estate_listings) : maxCarListings;
+      if (plan === 'starter' && maxRealEstateListings < 5) maxRealEstateListings = 5;
       const limits: { label: string; value: string | number }[] = [
         { label: 'Gallery images', value: maxGallery >= 9999 ? 'Unlimited' : maxGallery },
         { label: 'Menu items', value: maxMenu >= 9999 ? 'Unlimited' : maxMenu },
         { label: 'Retail items', value: maxRetail >= 9999 ? 'Unlimited' : maxRetail },
-        { label: 'Listings', value: maxListings >= 9999 ? 'Unlimited' : maxListings },
+        { label: 'Dealership listings', value: maxCarListings >= 9999 ? 'Unlimited' : maxCarListings },
+        { label: 'Real estate listings', value: maxRealEstateListings >= 9999 ? 'Unlimited' : maxRealEstateListings },
         { label: 'Follower notifications / week', value: Number(r.max_follower_notifications_per_week ?? 0) },
         { label: 'Follower notifications / day', value: Number(r.max_follower_notifications_per_day ?? 0) },
         { label: 'Min minutes between notifications', value: Number(r.min_minutes_between_notifications ?? 0) },

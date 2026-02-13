@@ -280,3 +280,13 @@ html.dark .dashboard-following-orgs .following-orgs-empty * {
   color: #ffffff !important;
 }
 
+/* Modals and popups: always on top so they stay in view (no scrolling page to see them) */
+[role="dialog"] {
+  z-index: 9999;
+}
+/* Optional: modal content scrolls inside the box so the whole dialog stays on screen */
+.modal-content-floating {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+

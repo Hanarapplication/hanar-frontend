@@ -20,7 +20,7 @@ type MarketplaceItem = {
   created_at?: string | null;
   business_id?: string | null;
   user_id?: string | null;
-  source: 'retail' | 'dealership' | 'individual';
+  source: 'retail' | 'dealership' | 'real_estate' | 'individual';
   /** Optional link for online buyers (e.g. Amazon, eBay). Opens in new tab. */
   external_buy_url?: string | null;
 };
@@ -43,7 +43,7 @@ type IndividualSeller = {
 type FavoriteItem = {
   key: string;
   id: string;
-  source: 'retail' | 'dealership' | 'individual';
+  source: 'retail' | 'dealership' | 'real_estate' | 'individual';
   slug: string;
   title: string;
   price: string | number;
@@ -57,7 +57,7 @@ type RelatedItem = {
   price: string | number;
   slug: string;
   image: string;
-  source: 'retail' | 'dealership' | 'individual';
+  source: 'retail' | 'dealership' | 'real_estate' | 'individual';
   category?: string;
   location?: string;
 };
@@ -198,7 +198,7 @@ export default function ItemDetailClient() {
       const items = (favRows || []).map((r: { item_key: string; item_snapshot: Record<string, unknown> }) => ({
         key: r.item_key,
         id: (r.item_snapshot?.id as string) ?? '',
-        source: (r.item_snapshot?.source as 'retail' | 'dealership' | 'individual') ?? 'individual',
+        source: (r.item_snapshot?.source as 'retail' | 'dealership' | 'real_estate' | 'individual') ?? 'individual',
         slug: (r.item_snapshot?.slug as string) ?? '',
         title: (r.item_snapshot?.title as string) ?? '',
         price: (r.item_snapshot?.price as string | number) ?? '',
@@ -297,12 +297,17 @@ export default function ItemDetailClient() {
 
       const retailId = parseIdFromSlug('retail-');
       const dealershipId = parseIdFromSlug('dealership-');
+      const realEstateId = parseIdFromSlug('real-estate-');
 
-      const retailRaw = await fetchRetailBySlug();
-      const dealershipRaw = await fetchDealershipBySlug();
+      const [retailRaw, dealershipRaw, realEstateRaw] = await Promise.all([
+        fetchRetailBySlug(),
+        fetchDealershipBySlug(),
+        realEstateId ? supabase.from('real_estate_listings').select('*').eq('id', realEstateId).maybeSingle() : Promise.resolve({ data: null, error: null }),
+      ]);
 
       let retailRes = { data: retailRaw.error ? null : retailRaw.data };
       let dealershipRes = { data: dealershipRaw.error ? null : dealershipRaw.data };
+      let realEstateRes = { data: realEstateRaw.error ? null : realEstateRaw.data };
 
       if (!retailRes.data && retailId) {
         retailRes = await supabase.from('retail_items').select('*').eq('id', retailId).maybeSingle();
@@ -313,7 +318,8 @@ export default function ItemDetailClient() {
 
       const retailItem = retailRes.data;
       const dealershipItem = dealershipRes.data;
-      const source = retailItem ? 'retail' : dealershipItem ? 'dealership' : null;
+      const realEstateItem = realEstateRes.data;
+      const source = retailItem ? 'retail' : dealershipItem ? 'dealership' : realEstateItem ? 'real_estate' : null;
 
       if (!source) {
         if (!cancelled) setError('Item not found.');
@@ -322,19 +328,20 @@ export default function ItemDetailClient() {
 
       setIndividualSeller(null);
 
-      const row = retailItem || dealershipItem;
+      const row = retailItem || dealershipItem || realEstateItem;
       let locationFromRow = row.location || row.city || row.address || '';
       if (typeof locationFromRow === 'object') locationFromRow = '';
 
+      const bucket = source === 'retail' ? 'retail-items' : source === 'real_estate' ? 'real-estate-listings' : 'car-listings';
       const mappedItem: MarketplaceItem = {
         id: String(row.id),
         title: row.title || row.name || row.vehicle_name || row.model || 'Listing',
         price: row.price ?? row.amount ?? row.cost ?? '',
-        category: row.category || row.type || (source === 'retail' ? 'Retail' : 'Dealership'),
+        category: row.category || row.type || row.property_type || (source === 'retail' ? 'Retail' : source === 'real_estate' ? 'Real Estate' : 'Dealership'),
         location: locationFromRow,
         description: row.description || row.details || row.notes || '',
         condition: row.condition || row.item_condition || '',
-        images: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, source === 'retail' ? 'retail-items' : 'car-listings'),
+        images: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, bucket),
         created_at: row.created_at || row.createdAt || null,
         business_id: row.business_id || null,
         source,
@@ -409,7 +416,7 @@ export default function ItemDetailClient() {
   // Track view (internal count; not shown to public)
   useEffect(() => {
     if (!item?.id) return;
-    const typeMap = { individual: 'marketplace_item', retail: 'retail_item', dealership: 'dealership' } as const;
+    const typeMap = { individual: 'marketplace_item', retail: 'retail_item', dealership: 'dealership', real_estate: 'real_estate' } as const;
     const type = typeMap[item.source];
     if (!type) return;
     fetch('/api/track-view', {

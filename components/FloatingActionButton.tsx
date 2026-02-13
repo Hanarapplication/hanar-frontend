@@ -91,7 +91,7 @@ export default function FloatingActionButton() {
         className="transition hover:scale-105 relative drop-shadow-2xl"
       >
         <img
-          src="/hanar-logo.png"
+          src="/hanar.logo.png"
           alt="Menu"
           className="w-24 h-24 object-contain"
         />

@@ -185,6 +185,7 @@ export async function POST(req: Request) {
       max_menu_items: 0,
       max_retail_items: 0,
       max_car_listings: 0,
+      max_real_estate_listings: 0,
       allow_social_links: false,
       allow_whatsapp: false,
       allow_promoted: false,

@@ -51,6 +51,10 @@ export type Database = {
           trial_end: string | null;
           is_archived: boolean;
           moderation_status: string | null;
+          profile_theme: string;
+          profile_template: string;
+          theme: string;
+          accent_color: string | null;
         };
       };
     };

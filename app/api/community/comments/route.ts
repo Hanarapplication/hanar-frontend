@@ -114,8 +114,8 @@ export async function POST(req: Request) {
         await supabaseAdmin.from('notifications').insert({
           user_id: postAuthorId,
           type: 'comment_on_post',
-          title: 'New comment on your post',
-          body: `${commenterName}: ${bodySnippet}`,
+          title: 'Your post received a comment',
+          body: `${commenterName}: ${bodySnippet}. Tap to view.`,
           url: `/community/post/${inserted.post_id}`,
           data: { post_id: inserted.post_id, comment_id: inserted.id, commenter_name: commenterName },
         });

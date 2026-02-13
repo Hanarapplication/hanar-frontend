@@ -31,7 +31,7 @@ type MarketplaceItem = {
   lon?: number | null;
   created_at?: string | null;
   slug: string;
-  source: 'retail' | 'dealership' | 'individual';
+  source: 'retail' | 'dealership' | 'real_estate' | 'individual';
   business_id?: string | null;
   user_id?: string | null;
   business_verified?: boolean;
@@ -41,7 +41,7 @@ type MarketplaceItem = {
 type FavoriteItem = {
   key: string;
   id: string;
-  source: 'retail' | 'dealership' | 'individual';
+  source: 'retail' | 'dealership' | 'real_estate' | 'individual';
   slug: string;
   title: string;
   price: string | number;
@@ -364,10 +364,32 @@ export default function MarketplacePage() {
   const sortByCreatedAt = (a: MarketplaceItem, b: MarketplaceItem) =>
     new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
 
+  const normalizeRealEstateItem = (row: Record<string, unknown>): MarketplaceItem => {
+    const raw = row.images ?? row.image_url ?? row.image_urls ?? row.photos;
+    const imageUrls = normalizeImages(raw, 'real-estate-listings');
+    const p = row.price;
+    const price: string | number = typeof p === 'number' ? p : typeof p === 'string' ? p : p != null ? String(p) : '';
+    return {
+      id: String(row.id),
+      title: (row.title as string) || 'Real estate listing',
+      price,
+      description: (row.description as string) || '',
+      category: (row.property_type as string) || 'Real Estate',
+      condition: '',
+      location: (row.address as string) || '',
+      imageUrls,
+      created_at: (row.created_at as string) || null,
+      business_id: (row.business_id as string) || null,
+      source: 'real_estate',
+      slug: `real-estate-${row.id}`,
+    };
+  };
+
   const loadMarketplaceItems = async () => {
-    const [retailRes, dealershipRes, individualRes] = await Promise.all([
+    const [retailRes, dealershipRes, realEstateRes, individualRes] = await Promise.all([
       supabase.from('retail_items').select('*').order('created_at', { ascending: false }),
       supabase.from('dealerships').select('*').order('created_at', { ascending: false }),
+      supabase.from('real_estate_listings').select('*').order('created_at', { ascending: false }),
       supabase.from('marketplace_items').select('*').order('created_at', { ascending: false }),
     ]);
 
@@ -379,8 +401,9 @@ export default function MarketplacePage() {
 
     const retail = (retailRes.data || []).map(normalizeRetailItem);
     const dealership = (dealershipRes.data || []).map(normalizeDealershipItem);
+    const realEstate = (realEstateRes.data || []).map((row: Record<string, unknown>) => normalizeRealEstateItem(row));
     const individual = (individualRes.data || []).map(normalizeIndividualItem);
-    const combined = [...retail, ...dealership, ...individual].sort(sortByCreatedAt);
+    const combined = [...retail, ...dealership, ...realEstate, ...individual].sort(sortByCreatedAt);
     const businessIds = Array.from(
       new Set(combined.map((item) => item.business_id).filter(Boolean) as string[])
     );

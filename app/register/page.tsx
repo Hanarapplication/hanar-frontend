@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Turnstile } from '@marsidev/react-turnstile';
 import toast from 'react-hot-toast';
 import {
@@ -245,12 +246,14 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
       <form onSubmit={handleRegister} className="w-full max-w-xl mx-auto bg-white rounded-3xl p-10 space-y-8 shadow-xl">
         <div className="flex justify-center">
-          <img
+          <Image
             src="/hanar.logo.png"
             alt="Hanar"
             width={100}
-            height={100}
+            height={64}
             className="h-16 w-auto object-contain"
+            unoptimized
+            priority
           />
         </div>
         <h1 className="text-3xl font-bold text-center">{t(effectiveLang, 'Create Account')}</h1>

@@ -67,7 +67,7 @@ type MarketplaceItem = {
   created_at?: string | null;
   distance?: number;
   slug?: string | null;
-  source?: 'retail' | 'dealership' | 'individual';
+  source?: 'retail' | 'dealership' | 'real_estate' | 'individual';
   business_id?: string | null;
   user_id?: string | null;
   business_verified?: boolean;
@@ -501,7 +501,7 @@ export default function Home() {
   }, []);
 
   const loadHomeFeed = async () => {
-    const [postsRes, businessRes, orgRes, retailRes, dealershipRes, individualRes] = await Promise.all([
+    const [postsRes, businessRes, orgRes, retailRes, dealershipRes, realEstateRes, individualRes] = await Promise.all([
       supabase
         .from('community_posts')
         .select('id, title, body, created_at, author, author_type, username, user_id, image, video, likes_post, community_comments(count)')
@@ -530,6 +530,11 @@ export default function Home() {
         .limit(50),
       supabase
         .from('dealerships')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50),
+      supabase
+        .from('real_estate_listings')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50),
@@ -572,6 +577,22 @@ export default function Home() {
       business_id: row.business_id || null,
     }));
 
+    const normalizedRealEstate = (realEstateRes.data || []).map((row: any) => ({
+      id: String(row.id),
+      title: row.title || 'Real estate listing',
+      price: row.price ?? '',
+      description: row.description || row.details || null,
+      imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'real-estate-listings'),
+      condition: row.property_type || null,
+      location: row.address || row.city || '',
+      lat: null,
+      lon: null,
+      created_at: row.created_at || row.createdAt || null,
+      slug: `real-estate-${row.id}`,
+      source: 'real_estate' as const,
+      business_id: row.business_id || null,
+    }));
+
     const normalizedIndividual = (individualRes.data || []).map((row: any) => {
       const raw = row.image_urls ?? row.imageUrls;
       const urls = normalizeImages(raw, 'marketplace-images');
@@ -609,7 +630,7 @@ export default function Home() {
       }
     }
 
-    const combinedItems = [...normalizedRetail, ...normalizedDealership, ...normalizedIndividual].sort((a, b) =>
+    const combinedItems = [...normalizedRetail, ...normalizedDealership, ...normalizedRealEstate, ...normalizedIndividual].sort((a, b) =>
       sortByCreatedAtDesc(a.created_at, b.created_at)
     );
     const itemBusinessIds = Array.from(

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { getLatLonFromAddress } from '@/lib/getLatLonFromAddress';
+import { sendApprovalNotification } from '@/lib/sendApprovalNotification';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -249,6 +250,8 @@ export async function POST(req: Request) {
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
+
+    await sendApprovalNotification('area_blast', id, { sentCount: rows.length });
 
     return NextResponse.json(
       {

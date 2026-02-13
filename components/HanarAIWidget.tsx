@@ -152,7 +152,7 @@ If the user asks unrelated topics, reply:
         onClick={() => setOpen(!open)}
       >
         <Image
-          src="/hanar--logo.png"
+          src="/hanar.logo.png"
           alt="HanarAI"
           width={50}
           height={50}

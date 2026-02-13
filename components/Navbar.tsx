@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { FaMapMarkerAlt, FaBell, FaBars } from 'react-icons/fa';
 import { usePathname } from 'next/navigation';
@@ -226,13 +227,15 @@ export default function Navbar() {
       <nav className="bg-blue-600 dark:bg-blue-800 h-16 flex items-center justify-between px-4 sticky top-0 z-50 transition-all relative border-b border-blue-500 dark:border-blue-700">
         {/* Logo */}
         <div className="flex items-center">
-          <Link href="/" className="focus:outline-none">
-            <img
+          <Link href="/" className="focus:outline-none block">
+            <Image
               src="/hanar.logo.png"
               alt="Hanar Logo"
               width={100}
-              height={100}
-              className="h-10 w-auto transition-transform transform hover:scale-105 focus:scale-105"
+              height={40}
+              className="h-10 w-auto object-contain transition-transform transform hover:scale-105 focus:scale-105"
+              unoptimized
+              priority
             />
           </Link>
         </div>

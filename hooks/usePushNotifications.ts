@@ -154,7 +154,7 @@ export function usePushNotifications(): UsePushNotificationsResult {
         const body = notification?.body || payload.data?.body || '';
         const options: NotificationOptions = {
           body: body || 'New notification',
-          icon: notification?.icon || payload.data?.icon || '/hanar-logo.png',
+          icon: notification?.icon || payload.data?.icon || '/hanar.logo.png',
           tag: payload.data?.tag || 'hanar-push',
           data: { url: payload.data?.url || '/' },
         };
