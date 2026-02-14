@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-/** Redirect to shared promote form. Preserves ?for=organization if present. */
-export default function BusinessPromoteRedirect() {
+function BusinessPromoteRedirectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   useEffect(() => {
@@ -15,5 +14,14 @@ export default function BusinessPromoteRedirect() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
       <p className="text-slate-500">Redirecting to promote...</p>
     </div>
+  );
+}
+
+/** Redirect to shared promote form. Preserves ?for=organization if present. */
+export default function BusinessPromoteRedirect() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><p className="text-slate-500">Loading...</p></div>}>
+      <BusinessPromoteRedirectContent />
+    </Suspense>
   );
 }
