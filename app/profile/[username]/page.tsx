@@ -2,9 +2,10 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
-import { User, Trash2, X, ShoppingBag } from 'lucide-react';
+import { User, Trash2, X, ShoppingBag, Building2 } from 'lucide-react';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 
@@ -53,6 +54,10 @@ type FollowUser = {
   id: string;
   username: string;
   profile_pic_url?: string | null;
+  /** For organizations: display name (full_name); for users same as username or handle */
+  displayName?: string;
+  type: 'user' | 'organization';
+  href: string;
 };
 
 const userProfileHref = (username: string) => `/profile/${username}`;
@@ -85,7 +90,7 @@ export default function ProfilePage() {
   const [commentsLoading, setCommentsLoading] = useState<Record<string, boolean>>({});
   const [commentInput, setCommentInput] = useState<Record<string, string>>({});
   const [postingComment, setPostingComment] = useState<Record<string, boolean>>({});
-  const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null; displayName: string | null; isIndividual: boolean } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null; displayName: string | null; isIndividual: boolean; isOrganization: boolean } | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
@@ -117,11 +122,13 @@ export default function ProfilePage() {
         supabase.from('organizations').select('id').eq('user_id', user.id).maybeSingle(),
       ]);
       const isIndividual = !biz.data && !org.data;
+      const isOrganization = !!org.data;
       setCurrentUser({
         id: user.id,
         username: reg?.username || null,
         displayName: reg?.full_name?.trim() || null,
         isIndividual: !!isIndividual,
+        isOrganization,
       });
       try {
         const res = await fetch(`/api/community/post/liked?userId=${encodeURIComponent(user.id)}`);
@@ -283,24 +290,89 @@ export default function ProfilePage() {
         setListLoading(false);
         return;
       }
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, username, profile_pic_url')
-        .in('id', ids);
+
       const byId: Record<string, FollowUser> = {};
-      (profilesData || []).forEach((p: any) => {
-        byId[p.id] = { id: p.id, username: p.username || p.id, profile_pic_url: p.profile_pic_url };
-      });
-      const missing = ids.filter((id: string) => !byId[id]);
-      if (missing.length > 0) {
-        const { data: regData } = await supabase
-          .from('registeredaccounts')
-          .select('user_id, username')
-          .in('user_id', missing);
-        (regData || []).forEach((r: any) => {
-          if (!byId[r.user_id]) byId[r.user_id] = { id: r.user_id, username: r.username || r.user_id };
+
+      if (isFollowers) {
+        // Followers are always users (only individuals can follow)
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, username, profile_pic_url')
+          .in('id', ids);
+        (profilesData || []).forEach((p: any) => {
+          byId[p.id] = {
+            id: p.id,
+            username: p.username || p.id,
+            profile_pic_url: p.profile_pic_url,
+            type: 'user',
+            href: userProfileHref(p.username || p.id),
+          };
         });
+        const missing = ids.filter((id: string) => !byId[id]);
+        if (missing.length > 0) {
+          const { data: regData } = await supabase
+            .from('registeredaccounts')
+            .select('user_id, username')
+            .in('user_id', missing);
+          (regData || []).forEach((r: any) => {
+            if (!byId[r.user_id])
+              byId[r.user_id] = {
+                id: r.user_id,
+                username: r.username || r.user_id,
+                type: 'user',
+                href: userProfileHref(r.username || r.user_id),
+              };
+          });
+        }
+      } else {
+        // Following: can be users or organizations
+        const [{ data: profilesData }, { data: orgsData }] = await Promise.all([
+          supabase.from('profiles').select('id, username, profile_pic_url').in('id', ids),
+          supabase.from('organizations').select('user_id, username, full_name, logo_url').in('user_id', ids),
+        ]);
+        const orgByUserId = new Map((orgsData || []).map((o: any) => [o.user_id, o]));
+        for (const id of ids) {
+          const org = orgByUserId.get(id);
+          if (org) {
+            byId[id] = {
+              id,
+              username: org.username || id,
+              profile_pic_url: org.logo_url ?? null,
+              displayName: org.full_name?.trim() || undefined,
+              type: 'organization',
+              href: orgProfileHref(org.username || id),
+            };
+          }
+        }
+        (profilesData || []).forEach((p: any) => {
+          if (!byId[p.id]) {
+            byId[p.id] = {
+              id: p.id,
+              username: p.username || p.id,
+              profile_pic_url: p.profile_pic_url,
+              type: 'user',
+              href: userProfileHref(p.username || p.id),
+            };
+          }
+        });
+        const missing = ids.filter((id: string) => !byId[id]);
+        if (missing.length > 0) {
+          const { data: regData } = await supabase
+            .from('registeredaccounts')
+            .select('user_id, username')
+            .in('user_id', missing);
+          (regData || []).forEach((r: any) => {
+            if (!byId[r.user_id])
+              byId[r.user_id] = {
+                id: r.user_id,
+                username: r.username || r.user_id,
+                type: 'user',
+                href: userProfileHref(r.username || r.user_id),
+              };
+          });
+        }
       }
+
       const list = ids.map((id: string) => byId[id]).filter(Boolean);
       setListUsers(list);
 
@@ -356,7 +428,7 @@ export default function ProfilePage() {
       return;
     }
     if (!profile?.id || currentUser.id === profile.id) return;
-    if (!currentUser.isIndividual) return;
+    if (!currentUser.isIndividual && !currentUser.isOrganization) return;
 
     setFollowLoading(true);
     try {
@@ -609,7 +681,7 @@ export default function ProfilePage() {
   }
 
   const profilePicUrl = profile.profile_pic_url || null;
-  const canFollow = currentUser?.isIndividual && currentUser.id !== profile.id;
+  const canFollow = (currentUser?.isIndividual || currentUser?.isOrganization) && currentUser.id !== profile.id;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gray-900">
@@ -695,8 +767,8 @@ export default function ProfilePage() {
                   {followLoading ? '...' : isFollowing ? 'Following' : 'Follow'}
                 </button>
               )}
-              {currentUser && currentUser.id !== profile.id && !currentUser.isIndividual && (
-                <span className="text-xs text-slate-500 dark:text-gray-400">Only individual accounts can follow.</span>
+              {currentUser && currentUser.id !== profile.id && !currentUser.isIndividual && !currentUser.isOrganization && (
+                <span className="text-xs text-slate-500 dark:text-gray-400">Only individual and organization accounts can follow.</span>
               )}
             </div>
           </div>
@@ -874,17 +946,17 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Modal: My Shop (items listed for sale) */}
-      {shopModalOpen && (
+      {/* Modal: My Shop – portal so always in view */}
+      {shopModalOpen && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-6 overflow-y-auto"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
           onClick={() => setShopModalOpen(false)}
           role="dialog"
           aria-modal="true"
           aria-label={currentUser?.id === profile.id ? 'My Shop' : 'Shop'}
         >
           <div
-            className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col"
+            className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-gray-700 px-4 py-3 shrink-0">
@@ -901,7 +973,7 @@ export default function ProfilePage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="overflow-y-auto flex-1 p-4">
+            <div className="overflow-y-auto flex-1 min-h-0 p-4">
               {shopListingsLoading ? (
                 <div className="flex justify-center py-12">
                   <Spinner size={32} />
@@ -951,23 +1023,24 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Modal: Followers / Following list (owner only) */}
-      {listModal && (
+      {/* Modal: Followers / Following - portal to body so always in view */}
+      {listModal && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
           onClick={() => setListModal(null)}
           role="dialog"
           aria-modal="true"
           aria-label={listModal === 'followers' ? 'Followers' : 'Following'}
         >
           <div
-            className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col"
+            className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-gray-700 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-gray-700 px-4 py-3 shrink-0">
               <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
                 {listModal === 'followers' ? 'Followers' : 'Following'}
               </h2>
@@ -980,7 +1053,7 @@ export default function ProfilePage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="overflow-y-auto flex-1 p-2">
+            <div className="overflow-y-auto flex-1 min-h-0 p-2">
               {listLoading ? (
                 <div className="flex justify-center py-12">
                   <Spinner size={32} />
@@ -994,10 +1067,11 @@ export default function ProfilePage() {
                   {listUsers.map((u) => {
                     const isFollowingThem = followingInList[u.id];
                     const isSelf = u.id === profile.id;
+                    const label = u.displayName || u.username;
                     return (
                       <li key={u.id} className="flex items-center gap-3 rounded-xl p-3 hover:bg-slate-100 dark:hover:bg-gray-800 transition">
                         <Link
-                          href={userProfileHref(u.username)}
+                          href={u.href}
                           onClick={() => setListModal(null)}
                           className="flex items-center gap-3 min-w-0 flex-1"
                         >
@@ -1006,11 +1080,18 @@ export default function ProfilePage() {
                               <img src={u.profile_pic_url} alt="" className="h-full w-full object-cover" />
                             ) : (
                               <div className="h-full w-full flex items-center justify-center text-slate-400">
-                                <User className="h-5 w-5" />
+                                {u.type === 'organization' ? (
+                                  <Building2 className="h-5 w-5" />
+                                ) : (
+                                  <User className="h-5 w-5" />
+                                )}
                               </div>
                             )}
                           </div>
-                          <span className="font-medium text-slate-900 dark:text-white truncate">@{u.username}</span>
+                          <div className="min-w-0">
+                            <span className="font-medium text-slate-900 dark:text-white truncate block">{label}</span>
+                            <span className="text-sm text-slate-500 dark:text-gray-400 truncate block">@{u.username}</span>
+                          </div>
                         </Link>
                         {!isSelf && (
                           <button
@@ -1036,7 +1117,8 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>

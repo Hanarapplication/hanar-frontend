@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, ChangeEvent, FormEvent, FC } from 'react';
-import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Calendar, Eye, Megaphone } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { useEffect, useState, useRef, ChangeEvent, FormEvent, FC } from 'react';
+import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Calendar, Eye, Megaphone, User, Building2 } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { supabase } from '@/lib/supabaseClient';
 import { compressImage } from '@/lib/imageCompression';
@@ -96,6 +97,18 @@ type ModalState = {
   postId?: string;
 };
 
+type FollowListItem = {
+  id: string;
+  username: string;
+  profile_pic_url?: string | null;
+  displayName?: string;
+  type: 'user' | 'organization';
+  href: string;
+};
+
+const userProfileHref = (username: string) => `/profile/${username}`;
+const orgProfileHref = (username: string) => `/organization/${username}`;
+
 // --- UI HELPER COMPONENTS ---
 const Spinner: FC<{ size?: number; className?: string }> = ({ size = 24, className }) => (
   <svg
@@ -188,6 +201,12 @@ export default function OrganizationDashboard() {
   const [userLikedPosts, setUserLikedPosts] = useState<Set<string>>(new Set());
   const [userLikedComments, setUserLikedComments] = useState<Set<string>>(new Set());
   const [followerCount, setFollowerCount] = useState<number>(0);
+  const [followingCount, setFollowingCount] = useState<number>(0);
+  const [listModal, setListModal] = useState<'followers' | 'following' | null>(null);
+  const [listUsers, setListUsers] = useState<FollowListItem[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [followingInList, setFollowingInList] = useState<Record<string, boolean>>({});
+  const [followTogglingId, setFollowTogglingId] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<Array<{
     id: string;
     business_name: string | null;
@@ -212,6 +231,8 @@ export default function OrganizationDashboard() {
   const [notificationBody, setNotificationBody] = useState('');
   const [sendingNotification, setSendingNotification] = useState(false);
   const [newLanguageInput, setNewLanguageInput] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Add form state for profile editing
   const [form, setForm] = useState({
@@ -320,17 +341,182 @@ export default function OrganizationDashboard() {
   }, [router]);
 
   useEffect(() => {
-    const loadFollowers = async () => {
+    const loadFollowCounts = async () => {
       if (!profile?.user_id) return;
-      const { count } = await supabase
-        .from('follows')
-        .select('id', { count: 'exact', head: true })
-        .eq('following_id', profile.user_id);
-      setFollowerCount(count || 0);
+      const [followersRes, followingRes] = await Promise.all([
+        supabase.from('follows').select('id', { count: 'exact', head: true }).eq('following_id', profile.user_id),
+        supabase.from('follows').select('id', { count: 'exact', head: true }).eq('follower_id', profile.user_id),
+      ]);
+      setFollowerCount(followersRes.count ?? 0);
+      setFollowingCount(followingRes.count ?? 0);
     };
 
-    loadFollowers();
+    loadFollowCounts();
   }, [profile?.user_id]);
+
+  const loadFollowList = async (kind: 'followers' | 'following') => {
+    if (!profile?.user_id) return;
+    setListModal(kind);
+    setListLoading(true);
+    setListUsers([]);
+    setFollowingInList({});
+    try {
+      const isFollowers = kind === 'followers';
+      const { data: rows } = await supabase
+        .from('follows')
+        .select(isFollowers ? 'follower_id' : 'following_id')
+        .eq(isFollowers ? 'following_id' : 'follower_id', profile.user_id);
+      const ids = (rows || []).map((r: { follower_id?: string; following_id?: string }) =>
+        isFollowers ? r.follower_id : r.following_id
+      ).filter(Boolean) as string[];
+      if (ids.length === 0) {
+        setListLoading(false);
+        return;
+      }
+
+      const byId: Record<string, FollowListItem> = {};
+      if (isFollowers) {
+        const [{ data: profilesData }, { data: orgsData }] = await Promise.all([
+          supabase.from('profiles').select('id, username, profile_pic_url').in('id', ids),
+          supabase.from('organizations').select('user_id, username, full_name, logo_url').in('user_id', ids),
+        ]);
+        const orgByUserId = new Map((orgsData || []).map((o: { user_id: string }) => [o.user_id, o]));
+        for (const id of ids) {
+          const org = orgByUserId.get(id) as { username: string; full_name?: string; logo_url?: string } | undefined;
+          if (org) {
+            byId[id] = {
+              id,
+              username: org.username || id,
+              profile_pic_url: org.logo_url ?? null,
+              displayName: org.full_name?.trim() || undefined,
+              type: 'organization',
+              href: orgProfileHref(org.username || id),
+            };
+          }
+        }
+        (profilesData || []).forEach((p: { id: string; username?: string; profile_pic_url?: string }) => {
+          if (!byId[p.id]) {
+            byId[p.id] = {
+              id: p.id,
+              username: p.username || p.id,
+              profile_pic_url: p.profile_pic_url,
+              type: 'user',
+              href: userProfileHref(p.username || p.id),
+            };
+          }
+        });
+        const missing = ids.filter((id) => !byId[id]);
+        if (missing.length > 0) {
+          const { data: regData } = await supabase
+            .from('registeredaccounts')
+            .select('user_id, username')
+            .in('user_id', missing);
+          (regData || []).forEach((r: { user_id: string; username?: string }) => {
+            if (!byId[r.user_id]) {
+              byId[r.user_id] = {
+                id: r.user_id,
+                username: r.username || r.user_id,
+                type: 'user',
+                href: userProfileHref(r.username || r.user_id),
+              };
+            }
+          });
+        }
+      } else {
+        const [{ data: profilesData }, { data: orgsData }] = await Promise.all([
+          supabase.from('profiles').select('id, username, profile_pic_url').in('id', ids),
+          supabase.from('organizations').select('user_id, username, full_name, logo_url').in('user_id', ids),
+        ]);
+        const orgByUserId = new Map((orgsData || []).map((o: { user_id: string }) => [o.user_id, o]));
+        for (const id of ids) {
+          const org = orgByUserId.get(id) as { username: string; full_name?: string; logo_url?: string } | undefined;
+          if (org) {
+            byId[id] = {
+              id,
+              username: org.username || id,
+              profile_pic_url: org.logo_url ?? null,
+              displayName: org.full_name?.trim() || undefined,
+              type: 'organization',
+              href: orgProfileHref(org.username || id),
+            };
+          }
+        }
+        (profilesData || []).forEach((p: { id: string; username?: string; profile_pic_url?: string }) => {
+          if (!byId[p.id]) {
+            byId[p.id] = {
+              id: p.id,
+              username: p.username || p.id,
+              profile_pic_url: p.profile_pic_url,
+              type: 'user',
+              href: userProfileHref(p.username || p.id),
+            };
+          }
+        });
+        const missing = ids.filter((id) => !byId[id]);
+        if (missing.length > 0) {
+          const { data: regData } = await supabase
+            .from('registeredaccounts')
+            .select('user_id, username')
+            .in('user_id', missing);
+          (regData || []).forEach((r: { user_id: string; username?: string }) => {
+            if (!byId[r.user_id]) {
+              byId[r.user_id] = {
+                id: r.user_id,
+                username: r.username || r.user_id,
+                type: 'user',
+                href: userProfileHref(r.username || r.user_id),
+              };
+            }
+          });
+        }
+      }
+
+      setListUsers(ids.map((id) => byId[id]).filter(Boolean));
+
+      const { data: myFollows } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', profile.user_id)
+        .in('following_id', ids);
+      const followingSet: Record<string, boolean> = {};
+      (myFollows || []).forEach((r: { following_id: string }) => { followingSet[r.following_id] = true; });
+      setFollowingInList(followingSet);
+    } catch {
+      setListUsers([]);
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  const handleFollowInList = async (userId: string, isCurrentlyFollowing: boolean) => {
+    if (!profile?.user_id || followTogglingId) return;
+    setFollowTogglingId(userId);
+    try {
+      if (isCurrentlyFollowing) {
+        const res = await fetch('/api/unfollow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ follower_id: profile.user_id, following_id: userId }),
+        });
+        if (res.ok) {
+          setFollowingInList((prev) => ({ ...prev, [userId]: false }));
+          setFollowingCount((c) => Math.max(0, c - 1));
+        }
+      } else {
+        const res = await fetch('/api/follow', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ follower_id: profile.user_id, following_id: userId }),
+        });
+        if (res.ok) {
+          setFollowingInList((prev) => ({ ...prev, [userId]: true }));
+          setFollowingCount((c) => c + 1);
+        }
+      }
+    } finally {
+      setFollowTogglingId(null);
+    }
+  };
 
   useEffect(() => {
     const loadFavoritesAndOrgs = async () => {
@@ -542,6 +728,42 @@ export default function OrganizationDashboard() {
       }
   }, [logoFile]);
 
+  // Username availability check (debounced)
+  useEffect(() => {
+    const raw = (form.username || '').trim().toLowerCase().replace(/^@/, '');
+    if (raw === (profile?.username || '').toLowerCase()) {
+      setUsernameStatus('idle');
+      return;
+    }
+    if (raw.length < 3) {
+      setUsernameStatus(raw.length === 0 ? 'idle' : 'invalid');
+      return;
+    }
+    if (raw.length > 30 || !/^[a-z0-9_.]+$/.test(raw)) {
+      setUsernameStatus('invalid');
+      return;
+    }
+    if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+    setUsernameStatus('checking');
+    usernameCheckRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/account/check-username', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: raw, excludeOrgUserId: profile?.user_id }),
+        });
+        const data = await res.json().catch(() => ({}));
+        setUsernameStatus(data.available ? 'available' : 'taken');
+      } catch {
+        setUsernameStatus('idle');
+      }
+      usernameCheckRef.current = null;
+    }, 400);
+    return () => {
+      if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+    };
+  }, [form.username, profile?.user_id, profile?.username]);
+
   useEffect(() => {
       if (postImage) {
           const objectUrl = URL.createObjectURL(postImage);
@@ -555,6 +777,15 @@ export default function OrganizationDashboard() {
 
     if (!profile?.user_id) {
       addNotification('Missing profile user_id. Please re-login.', 'error');
+      return;
+    }
+    const rawUsername = (form.username || '').trim().toLowerCase().replace(/^@/, '');
+    if (rawUsername.length > 0 && (rawUsername.length < 3 || rawUsername.length > 30 || !/^[a-z0-9_.]+$/.test(rawUsername))) {
+      addNotification('Username must be 3–30 characters: letters, numbers, underscores, periods.', 'error');
+      return;
+    }
+    if (rawUsername.length >= 3 && usernameStatus === 'taken') {
+      addNotification('That username is already taken. Choose another.', 'error');
       return;
     }
 
@@ -600,8 +831,8 @@ export default function OrganizationDashboard() {
 
       const updatedProfile: Record<string, unknown> = {
         user_id: profile.user_id,
-        full_name: form.full_name,
-        username: form.username,
+        full_name: (form.full_name || '').trim(),
+        username: rawUsername || null,
         email: form.email,
         mission: form.mission,
         address: form.address,
@@ -1223,7 +1454,7 @@ export default function OrganizationDashboard() {
   const burgerItems = [
     { label: 'Edit Organization', onClick: () => document.getElementById('edit-profile')?.scrollIntoView({ behavior: 'smooth' }), icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
     { label: 'Send Notification', onClick: () => setNotificationModalOpen(true), icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
-    { label: 'Promote Event / Message', onClick: () => addNotification('Event promotion coming soon.', 'info'), icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
+    { label: 'Promote Event / Message', href: '/organization/promote', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
     { label: 'Delete My Account', href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
   ];
 
@@ -1239,8 +1470,8 @@ export default function OrganizationDashboard() {
       <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         
         {/* --- Header Section --- */}
-        <div className="relative mb-16">
-            <div className="w-full h-48 md:h-64 bg-slate-200 rounded-xl shadow-inner overflow-hidden">
+        <div className="relative mb-10">
+            <div className="w-full h-48 md:h-64 bg-slate-200 dark:bg-slate-700 rounded-xl shadow-inner overflow-hidden">
                 <img
                     src={bannerPreview || profile.banner_url || 'https://placehold.co/1200x400/e2e8f0/e2e8f0'}
                     className="w-full h-full object-cover"
@@ -1249,14 +1480,15 @@ export default function OrganizationDashboard() {
                     onError={(e) => { e.currentTarget.src = 'https://placehold.co/1200x400/e2e8f0/e2e8f0?text=Banner+Error'; }}
                 />
             </div>
-            <label htmlFor="banner-upload" className="absolute top-4 right-4 bg-white/80 backdrop-blur-sm text-slate-700 py-1.5 px-3 rounded-lg text-xs font-semibold cursor-pointer hover:bg-white transition-all shadow-sm flex items-center gap-2">
+            <label htmlFor="banner-upload" className="absolute top-4 right-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-slate-700 dark:text-slate-200 py-1.5 px-3 rounded-lg text-xs font-semibold cursor-pointer hover:bg-white dark:hover:bg-slate-700 transition-all shadow-sm flex items-center gap-2">
                 <UploadCloud className="w-4 h-4" />
                 <span>Change Banner</span>
                 <input id="banner-upload" type="file" accept="image/*" className="hidden" onChange={e => setBannerFile(e.target.files?.[0] || null)} />
             </label>
-            <div className="absolute left-6 sm:left-10 -bottom-12 flex items-end gap-4">
-                <div className="relative w-28 h-28 sm:w-32 sm:h-32">
-                    <div className="w-full h-full rounded-lg bg-slate-200 shadow-lg border-4 border-slate-50 overflow-hidden">
+            {/* Name and logo under the banner */}
+            <div className="flex items-end gap-4 mt-4">
+                <div className="relative w-28 h-28 sm:w-32 sm:h-32 shrink-0">
+                    <div className="w-full h-full rounded-lg bg-slate-200 dark:bg-slate-700 shadow-lg border-4 border-white dark:border-slate-800 overflow-hidden">
                         <img
                             src={logoPreview || profile.logo_url || 'https://placehold.co/150/e2e8f0/e2e8f0'}
                             className="w-full h-full object-cover"
@@ -1265,18 +1497,28 @@ export default function OrganizationDashboard() {
                             onError={(e) => { e.currentTarget.src = 'https://placehold.co/150/e2e8f0/e2e8f0?text=Logo+Error'; }}
                         />
                     </div>
-                    <label htmlFor="logo-upload" className="absolute bottom-1 right-1 bg-white/80 backdrop-blur-sm text-slate-700 p-1.5 rounded-full cursor-pointer hover:bg-white transition-all shadow-sm">
+                    <label htmlFor="logo-upload" className="absolute bottom-1 right-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-slate-700 dark:text-slate-200 p-1.5 rounded-full cursor-pointer hover:bg-white dark:hover:bg-slate-700 transition-all shadow-sm">
                         <Edit className="w-4 h-4" />
                         <input id="logo-upload" type="file" accept="image/*" className="hidden" onChange={e => setLogoFile(e.target.files?.[0] || null)} />
                     </label>
                 </div>
-                <div>
-                    <h1 className="mt-72 text-2xl sm:text-3xl font-bold text-slate-800">{profile.full_name}</h1>
-                    <p className="text-sm text-slate-500 flex items-center gap-2">
-                      <Building className="w-4 h-4"/>
+                <div className="min-w-0 pb-1">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white">{profile.full_name}</h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5">
+                      <Building className="w-4 h-4 shrink-0"/>
                       Organization
+                      {profile.username && (
+                        <span className="text-slate-600 dark:text-slate-300"> · @{profile.username}</span>
+                      )}
                     </p>
-                    <p className="text-xs text-slate-500 mt-1">Followers: {followerCount}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-3 flex-wrap">
+                      <button type="button" onClick={() => loadFollowList('followers')} className="hover:underline font-medium text-slate-600 dark:text-slate-400">
+                        Followers: {followerCount}
+                      </button>
+                      <button type="button" onClick={() => loadFollowList('following')} className="hover:underline font-medium text-slate-600 dark:text-slate-400">
+                        Following: {followingCount}
+                      </button>
+                    </p>
                 </div>
             </div>
         </div>
@@ -1306,13 +1548,13 @@ export default function OrganizationDashboard() {
             <Send className="w-4 h-4 shrink-0" />
             Post to Community
           </Link>
-          <button
-            onClick={() => addNotification('Event promotion coming soon.', 'info')}
-            className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md inline-flex items-center justify-center gap-2"
+          <Link
+            href="/organization/promote"
+            className="rounded-xl border border-indigo-200 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-800 px-4 py-3 text-sm font-semibold text-indigo-700 dark:text-indigo-200 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md inline-flex items-center justify-center gap-2"
           >
             <Megaphone className="w-4 h-4 shrink-0" />
             Promote Event / Message
-          </button>
+          </Link>
           <button
             onClick={() => setNotificationModalOpen(true)}
             className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md inline-flex items-center justify-center gap-2"
@@ -1328,10 +1570,39 @@ export default function OrganizationDashboard() {
           <div className="lg:col-span-1 space-y-8">
              <Card id="edit-profile">
                 <form onSubmit={handleSave} className="space-y-6">
-                    <h2 className="text-xl font-bold text-slate-800 border-b pb-3 mb-4">Edit Profile</h2>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-3 mb-4">Edit Profile</h2>
                     
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Mission Statement</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Organization name</label>
+                        <input
+                            type="text"
+                            value={form.full_name}
+                            onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
+                            placeholder="Your organization's display name"
+                            className="form-input w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white px-3 py-2.5"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Username (handle)</label>
+                        <div className="flex gap-2 items-center">
+                            <span className="text-slate-500 dark:text-slate-400">@</span>
+                            <input
+                                type="text"
+                                value={form.username}
+                                onChange={e => setForm(f => ({ ...f, username: e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, '') }))}
+                                placeholder="username"
+                                className="form-input flex-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white px-3 py-2.5"
+                            />
+                            {usernameStatus === 'available' && <span className="text-xs text-emerald-600 dark:text-emerald-400 shrink-0">Available</span>}
+                            {usernameStatus === 'taken' && <span className="text-xs text-red-600 dark:text-red-400 shrink-0">Taken</span>}
+                            {usernameStatus === 'invalid' && (form.username || '').trim().length > 0 && <span className="text-xs text-amber-600 dark:text-amber-400 shrink-0">Invalid</span>}
+                            {usernameStatus === 'checking' && <span className="text-xs text-slate-400 shrink-0 animate-pulse">...</span>}
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Letters, numbers, underscores, periods. 3–30 characters. Your profile: hanar.app/organization/<strong>username</strong></p>
+                    </div>
+                    
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Mission Statement</label>
                         <textarea value={form.mission} onChange={e => setForm(f => ({ ...f, mission: e.target.value }))} rows={4} className="form-textarea" placeholder="Describe your organization's mission..."/>
                     </div>
                     
@@ -1500,10 +1771,10 @@ export default function OrganizationDashboard() {
           
         </div>
 
-        {/* Send Notification to Members Modal */}
-        {notificationModalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+        {/* Send Notification to Members Modal – portal so always in view */}
+        {notificationModalOpen && typeof document !== 'undefined' && createPortal(
+          <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4" onClick={() => { if (!sendingNotification) { setNotificationModalOpen(false); setNotificationTitle(''); setNotificationBody(''); } }} role="dialog" aria-modal="true" aria-label="Send notification">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-bold text-slate-800">Send Notification to Members</h2>
@@ -1584,7 +1855,102 @@ export default function OrganizationDashboard() {
                 </div>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Followers / Following list modal – portal so always in view */}
+        {listModal && typeof document !== 'undefined' && createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
+            onClick={() => setListModal(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label={listModal === 'followers' ? 'Followers' : 'Following'}
+          >
+            <div
+              className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-gray-700 px-4 py-3 shrink-0">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  {listModal === 'followers' ? 'Followers' : 'Following'}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setListModal(null)}
+                  className="rounded-full p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-gray-800"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="overflow-y-auto flex-1 min-h-0 p-2">
+                {listLoading ? (
+                  <div className="flex justify-center py-12">
+                    <Spinner size={32} />
+                  </div>
+                ) : listUsers.length === 0 ? (
+                  <p className="text-center text-slate-500 dark:text-gray-400 py-8">
+                    {listModal === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}
+                  </p>
+                ) : (
+                  <ul className="space-y-1">
+                    {listUsers.map((u) => {
+                      const isFollowingThem = followingInList[u.id];
+                      const isSelf = u.id === profile?.user_id;
+                      const label = u.displayName || u.username;
+                      return (
+                        <li key={u.id} className="flex items-center gap-3 rounded-xl p-3 hover:bg-slate-100 dark:hover:bg-gray-800 transition">
+                          <Link
+                            href={u.href}
+                            onClick={() => setListModal(null)}
+                            className="flex items-center gap-3 min-w-0 flex-1"
+                          >
+                            <div className="h-10 w-10 shrink-0 rounded-full bg-slate-200 dark:bg-gray-700 overflow-hidden">
+                              {u.profile_pic_url ? (
+                                <img src={u.profile_pic_url} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center text-slate-400">
+                                  {u.type === 'organization' ? (
+                                    <Building2 className="h-5 w-5" />
+                                  ) : (
+                                    <User className="h-5 w-5" />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-medium text-slate-900 dark:text-white truncate block">{label}</span>
+                              <span className="text-sm text-slate-500 dark:text-gray-400 truncate block">@{u.username}</span>
+                            </div>
+                          </Link>
+                          {!isSelf && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleFollowInList(u.id, isFollowingThem);
+                              }}
+                              disabled={followTogglingId === u.id}
+                              className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+                                isFollowingThem
+                                  ? 'border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-slate-700 dark:text-gray-200 hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-300 hover:text-red-600'
+                                  : 'bg-black dark:bg-white text-white dark:text-black hover:opacity-90'
+                              } disabled:opacity-50`}
+                            >
+                              {followTogglingId === u.id ? '...' : isFollowingThem ? 'Following' : 'Follow'}
+                            </button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
         )}
       </main>
       

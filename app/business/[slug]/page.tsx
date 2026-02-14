@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation'; // This import remains as per your original code
@@ -114,7 +115,7 @@ interface ModalProps {
     children: React.ReactNode;
 }
 
-// Reusable Modal Component
+// Reusable Modal Component – portal so always in view
 const Modal = ({ title, onClose, children }: ModalProps) => {
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -122,9 +123,9 @@ const Modal = ({ title, onClose, children }: ModalProps) => {
             document.body.style.overflow = 'unset';
         };
     }, []);
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative p-6">
+    const content = (
+        <div className="fixed inset-0 z-[9999] bg-black/75 flex items-center justify-center p-4" onClick={onClose} role="dialog" aria-modal="true" aria-label={title}>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative p-6" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">{title}</h2>
                 <button
                     onClick={onClose}
@@ -141,6 +142,7 @@ const Modal = ({ title, onClose, children }: ModalProps) => {
             </div>
         </div>
     );
+    return typeof document !== 'undefined' ? createPortal(content, document.body) : null;
 };
 
 // --- NEW DetailedViewModal Component ---
@@ -164,16 +166,15 @@ const DetailedViewModal = ({ item, type, onClose }: DetailedViewModalProps) => {
         (item as RetailItem).name;
 
     useEffect(() => {
-        // Prevent scrolling of the background when modal is open
         document.body.style.overflow = 'hidden';
         return () => {
             document.body.style.overflow = 'unset';
         };
     }, []);
 
-    return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto relative p-4 sm:p-5">
+    const content = (
+        <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-4" onClick={onClose} role="dialog" aria-modal="true" aria-label={modalTitle}>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto relative p-4 sm:p-5" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-between items-start mb-3">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{modalTitle}</h2>
                     <button
@@ -316,6 +317,7 @@ const DetailedViewModal = ({ item, type, onClose }: DetailedViewModalProps) => {
             </div>
         </div>
     );
+    return typeof document !== 'undefined' ? createPortal(content, document.body) : null;
 };
 
 

@@ -100,6 +100,8 @@ export async function POST(req: Request) {
       } else if (type === 'promotion') {
         // Promotion: payment received. Consider adding payment_received_at or similar.
         // Admin still approves and creates feed_banner. Full flow TBD.
+      } else if (type === 'org_promotion') {
+        // Org placard: payment received. Admin approves and can create feed_banner. Full flow TBD.
       }
     }
 

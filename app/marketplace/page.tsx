@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 
@@ -826,15 +827,15 @@ export default function MarketplacePage() {
         </div>
       </div>
 
-      {/* Location modal */}
-      {locationModalOpen && (
-        <>
-          <div
-            role="presentation"
-            onClick={() => setLocationModalOpen(false)}
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-          />
-          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-slate-200 dark:border-gray-700 p-5 sm:p-6">
+      {/* Location modal – portal so always in view */}
+      {locationModalOpen && typeof document !== 'undefined' && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setLocationModalOpen(false)}
+        >
+          <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-slate-200 dark:border-gray-700 p-5 sm:p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Search in this area</h3>
             <div className="space-y-4">
               <div>
@@ -887,7 +888,8 @@ export default function MarketplacePage() {
               </button>
             </div>
           </div>
-        </>
+        </div>,
+        document.body
       )}
 
       {/* Items */}

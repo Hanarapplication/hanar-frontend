@@ -86,6 +86,7 @@ export default function CommunityFeedPage() {
       if (seg.gender) params.set('gender', seg.gender);
       if (seg.preferred_language) params.append('lang', seg.preferred_language);
       if (Array.isArray(seg.spoken_languages)) seg.spoken_languages.forEach((l: string) => params.append('lang', l));
+      if (seg.state) params.set('state', seg.state);
       const qs = params.toString();
       const r = await fetch(qs ? `/api/feed-banners?${qs}` : '/api/feed-banners');
       const d = await r.json();

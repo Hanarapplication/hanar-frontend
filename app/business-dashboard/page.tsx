@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -1134,9 +1135,9 @@ function BusinessDashboardContent() {
                   )}
                 </div>
 
-                {bannerToRemoveId && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-remove-title">
-                    <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-gray-600 dark:bg-gray-800">
+                {bannerToRemoveId && typeof document !== 'undefined' && createPortal(
+                  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-remove-title">
+                    <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-gray-600 dark:bg-gray-800" onClick={(e) => e.stopPropagation()}>
                       <h3 id="confirm-remove-title" className="text-lg font-semibold text-slate-900 dark:text-gray-100">
                         End campaign?
                       </h3>
@@ -1162,12 +1163,13 @@ function BusinessDashboardContent() {
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </div>,
+                  document.body
                 )}
 
-                {insightsOpen && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="insights-title">
-                    <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-gray-600 dark:bg-gray-800">
+                {insightsOpen && typeof document !== 'undefined' && createPortal(
+                  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="insights-title" onClick={() => setInsightsOpen(false)}>
+                    <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-gray-600 dark:bg-gray-800 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-between mb-4">
                         <h2 id="insights-title" className="text-xl font-semibold text-slate-900 dark:text-gray-100 flex items-center gap-2">
                           <BarChart3 className="h-5 w-5" />
@@ -1247,7 +1249,8 @@ function BusinessDashboardContent() {
                         <p className="text-sm text-slate-500 dark:text-gray-400 py-4">Could not load insights.</p>
                       )}
                     </div>
-                  </div>
+                  </div>,
+                  document.body
                 )}
 
                 {uiStatus !== 'approved' && (

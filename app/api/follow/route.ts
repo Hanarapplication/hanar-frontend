@@ -6,13 +6,10 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-/** Only individual users can follow; businesses and organizations cannot. */
-async function isIndividualUser(userId: string): Promise<boolean> {
-  const [biz, org] = await Promise.all([
-    supabaseAdmin.from('businesses').select('id').eq('owner_id', userId).maybeSingle(),
-    supabaseAdmin.from('organizations').select('id').eq('user_id', userId).maybeSingle(),
-  ]);
-  return !biz.data && !org.data;
+/** Individuals and organizations can follow; businesses cannot. */
+async function canFollowOthers(userId: string): Promise<boolean> {
+  const { data: biz } = await supabaseAdmin.from('businesses').select('id').eq('owner_id', userId).maybeSingle();
+  return !biz;
 }
 
 export async function POST(req: Request) {
@@ -27,9 +24,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Cannot follow yourself' }, { status: 400 });
     }
 
-    const canFollow = await isIndividualUser(follower_id);
-    if (!canFollow) {
-      return NextResponse.json({ success: false, error: 'Only individual accounts can follow other users' }, { status: 403 });
+    const allowed = await canFollowOthers(follower_id);
+    if (!allowed) {
+      return NextResponse.json({ success: false, error: 'Only individual and organization accounts can follow others' }, { status: 403 });
     }
 
     const { error } = await supabaseAdmin.from('follows').insert({ follower_id, following_id });

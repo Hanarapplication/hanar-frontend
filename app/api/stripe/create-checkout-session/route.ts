@@ -111,7 +111,12 @@ export async function POST(req: Request) {
       }
 
       const priceId = getPromoPriceId(tier as 'basic' | 'targeted' | 'premium', durationDays);
-      if (!priceId) return NextResponse.json({ error: 'Stripe price not configured for this promotion' }, { status: 500 });
+      if (!priceId) {
+        const envVar = `STRIPE_PRICE_PROMO_${(tier as string).toUpperCase()}_${durationDays}`;
+        return NextResponse.json({
+          error: `Stripe promotion price not configured. In .env.local add ${envVar}=price_xxx (create a one-time payment price in Stripe Dashboard for this tier/duration).`,
+        }, { status: 500 });
+      }
 
       const { data: biz } = await supabaseAdmin
         .from('businesses')
@@ -135,6 +140,51 @@ export async function POST(req: Request) {
           tier,
           duration_days: String(durationDays),
           ...(promotionRequestId ? { promotion_request_id: promotionRequestId } : {}),
+        },
+      });
+
+      return NextResponse.json({ url: session.url });
+    }
+
+    if (type === 'org_promotion') {
+      const tier = (body.tier as string)?.toLowerCase();
+      const durationDays = parseInt(String(body.durationDays || 30), 10);
+      const organizationId = (body.organizationId as string)?.trim();
+      const orgPromotionRequestId = (body.orgPromotionRequestId as string)?.trim();
+      if (!['basic', 'targeted', 'premium'].includes(tier) || !organizationId) {
+        return NextResponse.json({ error: 'Invalid org promotion params' }, { status: 400 });
+      }
+
+      const priceId = getPromoPriceId(tier as 'basic' | 'targeted' | 'premium', durationDays);
+      if (!priceId) {
+        const envVar = `STRIPE_PRICE_PROMO_${(tier as string).toUpperCase()}_${durationDays}`;
+        return NextResponse.json({
+          error: `Stripe promotion price not configured. In .env.local add ${envVar}=price_xxx (create a one-time payment price in Stripe Dashboard for this tier/duration).`,
+        }, { status: 500 });
+      }
+
+      const { data: org } = await supabaseAdmin
+        .from('organizations')
+        .select('id, user_id')
+        .eq('id', organizationId)
+        .single();
+      if (!org || org.user_id !== userId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: `${base}/organization/dashboard?promote_success=1&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${base}/organization/promote`,
+        client_reference_id: orgPromotionRequestId || `org_promo:${organizationId}:${tier}:${durationDays}`,
+        metadata: {
+          type: 'org_promotion',
+          organization_id: organizationId,
+          tier,
+          duration_days: String(durationDays),
+          ...(orgPromotionRequestId ? { org_promotion_request_id: orgPromotionRequestId } : {}),
         },
       });
 

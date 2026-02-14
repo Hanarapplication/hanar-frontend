@@ -47,7 +47,15 @@ export async function GET(req: Request) {
       businessMap = (bizData || []).reduce((acc: any, b: any) => ({ ...acc, [b.id]: { business_name: b.business_name, slug: b.slug } }), {});
     }
 
-    const requests = rows.map((row: any) => ({
+    const isTest = (row: any) => {
+      const name = (businessMap[row.business_id]?.business_name || '').toLowerCase();
+      const desc = (row.description || '').toLowerCase();
+      const link = (row.link_value || '').toLowerCase();
+      return name.includes('test') || desc.includes('test') || link.includes('test');
+    };
+    const filteredRows = rows.filter((r: any) => !isTest(r));
+
+    const requests = filteredRows.map((row: any) => ({
       ...row,
       image_url: row.image_path ? getPublicUrl(row.image_path) : null,
       business_name: businessMap[row.business_id]?.business_name ?? null,

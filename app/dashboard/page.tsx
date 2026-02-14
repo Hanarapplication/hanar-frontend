@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -155,7 +156,9 @@ function DashboardContent() {
   useEffect(() => {
     const load = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        // Use getSession() so we don't redirect while session is still restoring (getUser() can briefly return null)
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
         if (!user) {
           router.replace('/login');
           return;
@@ -943,10 +946,10 @@ function DashboardContent() {
           )}
         </div>
 
-        {/* Modal: Listing packages – choose a plan */}
-        {packModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-6 overflow-y-auto" onClick={() => !packPurchasing && setPackModalOpen(false)} role="dialog" aria-modal="true" aria-label={t(effectiveLang, 'Listing packages')}>
-            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md p-4 max-h-[85vh] overflow-y-auto shrink-0 my-4" onClick={(e) => e.stopPropagation()}>
+        {/* Modal: Listing packages – portal so always in view */}
+        {packModalOpen && typeof document !== 'undefined' && createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4" onClick={() => !packPurchasing && setPackModalOpen(false)} role="dialog" aria-modal="true" aria-label={t(effectiveLang, 'Listing packages')}>
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md p-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t(effectiveLang, 'Listing packages')}</h3>
               <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Choose a plan to list more items for sale.')}</p>
 
@@ -1062,7 +1065,8 @@ function DashboardContent() {
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Profile photos & videos (only on profile, not in feed or community) */}

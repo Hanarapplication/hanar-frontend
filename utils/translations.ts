@@ -84,6 +84,7 @@ const translations: Record<string, Record<string, string>> = {
     "Next": "Next",
     "Previous": "Previous",
     "Search": "Search",
+    "Search businesses, people, organizations...": "Search businesses, people, organizations…",
     "Filter": "Filter",
     "No results found": "No results found",
     "Profile": "Profile",

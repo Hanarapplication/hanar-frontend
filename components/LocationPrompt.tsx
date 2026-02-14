@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
@@ -168,8 +169,8 @@ export default function LocationPromptModal() {
 
   if (!showModal) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center transition-opacity animate-fade-in">
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] bg-black/30 flex items-center justify-center p-4 transition-opacity animate-fade-in" role="dialog" aria-modal="true" aria-label="Location access">
       <div className="bg-white w-full max-w-sm rounded-xl shadow-xl p-5 text-center transform transition-all scale-95 animate-scale-in">
         {!showFallback ? (
           <>
@@ -208,4 +209,6 @@ export default function LocationPromptModal() {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 }

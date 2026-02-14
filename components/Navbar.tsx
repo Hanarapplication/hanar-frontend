@@ -2,20 +2,97 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
-import { FaMapMarkerAlt, FaBell, FaBars } from 'react-icons/fa';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { FaMapMarkerAlt, FaBell, FaBars, FaSearch } from 'react-icons/fa';
 import { usePathname } from 'next/navigation';
 import MobileMenu from './MobileMenu';
 import { supabase } from '@/lib/supabaseClient';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 
+type SearchResultItem = {
+  type: 'user' | 'business' | 'organization';
+  label: string;
+  subtitle: string | null;
+  imageUrl: string | null;
+  href: string;
+};
+
 export default function Navbar() {
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const router = useRouter();
   const { effectiveLang } = useLanguage();
+
+  // Debounced search — short delay so it feels letter-by-letter; ignore stale responses
+  const searchRequestIdRef = useRef(0);
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
+    }
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    setSearchLoading(true);
+    const requestId = ++searchRequestIdRef.current;
+    searchTimeoutRef.current = setTimeout(() => {
+      searchTimeoutRef.current = null;
+      fetch(`/api/search?q=${encodeURIComponent(q)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          // Only apply results if this is still the latest request (avoids stale results when typing fast)
+          if (requestId !== searchRequestIdRef.current) return;
+          if (data.results) setSearchResults(data.results);
+          else setSearchResults([]);
+        })
+        .catch(() => {
+          if (requestId !== searchRequestIdRef.current) return;
+          setSearchResults([]);
+        })
+        .finally(() => {
+          if (requestId === searchRequestIdRef.current) setSearchLoading(false);
+        });
+    }, 100);
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [searchQuery]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSearchSelect = useCallback(
+    (href: string) => {
+      setSearchQuery('');
+      setSearchResults([]);
+      setSearchOpen(false);
+      router.push(href);
+    },
+    [router]
+  );
+
+  // Close search dropdown when route changes
+  useEffect(() => {
+    setSearchOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const persistLocation = async (
@@ -232,7 +309,7 @@ export default function Navbar() {
     <>
       <nav className="bg-blue-600 dark:bg-blue-800 h-16 flex items-center justify-between px-4 sticky top-0 z-50 transition-all relative border-b border-blue-500 dark:border-blue-700">
         {/* Logo */}
-        <div className="flex items-center">
+        <div className="flex items-center shrink-0">
           <Link href="/" className="focus:outline-none block">
             <Image
               src="/hanar.logo.png"
@@ -244,6 +321,71 @@ export default function Navbar() {
               priority
             />
           </Link>
+        </div>
+
+        {/* Search bar - Facebook style */}
+        <div className="flex-1 max-w-md mx-2 sm:mx-4 relative" ref={dropdownRef}>
+          <div className="relative">
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-200 text-sm pointer-events-none" />
+            <input
+              type="search"
+              placeholder={t(effectiveLang, 'Search')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchOpen(true)}
+              className="w-full h-9 pl-9 pr-3 rounded-full bg-blue-500/50 dark:bg-blue-900/40 border border-blue-400/50 dark:border-blue-600/50 text-white placeholder-blue-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent"
+              aria-label="Search"
+            />
+          </div>
+          {searchOpen && (searchQuery.trim().length >= 1 || searchResults.length > 0) && (
+            <div className="absolute top-full left-0 mt-1.5 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-[100] max-h-[70vh] overflow-y-auto w-[min(100vw-2rem,440px)] min-w-[280px]">
+              {searchLoading ? (
+                <div className="p-6 text-center text-slate-500 dark:text-slate-400 text-base">
+                  {t(effectiveLang, 'Searching…')}
+                </div>
+              ) : searchQuery.trim().length >= 1 && searchResults.length === 0 ? (
+                <div className="p-6 text-center text-slate-500 dark:text-slate-400 text-base">
+                  {t(effectiveLang, 'No results found')}
+                </div>
+              ) : (
+                <ul className="py-2">
+                  {searchResults.map((item, idx) => (
+                    <li key={`${item.type}-${item.href}-${idx}`}>
+                      <button
+                        type="button"
+                        onClick={() => handleSearchSelect(item.href)}
+                        className="w-full flex items-center gap-4 px-4 py-3.5 text-left hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-colors"
+                      >
+                        <span className="w-14 h-14 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center shrink-0 overflow-hidden">
+                          {item.imageUrl ? (
+                            <img
+                              src={item.imageUrl}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-slate-500 dark:text-slate-400 text-xl font-medium">
+                              {item.label.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </span>
+                        <div className="flex-1 min-w-0 text-left overflow-hidden">
+                          <div className="font-semibold text-slate-800 dark:text-slate-200 text-base break-words">
+                            {item.label}
+                          </div>
+                          {item.subtitle && (
+                            <div className="text-sm text-slate-500 dark:text-slate-400 break-words mt-0.5">
+                              {item.subtitle}
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right side */}

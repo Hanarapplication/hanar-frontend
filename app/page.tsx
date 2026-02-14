@@ -727,6 +727,7 @@ export default function Home() {
       if (segment.gender) params.set('gender', segment.gender);
       if (segment.preferred_language) params.append('lang', segment.preferred_language);
       if (Array.isArray(segment.spoken_languages)) segment.spoken_languages.forEach((l: string) => params.append('lang', l));
+      if (segment.state) params.set('state', segment.state);
       const qs = params.toString();
       const url = qs ? `/api/feed-banners?${qs}` : '/api/feed-banners';
       const res = await fetch(url);
