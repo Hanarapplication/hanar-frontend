@@ -1,7 +1,7 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { useEffect, useState, useRef, ChangeEvent, FormEvent, FC } from 'react';
+import { Suspense, useEffect, useState, useRef, ChangeEvent, FormEvent, FC } from 'react';
 import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Calendar, Eye, Megaphone, User, Building2 } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { supabase } from '@/lib/supabaseClient';
@@ -159,7 +159,7 @@ const Card: FC<{ children: React.ReactNode; className?: string; id?: string }> =
   </div>
 );
 
-export default function OrganizationDashboard() {
+function OrganizationDashboardContent() {
   const [profile, setProfile] = useState<OrgProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -2065,5 +2065,13 @@ export default function OrganizationDashboard() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function OrganizationDashboard() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <OrganizationDashboardContent />
+    </Suspense>
   );
 }
