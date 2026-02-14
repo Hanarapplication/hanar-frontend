@@ -100,12 +100,16 @@ export async function POST(req: Request) {
       } else if (type === 'promotion') {
         const requestId = (meta.promotion_request_id ?? meta.promotionRequestId) as string | undefined;
         if (requestId) {
-          const { error: upErr } = await supabaseAdmin
+          const { data: updated, error: upErr } = await supabaseAdmin
             .from('business_promotion_requests')
             .update({ status: 'pending_review', updated_at: new Date().toISOString() })
             .eq('id', requestId)
-            .eq('status', 'pending_payment');
+            .eq('status', 'pending_payment')
+            .select('id');
           if (upErr) console.error('[stripe-webhook] business promotion status update failed:', upErr);
+          else console.log('[stripe-webhook] promotion updated to pending_review:', requestId, 'rows:', updated?.length ?? 0);
+        } else {
+          console.warn('[stripe-webhook] promotion event but no promotion_request_id in metadata:', JSON.stringify(meta));
         }
       } else if (type === 'org_promotion') {
         const requestId = (meta.org_promotion_request_id ?? meta.orgPromotionRequestId) as string | undefined;

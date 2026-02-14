@@ -105,6 +105,35 @@ export async function POST(req: Request) {
       } catch { target_locations = null; }
     }
 
+    let target_location_coords: Array<{ label: string; lat: number; lng: number }> | null = null;
+    try {
+      const raw = formData.get('target_location_coords');
+      if (raw && typeof raw === 'string') {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          target_location_coords = parsed.filter(
+            (c: unknown) => c && typeof c === 'object' && typeof (c as { lat?: unknown }).lat === 'number' && typeof (c as { lng?: unknown }).lng === 'number'
+          ) as Array<{ label: string; lat: number; lng: number }>;
+          if (target_location_coords.length === 0) target_location_coords = null;
+          else if (!target_locations) target_locations = target_location_coords.map((c) => c.label ?? '');
+        }
+      }
+    } catch { target_location_coords = null; }
+    if (!target_locations) {
+      try {
+        const tloc = formData.get('target_locations');
+        if (tloc && typeof tloc === 'string') {
+          const parsed = JSON.parse(tloc);
+          target_locations = Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
+        }
+      } catch { /* ignore */ }
+    }
+
+    const MAX_CITIES_BY_TIER: Record<string, number> = { basic: 3, targeted: 10, premium: 100 };
+    const maxCities = MAX_CITIES_BY_TIER[tier] ?? 100;
+    if (target_location_coords && target_location_coords.length > maxCities) target_location_coords = target_location_coords.slice(0, maxCities);
+    if (target_locations && target_locations.length > maxCities) target_locations = target_locations.slice(0, maxCities);
+
     if (!organization_id) return NextResponse.json({ error: 'organization_id required' }, { status: 400 });
     if (!['home_feed', 'community', 'universal'].includes(placement)) {
       return NextResponse.json({ error: 'Invalid placement' }, { status: 400 });
@@ -153,7 +182,8 @@ export async function POST(req: Request) {
         target_genders: audience_type === 'targeted' ? target_genders : null,
         target_age_groups: audience_type === 'targeted' ? target_age_groups : null,
         target_languages: audience_type === 'targeted' ? target_languages : null,
-        target_locations: audience_type === 'targeted' ? target_locations : null,
+        target_locations: target_locations ?? null,
+        target_location_coords: target_location_coords ?? null,
         image_path,
         link_type,
         link_value: link_value || null,

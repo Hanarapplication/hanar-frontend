@@ -23,6 +23,36 @@ function getPublicUrl(path: string): string {
   return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
 }
 
+type TargetCoord = { label?: string; lat: number; lng: number };
+function parseTargetCoords(raw: unknown): TargetCoord[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw.filter((c): c is TargetCoord => c != null && typeof (c as TargetCoord).lat === 'number' && typeof (c as TargetCoord).lng === 'number');
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parseTargetCoords(parsed) : [];
+    } catch { return []; }
+  }
+  return [];
+}
+
+/** Max target cities per package (must match promote page). */
+const MAX_CITIES_BY_TIER: Record<string, number> = { basic: 3, targeted: 10, premium: 100 };
+
+/** Sync feed_banner_target_cities from promotion target_location_coords; number of cities stored depends on package (tier). */
+async function syncBannerTargetCities(feedBannerId: string, targetLocationCoords: unknown, tier?: string | null): Promise<void> {
+  let coords = parseTargetCoords(targetLocationCoords);
+  if (coords.length === 0) return;
+  const max = tier ? (MAX_CITIES_BY_TIER[tier] ?? 100) : 100;
+  coords = coords.slice(0, max);
+  await supabaseAdmin.from('feed_banner_target_cities').delete().eq('feed_banner_id', feedBannerId);
+  await supabaseAdmin.from('feed_banner_target_cities').insert(
+    coords.map((c) => ({ feed_banner_id: feedBannerId, city_label: c.label ?? null, lat: c.lat, lng: c.lng }))
+  );
+}
+
 /** GET: list promotion requests (business + organization). Only paid requests are shown—pending_payment are excluded until Stripe webhook sets pending_review after successful payment. */
 export async function GET(req: Request) {
   try {
@@ -242,7 +272,10 @@ export async function PATCH(req: Request) {
             .insert({ ...bannerPayload, status: 'on_hold' })
             .select('id')
             .single();
-          if (!insertErr && banner) updatePayload.feed_banner_id = banner.id;
+          if (!insertErr && banner) {
+            updatePayload.feed_banner_id = banner.id;
+            await syncBannerTargetCities(banner.id, reqRow.target_location_coords, reqRow.tier);
+          }
         }
         await supabaseAdmin.from('organization_promotion_requests').update(updatePayload).eq('id', id);
         return NextResponse.json({ success: true, status: 'rejected' });
@@ -256,6 +289,7 @@ export async function PATCH(req: Request) {
         .select('id')
         .single();
       if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
+      await syncBannerTargetCities(banner.id, reqRow.target_location_coords, reqRow.tier);
       await supabaseAdmin
         .from('organization_promotion_requests')
         .update({
@@ -330,6 +364,7 @@ export async function PATCH(req: Request) {
           .single();
         if (!insertErr && banner) {
           updatePayload.feed_banner_id = banner.id;
+          await syncBannerTargetCities(banner.id, reqRow.target_location_coords, reqRow.tier);
         }
       }
       await supabaseAdmin.from('business_promotion_requests').update(updatePayload).eq('id', id);
@@ -374,6 +409,8 @@ export async function PATCH(req: Request) {
       .single();
 
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
+
+    await syncBannerTargetCities(banner.id, reqRow.target_location_coords, reqRow.tier);
 
     await supabaseAdmin
       .from('business_promotion_requests')

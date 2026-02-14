@@ -9,6 +9,7 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('Missing Supabase env');
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
 const BUCKET = 'feed-banners';
+/** Banners with target cities only show to viewers within this radius (miles) of any chosen city. */
 const TARGET_LOCATION_RADIUS_MILES = 20;
 
 function getPublicUrl(path: string): string {
@@ -31,7 +32,22 @@ function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): 
 
 type TargetCoord = { label?: string; lat: number; lng: number };
 
-/** Public: list active, non-expired feed banners. Optional query: age_group, gender, lang, state, lat, lon (for targeting). */
+function parseTargetCoords(raw: unknown): TargetCoord[] | null {
+  if (Array.isArray(raw)) {
+    return raw.filter((c): c is TargetCoord => c != null && typeof (c as TargetCoord).lat === 'number' && typeof (c as TargetCoord).lng === 'number');
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parseTargetCoords(parsed) : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** Public: list active, non-expired feed banners. Optional query: age_group, gender, lang, state, lat, lon (for targeting). Banners with target cities (feed_banner_target_cities) only show to viewers within 20 miles of one of those cities. */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -62,27 +78,53 @@ export async function GET(req: Request) {
         (!row.starts_at || row.starts_at <= now)
     );
 
+    const bannerIds = byDate.map((r) => r.id);
+    const citiesByBanner: Record<string, { lat: number; lng: number }[]> = {};
+    if (bannerIds.length > 0) {
+      const { data: citiesRows } = await supabase
+        .from('feed_banner_target_cities')
+        .select('feed_banner_id, lat, lng')
+        .in('feed_banner_id', bannerIds);
+      for (const row of citiesRows || []) {
+        const bid = (row as { feed_banner_id: string; lat: number; lng: number }).feed_banner_id;
+        if (!citiesByBanner[bid]) citiesByBanner[bid] = [];
+        citiesByBanner[bid].push({ lat: row.lat, lng: row.lng });
+      }
+    }
+
     function matchesTargeting(row: {
+      id: string;
       audience_type?: string | null;
       target_genders?: string[] | null;
       target_age_groups?: string[] | null;
       target_languages?: string[] | null;
       target_locations?: string[] | null;
-      target_location_coords?: TargetCoord[] | null;
+      target_location_coords?: unknown;
     }): boolean {
-      if (row.audience_type === 'universal') return true;
-      if (row.audience_type !== 'targeted') return true;
+      const isUniversal = row.audience_type === 'universal';
+      const tableCities = citiesByBanner[row.id];
+      const fallbackCoords = parseTargetCoords(row.target_location_coords);
+      const targetCoords = (tableCities && tableCities.length > 0) ? tableCities : (fallbackCoords && fallbackCoords.length > 0 ? fallbackCoords.map((c) => ({ lat: c.lat, lng: c.lng })) : null);
+      const hasLocationTargeting = targetCoords && targetCoords.length > 0;
+
+      if (isUniversal && !hasLocationTargeting) return true;
+
+      if (hasLocationTargeting) {
+        if (!hasViewerCoords) return false;
+        const withinRadius = targetCoords!.some(
+          (c) => distanceMiles(viewerLat!, viewerLon!, c.lat, c.lng) <= TARGET_LOCATION_RADIUS_MILES
+        );
+        if (!withinRadius) return false;
+      } else {
+        return false;
+      }
+
       const tg = row.target_genders;
       const ta = row.target_age_groups;
       const tl = row.target_languages;
-      const tloc = row.target_locations;
-      const tcoords = Array.isArray(row.target_location_coords) ? row.target_location_coords : null;
-      const hasCoords = tcoords && tcoords.length > 0;
       const hasGender = Array.isArray(tg) && tg.length > 0;
       const hasAge = Array.isArray(ta) && ta.length > 0;
       const hasLang = Array.isArray(tl) && tl.length > 0;
-      const hasLoc = Array.isArray(tloc) && tloc.length > 0;
-      if (!hasGender && !hasAge && !hasLang && !hasLoc && !hasCoords) return true;
       if (hasGender && (!gender || !tg!.includes(gender))) return false;
       if (hasAge && (!age_group || !ta!.includes(age_group))) return false;
       if (hasLang) {
@@ -90,15 +132,6 @@ export async function GET(req: Request) {
           userLang === targetLang || userLang.startsWith(targetLang + '-') || targetLang.startsWith(userLang + '-');
         const anyMatch = userLangs.length > 0 && tl!.some((target) => userLangs.some((u) => matchLang(u, target)));
         if (!anyMatch) return false;
-      }
-      if (hasCoords) {
-        if (!hasViewerCoords) return false;
-        const withinRadius = tcoords!.some(
-          (c) => typeof c.lat === 'number' && typeof c.lng === 'number' && distanceMiles(viewerLat!, viewerLon!, c.lat, c.lng) <= TARGET_LOCATION_RADIUS_MILES
-        );
-        if (!withinRadius) return false;
-      } else if (hasLoc) {
-        if (!state || !tloc!.some((loc) => loc.toLowerCase().includes(state.toLowerCase()))) return false;
       }
       return true;
     }

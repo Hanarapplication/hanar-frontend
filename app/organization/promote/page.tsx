@@ -3,11 +3,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-/** Redirect to shared promote page for organizations. */
+/** Redirect to shared promote form (organization mode). */
 export default function OrganizationPromoteRedirect() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/business-dashboard/promote?for=organization');
+    router.replace('/promote?for=organization');
   }, [router]);
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">

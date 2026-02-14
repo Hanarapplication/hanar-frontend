@@ -704,7 +704,7 @@ function BusinessDashboardContent() {
   const burgerItems = [
     { label: 'Edit Business', href: `/businesses/edit/${business.slug}`, icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
     { label: 'View full insights', href: '/business-dashboard/insights', icon: <BarChart3 className="h-5 w-5 shrink-0" />, color: 'bg-indigo-50 dark:bg-indigo-900/30' },
-    { label: 'Promote your business', href: '/business-dashboard/promote', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
+    { label: 'Promote your business', href: '/promote', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
     { label: 'Send Notification', onClick: () => { setSendNotificationExpanded(true); setTimeout(() => document.getElementById('send-notification')?.scrollIntoView({ behavior: 'smooth' }), 100); }, icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
     { label: 'My banners', onClick: () => { setPromotionBannersExpanded(true); setTimeout(() => document.getElementById('my-banners')?.scrollIntoView({ behavior: 'smooth' }), 100); }, icon: <Image className="h-5 w-5 shrink-0" />, color: 'bg-violet-50 dark:bg-violet-900/30' },
     { label: business.trial_end && business.plan === 'premium'
@@ -1087,7 +1087,7 @@ function BusinessDashboardContent() {
                       ) : promotionRequests.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-slate-300 dark:border-gray-600 p-6 text-center text-slate-500 dark:text-gray-400">
                           No promotion banners yet.{' '}
-                          <Link href="/business-dashboard/promote" className="text-indigo-600 dark:text-indigo-400 font-medium hover:underline">
+                          <Link href="/promote" className="text-indigo-600 dark:text-indigo-400 font-medium hover:underline">
                             Promote your business
                           </Link>
                         </div>
