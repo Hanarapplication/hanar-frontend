@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { Suspense, useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -51,7 +51,7 @@ const DURATION_OPTIONS = [
   { days: 365, label: '1 Year' },
 ];
 
-export default function PromotePage() {
+function PromotePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const forOrg = searchParams?.get('for') === 'organization';
@@ -655,5 +655,13 @@ export default function PromotePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PromotePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <PromotePageContent />
+    </Suspense>
   );
 }
