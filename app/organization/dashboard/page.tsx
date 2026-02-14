@@ -1461,7 +1461,7 @@ export default function OrganizationDashboard() {
   const burgerItems = [
     { label: 'Edit Organization', onClick: () => document.getElementById('edit-profile')?.scrollIntoView({ behavior: 'smooth' }), icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
     { label: 'Send Notification', onClick: () => setNotificationModalOpen(true), icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
-    { label: 'Promote Event / Message', href: '/organization/promote', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
+    { label: 'Promote Event / Message', href: '/business-dashboard/promote?for=organization', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
     { label: 'Delete My Account', href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
   ];
 
@@ -1556,7 +1556,7 @@ export default function OrganizationDashboard() {
             Post to Community
           </Link>
           <Link
-            href="/organization/promote"
+            href="/business-dashboard/promote?for=organization"
             className="rounded-xl border border-indigo-200 bg-indigo-50 dark:bg-indigo-900/30 dark:border-indigo-800 px-4 py-3 text-sm font-semibold text-indigo-700 dark:text-indigo-200 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md inline-flex items-center justify-center gap-2"
           >
             <Megaphone className="w-4 h-4 shrink-0" />

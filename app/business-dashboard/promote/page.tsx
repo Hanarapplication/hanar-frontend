@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
@@ -9,7 +9,7 @@ import { ArrowLeft, ImagePlus, Home, Users, Globe, ExternalLink, Check, Target, 
 import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
 
 type Placement = 'home_feed' | 'community' | 'universal';
-type LinkType = 'business_page' | 'external';
+type LinkType = 'business_page' | 'organization_page' | 'external';
 type Tier = 'basic' | 'targeted' | 'premium';
 type AudienceType = 'universal' | 'targeted';
 
@@ -53,7 +53,10 @@ const DURATION_OPTIONS = [
 
 export default function PromotePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const forOrg = searchParams?.get('for') === 'organization';
   const [business, setBusiness] = useState<{ id: string; business_name: string; slug: string } | null>(null);
+  const [organization, setOrganization] = useState<{ id: string; full_name: string; username: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState(1);
   const [placement, setPlacement] = useState<Placement>('home_feed');
@@ -71,7 +74,7 @@ export default function PromotePage() {
   const [citySearchLoading, setCitySearchLoading] = useState(false);
   const citySearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const citySearchWrapRef = useRef<HTMLDivElement>(null);
-  const [linkType, setLinkType] = useState<LinkType>('business_page');
+  const [linkType, setLinkType] = useState<LinkType>('business_page'); // updated in load when forOrg
   const [linkValue, setLinkValue] = useState('');
   const [description, setDescription] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -88,18 +91,28 @@ export default function PromotePage() {
         router.replace('/login');
         return;
       }
-      const { data } = await supabase
-        .from('businesses')
-        .select('id, business_name, slug')
-        .eq('owner_id', session.user.id)
-        .maybeSingle();
-      if (mounted && data) setBusiness(data);
-      else if (mounted && !data) router.replace('/business-dashboard');
+      if (forOrg) {
+        const { data: reg } = await supabase.from('registeredaccounts').select('organization').eq('user_id', session.user.id).maybeSingle();
+        if (!reg?.organization) {
+          if (mounted) router.replace('/organization/dashboard');
+          setLoading(false);
+          return;
+        }
+        const { data } = await supabase.from('organizations').select('id, full_name, username').eq('user_id', session.user.id).maybeSingle();
+        if (mounted && data) {
+          setOrganization(data);
+          setLinkType('organization_page');
+        } else if (mounted) router.replace('/organization/dashboard');
+      } else {
+        const { data } = await supabase.from('businesses').select('id, business_name, slug').eq('owner_id', session.user.id).maybeSingle();
+        if (mounted && data) setBusiness(data);
+        else if (mounted) router.replace('/business-dashboard');
+      }
       setLoading(false);
     };
     load();
     return () => { mounted = false; };
-  }, [router]);
+  }, [router, forOrg]);
 
   useEffect(() => {
     fetch('/api/promotion-pricing')
@@ -177,7 +190,8 @@ export default function PromotePage() {
   const priceDisplay = priceCents ? `$${(priceCents / 100).toFixed(0)}` : '—';
 
   const handleSubmit = async () => {
-    if (!business) return;
+    const entity = forOrg ? organization : business;
+    if (!entity) return;
     if (targetCities.length === 0) {
       toast.error('Please add at least one city to continue');
       return;
@@ -189,8 +203,9 @@ export default function PromotePage() {
     setSubmitting(true);
     try {
       const form = new FormData();
-      form.set('source', 'business');
-      form.set('business_id', business.id);
+      form.set('source', forOrg ? 'organization' : 'business');
+      if (forOrg) form.set('organization_id', organization!.id);
+      else form.set('business_id', business!.id);
       form.set('placement', placement);
       // BASIC = up to 3 cities only (everyone in those areas), no demographic targeting
       // TARGETED = language + up to 10 cities. PREMIUM = language + unlimited cities + gender + age
@@ -242,13 +257,11 @@ export default function PromotePage() {
       const checkoutRes = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
-        body: JSON.stringify({
-          type: 'promotion',
-          businessId: business.id,
-          tier,
-          durationDays,
-          promotionRequestId: requestId || undefined,
-        }),
+        body: JSON.stringify(
+          forOrg
+            ? { type: 'org_promotion', organizationId: organization!.id, tier, durationDays, orgPromotionRequestId: requestId || undefined }
+            : { type: 'promotion', businessId: business!.id, tier, durationDays, promotionRequestId: requestId || undefined }
+        ),
       });
       const checkoutData = await checkoutRes.json().catch(() => ({}));
       if (!checkoutRes.ok) throw new Error(checkoutData?.error || 'Checkout failed');
@@ -264,7 +277,8 @@ export default function PromotePage() {
     }
   };
 
-  if (loading || !business) {
+  const entity = forOrg ? organization : business;
+  if (loading || !entity) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <p className="text-slate-500">Loading...</p>
@@ -272,15 +286,19 @@ export default function PromotePage() {
     );
   }
 
+  const backHref = forOrg ? '/organization/dashboard' : '/business-dashboard';
+  const title = forOrg ? 'Promote your organization' : 'Promote your business';
+  const slug = forOrg ? (organization?.username ?? '') : (business?.slug ?? '');
+
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
-        <Link href="/business-dashboard" className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6">
+        <Link href={backHref} className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6">
           <ArrowLeft className="h-4 w-4" />
           Back to Dashboard
         </Link>
 
-        <h1 className="text-2xl font-bold text-slate-900 mb-1">Promote your business</h1>
+        <h1 className="text-2xl font-bold text-slate-900 mb-1">{title}</h1>
         <p className="text-slate-600 mb-8">Choose where your banner appears, upload creative, and select a plan.</p>
 
         {/* Step indicator */}
@@ -362,16 +380,16 @@ export default function PromotePage() {
               <label className="block text-sm font-medium text-slate-700 mb-2">Where should the banner link to?</label>
               <div className="flex gap-4 mb-3">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="linkType" checked={linkType === 'business_page'} onChange={() => setLinkType('business_page')} />
-                  <span className="text-slate-700">My business page</span>
+                  <input type="radio" name="linkType" checked={linkType === (forOrg ? 'organization_page' : 'business_page')} onChange={() => setLinkType(forOrg ? 'organization_page' : 'business_page')} />
+                  <span className="text-slate-700">{forOrg ? 'My organization page' : 'My business page'}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" name="linkType" checked={linkType === 'external'} onChange={() => setLinkType('external')} />
                   <span className="text-slate-700">External website</span>
                 </label>
               </div>
-              {linkType === 'business_page' && (
-                <p className="text-sm text-slate-500">Links to: /business/{business.slug}</p>
+              {(linkType === 'business_page' || linkType === 'organization_page') && (
+                <p className="text-sm text-slate-500">Links to: {forOrg ? `/organization/${slug}` : `/business/${slug}`}</p>
               )}
               {linkType === 'external' && (
                 <input

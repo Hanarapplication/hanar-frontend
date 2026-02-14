@@ -177,7 +177,7 @@ export async function POST(req: Request) {
         payment_method_types: ['card'],
         line_items: [{ price: priceId, quantity: 1 }],
         success_url: `${base}/organization/dashboard?promote_success=1&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${base}/organization/promote`,
+        cancel_url: `${base}/business-dashboard/promote?for=organization`,
         client_reference_id: orgPromotionRequestId || `org_promo:${organizationId}:${tier}:${durationDays}`,
         metadata: {
           type: 'org_promotion',
