@@ -8,18 +8,27 @@ import { User, Crown, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 import { isAppIOS, withAppParam } from '@/utils/isAppIOS';
+import { openExternalBrowser } from '@/utils/openExternalBrowser';
+
+const WEB_ACCOUNT_URL = 'https://hanar.net/dashboard/account';
 
 function DashboardAccountContent() {
   const { effectiveLang } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const appIOS = isAppIOS(searchParams?.toString() ?? null);
+  const appIOS = isAppIOS(searchParams);
+  const externalParam = searchParams?.get('external') === '1';
+  const isExternalRedirect = appIOS && externalParam;
 
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<{ email?: string; fullName?: string } | null>(null);
   const [business, setBusiness] = useState<{ plan: string; business_name?: string } | null>(null);
 
   useEffect(() => {
+    if (isExternalRedirect) {
+      openExternalBrowser(WEB_ACCOUNT_URL);
+      return;
+    }
     const load = async () => {
       try {
         const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -56,7 +65,17 @@ function DashboardAccountContent() {
       }
     };
     load();
-  }, [router]);
+  }, [router, isExternalRedirect]);
+
+  if (isExternalRedirect) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+        <div className="text-lg font-medium text-gray-600 dark:text-gray-400">
+          {t(effectiveLang, 'Opening…')}
+        </div>
+      </div>
+    );
+  }
 
   const planLabel = business?.plan
     ? String(business.plan).charAt(0).toUpperCase() + String(business.plan).slice(1)

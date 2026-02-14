@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { User, Users, Globe, Building2, ShoppingBag, PenSquare, Camera, Tag, Trash2, ImagePlus, Video, X } from 'lucide-react';
@@ -89,7 +89,7 @@ function getListingExpiryDays(createdAt: string | null): number | null {
   return Math.ceil(diffMs / (24 * 60 * 60 * 1000));
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { effectiveLang } = useLanguage();
   const [favorites, setFavorites] = useState<FavoriteBusiness[]>([]);
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
@@ -135,6 +135,14 @@ export default function DashboardPage() {
   const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const displayNameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams?.get('success') === '1') {
+      toast.success(t(effectiveLang, 'Casual Seller Pack active. You can list up to 5 items.'));
+      router.replace('/dashboard');
+    }
+  }, [searchParams, router, effectiveLang]);
 
   const burgerItems = [
     ...(profile?.username ? [{ label: t(effectiveLang, 'View Profile'), href: `/profile/${profile.username}`, icon: <User className="h-5 w-5 shrink-0" />, color: 'bg-indigo-50 dark:bg-indigo-900/30' }] : []),
@@ -448,17 +456,20 @@ export default function DashboardPage() {
       const { data: { session } } = await supabase.auth.getSession();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-      const res = await fetch('/api/marketplace/casual-seller-pack', { method: 'POST', headers });
+      const res = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ type: 'casual_pack' }),
+      });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || t(effectiveLang, 'Failed to activate pack'));
-      setPackModalOpen(false);
-      setListingLimits((prev) =>
-        prev ? { ...prev, hasPack: true, maxAllowed: 5, packExpiresAt: data.packExpiresAt ?? null, canAddMore: (prev.activeCount ?? 0) < 5 } : null
-      );
-      toast.success(t(effectiveLang, 'Casual Seller Pack active. You can list up to 5 items.'));
+      if (!res.ok) throw new Error(data?.error || t(effectiveLang, 'Failed to start checkout'));
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
     } catch (err: any) {
-      toast.error(err?.message || t(effectiveLang, 'Failed to activate pack'));
-    } finally {
+      toast.error(err?.message || t(effectiveLang, 'Failed to start checkout'));
       setPackPurchasing(false);
     }
   };
@@ -961,7 +972,7 @@ export default function DashboardPage() {
                     <div>
                       <p className="font-semibold text-slate-900 dark:text-white">{t(effectiveLang, 'Casual Seller Pack')}</p>
                       <p className="text-sm text-slate-600 dark:text-gray-300 mt-0.5">
-                        $19.99 {t(effectiveLang, 'for 30 days')}. {t(effectiveLang, 'Up to 5 active listings')}. {t(effectiveLang, 'Renewal extends by 30 days')}.
+                        $19.99 {t(effectiveLang, 'for 40 days')}. {t(effectiveLang, 'Up to 5 active listings')}. {t(effectiveLang, 'Renewal extends by 40 days')}.
                       </p>
                     </div>
                     {listingLimits?.hasPack && (
@@ -1129,5 +1140,13 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">Loading...</div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }

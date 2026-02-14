@@ -32,9 +32,9 @@ async function getAuthenticatedUser(req: Request): Promise<{ id: string } | null
   return data?.user ?? null;
 }
 
-const PACK_DAYS = 30;
+const PACK_DAYS = 40;
 
-/** POST: purchase or renew Casual Seller Pack. $19.99 for 30 days, max 5 listings. Extends pack_expires_at by +30 days from current expiry (if active) or from now (if expired). */
+/** POST: purchase or renew Casual Seller Pack. $19.99 for 40 days, max 5 listings. Extends pack_expires_at by +40 days from current expiry (if active) or from now (if expired). */
 export async function POST(req: Request) {
   try {
     const user = await getAuthenticatedUser(req);

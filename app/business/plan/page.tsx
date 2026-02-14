@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { CheckCircle, X } from 'lucide-react';
 import { isAppIOS } from '@/utils/isAppIOS';
+import { openExternalBrowser } from '@/utils/openExternalBrowser';
 
 type Plan = 'free' | 'starter' | 'growth' | 'premium';
 
@@ -38,7 +39,8 @@ function normalizePlan(value: string | null | undefined): Plan | null {
   return null;
 }
 
-const WEB_ACCOUNT_URL = 'https://hanar.net/dashboard/account';
+/** URL with external=1 for iOS app mode - helps Flutter intercept and escape WebView */
+const WEB_ACCOUNT_EXTERNAL_URL = 'https://hanar.net/dashboard/account?external=1';
 
 function BusinessPlanContent() {
   const router = useRouter();
@@ -64,6 +66,14 @@ function BusinessPlanContent() {
   } | null>(null);
 
   const redirectTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (searchParams?.get('success') === '1') {
+      toast.success('Payment successful! Your plan is now active.');
+      router.replace(DASHBOARD_ROUTE);
+      return;
+    }
+  }, [searchParams, router]);
 
   useEffect(() => {
     let isMounted = true;
@@ -151,66 +161,51 @@ function BusinessPlanContent() {
       return;
     }
 
+    if (plan === 'free') {
+      try {
+        setSaving(plan);
+        const { error } = await supabase.rpc('apply_business_plan', {
+          p_business_id: biz.id,
+          p_plan: 'free',
+          p_years: 1,
+        });
+        if (error) throw error;
+        const nowIso = new Date().toISOString();
+        const { error: confirmError } = await supabase
+          .from('businesses')
+          .update({ plan: 'free', plan_selected_at: nowIso })
+          .eq('id', biz.id);
+        if (confirmError) throw confirmError;
+        toast.success('Plan applied: FREE');
+        setBiz((prev) => (prev ? { ...prev, plan: 'free', plan_selected_at: nowIso } : prev));
+        redirectTimerRef.current = window.setTimeout(() => router.replace(DASHBOARD_ROUTE), 700);
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to apply plan');
+      } finally {
+        setSaving(null);
+      }
+      return;
+    }
+
     try {
       setSaving(plan);
-
-      // New businesses or free/starter/growth users selecting premium get 3 months free trial
-      const isEligibleForTrial = !biz.plan_selected_at || (biz.plan && ['free', 'starter', 'growth'].includes(biz.plan));
-      const isPremiumTrial = isEligibleForTrial && plan === 'premium';
-      const years = isPremiumTrial ? TRIAL_YEARS : 1;
-
-      const { error } = await supabase.rpc('apply_business_plan', {
-        p_business_id: biz.id,
-        p_plan: plan,
-        p_years: years,
+      const { data: session } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.session?.access_token) headers.Authorization = `Bearer ${session.session.access_token}`;
+      const res = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ type: 'business_plan', plan, businessId: biz.id }),
       });
-
-      if (error) throw error;
-
-      const nowIso = new Date().toISOString();
-      const trialEnd = isPremiumTrial
-        ? new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString()
-        : null;
-
-      const updatePayload: Record<string, unknown> = {
-        plan,
-        plan_selected_at: nowIso,
-      };
-      if (isPremiumTrial) {
-        updatePayload.trial_start = nowIso;
-        updatePayload.trial_end = trialEnd;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Checkout failed');
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
       }
-
-      const { error: confirmError } = await supabase
-        .from('businesses')
-        .update(updatePayload)
-        .eq('id', biz.id);
-
-      if (confirmError) throw confirmError;
-
-      toast.success(
-        isPremiumTrial
-          ? 'Premium plan activated! Enjoy 3 months free trial.'
-          : `Plan applied: ${plan.toUpperCase()}`
-      );
-
-      setBiz((prev) =>
-        prev
-          ? {
-              ...prev,
-              plan,
-              plan_selected_at: nowIso,
-              ...(isPremiumTrial ? { trial_end: trialEnd } : {}),
-            }
-          : prev
-      );
-
-      redirectTimerRef.current = window.setTimeout(() => {
-        router.replace(DASHBOARD_ROUTE);
-      }, 700);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to apply plan');
-    } finally {
+      toast.error(err?.message || 'Failed to start checkout');
       setSaving(null);
     }
   };
@@ -269,13 +264,9 @@ function BusinessPlanContent() {
                 </p>
                 <button
                   type="button"
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(WEB_ACCOUNT_URL);
-                      toast.success('Link copied. Open in your browser to manage your plan.');
-                    } catch {
-                      window.open(WEB_ACCOUNT_URL, '_blank');
-                    }
+                  onClick={() => {
+                    openExternalBrowser(WEB_ACCOUNT_EXTERNAL_URL);
+                    toast.success('Opening browser…');
                   }}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
                 >

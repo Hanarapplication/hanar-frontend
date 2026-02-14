@@ -189,15 +189,20 @@ export default function PostItemPage() {
       const { data: { session } } = await supabase.auth.getSession();
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-      const res = await fetch('/api/marketplace/casual-seller-pack', { method: 'POST', headers });
+      const res = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ type: 'casual_pack' }),
+      });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Failed to activate pack');
-      setLimitReached(false);
-      setUsedSlots((prev) => Math.min(prev, 5));
-      toast.success('Casual Seller Pack active. You can list up to 5 items.');
+      if (!res.ok) throw new Error(data?.error || 'Failed to start checkout');
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to activate pack');
-    } finally {
+      toast.error(err instanceof Error ? err.message : 'Failed to start checkout');
       setPackPurchasing(false);
     }
   };
@@ -231,7 +236,7 @@ export default function PostItemPage() {
                 </div>
                 <div className="rounded-xl border-2 border-emerald-300 dark:border-emerald-600 bg-emerald-50/50 dark:bg-emerald-900/20 p-3">
                   <p className="font-semibold text-slate-900 dark:text-white">Casual Seller Pack</p>
-                  <p className="text-xs text-slate-600 dark:text-gray-300 mt-0.5">$19.99 for 30 days. Up to 5 active listings.</p>
+                  <p className="text-xs text-slate-600 dark:text-gray-300 mt-0.5">$19.99 for 40 days. Up to 5 active listings.</p>
                   <button
                     type="button"
                     onClick={purchasePack}
