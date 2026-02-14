@@ -259,7 +259,7 @@ function PromotePageContent() {
         data = { error: res.statusText || 'Request failed' };
       }
       if (!res.ok) throw new Error(data?.error || res.statusText || 'Submit failed');
-      toast.success('Redirecting to payment… We'll review and may adjust the banner if needed.');
+      toast.success("Redirecting to payment… We'll review and may adjust the banner if needed.");
       const requestId = data.request?.id;
       const checkoutRes = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
