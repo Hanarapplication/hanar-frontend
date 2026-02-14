@@ -34,6 +34,7 @@ function getLockoutUntil(): number {
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [lockoutUntil, setLockoutUntil] = useState(0);
   const router = useRouter();
@@ -126,7 +127,9 @@ export default function AdminLoginPage() {
           ? '/admin/approvals'
           : role === 'moderator'
             ? '/admin/community-moderation'
-            : '/admin/dashboard';
+            : role === 'business'
+              ? '/admin/dashboard'
+              : '/admin/dashboard';
 
     await new Promise((r) => setTimeout(r, 100));
     router.replace(target);
@@ -167,7 +170,7 @@ export default function AdminLoginPage() {
         />
 
         <input
-          type="password"
+          type={showPassword ? 'text' : 'password'}
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -176,6 +179,20 @@ export default function AdminLoginPage() {
           className="w-full border border-gray-300 rounded-lg px-4 py-2"
           disabled={isLockedOut}
         />
+
+        <div className="flex items-center gap-2">
+          <input
+            id="admin-login-show-password"
+            type="checkbox"
+            checked={showPassword}
+            onChange={(e) => setShowPassword(e.target.checked)}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            disabled={isLockedOut}
+          />
+          <label htmlFor="admin-login-show-password" className="text-sm text-gray-700 cursor-pointer">
+            Show password
+          </label>
+        </div>
 
         <button
           type="submit"

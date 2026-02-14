@@ -16,7 +16,6 @@ export default function PostItemPage() {
   const [isBusiness, setIsBusiness] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
   const [packPurchasing, setPackPurchasing] = useState(false);
-  const [showPhone, setShowPhone] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -339,10 +338,7 @@ export default function PostItemPage() {
 
             <div className="space-y-3">
               <label className="block text-sm font-medium text-slate-700">Contact Info</label>
-              <div className="flex gap-2 items-center">
-                <input name="contact.phone" placeholder="Phone" value={form.contact.phone} onChange={handleChange} type={showPhone ? 'tel' : 'password'} className="flex-1 border border-slate-300 rounded-xl px-4 py-2.5 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
-                {!showPhone && <button type="button" onClick={() => setShowPhone(true)} className="text-indigo-600 text-sm font-medium whitespace-nowrap">Show</button>}
-              </div>
+              <input name="contact.phone" type="tel" placeholder="Phone number" value={form.contact.phone} onChange={handleChange} className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
               <input name="contact.whatsapp" placeholder="WhatsApp" value={form.contact.whatsapp} onChange={handleChange} className="w-full border border-slate-300 rounded-xl px-4 py-2.5 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
               <input name="contact.email" type="email" placeholder="Email" value={form.contact.email} onChange={handleChange} className="w-full border border-slate-300 rounded-xl px-4 py-2.5 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" />
             </div>

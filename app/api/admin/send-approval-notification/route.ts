@@ -5,7 +5,7 @@ import {
   type ApprovalType,
 } from '@/lib/sendApprovalNotification';
 
-const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer'];
+const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer', 'business'];
 
 async function isAdmin(): Promise<boolean> {
   const cookieStore = await cookies();

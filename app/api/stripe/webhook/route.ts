@@ -98,10 +98,23 @@ export async function POST(req: Request) {
             { onConflict: 'user_id' }
           );
       } else if (type === 'promotion') {
-        // Promotion: payment received. Consider adding payment_received_at or similar.
-        // Admin still approves and creates feed_banner. Full flow TBD.
+        const requestId = meta.promotion_request_id as string | undefined;
+        if (requestId) {
+          await supabaseAdmin
+            .from('business_promotion_requests')
+            .update({ status: 'pending_review', updated_at: new Date().toISOString() })
+            .eq('id', requestId)
+            .eq('status', 'pending_payment');
+        }
       } else if (type === 'org_promotion') {
-        // Org placard: payment received. Admin approves and can create feed_banner. Full flow TBD.
+        const requestId = meta.org_promotion_request_id as string | undefined;
+        if (requestId) {
+          await supabaseAdmin
+            .from('organization_promotion_requests')
+            .update({ status: 'pending_review', updated_at: new Date().toISOString() })
+            .eq('id', requestId)
+            .eq('status', 'pending_payment');
+        }
       }
     }
 

@@ -106,8 +106,8 @@ export async function POST(req: Request) {
       const durationDays = parseInt(String(body.durationDays || 30), 10);
       const businessId = (body.businessId as string)?.trim();
       const promotionRequestId = (body.promotionRequestId as string)?.trim();
-      if (!['basic', 'targeted', 'premium'].includes(tier) || !businessId) {
-        return NextResponse.json({ error: 'Invalid promotion params' }, { status: 400 });
+      if (!['basic', 'targeted', 'premium'].includes(tier) || !businessId || !promotionRequestId) {
+        return NextResponse.json({ error: 'Invalid promotion params (tier, businessId, and promotionRequestId required)' }, { status: 400 });
       }
 
       const priceId = getPromoPriceId(tier as 'basic' | 'targeted' | 'premium', durationDays);
@@ -151,8 +151,8 @@ export async function POST(req: Request) {
       const durationDays = parseInt(String(body.durationDays || 30), 10);
       const organizationId = (body.organizationId as string)?.trim();
       const orgPromotionRequestId = (body.orgPromotionRequestId as string)?.trim();
-      if (!['basic', 'targeted', 'premium'].includes(tier) || !organizationId) {
-        return NextResponse.json({ error: 'Invalid org promotion params' }, { status: 400 });
+      if (!['basic', 'targeted', 'premium'].includes(tier) || !organizationId || !orgPromotionRequestId) {
+        return NextResponse.json({ error: 'Invalid org promotion params (tier, organizationId, and orgPromotionRequestId required)' }, { status: 400 });
       }
 
       const priceId = getPromoPriceId(tier as 'basic' | 'targeted' | 'premium', durationDays);

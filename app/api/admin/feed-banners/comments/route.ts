@@ -9,7 +9,7 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('Missing Supabase env');
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
-const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer'];
+const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer', 'business'];
 
 async function isAdmin(): Promise<{ ok: boolean; email?: string | null }> {
   const cookieStore = await cookies();

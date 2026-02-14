@@ -13,7 +13,7 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer'];
+const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer', 'business'];
 
 function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const toRad = (value: number) => (value * Math.PI) / 180;

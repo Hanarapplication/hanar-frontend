@@ -5,12 +5,16 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { ArrowLeft, CheckCircle, XCircle, RefreshCw, Inbox, ExternalLink, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { useAdminConfirm } from '@/components/AdminConfirmContext';
 
 type PromotionRequest = {
   id: string;
-  business_id: string;
+  source?: 'business' | 'organization';
+  business_id?: string | null;
   business_name: string | null;
   business_slug: string | null;
+  organization_name?: string | null;
+  organization_slug?: string | null;
   placement: string;
   image_path: string | null;
   image_url: string | null;
@@ -37,6 +41,7 @@ export default function AdminPromotionRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
+  const { showConfirm } = useAdminConfirm();
 
   const withAuth = async (): Promise<Record<string, string>> => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -79,18 +84,18 @@ export default function AdminPromotionRequestsPage() {
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [statusFilter]);
 
-  const handleApprove = async (id: string) => {
-    setProcessingRequestId(id);
+  const handleApprove = async (req: PromotionRequest) => {
+    setProcessingRequestId(req.id);
     try {
       const res = await fetch('/api/admin/promotion-requests', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...(await withAuth()) },
-        body: JSON.stringify({ id, action: 'approve' }),
+        body: JSON.stringify({ id: req.id, action: 'approve', source: req.source || 'business' }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Approve failed');
       toast.success('Promotion approved; banner is now active in the feed.');
-      setRequests((prev) => prev.filter((r) => r.id !== id));
+      setRequests((prev) => prev.filter((r) => r.id !== req.id));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Approve failed');
     } finally {
@@ -98,18 +103,18 @@ export default function AdminPromotionRequestsPage() {
     }
   };
 
-  const handleReject = async (id: string) => {
-    setProcessingRequestId(id);
+  const handleReject = async (req: PromotionRequest) => {
+    setProcessingRequestId(req.id);
     try {
       const res = await fetch('/api/admin/promotion-requests', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...(await withAuth()) },
-        body: JSON.stringify({ id, action: 'reject' }),
+        body: JSON.stringify({ id: req.id, action: 'reject', source: req.source || 'business' }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Reject failed');
       toast.success('Promotion rejected.');
-      setRequests((prev) => prev.filter((r) => r.id !== id));
+      setRequests((prev) => prev.filter((r) => r.id !== req.id));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Reject failed');
     } finally {
@@ -117,24 +122,33 @@ export default function AdminPromotionRequestsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Permanently delete this promotion request? If approved, the linked feed banner will be archived.')) return;
-    setProcessingRequestId(id);
-    try {
-      const res = await fetch(`/api/admin/promotion-requests?id=${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: await withAuth(),
-        credentials: 'include',
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Delete failed');
-      toast.success('Promotion request deleted.');
-      setRequests((prev) => prev.filter((r) => r.id !== id));
+  const handleDelete = (req: PromotionRequest) => {
+    showConfirm({
+      title: 'Delete promotion request?',
+      message: 'Permanently delete this promotion request? If approved, the linked feed banner will be archived.',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        setProcessingRequestId(req.id);
+        try {
+          const params = new URLSearchParams({ id: req.id });
+          if (req.source === 'organization') params.set('source', 'organization');
+          const res = await fetch(`/api/admin/promotion-requests?${params.toString()}`, {
+            method: 'DELETE',
+            headers: await withAuth(),
+            credentials: 'include',
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data?.error || 'Delete failed');
+          toast.success('Promotion request deleted.');
+          setRequests((prev) => prev.filter((r) => r.id !== req.id));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Delete failed');
     } finally {
       setProcessingRequestId(null);
     }
+      },
+    });
   };
 
   const pendingCount = requests.filter((r) => r.status === 'pending_review').length;
@@ -156,7 +170,7 @@ export default function AdminPromotionRequestsPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Promotion Requests</h1>
           <p className="text-sm text-slate-500">
-            Review submissions from &quot;Promote your business&quot;. Approve to add the banner to the feed; reject to decline.
+            Review promotion requests from businesses and organizations. Approve to add the banner/placard to the feed; reject to decline.
           </p>
         </div>
       </div>
@@ -211,7 +225,14 @@ export default function AdminPromotionRequestsPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-slate-900">{req.business_name ?? 'Unknown business'}</p>
+                        {req.source === 'organization' ? (
+                          <>
+                            <span className="rounded bg-violet-100 px-1.5 py-0.5 text-xs font-medium text-violet-700">Org</span>
+                            <p className="font-semibold text-slate-900">{req.organization_name ?? 'Unknown organization'}</p>
+                          </>
+                        ) : (
+                          <p className="font-semibold text-slate-900">{req.business_name ?? 'Unknown business'}</p>
+                        )}
                         <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
                           req.status === 'pending_review' ? 'bg-amber-100 text-amber-700' :
                           req.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
@@ -220,7 +241,17 @@ export default function AdminPromotionRequestsPage() {
                           {req.status === 'pending_review' ? 'Pending' : req.status === 'approved' ? 'Approved' : 'Rejected'}
                         </span>
                       </div>
-                      {req.business_slug && (
+                      {req.source === 'organization' && req.organization_slug ? (
+                        <Link
+                          href={`/organization/${req.organization_slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-slate-500 hover:text-amber-600 inline-flex items-center gap-0.5"
+                        >
+                          /organization/{req.organization_slug}
+                          <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      ) : req.business_slug ? (
                         <Link
                           href={`/business/${req.business_slug}`}
                           target="_blank"
@@ -230,19 +261,19 @@ export default function AdminPromotionRequestsPage() {
                           /business/{req.business_slug}
                           <ExternalLink className="h-3 w-3" />
                         </Link>
-                      )}
+                      ) : null}
                       {req.description && (
                         <p className="text-sm text-slate-600 mt-1 line-clamp-2">{req.description}</p>
                       )}
                       <p className="text-xs text-slate-500 mt-1">
-                        Link: {req.link_type === 'business_page' ? 'Business page' : req.link_value || '—'} · {req.tier} · {req.duration_days} days · ${(req.price_cents / 100).toFixed(0)}
+                        Link: {req.link_type === 'organization_page' ? 'Organization page' : req.link_type === 'business_page' ? 'Business page' : req.link_value || '—'} · {req.tier} · {req.duration_days} days · ${(req.price_cents / 100).toFixed(0)}
                       </p>
                       <p className="text-xs text-slate-400 mt-1">{new Date(req.created_at).toLocaleString()}</p>
                       {req.status === 'pending_review' && (
                         <div className="flex flex-wrap gap-2 mt-3">
                           <button
                             type="button"
-                            onClick={() => handleApprove(req.id)}
+                            onClick={() => handleApprove(req)}
                             disabled={processingRequestId === req.id || !req.image_path}
                             title={!req.image_path ? 'Cannot approve without banner image' : undefined}
                             className="inline-flex items-center gap-1 rounded-lg bg-emerald-100 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -251,7 +282,7 @@ export default function AdminPromotionRequestsPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleReject(req.id)}
+                            onClick={() => handleReject(req)}
                             disabled={processingRequestId === req.id}
                             className="inline-flex items-center gap-1 rounded-lg bg-red-100 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-200 disabled:opacity-50"
                           >
@@ -259,7 +290,7 @@ export default function AdminPromotionRequestsPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDelete(req.id)}
+                            onClick={() => handleDelete(req)}
                             disabled={processingRequestId === req.id}
                             className="inline-flex items-center gap-1 rounded-lg bg-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-300 disabled:opacity-50"
                           >
@@ -280,7 +311,7 @@ export default function AdminPromotionRequestsPage() {
                           )}
                           <button
                             type="button"
-                            onClick={() => handleDelete(req.id)}
+                            onClick={() => handleDelete(req)}
                             disabled={processingRequestId === req.id}
                             className="inline-flex items-center gap-1 rounded-lg bg-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-300 disabled:opacity-50"
                           >

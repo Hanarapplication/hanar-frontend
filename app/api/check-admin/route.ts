@@ -13,7 +13,7 @@ const supabaseAdmin = createClient(
 const allowedRoles = [
   'owner', 'ceo', 'topmanager', 'manager',
   'reviewer', 'moderator', 'support',
-  'editor', 'readonly'
+  'editor', 'readonly', 'business'
 ];
 
 // In-memory rate limit: max 20 requests per minute per IP

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import { useAdminConfirm } from '@/components/AdminConfirmContext';
 
 type ModerationStatus = 'active' | 'on_hold' | 'rejected';
 
@@ -47,6 +48,7 @@ export default function AdminOrganizationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { showConfirm } = useAdminConfirm();
 
   useEffect(() => {
     fetchOrganizations();
@@ -118,6 +120,7 @@ export default function AdminOrganizationsPage() {
             <OrganizationCard
               key={org.id}
               org={org}
+              showConfirm={showConfirm}
               onUpdate={fetchOrganizations}
             />
           ))}
@@ -127,7 +130,9 @@ export default function AdminOrganizationsPage() {
   );
 }
 
-function OrganizationCard({ org, onUpdate }: { org: Organization; onUpdate: () => void }) {
+type ShowConfirmFn = (opts: { title: string; message: string; confirmLabel?: string; variant?: 'danger' | 'default'; onConfirm: () => void }) => void;
+
+function OrganizationCard({ org, showConfirm, onUpdate }: { org: Organization; showConfirm: ShowConfirmFn; onUpdate: () => void }) {
   const [adminNote, setAdminNote] = useState(org.admin_note || '');
   const [showHistory, setShowHistory] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -188,23 +193,36 @@ function OrganizationCard({ org, onUpdate }: { org: Organization; onUpdate: () =
     }
   };
 
-  const handleSetStatus = async (newStatus: ModerationStatus) => {
+  const handleSetStatus = (newStatus: ModerationStatus) => {
     const action = newStatus === 'active' ? 'Reactivate' : newStatus === 'on_hold' ? 'Put on hold' : 'Reject';
-    if (!confirm(`${action} this organization?${adminNote.trim() ? '\n\nNote will be saved.' : ''}`)) return;
-    await saveUpdates({ moderation_status: newStatus }, adminNote.trim() || undefined);
+    const message = `${action} this organization?${adminNote.trim() ? '\n\nNote will be saved.' : ''}`;
+    showConfirm({
+      title: 'Are you sure?',
+      message,
+      confirmLabel: action,
+      variant: 'default',
+      onConfirm: () => saveUpdates({ moderation_status: newStatus }, adminNote.trim() || undefined),
+    });
   };
 
-  const handleDelete = async () => {
-    if (!confirm(`Permanently delete "${org.full_name || org.username || 'this org'}"? This cannot be undone.`)) return;
-    try {
-      const res = await fetch(`/api/admin/organizations?id=${encodeURIComponent(org.id)}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Delete failed');
-      toast.success('Organization deleted');
-      onUpdate();
-    } catch (err: any) {
-      toast.error(err?.message || 'Delete failed');
-    }
+  const handleDelete = () => {
+    showConfirm({
+      title: 'Delete organization?',
+      message: `Permanently delete "${org.full_name || org.username || 'this org'}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/admin/organizations?id=${encodeURIComponent(org.id)}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.error || 'Delete failed');
+          toast.success('Organization deleted');
+          onUpdate();
+        } catch (err: any) {
+          toast.error(err?.message || 'Delete failed');
+        }
+      },
+    });
   };
 
   const loadSentNotifications = async () => {
@@ -237,44 +255,58 @@ function OrganizationCard({ org, onUpdate }: { org: Organization; onUpdate: () =
     }
   };
 
-  const deleteNotification = async (notifId: string) => {
-    if (!confirm('Remove this sent notification log?')) return;
-    setDeletingNotif(notifId);
-    try {
-      const res = await fetch('/api/admin/notifications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: notifId, action: 'delete', source: 'notification' }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Failed to delete');
-      toast.success('Notification removed');
-      setSentNotifications((prev) => prev.filter((n) => n.id !== notifId));
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to delete notification');
-    } finally {
-      setDeletingNotif(null);
-    }
+  const deleteNotification = (notifId: string) => {
+    showConfirm({
+      title: 'Remove notification log?',
+      message: 'Remove this sent notification log?',
+      confirmLabel: 'Remove',
+      variant: 'danger',
+      onConfirm: async () => {
+        setDeletingNotif(notifId);
+        try {
+          const res = await fetch('/api/admin/notifications', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: notifId, action: 'delete', source: 'notification' }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.error || 'Failed to delete');
+          toast.success('Notification removed');
+          setSentNotifications((prev) => prev.filter((n) => n.id !== notifId));
+        } catch (err: any) {
+          toast.error(err?.message || 'Failed to delete notification');
+        } finally {
+          setDeletingNotif(null);
+        }
+      },
+    });
   };
 
-  const deletePost = async (postId: string) => {
-    if (!confirm('Delete this post? This cannot be undone.')) return;
-    setDeletingPost(postId);
-    try {
-      const res = await fetch('/api/admin/organizations/delete-post', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || 'Failed to delete');
-      toast.success('Post deleted');
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to delete post');
-    } finally {
-      setDeletingPost(null);
-    }
+  const deletePost = (postId: string) => {
+    showConfirm({
+      title: 'Delete post?',
+      message: 'Delete this post? This cannot be undone.',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        setDeletingPost(postId);
+        try {
+          const res = await fetch('/api/admin/organizations/delete-post', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ postId }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.error || 'Failed to delete');
+          toast.success('Post deleted');
+          setPosts((prev) => prev.filter((p) => p.id !== postId));
+        } catch (err: any) {
+          toast.error(err?.message || 'Failed to delete post');
+        } finally {
+          setDeletingPost(null);
+        }
+      },
+    });
   };
 
   const handleSaveEdit = async () => {

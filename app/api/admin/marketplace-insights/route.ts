@@ -11,7 +11,7 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer'];
+const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer', 'business'];
 
 async function isAdmin(): Promise<boolean> {
   const cookieStore = await cookies();

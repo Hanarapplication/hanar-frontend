@@ -13,7 +13,7 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 });
 
 const BUCKET = 'feed-banners';
-const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer'];
+const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer', 'business'];
 
 /** Ensure the feed-banners bucket exists (create if missing). */
 async function ensureBucket() {

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useAdminConfirm } from '@/components/AdminConfirmContext';
 
 // ──────────────────────────────────────────────── Types
 type BusinessStatus = 'pending' | 'approved' | 'hold' | 'archived' | 'rejected';
@@ -102,6 +103,7 @@ export default function AdminApprovalsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { showConfirm } = useAdminConfirm();
 
   useEffect(() => {
     fetchBusinesses();
@@ -119,7 +121,7 @@ export default function AdminApprovalsPage() {
         moderation_status, lifecycle_status, is_archived, verified_info,
         admin_note, note_history, updated_at,
         plan, plan_expires_at,
-        max_gallery_images, max_menu_items, max_retail_items, max_car_listings, max_real_estate_listings,
+        max_gallery_images, max_menu_items, max_retail_items, max_car_listings,
         allow_social_links, allow_whatsapp, allow_promoted, allow_reviews, allow_qr,
         admin_added_at
       `
@@ -138,9 +140,19 @@ export default function AdminApprovalsPage() {
     setLoading(false);
   }
 
+  const ALLOWED_BUSINESS_UPDATE_KEYS = [
+    'moderation_status', 'lifecycle_status', 'is_archived', 'status',
+    'verified_info', 'admin_note', 'note_history', 'updated_at',
+  ] as const;
+
   // ✅ Notes logic preserved (same behavior): note saved only on action; note_history appended
   async function saveBusinessUpdates(id: string, updates: Partial<Business>, noteToSave?: string) {
-    let finalUpdates: Partial<Business> = { ...updates };
+    let finalUpdates: Record<string, unknown> = {};
+    for (const key of ALLOWED_BUSINESS_UPDATE_KEYS) {
+      if (key in updates && (updates as Record<string, unknown>)[key] !== undefined) {
+        finalUpdates[key] = (updates as Record<string, unknown>)[key];
+      }
+    }
 
     if (noteToSave !== undefined && noteToSave.trim() !== '') {
       finalUpdates.admin_note = noteToSave.trim();
@@ -260,6 +272,7 @@ export default function AdminApprovalsPage() {
             <BusinessCard
               key={biz.id}
               biz={biz}
+              showConfirm={showConfirm}
               saveUpdates={async (upd, note) => {
                 const ok = await saveBusinessUpdates(biz.id, upd, note);
                 if (ok) await fetchBusinesses();
@@ -279,14 +292,25 @@ export default function AdminApprovalsPage() {
   );
 }
 
+type ShowConfirmFn = (options: {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+  variant?: 'danger' | 'default';
+}) => void;
+
 // ──────────────────────────────────────────────── Business Card
 function BusinessCard({
   biz,
+  showConfirm,
   saveUpdates,
   deleteBusiness,
   applyPlan,
 }: {
   biz: Business;
+  showConfirm: ShowConfirmFn;
   saveUpdates: (updates: Partial<Business>, note?: string) => Promise<boolean>;
   deleteBusiness: (id: string) => Promise<void>;
   applyPlan: (plan: PlanName, years: number) => Promise<boolean>;
@@ -341,63 +365,76 @@ function BusinessCard({
       ? `Save note and ${action.toLowerCase()} this business?\n\nNote to be saved:\n${noteText}`
       : `Really ${action.toLowerCase()} this business?\n(No note will be saved)`;
 
-    if (!confirm(message)) return;
-
-    const updates: Partial<Business> = {
-      verified_info: verified,
-    };
-
-    if (newStatus === 'approved') {
-      updates.moderation_status = 'active';
-      updates.status = 'active';
-      if (biz.lifecycle_status !== 'trial' && biz.lifecycle_status !== 'active') {
-        updates.lifecycle_status = 'active';
-      }
-      updates.is_archived = false;
-    } else if (newStatus === 'hold' || newStatus === 'pending') {
-      updates.moderation_status = 'on_hold';
-      updates.status = 'inactive';
-    } else if (newStatus === 'rejected') {
-      updates.moderation_status = 'rejected';
-      updates.status = 'inactive';
-    } else if (newStatus === 'archived') {
-      updates.lifecycle_status = 'archived';
-      updates.is_archived = true;
-      updates.status = 'inactive';
-    }
-
-    const success = await saveUpdates(updates, hasNote ? noteText : undefined);
-
-    if (success) {
-      if (newStatus === 'approved') {
-        try {
-          await fetch('/api/admin/send-approval-notification', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'business', id: biz.id }),
-          });
-        } catch {
-          // Non-blocking: approval succeeded; notification is best-effort
+    showConfirm({
+      title: 'Are you sure?',
+      message,
+      confirmLabel: action,
+      variant: 'default',
+      onConfirm: async () => {
+        const updates: Partial<Business> = {
+          verified_info: verified,
+        };
+        if (newStatus === 'approved') {
+          updates.moderation_status = 'active';
+          updates.status = 'active';
+          if (biz.lifecycle_status !== 'trial' && biz.lifecycle_status !== 'active') {
+            updates.lifecycle_status = 'active';
+          }
+          updates.is_archived = false;
+        } else if (newStatus === 'hold' || newStatus === 'pending') {
+          updates.moderation_status = 'on_hold';
+          updates.status = 'inactive';
+        } else if (newStatus === 'rejected') {
+          updates.moderation_status = 'rejected';
+          updates.status = 'inactive';
+        } else if (newStatus === 'archived') {
+          updates.lifecycle_status = 'archived';
+          updates.is_archived = true;
+          updates.status = 'inactive';
         }
-      }
-      toast.success(`${action} successful`);
-    }
+        const success = await saveUpdates(updates, hasNote ? noteText : undefined);
+        if (success) {
+          if (newStatus === 'approved') {
+            try {
+              await fetch('/api/admin/send-approval-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'business', id: biz.id }),
+              });
+            } catch {
+              // Non-blocking
+            }
+          }
+          toast.success(`${action} successful`);
+        }
+      },
+    });
   };
 
-  const confirmAndDelete = async () => {
-    if (!confirm(`Really delete ${biz.business_name} permanently?\nThis cannot be undone.`)) return;
-    await deleteBusiness(biz.id);
+  const confirmAndDelete = () => {
+    showConfirm({
+      title: 'Delete business?',
+      message: `Really delete ${biz.business_name} permanently?\nThis cannot be undone.`,
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: () => deleteBusiness(biz.id),
+    });
   };
 
-  const confirmAndApplyPlan = async () => {
+  const confirmAndApplyPlan = () => {
     const message = `Apply plan "${selectedPlan}" for ${planYears} year(s) to:\n\n${biz.business_name}\n\nThis will update plan limits & expiration. Continue?`;
-    if (!confirm(message)) return;
-
-    setPlanLoading(true);
-    const appliedOk = await applyPlan(selectedPlan, planYears);
-    setPlanLoading(false);
-
-    if (appliedOk) toast.success('Plan applied');
+    showConfirm({
+      title: 'Apply plan?',
+      message,
+      confirmLabel: 'Apply',
+      variant: 'default',
+      onConfirm: async () => {
+        setPlanLoading(true);
+        const appliedOk = await applyPlan(selectedPlan, planYears);
+        setPlanLoading(false);
+        if (appliedOk) toast.success('Plan applied');
+      },
+    });
   };
 
   const loadSentNotifications = async () => {
@@ -445,21 +482,28 @@ function BusinessCard({
     }
   };
 
-  const removeSent = async (item: SentNotification) => {
-    if (!confirm('Remove this sent notification log?')) return;
-    const source = item.kind === 'follower_update' ? 'notification' : 'area_blast';
-    try {
-      const res = await fetch('/api/admin/notifications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: item.id, action: 'delete', source }),
-      });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload?.error || 'Failed to remove notification');
-      setSentNotifications((prev) => prev.filter((n) => n.id !== item.id));
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to remove notification');
-    }
+  const removeSent = (item: SentNotification) => {
+    showConfirm({
+      title: 'Remove notification log?',
+      message: 'Remove this sent notification log?',
+      confirmLabel: 'Remove',
+      variant: 'danger',
+      onConfirm: async () => {
+        const source = item.kind === 'follower_update' ? 'notification' : 'area_blast';
+        try {
+          const res = await fetch('/api/admin/notifications', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: item.id, action: 'delete', source }),
+          });
+          const payload = await res.json();
+          if (!res.ok) throw new Error(payload?.error || 'Failed to remove notification');
+          setSentNotifications((prev) => prev.filter((n) => n.id !== item.id));
+        } catch (err: any) {
+          toast.error(err?.message || 'Failed to remove notification');
+        }
+      },
+    });
   };
 
   const toggleFlagSent = async (item: SentNotification) => {
@@ -536,7 +580,7 @@ function BusinessCard({
         {biz.phone && <p>📞 {biz.phone}</p>}
         {biz.email && <p>✉️ {biz.email}</p>}
         <p>Visibility: <span className="font-medium">{getUiStatus(biz)}</span></p>
-        <p>Limits: Gallery {biz.max_gallery_images ?? 0} · Menu {biz.max_menu_items ?? 0} · Retail {biz.max_retail_items ?? 0} · Cars {biz.max_car_listings ?? 0} · Real estate {biz.max_real_estate_listings ?? 0}</p>
+        <p>Limits: Gallery {biz.max_gallery_images ?? 0} · Menu {biz.max_menu_items ?? 0} · Retail {biz.max_retail_items ?? 0} · Cars {biz.max_car_listings ?? 0} · Real estate {biz.max_real_estate_listings ?? biz.max_car_listings ?? 0}</p>
       </div>
 
       {/* PLAN CONTROL */}

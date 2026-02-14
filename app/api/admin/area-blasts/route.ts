@@ -14,7 +14,7 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer'];
+const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer', 'business'];
 
 const buildAddressString = (address: any) => {
   if (!address) return '';

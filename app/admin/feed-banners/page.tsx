@@ -22,6 +22,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { useAdminConfirm } from '@/components/AdminConfirmContext';
 
 type Banner = {
   id: string;
@@ -68,6 +69,7 @@ export default function AdminFeedBannersPage() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [packages, setPackages] = useState<BannerPackage[]>([]);
   const [loading, setLoading] = useState(true);
+  const { showConfirm } = useAdminConfirm();
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -306,26 +308,33 @@ export default function AdminFeedBannersPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Permanently delete this banner? This cannot be undone.')) return;
-    setDeletingId(id);
-    try {
-      const res = await fetch(`/api/admin/feed-banners?id=${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: await withAuth(),
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || 'Delete failed');
-      }
-      toast.success('Banner deleted');
-      loadBanners();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Delete failed');
-    } finally {
-      setDeletingId(null);
-    }
+  const handleDelete = (id: string) => {
+    showConfirm({
+      title: 'Delete banner?',
+      message: 'Permanently delete this banner? This cannot be undone.',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        setDeletingId(id);
+        try {
+          const res = await fetch(`/api/admin/feed-banners?id=${encodeURIComponent(id)}`, {
+            method: 'DELETE',
+            headers: await withAuth(),
+            credentials: 'include',
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data?.error || 'Delete failed');
+          }
+          toast.success('Banner deleted');
+          loadBanners();
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Delete failed');
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
   const statusTabs: { key: typeof statusFilter; label: string }[] = [

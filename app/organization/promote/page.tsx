@@ -508,34 +508,40 @@ export default function OrganizationPromotePage() {
                 </div>
                 {audienceType === 'targeted' && (
                   <>
-                    {tier === 'premium' && (
-                      <>
-                        <div>
-                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Gender</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {GENDER_OPTIONS.map((opt) => (
-                              <label key={opt.value} className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs cursor-pointer ${genderOption === opt.value ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/30' : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800'}`}>
-                                <input type="radio" name="step3_gender" value={opt.value} checked={genderOption === opt.value} onChange={() => setGenderOption(opt.value)} className="sr-only" />
-                                <span>{opt.label}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Age groups</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {TARGET_AGE_GROUPS.map((a) => (
-                              <label key={a} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700">
-                                <input type="checkbox" checked={targetAgeGroups.includes(a)} onChange={() => setTargetAgeGroups((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]))} />
-                                <span>{a}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      </>
-                    )}
                     <div>
-                      <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Languages</p>
+                      <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Gender</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {GENDER_OPTIONS.map((opt) => (
+                          <label key={opt.value} className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs cursor-pointer ${genderOption === opt.value ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/30' : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800'}`}>
+                            <input type="radio" name="step3_gender" value={opt.value} checked={genderOption === opt.value} onChange={() => setGenderOption(opt.value)} className="sr-only" />
+                            <span>{opt.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-2">
+                        Age groups
+                        <button type="button" onClick={() => setTargetAgeGroups([...TARGET_AGE_GROUPS])} className="text-amber-600 hover:underline">All ages</button>
+                        <span className="text-slate-400">|</span>
+                        <button type="button" onClick={() => setTargetAgeGroups([])} className="text-slate-500 hover:underline">Clear</button>
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {TARGET_AGE_GROUPS.map((a) => (
+                          <label key={a} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700">
+                            <input type="checkbox" checked={targetAgeGroups.includes(a)} onChange={() => setTargetAgeGroups((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]))} />
+                            <span>{a}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-2 flex-wrap">
+                        Languages
+                        <button type="button" onClick={() => setTargetLanguages(spokenLanguagesWithDialects.map((l) => l.code))} className="text-amber-600 hover:underline">All languages</button>
+                        <span className="text-slate-400">|</span>
+                        <button type="button" onClick={() => setTargetLanguages([])} className="text-slate-500 hover:underline">Clear</button>
+                      </p>
                       <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
                         {spokenLanguagesWithDialects.slice(0, 12).map(({ code, label, flag }) => (
                           <label key={code} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-0.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700">

@@ -15,7 +15,7 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer', 'moderator'];
+const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer', 'moderator', 'business'];
 
 async function getAdminUser(req: Request): Promise<{ id: string; email?: string } | null> {
   let user: { id: string; email?: string } | null = null;

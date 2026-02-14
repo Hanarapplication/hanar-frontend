@@ -15,7 +15,7 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer', 'moderator', 'support', 'editor', 'readonly'];
+const allowedRoles = ['owner', 'ceo', 'topmanager', 'manager', 'reviewer', 'moderator', 'support', 'editor', 'readonly', 'business'];
 
 async function getAdminUser(req: Request): Promise<{ id: string; email?: string } | null> {
   let user: { id: string; email?: string } | null = null;
@@ -70,52 +70,63 @@ export async function GET(req: Request) {
     }
 
     const [
-      { count: businessesPending },
-      { count: notificationPending },
-      { count: reportedPosts },
-      { count: feedBannersOnHold },
-      { count: organizationsNeedingAttention },
+      businessesResult,
+      notificationResult,
+      reportedPostsResult,
+      feedBannersResult,
+      organizationsResult,
     ] = await Promise.all([
       supabaseAdmin
         .from('businesses')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('moderation_status', 'on_hold')
-        .eq('is_archived', false),
+        .eq('is_archived', false)
+        .then((r) => ({ count: r.count ?? 0, error: r.error })),
       supabaseAdmin
         .from('area_blast_outbox')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending'),
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending')
+        .then((r) => ({ count: r.count ?? 0, error: r.error })),
       supabaseAdmin
         .from('community_posts')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('is_reported', true)
-        .or('is_deleted.eq.false,is_deleted.is.null'),
+        .or('is_deleted.eq.false,is_deleted.is.null')
+        .then((r) => ({ count: r.count ?? 0, error: r.error })),
       supabaseAdmin
         .from('feed_banners')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'on_hold'),
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'on_hold')
+        .then((r) => ({ count: r.count ?? 0, error: r.error })),
       supabaseAdmin
         .from('organizations')
-        .select('*', { count: 'exact', head: true })
-        .or('moderation_status.eq.on_hold,moderation_status.eq.rejected'),
+        .select('id', { count: 'exact', head: true })
+        .or('moderation_status.eq.on_hold,moderation_status.eq.rejected')
+        .then((r) => ({ count: r.count ?? 0, error: r.error })),
     ]);
+
+    const businessesPending = businessesResult.error ? 0 : businessesResult.count;
+    const notificationPending = notificationResult.error ? 0 : notificationResult.count;
+    const reportedPosts = reportedPostsResult.error ? 0 : reportedPostsResult.count;
+    const feedBannersOnHold = feedBannersResult.error ? 0 : feedBannersResult.count;
+    const organizationsNeedingAttention = organizationsResult.error ? 0 : organizationsResult.count;
 
     let reportedComments = 0;
     try {
       const { count } = await supabaseAdmin
         .from('community_comments')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('is_reported', true);
       reportedComments = count ?? 0;
     } catch {
-      // column may not exist
+      // column/table may not exist
     }
 
     let contactUs = 0;
     try {
       const { count } = await supabaseAdmin
         .from('contact_submissions')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .or('status.is.null,status.eq.pending');
       contactUs = count ?? 0;
     } catch {
@@ -126,11 +137,28 @@ export async function GET(req: Request) {
     try {
       const { count } = await supabaseAdmin
         .from('reports')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .in('status', ['unread', 'read']);
       unreadReports = count ?? 0;
     } catch {
       // table may not exist yet
+    }
+
+    let promotionRequestsPending = 0;
+    try {
+      const [bizRes, orgRes] = await Promise.all([
+        supabaseAdmin
+          .from('business_promotion_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'pending_review'),
+        supabaseAdmin
+          .from('organization_promotion_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'pending_review'),
+      ]);
+      promotionRequestsPending = (bizRes.count ?? 0) + (orgRes.count ?? 0);
+    } catch {
+      // tables may not exist
     }
 
     return NextResponse.json({
@@ -142,6 +170,7 @@ export async function GET(req: Request) {
       feed_banners_on_hold: feedBannersOnHold ?? 0,
       organizations_needing_attention: organizationsNeedingAttention ?? 0,
       unread_reports: unreadReports,
+      promotion_requests_pending: promotionRequestsPending,
     });
   } catch (err: unknown) {
     return NextResponse.json(

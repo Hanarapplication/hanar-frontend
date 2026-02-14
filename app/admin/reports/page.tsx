@@ -17,6 +17,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useAdminConfirm } from '@/components/AdminConfirmContext';
 
 type Report = {
   id: string;
@@ -73,6 +74,7 @@ export default function AdminReportsPage() {
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [commentLoading, setCommentLoading] = useState<Record<string, boolean>>({});
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+  const { showConfirm } = useAdminConfirm();
 
   const getToken = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -153,22 +155,29 @@ export default function AdminReportsPage() {
     }
   };
 
-  const deleteReport = async (reportId: string) => {
-    if (!confirm('Permanently delete this report? This cannot be undone.')) return;
-    setActionLoading((prev) => ({ ...prev, [reportId]: true }));
-    try {
-      const token = await getToken();
-      const res = await fetch(`/api/admin/reports?id=${reportId}`, {
-        method: 'DELETE',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (res.ok) {
-        setReports((prev) => prev.filter((r) => r.id !== reportId));
-        if (expandedReport === reportId) setExpandedReport(null);
-      }
-    } finally {
-      setActionLoading((prev) => ({ ...prev, [reportId]: false }));
-    }
+  const deleteReport = (reportId: string) => {
+    showConfirm({
+      title: 'Delete report?',
+      message: 'Permanently delete this report? This cannot be undone.',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        setActionLoading((prev) => ({ ...prev, [reportId]: true }));
+        try {
+          const token = await getToken();
+          const res = await fetch(`/api/admin/reports?id=${reportId}`, {
+            method: 'DELETE',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (res.ok) {
+            setReports((prev) => prev.filter((r) => r.id !== reportId));
+            if (expandedReport === reportId) setExpandedReport(null);
+          }
+        } finally {
+          setActionLoading((prev) => ({ ...prev, [reportId]: false }));
+        }
+      },
+    });
   };
 
   const submitComment = async (reportId: string) => {

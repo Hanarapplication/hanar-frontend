@@ -228,8 +228,26 @@ export default function PromotePage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Submit failed');
-      toast.success(file ? 'Promotion request submitted. We’ll review and may adjust the banner if needed.' : 'Promotion request submitted. Our team will create your banner from your description.');
-      router.push('/business-dashboard');
+      toast.success('Redirecting to payment… We’ll review and may adjust the banner if needed.');
+      const requestId = data.request?.id;
+      const checkoutRes = await fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+        body: JSON.stringify({
+          type: 'promotion',
+          businessId: business.id,
+          tier,
+          durationDays,
+          promotionRequestId: requestId || undefined,
+        }),
+      });
+      const checkoutData = await checkoutRes.json().catch(() => ({}));
+      if (!checkoutRes.ok) throw new Error(checkoutData?.error || 'Checkout failed');
+      if (checkoutData?.url) {
+        window.location.href = checkoutData.url;
+        return;
+      }
+      throw new Error('No checkout URL returned');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Submit failed');
     } finally {
@@ -493,7 +511,12 @@ export default function PromotePage() {
                           </div>
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-slate-700 mb-1.5">Age groups</p>
+                          <p className="text-xs font-medium text-slate-700 mb-1.5 flex items-center gap-2">
+                            Age groups
+                            <button type="button" onClick={() => setTargetAgeGroups([...TARGET_AGE_GROUPS])} className="text-amber-600 hover:underline">All ages</button>
+                            <span className="text-slate-400">|</span>
+                            <button type="button" onClick={() => setTargetAgeGroups([])} className="text-slate-500 hover:underline">Clear</button>
+                          </p>
                           <div className="flex flex-wrap gap-1.5">
                             {TARGET_AGE_GROUPS.map((a) => (
                               <label key={a} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs cursor-pointer hover:bg-slate-50">
@@ -506,7 +529,12 @@ export default function PromotePage() {
                       </>
                     )}
                     <div>
-                      <p className="text-xs font-medium text-slate-700 mb-1.5">Languages</p>
+                      <p className="text-xs font-medium text-slate-700 mb-1.5 flex items-center gap-2 flex-wrap">
+                        Languages
+                        <button type="button" onClick={() => setTargetLanguages(spokenLanguagesWithDialects.map((l) => l.code))} className="text-amber-600 hover:underline">All languages</button>
+                        <span className="text-slate-400">|</span>
+                        <button type="button" onClick={() => setTargetLanguages([])} className="text-slate-500 hover:underline">Clear</button>
+                      </p>
                       <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
                         {spokenLanguagesWithDialects.slice(0, 12).map(({ code, label, flag }) => (
                           <label key={code} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-xs cursor-pointer hover:bg-slate-50">
@@ -579,7 +607,7 @@ export default function PromotePage() {
                 disabled={submitting || targetCities.length === 0}
                 className="flex-1 rounded-xl bg-amber-600 py-3 font-semibold text-white hover:bg-amber-500 disabled:opacity-50"
               >
-                {submitting ? 'Submitting...' : targetCities.length === 0 ? 'Add at least one city' : 'Submit for review'}
+                {submitting ? 'Redirecting to payment...' : targetCities.length === 0 ? 'Add at least one city' : 'Pay & submit'}
               </button>
             </div>
           </div>

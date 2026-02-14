@@ -21,7 +21,7 @@ const resend = new Resend(RESEND_API_KEY);
 
 const allowedRoles = [
   'owner', 'ceo', 'topmanager', 'manager',
-  'reviewer', 'moderator', 'support', 'editor', 'readonly',
+  'reviewer', 'moderator', 'support', 'editor', 'readonly', 'business',
 ];
 
 type Audience =

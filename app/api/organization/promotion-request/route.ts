@@ -161,7 +161,7 @@ export async function POST(req: Request) {
         tier,
         duration_days,
         price_cents,
-        status: 'pending_review',
+        status: 'pending_payment',
       })
       .select()
       .single();

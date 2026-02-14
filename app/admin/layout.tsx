@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import { AdminConfirmProvider } from '@/components/AdminConfirmContext';
 
 const ADMIN_NAV = [
   { label: 'Dashboard', path: '/admin/dashboard' },
   { label: 'Business Approvals', path: '/admin/approvals' },
   { label: 'Organizations', path: '/admin/organizations' },
   { label: 'Create Business / Org', path: '/admin/create' },
+  { label: 'Admins', path: '/admin/admins' },
   { label: 'Send Emails', path: '/admin/send-emails' },
   { label: 'Custom Message', path: '/admin/send-emails/custom' },
   { label: 'Login + OTP', path: '/admin/send-emails/login' },
@@ -29,6 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [authorized, setAuthorized] = useState(false);
   const [checking, setChecking] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [adminRole, setAdminRole] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname() ?? '';
 
@@ -60,6 +63,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         if (response.ok && result.allowed) {
           setAuthorized(true);
+          setAdminRole(result.role ?? null);
         } else {
           router.push('/admin-login');
         }
@@ -115,6 +119,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <Link href="/admin/dashboard" className="block" onClick={closeMenu}>
           <h1 className="text-lg font-bold text-slate-800 tracking-tight">Admin Panel</h1>
           <p className="text-xs text-slate-500 mt-0.5">Hanar</p>
+          {adminRole === 'business' && (
+            <span className="inline-block mt-1.5 text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+              Business account
+            </span>
+          )}
         </Link>
       </div>
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
@@ -195,9 +204,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main */}
       <main className="flex-1 min-w-0 overflow-auto pt-14 md:pt-0">
-        <div className="p-4 sm:p-6 lg:p-8 pb-8 min-h-screen md:min-h-0">
-          {children}
-        </div>
+        <AdminConfirmProvider>
+          <div className="p-4 sm:p-6 lg:p-8 pb-8 min-h-screen md:min-h-0">
+            {children}
+          </div>
+        </AdminConfirmProvider>
       </main>
     </div>
   );

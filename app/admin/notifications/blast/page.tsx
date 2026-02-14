@@ -5,6 +5,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { Radio, ArrowLeft, Building2, Briefcase, User, MessageSquare, Smartphone, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { useAdminConfirm } from '@/components/AdminConfirmContext';
 
 type TargetKey = 'organizations' | 'businesses' | 'individuals';
 
@@ -41,6 +42,7 @@ export default function AdminBlastNotificationsPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { showConfirm } = useAdminConfirm();
 
   const toggleTarget = (key: TargetKey) => {
     setTargets((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -130,26 +132,33 @@ export default function AdminBlastNotificationsPage() {
     }
   };
 
-  const deleteCampaign = async (campaignId: string) => {
-    if (!confirm('Remove this blast for all recipients?')) return;
-    setDeletingId(campaignId);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`/api/admin/send-notifications?campaignId=${encodeURIComponent(campaignId)}`, {
-        method: 'DELETE',
-        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || 'Failed to delete');
-      }
-      toast.success('Blast removed');
-      setHistory((prev) => prev.filter((h) => h.campaignId !== campaignId));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete');
-    } finally {
-      setDeletingId(null);
-    }
+  const deleteCampaign = (campaignId: string) => {
+    showConfirm({
+      title: 'Remove blast?',
+      message: 'Remove this blast for all recipients?',
+      confirmLabel: 'Remove',
+      variant: 'danger',
+      onConfirm: async () => {
+        setDeletingId(campaignId);
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const res = await fetch(`/api/admin/send-notifications?campaignId=${encodeURIComponent(campaignId)}`, {
+            method: 'DELETE',
+            headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data?.error || 'Failed to delete');
+          }
+          toast.success('Blast removed');
+          setHistory((prev) => prev.filter((h) => h.campaignId !== campaignId));
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Failed to delete');
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
   return (

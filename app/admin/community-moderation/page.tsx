@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
+import { useAdminConfirm } from '@/components/AdminConfirmContext';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,6 +16,7 @@ export default function AdminCommunityModerationPage() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(false);
+  const { showConfirm } = useAdminConfirm();
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -31,19 +34,38 @@ export default function AdminCommunityModerationPage() {
     fetchPosts();
   }, [refresh]);
 
-  const handleDeletePost = async (id: string) => {
-    if (!confirm('Are you sure you want to permanently delete this post?')) return;
-
-    const { error } = await supabase.from('community_posts').delete().eq('id', id);
-    if (error) return alert('Failed to delete post');
-    setRefresh(prev => !prev);
+  const handleDeletePost = (id: string) => {
+    showConfirm({
+      title: 'Delete post?',
+      message: 'Are you sure you want to permanently delete this post?',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        const { error } = await supabase.from('community_posts').delete().eq('id', id);
+        if (error) {
+          toast.error('Failed to delete post');
+          return;
+        }
+        setRefresh(prev => !prev);
+      },
+    });
   };
 
-  const handleDeleteReply = async (replyId: number) => {
-    if (!confirm('Are you sure you want to delete this reply?')) return;
-    const { error } = await supabase.from('community_replies').delete().eq('id', replyId);
-    if (error) return alert('Failed to delete reply');
-    setRefresh(prev => !prev);
+  const handleDeleteReply = (replyId: number) => {
+    showConfirm({
+      title: 'Delete reply?',
+      message: 'Are you sure you want to delete this reply?',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+      onConfirm: async () => {
+        const { error } = await supabase.from('community_replies').delete().eq('id', replyId);
+        if (error) {
+          toast.error('Failed to delete reply');
+          return;
+        }
+        setRefresh(prev => !prev);
+      },
+    });
   };
 
   return (

@@ -15,7 +15,7 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 
 const allowedRoles = [
   'owner', 'ceo', 'topmanager', 'manager',
-  'reviewer', 'moderator', 'support', 'editor', 'readonly',
+  'reviewer', 'moderator', 'support', 'editor', 'readonly', 'business',
 ];
 
 function sanitizeName(name: string) {

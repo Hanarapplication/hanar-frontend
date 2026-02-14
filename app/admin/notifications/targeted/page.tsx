@@ -20,6 +20,7 @@ import {
   Link2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { useAdminConfirm } from '@/components/AdminConfirmContext';
 
 type SearchUser = {
   user_id: string;
@@ -87,6 +88,7 @@ export default function AdminTargetedNotificationsPage() {
   const [body, setBody] = useState('');
   const [url, setUrl] = useState('');
   const [sending, setSending] = useState(false);
+  const { showConfirm } = useAdminConfirm();
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -182,26 +184,33 @@ export default function AdminTargetedNotificationsPage() {
     }
   };
 
-  const deleteCampaign = async (campaignId: string) => {
-    if (!confirm('Remove this notification for all recipients?')) return;
-    setDeletingId(campaignId);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`/api/admin/send-notifications?campaignId=${encodeURIComponent(campaignId)}`, {
-        method: 'DELETE',
-        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || 'Failed to delete');
-      }
-      toast.success('Notification removed');
-      setHistory((prev) => prev.filter((h) => h.campaignId !== campaignId));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete');
-    } finally {
-      setDeletingId(null);
-    }
+  const deleteCampaign = (campaignId: string) => {
+    showConfirm({
+      title: 'Remove notification?',
+      message: 'Remove this notification for all recipients?',
+      confirmLabel: 'Remove',
+      variant: 'danger',
+      onConfirm: async () => {
+        setDeletingId(campaignId);
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const res = await fetch(`/api/admin/send-notifications?campaignId=${encodeURIComponent(campaignId)}`, {
+            method: 'DELETE',
+            headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data?.error || 'Failed to delete');
+          }
+          toast.success('Notification removed');
+          setHistory((prev) => prev.filter((h) => h.campaignId !== campaignId));
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Failed to delete');
+        } finally {
+          setDeletingId(null);
+        }
+      },
+    });
   };
 
   return (

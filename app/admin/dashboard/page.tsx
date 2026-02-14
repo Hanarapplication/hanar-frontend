@@ -14,6 +14,7 @@ import {
   ImageIcon,
   Users,
   Flag,
+  Megaphone,
 } from 'lucide-react';
 
 type DashboardCounts = {
@@ -25,6 +26,7 @@ type DashboardCounts = {
   feed_banners_on_hold: number;
   organizations_needing_attention: number;
   unread_reports: number;
+  promotion_requests_pending: number;
 };
 
 const TASKS: {
@@ -35,6 +37,7 @@ const TASKS: {
 }[] = [
   { key: 'businesses_pending_approval', label: 'Businesses pending approval', path: '/admin/approvals', icon: <ClipboardCheck className="h-5 w-5" /> },
   { key: 'notification_requests_pending', label: 'Notification requests to approve', path: '/admin/notification-requests', icon: <Bell className="h-5 w-5" /> },
+  { key: 'promotion_requests_pending', label: 'Promotion requests to review', path: '/admin/promotion-requests', icon: <Megaphone className="h-5 w-5" /> },
   { key: 'feed_banners_on_hold', label: 'Feed banners on hold', path: '/admin/feed-banners', icon: <ImageIcon className="h-5 w-5" /> },
   { key: 'organizations_needing_attention', label: 'Organizations (on hold or rejected)', path: '/admin/organizations', icon: <Users className="h-5 w-5" /> },
   { key: 'reported_posts', label: 'Reported posts', path: '/admin/community-moderation', icon: <FileText className="h-5 w-5" /> },
