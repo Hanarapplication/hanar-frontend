@@ -279,7 +279,14 @@ export default function OrganizationDashboard() {
     async function loadProfile() {
       setLoading(true);
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        let { data: { session } } = await supabase.auth.getSession();
+        let user = session?.user;
+        if (!user) {
+          await new Promise((r) => setTimeout(r, 200));
+          const retry = await supabase.auth.getSession();
+          session = retry.data.session;
+          user = session?.user;
+        }
         if (!user) {
           router.push('/login');
           return;

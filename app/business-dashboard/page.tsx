@@ -220,10 +220,15 @@ function BusinessDashboardContent() {
       try {
         setLoading(true);
 
-        const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession();
-        if (sessionErr) throw sessionErr;
+        let sessionRes = await supabase.auth.getSession();
+        if (sessionRes.error) throw sessionRes.error;
 
-        const userId = sessionRes.session?.user?.id;
+        let userId = sessionRes.data.session?.user?.id;
+        if (!userId) {
+          await new Promise((r) => setTimeout(r, 200));
+          sessionRes = await supabase.auth.getSession();
+          userId = sessionRes.data.session?.user?.id;
+        }
         if (!userId) {
           router.replace('/login');
           return;

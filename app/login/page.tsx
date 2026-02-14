@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
@@ -13,7 +13,34 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [clicked, setClicked] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    const redirectIfLoggedIn = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) {
+        setCheckingAuth(false);
+        return;
+      }
+      const { data: profile } = await supabase
+        .from('registeredaccounts')
+        .select('business, organization')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (profile?.business === true) {
+        router.replace('/business-dashboard');
+        return;
+      }
+      if (profile?.organization === true) {
+        router.replace('/organization/dashboard');
+        return;
+      }
+      router.replace('/dashboard');
+    };
+    redirectIfLoggedIn();
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +102,14 @@ export default function LoginPage() {
       setClicked(false);
     }
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] px-4">
+        <div className="text-gray-500">{t(effectiveLang, 'Loading...')}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] px-4">

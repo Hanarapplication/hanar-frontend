@@ -157,8 +157,15 @@ function DashboardContent() {
     const load = async () => {
       try {
         // Use getSession() so we don't redirect while session is still restoring (getUser() can briefly return null)
-        const { data: { session } } = await supabase.auth.getSession();
-        const user = session?.user;
+        let { data: { session } } = await supabase.auth.getSession();
+        let user = session?.user;
+        if (!user) {
+          // Give session a moment to restore (e.g. from storage) so we don't send logged-in users to login
+          await new Promise((r) => setTimeout(r, 200));
+          const retry = await supabase.auth.getSession();
+          session = retry.data.session;
+          user = session?.user;
+        }
         if (!user) {
           router.replace('/login');
           return;
