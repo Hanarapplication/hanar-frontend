@@ -41,6 +41,22 @@ export default function CommunityPostPage() {
   const [bannerBottom, setBannerBottom] = useState<{ id: string; image: string; link: string; alt: string } | null>(null);
 
   useEffect(() => {
+    let lat: number | null = null;
+    let lon: number | null = null;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('userCoords');
+        if (stored) {
+          const parsed = JSON.parse(stored) as { lat?: number; lon?: number };
+          if (typeof parsed?.lat === 'number' && typeof parsed?.lon === 'number') {
+            lat = parsed.lat;
+            lon = parsed.lon;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
     fetch('/api/user/audience-segment')
       .then((r) => r.json())
       .then((seg) => {
@@ -49,6 +65,10 @@ export default function CommunityPostPage() {
         if (seg?.gender) params.set('gender', seg.gender);
         if (seg?.preferred_language) params.append('lang', seg.preferred_language);
         if (Array.isArray(seg?.spoken_languages)) seg.spoken_languages.forEach((l: string) => params.append('lang', l));
+        if (lat != null && lon != null) {
+          params.set('lat', String(lat));
+          params.set('lon', String(lon));
+        }
         const qs = params.toString();
         return fetch(qs ? `/api/feed-banners?${qs}` : '/api/feed-banners').then((r) => r.json());
       })

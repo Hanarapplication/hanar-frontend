@@ -217,11 +217,16 @@ function PromotePageContent() {
 
       if (effectiveAudience === 'targeted') {
         if (basicWithCities) {
-          form.set('target_locations', JSON.stringify(targetCities.slice(0, MAX_CITIES_BASIC).map((c) => c.label)));
+          const locs = targetCities.slice(0, MAX_CITIES_BASIC);
+          form.set('target_locations', JSON.stringify(locs.map((c) => c.label)));
+          form.set('target_location_coords', JSON.stringify(locs.map((c) => ({ label: c.label, lat: c.lat, lng: c.lng }))));
         } else if (isTargetedOrPremium) {
           if (targetLanguages.length) form.set('target_languages', JSON.stringify(targetLanguages));
           const locs = tier === 'targeted' ? targetCities.slice(0, MAX_CITIES_TARGETED) : targetCities;
-          if (locs.length) form.set('target_locations', JSON.stringify(locs.map((c) => c.label)));
+          if (locs.length) {
+            form.set('target_locations', JSON.stringify(locs.map((c) => c.label)));
+            form.set('target_location_coords', JSON.stringify(locs.map((c) => ({ label: c.label, lat: c.lat, lng: c.lng }))));
+          }
           if (tier === 'premium') {
             if (genderOption === 'man') form.set('target_genders', JSON.stringify(['man']));
             else if (genderOption === 'woman') form.set('target_genders', JSON.stringify(['woman']));

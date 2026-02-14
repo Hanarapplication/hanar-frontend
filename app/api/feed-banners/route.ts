@@ -9,6 +9,7 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('Missing Supabase env');
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
 const BUCKET = 'feed-banners';
+const TARGET_LOCATION_RADIUS_MILES = 20;
 
 function getPublicUrl(path: string): string {
   if (!path) return '';
@@ -16,7 +17,21 @@ function getPublicUrl(path: string): string {
   return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
 }
 
-/** Public: list active, non-expired feed banners. Optional query: age_group, gender, lang, state (for targeting). */
+/** Haversine distance in miles between two lat/lng points. */
+function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3959; // Earth radius in miles
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+type TargetCoord = { label?: string; lat: number; lng: number };
+
+/** Public: list active, non-expired feed banners. Optional query: age_group, gender, lang, state, lat, lon (for targeting). */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -26,11 +41,16 @@ export async function GET(req: Request) {
     const langMultiple = searchParams.getAll('lang').map((s) => s?.trim()).filter(Boolean);
     const userLangs = langMultiple.length > 0 ? langMultiple : (langParam ? [langParam] : []);
     const state = searchParams.get('state')?.trim() || null;
+    const latParam = searchParams.get('lat')?.trim();
+    const lonParam = searchParams.get('lon')?.trim();
+    const viewerLat = latParam ? parseFloat(latParam) : null;
+    const viewerLon = lonParam ? parseFloat(lonParam) : null;
+    const hasViewerCoords = viewerLat != null && !Number.isNaN(viewerLat) && viewerLon != null && !Number.isNaN(viewerLon);
 
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('feed_banners')
-      .select('id, image_path, link_url, alt, expires_at, starts_at, audience_type, target_genders, target_age_groups, target_languages, target_locations')
+      .select('id, image_path, link_url, alt, expires_at, starts_at, audience_type, target_genders, target_age_groups, target_languages, target_locations, target_location_coords')
       .eq('status', 'active')
       .order('created_at', { ascending: false });
 
@@ -48,6 +68,7 @@ export async function GET(req: Request) {
       target_age_groups?: string[] | null;
       target_languages?: string[] | null;
       target_locations?: string[] | null;
+      target_location_coords?: TargetCoord[] | null;
     }): boolean {
       if (row.audience_type === 'universal') return true;
       if (row.audience_type !== 'targeted') return true;
@@ -55,11 +76,13 @@ export async function GET(req: Request) {
       const ta = row.target_age_groups;
       const tl = row.target_languages;
       const tloc = row.target_locations;
+      const tcoords = Array.isArray(row.target_location_coords) ? row.target_location_coords : null;
+      const hasCoords = tcoords && tcoords.length > 0;
       const hasGender = Array.isArray(tg) && tg.length > 0;
       const hasAge = Array.isArray(ta) && ta.length > 0;
       const hasLang = Array.isArray(tl) && tl.length > 0;
       const hasLoc = Array.isArray(tloc) && tloc.length > 0;
-      if (!hasGender && !hasAge && !hasLang && !hasLoc) return true;
+      if (!hasGender && !hasAge && !hasLang && !hasLoc && !hasCoords) return true;
       if (hasGender && (!gender || !tg!.includes(gender))) return false;
       if (hasAge && (!age_group || !ta!.includes(age_group))) return false;
       if (hasLang) {
@@ -68,7 +91,15 @@ export async function GET(req: Request) {
         const anyMatch = userLangs.length > 0 && tl!.some((target) => userLangs.some((u) => matchLang(u, target)));
         if (!anyMatch) return false;
       }
-      if (hasLoc && (!state || !tloc!.some((loc) => loc.toLowerCase().includes(state.toLowerCase())))) return false;
+      if (hasCoords) {
+        if (!hasViewerCoords) return false;
+        const withinRadius = tcoords!.some(
+          (c) => typeof c.lat === 'number' && typeof c.lng === 'number' && distanceMiles(viewerLat!, viewerLon!, c.lat, c.lng) <= TARGET_LOCATION_RADIUS_MILES
+        );
+        if (!withinRadius) return false;
+      } else if (hasLoc) {
+        if (!state || !tloc!.some((loc) => loc.toLowerCase().includes(state.toLowerCase()))) return false;
+      }
       return true;
     }
 

@@ -138,6 +138,22 @@ export async function POST(req: Request) {
       } catch { target_locations = null; }
     }
 
+    let target_location_coords: Array<{ label: string; lat: number; lng: number }> | null = null;
+    if (audience_type === 'targeted') {
+      try {
+        const raw = formData.get('target_location_coords');
+        if (raw && typeof raw === 'string') {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            target_location_coords = parsed.filter(
+              (c: unknown) => c && typeof c === 'object' && typeof (c as { lat?: unknown }).lat === 'number' && typeof (c as { lng?: unknown }).lng === 'number'
+            ) as Array<{ label: string; lat: number; lng: number }>;
+            if (target_location_coords.length === 0) target_location_coords = null;
+          }
+        }
+      } catch { target_location_coords = null; }
+    }
+
     if (!['home_feed', 'community', 'universal'].includes(placement || '')) {
       return NextResponse.json({ error: 'Invalid placement' }, { status: 400 });
     }
@@ -185,6 +201,7 @@ export async function POST(req: Request) {
           target_age_groups: audience_type === 'targeted' ? target_age_groups : null,
           target_languages: audience_type === 'targeted' ? target_languages : null,
           target_locations: audience_type === 'targeted' ? target_locations : null,
+          target_location_coords: audience_type === 'targeted' ? target_location_coords : null,
           image_path,
           link_type,
           link_value: link_value || null,
@@ -202,6 +219,7 @@ export async function POST(req: Request) {
           target_age_groups: audience_type === 'targeted' ? target_age_groups : null,
           target_languages: audience_type === 'targeted' ? target_languages : null,
           target_locations: audience_type === 'targeted' ? target_locations : null,
+          target_location_coords: audience_type === 'targeted' ? target_location_coords : null,
           image_path,
           link_type,
           link_value: link_value || null,

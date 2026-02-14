@@ -6,7 +6,7 @@ import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { supabase } from '@/lib/supabaseClient';
 import { compressImage } from '@/lib/imageCompression';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
@@ -257,7 +257,8 @@ export default function OrganizationDashboard() {
   });
 
   const router = useRouter();
-  
+  const searchParams = useSearchParams();
+
   const ORG_STORAGE = {
     bucket: 'organizations',
     logoFolder: 'logo',
@@ -273,7 +274,15 @@ export default function OrganizationDashboard() {
   const dismissNotification = (id: number) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
-  
+
+  // After successful org promotion payment redirect from Stripe: show message and clear URL
+  useEffect(() => {
+    const success = searchParams?.get('promote_success');
+    if (success !== '1') return;
+    addNotification('Payment successful. Your promotion is in review.', 'success');
+    router.replace('/organization/dashboard', { scroll: false });
+  }, [searchParams, router]);
+
   // Fetch Organization Profile from organizations table
   useEffect(() => {
     async function loadProfile() {

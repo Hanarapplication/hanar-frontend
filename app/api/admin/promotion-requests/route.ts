@@ -33,14 +33,14 @@ export async function GET(req: Request) {
     // Exclude pending_payment so admin never sees unpaid requests; they appear only after payment succeeds (webhook sets pending_review)
     let bizQuery = supabaseAdmin
       .from('business_promotion_requests')
-      .select('id, business_id, placement, audience_type, target_genders, target_age_groups, target_languages, target_locations, image_path, link_type, link_value, description, tier, duration_days, price_cents, status, feed_banner_id, created_at')
+      .select('id, business_id, placement, audience_type, target_genders, target_age_groups, target_languages, target_locations, target_location_coords, image_path, link_type, link_value, description, tier, duration_days, price_cents, status, feed_banner_id, created_at')
       .neq('status', 'pending_payment')
       .order('created_at', { ascending: false });
     if (status) bizQuery = bizQuery.eq('status', status);
 
     let orgQuery = supabaseAdmin
       .from('organization_promotion_requests')
-      .select('id, organization_id, placement, audience_type, target_genders, target_age_groups, target_languages, target_locations, image_path, link_type, link_value, description, tier, duration_days, price_cents, status, feed_banner_id, created_at')
+      .select('id, organization_id, placement, audience_type, target_genders, target_age_groups, target_languages, target_locations, target_location_coords, image_path, link_type, link_value, description, tier, duration_days, price_cents, status, feed_banner_id, created_at')
       .neq('status', 'pending_payment')
       .order('created_at', { ascending: false });
     if (status) orgQuery = orgQuery.eq('status', status);
@@ -229,6 +229,7 @@ export async function PATCH(req: Request) {
         target_age_groups: reqRow.target_age_groups ?? null,
         target_languages: reqRow.target_languages ?? null,
         target_locations: reqRow.target_locations ?? null,
+        target_location_coords: reqRow.target_location_coords ?? null,
       };
       if (action === 'reject') {
         const updatePayload: { status: string; updated_at: string; feed_banner_id?: string } = {
@@ -323,6 +324,7 @@ export async function PATCH(req: Request) {
             target_age_groups: reqRow.target_age_groups ?? null,
             target_languages: reqRow.target_languages ?? null,
             target_locations: reqRow.target_locations ?? null,
+            target_location_coords: reqRow.target_location_coords ?? null,
           })
           .select('id')
           .single();
@@ -366,6 +368,7 @@ export async function PATCH(req: Request) {
         target_age_groups: reqRow.target_age_groups ?? null,
         target_languages: reqRow.target_languages ?? null,
         target_locations: reqRow.target_locations ?? null,
+        target_location_coords: reqRow.target_location_coords ?? null,
       })
       .select('id')
       .single();

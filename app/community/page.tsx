@@ -79,6 +79,22 @@ export default function CommunityFeedPage() {
 
   const loadBanner = async () => {
     try {
+      let lat: number | null = null;
+      let lon: number | null = null;
+      if (typeof localStorage !== 'undefined') {
+        try {
+          const stored = localStorage.getItem('userCoords');
+          if (stored) {
+            const parsed = JSON.parse(stored) as { lat?: number; lon?: number };
+            if (typeof parsed?.lat === 'number' && typeof parsed?.lon === 'number') {
+              lat = parsed.lat;
+              lon = parsed.lon;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
       const segRes = await fetch('/api/user/audience-segment');
       const seg = await segRes.json().catch(() => ({}));
       const params = new URLSearchParams();
@@ -87,6 +103,10 @@ export default function CommunityFeedPage() {
       if (seg.preferred_language) params.append('lang', seg.preferred_language);
       if (Array.isArray(seg.spoken_languages)) seg.spoken_languages.forEach((l: string) => params.append('lang', l));
       if (seg.state) params.set('state', seg.state);
+      if (lat != null && lon != null) {
+        params.set('lat', String(lat));
+        params.set('lon', String(lon));
+      }
       const qs = params.toString();
       const r = await fetch(qs ? `/api/feed-banners?${qs}` : '/api/feed-banners');
       const d = await r.json();

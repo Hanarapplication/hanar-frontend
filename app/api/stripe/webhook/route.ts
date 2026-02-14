@@ -98,16 +98,17 @@ export async function POST(req: Request) {
             { onConflict: 'user_id' }
           );
       } else if (type === 'promotion') {
-        const requestId = meta.promotion_request_id as string | undefined;
+        const requestId = (meta.promotion_request_id ?? meta.promotionRequestId) as string | undefined;
         if (requestId) {
-          await supabaseAdmin
+          const { error: upErr } = await supabaseAdmin
             .from('business_promotion_requests')
             .update({ status: 'pending_review', updated_at: new Date().toISOString() })
             .eq('id', requestId)
             .eq('status', 'pending_payment');
+          if (upErr) console.error('[stripe-webhook] business promotion status update failed:', upErr);
         }
       } else if (type === 'org_promotion') {
-        const requestId = meta.org_promotion_request_id as string | undefined;
+        const requestId = (meta.org_promotion_request_id ?? meta.orgPromotionRequestId) as string | undefined;
         if (requestId) {
           await supabaseAdmin
             .from('organization_promotion_requests')

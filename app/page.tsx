@@ -718,8 +718,24 @@ export default function Home() {
     return { rawPosts, businesses: businessRes.data || [], organizations: orgRes.data || [], marketplaceItems: itemsWithVerified };
   };
 
-  const loadBanners = async (): Promise<AdBanner[]> => {
+  const loadBanners = async (coords?: { lat: number; lon: number } | null): Promise<AdBanner[]> => {
     try {
+      let lat: number | null = coords?.lat ?? null;
+      let lon: number | null = coords?.lon ?? null;
+      if ((lat == null || lon == null) && typeof localStorage !== 'undefined') {
+        try {
+          const stored = localStorage.getItem('userCoords');
+          if (stored) {
+            const parsed = JSON.parse(stored) as { lat?: number; lon?: number };
+            if (typeof parsed?.lat === 'number' && typeof parsed?.lon === 'number') {
+              lat = parsed.lat;
+              lon = parsed.lon;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
       const segmentRes = await fetch('/api/user/audience-segment');
       const segment = await segmentRes.json().catch(() => ({}));
       const params = new URLSearchParams();
@@ -728,6 +744,10 @@ export default function Home() {
       if (segment.preferred_language) params.append('lang', segment.preferred_language);
       if (Array.isArray(segment.spoken_languages)) segment.spoken_languages.forEach((l: string) => params.append('lang', l));
       if (segment.state) params.set('state', segment.state);
+      if (lat != null && lon != null) {
+        params.set('lat', String(lat));
+        params.set('lon', String(lon));
+      }
       const qs = params.toString();
       const url = qs ? `/api/feed-banners?${qs}` : '/api/feed-banners';
       const res = await fetch(url);
@@ -806,6 +826,12 @@ export default function Home() {
 
     init();
   }, []);
+
+  // When user location becomes available, refetch banners so city-targeted ones (20 mi radius) appear
+  useEffect(() => {
+    if (!userCoords) return;
+    loadBanners(userCoords).then((banners) => setFeedBanners(banners));
+  }, [userCoords?.lat, userCoords?.lon]);
 
   // Background check for new content every 30 seconds
   useEffect(() => {
