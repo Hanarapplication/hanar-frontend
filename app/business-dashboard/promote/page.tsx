@@ -20,7 +20,7 @@ const CITY_SEARCH_DEBOUNCE_MS = 300;
 
 type GenderOption = 'all' | 'man' | 'woman' | 'others';
 const GENDER_OPTIONS: { value: GenderOption; label: string }[] = [
-  { value: 'all', label: 'All' },
+  { value: 'all', label: 'All genders' },
   { value: 'man', label: 'Man' },
   { value: 'woman', label: 'Woman' },
   { value: 'others', label: 'Others' },
@@ -59,6 +59,8 @@ export default function PromotePage() {
   const [placement, setPlacement] = useState<Placement>('home_feed');
   const [audienceType, setAudienceType] = useState<AudienceType>('universal');
   const [genderOption, setGenderOption] = useState<GenderOption>('all');
+  const [ageScope, setAgeScope] = useState<'all' | 'specific'>('all');
+  const [languageScope, setLanguageScope] = useState<'all' | 'specific'>('all');
   const [targetAgeGroups, setTargetAgeGroups] = useState<string[]>([]);
   const [targetLanguages, setTargetLanguages] = useState<string[]>([]);
   const [newTargetLanguageInput, setNewTargetLanguageInput] = useState('');
@@ -187,6 +189,7 @@ export default function PromotePage() {
     setSubmitting(true);
     try {
       const form = new FormData();
+      form.set('source', 'business');
       form.set('business_id', business.id);
       form.set('placement', placement);
       // BASIC = up to 3 cities only (everyone in those areas), no demographic targeting
@@ -221,13 +224,19 @@ export default function PromotePage() {
       if (file) form.set('image', file);
 
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/business/promotion-request', {
+      const res = await fetch('/api/promotion-request', {
         method: 'POST',
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
         body: form,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Submit failed');
+      const text = await res.text();
+      let data: { error?: string; request?: { id: string } } = {};
+      try {
+        if (text) data = JSON.parse(text);
+      } catch {
+        data = { error: res.statusText || 'Request failed' };
+      }
+      if (!res.ok) throw new Error(data?.error || res.statusText || 'Submit failed');
       toast.success('Redirecting to payment… We’ll review and may adjust the banner if needed.');
       const requestId = data.request?.id;
       const checkoutRes = await fetch('/api/stripe/create-checkout-session', {
@@ -495,8 +504,7 @@ export default function PromotePage() {
                     <span>Targeted</span>
                   </label>
                 </div>
-                {audienceType === 'targeted' && (
-                  <>
+                <>
                     {tier === 'premium' && (
                       <>
                         <div>
@@ -511,40 +519,56 @@ export default function PromotePage() {
                           </div>
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-slate-700 mb-1.5 flex items-center gap-2">
-                            Age groups
-                            <button type="button" onClick={() => setTargetAgeGroups([...TARGET_AGE_GROUPS])} className="text-amber-600 hover:underline">All ages</button>
-                            <span className="text-slate-400">|</span>
-                            <button type="button" onClick={() => setTargetAgeGroups([])} className="text-slate-500 hover:underline">Clear</button>
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {TARGET_AGE_GROUPS.map((a) => (
-                              <label key={a} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs cursor-pointer hover:bg-slate-50">
-                                <input type="checkbox" checked={targetAgeGroups.includes(a)} onChange={() => setTargetAgeGroups((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]))} />
-                                <span>{a}</span>
-                              </label>
-                            ))}
+                          <p className="text-xs font-medium text-slate-700 mb-1.5">Age groups</p>
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            <label className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs cursor-pointer ${ageScope === 'all' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                              <input type="radio" name="step3_age_scope" checked={ageScope === 'all'} onChange={() => { setAgeScope('all'); setTargetAgeGroups([]); }} className="sr-only" />
+                              <span>All ages</span>
+                            </label>
+                            <label className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs cursor-pointer ${ageScope === 'specific' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                              <input type="radio" name="step3_age_scope" checked={ageScope === 'specific'} onChange={() => setAgeScope('specific')} className="sr-only" />
+                              <span>Select age groups</span>
+                            </label>
                           </div>
+                          {ageScope === 'specific' && (
+                            <div className="flex flex-wrap gap-1.5">
+                              {TARGET_AGE_GROUPS.map((a) => (
+                                <label key={a} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs cursor-pointer hover:bg-slate-50">
+                                  <input type="checkbox" checked={targetAgeGroups.includes(a)} onChange={() => setTargetAgeGroups((prev) => (prev.includes(a) ? prev.filter((x) => x !== a) : [...prev, a]))} />
+                                  <span>{a}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </>
                     )}
                     <div>
-                      <p className="text-xs font-medium text-slate-700 mb-1.5 flex items-center gap-2 flex-wrap">
-                        Languages
-                        <button type="button" onClick={() => setTargetLanguages(spokenLanguagesWithDialects.map((l) => l.code))} className="text-amber-600 hover:underline">All languages</button>
-                        <span className="text-slate-400">|</span>
-                        <button type="button" onClick={() => setTargetLanguages([])} className="text-slate-500 hover:underline">Clear</button>
-                      </p>
-                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                        {spokenLanguagesWithDialects.slice(0, 12).map(({ code, label, flag }) => (
-                          <label key={code} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-xs cursor-pointer hover:bg-slate-50">
-                            <input type="checkbox" checked={targetLanguages.includes(code)} onChange={() => setTargetLanguages((prev) => (prev.includes(code) ? prev.filter((x) => x !== code) : [...prev, code]))} />
-                            <span>{flag}</span>
-                            <span>{label}</span>
-                          </label>
-                        ))}
+                      <p className="text-xs font-medium text-slate-700 mb-1.5">Languages</p>
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        <label className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs cursor-pointer ${languageScope === 'all' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                          <input type="radio" name="step3_lang_scope" checked={languageScope === 'all'} onChange={() => { setLanguageScope('all'); setTargetLanguages([]); setNewTargetLanguageInput(''); }} className="sr-only" />
+                          <span>All languages</span>
+                        </label>
+                        <label className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs cursor-pointer ${languageScope === 'specific' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                          <input type="radio" name="step3_lang_scope" checked={languageScope === 'specific'} onChange={() => setLanguageScope('specific')} className="sr-only" />
+                          <span>Select languages</span>
+                        </label>
                       </div>
-                      <input type="text" value={newTargetLanguageInput} onChange={(e) => setNewTargetLanguageInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const v = newTargetLanguageInput.trim(); if (v && !targetLanguages.includes(v)) { setTargetLanguages((prev) => [...prev, v]); setNewTargetLanguageInput(''); } } }} placeholder="+ language code" className="mt-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs w-32" />
+                      {languageScope === 'specific' && (
+                        <>
+                          <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                            {spokenLanguagesWithDialects.slice(0, 12).map(({ code, label, flag }) => (
+                              <label key={code} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-0.5 text-xs cursor-pointer hover:bg-slate-50">
+                                <input type="checkbox" checked={targetLanguages.includes(code)} onChange={() => setTargetLanguages((prev) => (prev.includes(code) ? prev.filter((x) => x !== code) : [...prev, code]))} />
+                                <span>{flag}</span>
+                                <span>{label}</span>
+                              </label>
+                            ))}
+                          </div>
+                          <input type="text" value={newTargetLanguageInput} onChange={(e) => setNewTargetLanguageInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const v = newTargetLanguageInput.trim(); if (v && !targetLanguages.includes(v)) { setTargetLanguages((prev) => [...prev, v]); setNewTargetLanguageInput(''); } } }} placeholder="+ language code" className="mt-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs w-32" />
+                        </>
+                      )}
                     </div>
                     <div className="relative" ref={citySearchWrapRef}>
                       <p className="text-xs font-medium text-slate-700 mb-1.5">Locations (20 mi radius each{tier === 'premium' ? ', unlimited cities' : `, max ${MAX_CITIES_TARGETED} cities`})</p>
@@ -587,8 +611,7 @@ export default function PromotePage() {
                       </div>
                       {tier !== 'premium' && targetCities.length >= maxCitiesForTier(tier) && <p className="mt-1 text-xs text-slate-500">Max {maxCitiesForTier(tier)} cities added.</p>}
                     </div>
-                  </>
-                )}
+                </>
               </div>
             )}
 

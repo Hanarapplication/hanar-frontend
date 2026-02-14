@@ -166,7 +166,15 @@ export async function POST(req: Request) {
       .select()
       .single();
 
-    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 });
+    if (insertError) {
+      const msg = insertError.message || '';
+      if (msg.includes('organization_promotion_requests_status_check') || (msg.includes('status') && msg.includes('check constraint'))) {
+        return NextResponse.json({
+          error: 'Database migration required: run supabase/migrations/add_pending_payment_status_promotions.sql to allow new promotion submissions.',
+        }, { status: 500 });
+      }
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
     return NextResponse.json({ success: true, request: inserted });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected error';

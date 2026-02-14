@@ -87,7 +87,7 @@ type PromotionRequestItem = {
   tier: string;
   duration_days: number;
   price_cents: number;
-  status: 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
+  status: 'pending_payment' | 'pending_review' | 'approved' | 'rejected' | 'active' | 'expired';
   created_at: string;
 };
 
@@ -484,7 +484,7 @@ function BusinessDashboardContent() {
     try {
       setPromotionRequestsLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`/api/business/promotion-request?business_id=${encodeURIComponent(business.id)}`, {
+      const res = await fetch(`/api/promotion-request?source=business&business_id=${encodeURIComponent(business.id)}`, {
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
       });
       const data = await res.json().catch(() => ({}));
@@ -510,12 +510,22 @@ function BusinessDashboardContent() {
     }
   }, [promotionBannersExpanded]);
 
+  // After successful promotion payment redirect from Stripe: show toast and open My Banners
+  useEffect(() => {
+    const success = searchParams?.get('success');
+    if (success === '1') {
+      toast.success('Payment successful. Your promotion is in review.');
+      setPromotionBannersExpanded(true);
+      router.replace('/business-dashboard', { scroll: false });
+    }
+  }, [searchParams, router]);
+
   const removeBanner = async (id: string) => {
     if (!business?.id) return;
     setRemovingBannerId(id);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`/api/business/promotion-request?id=${encodeURIComponent(id)}`, {
+      const res = await fetch(`/api/promotion-request?source=business&id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
       });
@@ -1083,7 +1093,9 @@ function BusinessDashboardContent() {
                         <div className="mt-3 space-y-3">
                           {promotionRequests.map((item) => {
                             const statusConfig =
-                              item.status === 'pending_review'
+                              item.status === 'pending_payment'
+                                ? { label: 'Payment pending', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-200' }
+                                : item.status === 'pending_review'
                                 ? { label: 'In review', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200' }
                                 : item.status === 'active'
                                 ? { label: 'Active', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200' }
@@ -1091,7 +1103,9 @@ function BusinessDashboardContent() {
                                 ? { label: 'Approved', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200' }
                                 : item.status === 'rejected'
                                 ? { label: 'Rejected', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200' }
-                                : { label: 'Expired', color: 'bg-slate-100 text-slate-600 dark:bg-gray-700 dark:text-gray-300' };
+                                : item.status === 'expired'
+                                ? { label: 'Expired', color: 'bg-slate-100 text-slate-600 dark:bg-gray-700 dark:text-gray-300' }
+                                : { label: 'In review', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200' };
                             const placementLabel = item.placement === 'home_feed' ? 'Home feed' : item.placement === 'community' ? 'Community' : 'Universal';
                             const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
                             const imageUrl = item.image_path ? `${supabaseUrl}/storage/v1/object/public/feed-banners/${item.image_path}` : null;
