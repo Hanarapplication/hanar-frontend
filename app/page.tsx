@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabaseClient';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
+import { Avatar } from '@/components/Avatar';
 
 type SliderBusiness = { id: string; name: string; category: string; image: string; plan?: string | null };
 type SliderItem = { id: string; title: string; price: string; image: string; business_id?: string | null; business_verified?: boolean };
@@ -1382,11 +1383,10 @@ const formatDateLabel = (value?: string | null) => {
               <article key={`post-${item.post.id}-${index}`} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm min-h-[260px] flex flex-col">
                 <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-gray-400">
                   <div className="flex items-center gap-2 min-w-0">
-                    <img
-                      src={item.post.logo_url || item.post.profile_pic_url || '/default-avatar.png'}
+                    <Avatar
+                      src={item.post.logo_url || item.post.profile_pic_url}
                       alt=""
-                      className="h-8 w-8 flex-shrink-0 rounded-full object-cover"
-                      onError={(e) => { e.currentTarget.src = '/default-avatar.png'; }}
+                      className="h-8 w-8 flex-shrink-0 rounded-full"
                     />
                     {item.post.author_type === 'organization' && item.post.username ? (
                       <Link href={`/organization/${item.post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline truncate">
@@ -1468,18 +1468,11 @@ const formatDateLabel = (value?: string | null) => {
                         )}
                         {comments.map((comment) => (
                           <div key={comment.id} className="rounded-lg bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm flex gap-2">
-                            <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-200 dark:bg-gray-600 flex-shrink-0">
-                              <img
-                                src={
-                                  comment.profiles?.profile_pic_url
-                                    ? `${comment.profiles.profile_pic_url}?t=${Date.now()}`
-                                    : '/default-avatar.png'
-                                }
+                            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+                              <Avatar
+                                src={comment.profiles?.profile_pic_url ? `${comment.profiles.profile_pic_url}?t=${Date.now()}` : null}
                                 alt=""
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.src = '/default-avatar.png';
-                                }}
+                                className="w-full h-full rounded-full"
                               />
                             </div>
                             <div className="min-w-0 flex-1">

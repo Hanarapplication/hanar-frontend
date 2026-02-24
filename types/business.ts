@@ -7,6 +7,8 @@ export interface Business {
   lifecycle_status?: string | null;
   status?: string | null;
   is_archived?: boolean;
+  owner_id?: string | null;
+  google_place_id?: string | null;
   menu?: any[];
   carListings?: any[];
   retailItems?: any[];

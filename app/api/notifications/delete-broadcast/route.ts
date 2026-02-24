@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!SUPABASE_URL) throw new Error('Missing SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL');
 if (!SERVICE_ROLE_KEY) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
+if (!ANON_KEY) throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY');
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
@@ -21,11 +23,42 @@ type Payload = {
   createdAt: string;
 };
 
+async function getAuthUser(req: Request): Promise<{ id: string } | null> {
+  try {
+    const cookieStore = await cookies();
+    const supabaseServer = createServerClient(SUPABASE_URL!, ANON_KEY!, {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // Ignore in route handler (e.g. read-only)
+          }
+        },
+      },
+    });
+    const { data: { user }, error: authError } = await supabaseServer.auth.getUser();
+    if (!authError && user?.id) return { id: user.id };
+  } catch {
+    // Cookie-based auth failed, try Bearer token
+  }
+  const authHeader = req.headers.get('authorization') || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  if (!token) return null;
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data?.user?.id) return null;
+  return { id: data.user.id };
+}
+
 export async function POST(req: Request) {
   try {
-    const supabaseServer = createRouteHandlerClient({ cookies });
-    const { data: { user }, error: authError } = await supabaseServer.auth.getUser();
-    if (authError || !user) {
+    const user = await getAuthUser(req);
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

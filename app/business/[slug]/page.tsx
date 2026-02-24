@@ -59,7 +59,7 @@ interface BusinessType {
     twitter?: string;
     slug: string;
     tags?: string[];
-    owner_id: string;
+    owner_id?: string | null;
 }
 
 // Add window callback type
@@ -623,6 +623,21 @@ const BusinessProfilePage = () => {
                 if (businessError || !businessData) {
                     setBusiness(null);
                 } else {
+                    // Unclaimed imported businesses (on_hold + no owner) must not appear publicly
+                    if (businessData.moderation_status === 'on_hold' && !businessData.owner_id) {
+                        setBusiness(null);
+                        setLoading(false);
+                        return;
+                    }
+                    // On-hold businesses: show only to owner
+                    if (businessData.moderation_status === 'on_hold' && businessData.owner_id) {
+                        const { data: { user } } = await supabase.auth.getUser();
+                        if (user?.id !== businessData.owner_id) {
+                            setBusiness(null);
+                            setLoading(false);
+                            return;
+                        }
+                    }
 
                     // Helper to get full public URL for storage paths
                     const getPublicStorageUrl = (bucket: string, path: string | null): string | null => {

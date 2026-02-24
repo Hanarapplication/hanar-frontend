@@ -7,6 +7,7 @@ import { useParams } from 'next/navigation';
 import { FaHeart, FaRegHeart, FaShareAlt, FaExternalLinkAlt, FaPhoneAlt, FaStore, FaEnvelope, FaWhatsapp, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
 import ReportButton from '@/components/ReportButton';
+import { Avatar } from '@/components/Avatar';
 
 type MarketplaceItem = {
   id: string;
@@ -695,16 +696,11 @@ export default function ItemDetailClient() {
                   className={`flex items-center gap-3 ${individualSeller.username ? 'hover:opacity-90' : ''}`}
                 >
                   <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-slate-200 bg-slate-100 ring-2 ring-transparent transition hover:ring-slate-300">
-                    {individualSeller.profile_pic_url ? (
-                      <img
-                        src={individualSeller.profile_pic_url}
-                        alt={individualSeller.username ? `@${individualSeller.username}` : 'Seller'}
-                        className="h-full w-full object-cover"
-                        onError={(e) => { e.currentTarget.src = '/default-avatar.png'; e.currentTarget.onerror = null; }}
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-lg text-slate-400">👤</div>
-                    )}
+                    <Avatar
+                      src={individualSeller.profile_pic_url}
+                      alt={individualSeller.username ? `@${individualSeller.username}` : 'Seller'}
+                      className="h-full w-full rounded-full"
+                    />
                   </div>
                   <div>
                     <span className="font-semibold text-indigo-600 hover:underline">

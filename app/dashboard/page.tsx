@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { User, Users, Globe, Building2, ShoppingBag, PenSquare, Camera, Tag, Trash2, ImagePlus, Video, X } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
+import { Avatar } from '@/components/Avatar';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 
@@ -697,21 +698,11 @@ function DashboardContent() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             <label className="relative block shrink-0 cursor-pointer group">
               <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-slate-200 dark:border-gray-600 bg-slate-100 dark:bg-gray-700 ring-2 ring-transparent group-hover:ring-indigo-200 dark:group-hover:ring-indigo-500 transition">
-                {profile?.profile_pic_url ? (
-                  <img
-                    src={profile.profile_pic_url}
-                    alt="Profile"
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src = '/default-avatar.png';
-                      e.currentTarget.onerror = null;
-                    }}
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-2xl text-slate-400 dark:text-gray-500">
-                    <User className="h-10 w-10" />
-                  </div>
-                )}
+                <Avatar
+                  src={profile?.profile_pic_url}
+                  alt="Profile"
+                  className="h-full w-full rounded-full"
+                />
               </div>
               <span className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white shadow-md">
                 <Camera className="h-4 w-4" />

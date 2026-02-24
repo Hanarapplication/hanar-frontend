@@ -23,6 +23,7 @@ const ADMIN_NAV = [
   { label: 'Marketplace Insights', path: '/admin/marketplace-insights' },
   { label: 'Reports', path: '/admin/reports' },
   { label: 'Community Moderation', path: '/admin/community-moderation' },
+  { label: 'Seed Community', path: '/admin/seed-community' },
   { label: 'Moderation', path: '/admin/moderation' },
   { label: 'Contact to review', path: '/admin/contact' },
   { label: 'Owner Panel', path: '/admin/owner' },

@@ -20,7 +20,10 @@ export type Database = {
           hours: Record<string, unknown> | string | null;
           status: string | null;
           lifecycle_status: string | null;
-          owner_id: string;
+          owner_id: string | null;
+          google_place_id: string | null;
+          google_rating: number | null;
+          google_user_ratings_total: number | null;
           created_at: string | null;
           updated_at: string | null;
           isretail: boolean | null;

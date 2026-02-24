@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Suspense, useEffect, useState, useRef, ChangeEvent, FormEvent, FC } from 'react';
 import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Calendar, Eye, Megaphone, User, Building2 } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
+import { Avatar } from '@/components/Avatar';
 import { supabase } from '@/lib/supabaseClient';
 import { compressImage } from '@/lib/imageCompression';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -1923,18 +1924,8 @@ function OrganizationDashboardContent() {
                             onClick={() => setListModal(null)}
                             className="flex items-center gap-3 min-w-0 flex-1"
                           >
-                            <div className="h-10 w-10 shrink-0 rounded-full bg-slate-200 dark:bg-gray-700 overflow-hidden">
-                              {u.profile_pic_url ? (
-                                <img src={u.profile_pic_url} alt="" className="h-full w-full object-cover" />
-                              ) : (
-                                <div className="h-full w-full flex items-center justify-center text-slate-400">
-                                  {u.type === 'organization' ? (
-                                    <Building2 className="h-5 w-5" />
-                                  ) : (
-                                    <User className="h-5 w-5" />
-                                  )}
-                                </div>
-                              )}
+                            <div className="h-10 w-10 shrink-0 rounded-full overflow-hidden">
+                              <Avatar src={u.profile_pic_url} alt="" className="h-full w-full rounded-full" />
                             </div>
                             <div className="min-w-0">
                               <span className="font-medium text-slate-900 dark:text-white truncate block">{label}</span>

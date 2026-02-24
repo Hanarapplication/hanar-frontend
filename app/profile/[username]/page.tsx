@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { User, Trash2, X, ShoppingBag, Building2 } from 'lucide-react';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
+import { Avatar } from '@/components/Avatar';
 
 type ProfileListing = {
   id: string;
@@ -689,21 +690,11 @@ export default function ProfilePage() {
         <div className="px-4 pt-6 pb-6 flex gap-4 sm:gap-6 items-start">
           {/* Avatar */}
           <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-full border-4 border-white dark:border-gray-900 bg-slate-200 dark:bg-gray-700 overflow-hidden shadow-lg shrink-0">
-            {profilePicUrl ? (
-              <img
-                src={profilePicUrl}
-                alt={`@${profile.username}`}
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = '/default-avatar.png';
-                  e.currentTarget.onerror = null;
-                }}
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-slate-400">
-                <User className="h-12 w-12 sm:h-14 sm:w-14" />
-              </div>
-            )}
+            <Avatar
+              src={profilePicUrl}
+              alt={`@${profile.username}`}
+              className="h-full w-full rounded-full"
+            />
           </div>
 
           <div className="min-w-0 flex-1 flex flex-col gap-2">
@@ -872,18 +863,11 @@ export default function ProfilePage() {
                             )}
                             {(commentsByPost[post.id] || []).map((c) => (
                               <div key={c.id} className="rounded-lg bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm flex gap-2">
-                                <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-200 dark:bg-gray-600 flex-shrink-0">
-                                  <img
-                                    src={
-                                      c.profiles?.profile_pic_url
-                                        ? `${c.profiles.profile_pic_url}?t=${Date.now()}`
-                                        : '/default-avatar.png'
-                                    }
+                                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+                                  <Avatar
+                                    src={c.profiles?.profile_pic_url ? `${c.profiles.profile_pic_url}?t=${Date.now()}` : null}
                                     alt=""
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      e.currentTarget.src = '/default-avatar.png';
-                                    }}
+                                    className="w-full h-full rounded-full"
                                   />
                                 </div>
                                 <div className="min-w-0 flex-1">
@@ -1075,18 +1059,8 @@ export default function ProfilePage() {
                           onClick={() => setListModal(null)}
                           className="flex items-center gap-3 min-w-0 flex-1"
                         >
-                          <div className="h-10 w-10 shrink-0 rounded-full bg-slate-200 dark:bg-gray-700 overflow-hidden">
-                            {u.profile_pic_url ? (
-                              <img src={u.profile_pic_url} alt="" className="h-full w-full object-cover" />
-                            ) : (
-                              <div className="h-full w-full flex items-center justify-center text-slate-400">
-                                {u.type === 'organization' ? (
-                                  <Building2 className="h-5 w-5" />
-                                ) : (
-                                  <User className="h-5 w-5" />
-                                )}
-                              </div>
-                            )}
+                          <div className="h-10 w-10 shrink-0 rounded-full overflow-hidden">
+                            <Avatar src={u.profile_pic_url} alt="" className="h-full w-full rounded-full" />
                           </div>
                           <div className="min-w-0">
                             <span className="font-medium text-slate-900 dark:text-white truncate block">{label}</span>

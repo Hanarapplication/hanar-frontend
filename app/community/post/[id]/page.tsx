@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import Link from 'next/link';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
+import { Avatar } from '@/components/Avatar';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -518,12 +519,11 @@ export default function CommunityPostPage() {
             {comments.map(c => (
               <div key={c.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
                 <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <div className="w-7 h-7 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
-                    <img
-                      src={(c.profiles?.profile_pic_url ? `${c.profiles.profile_pic_url}?t=${Date.now()}` : '/default-avatar.png')}
+                  <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
+                    <Avatar
+                      src={c.profiles?.profile_pic_url ? `${c.profiles.profile_pic_url}?t=${Date.now()}` : null}
                       alt="avatar"
-                      className="w-full h-full object-cover"
-                      onError={(e) => (e.currentTarget.src = '/default-avatar.png')}
+                      className="w-full h-full rounded-full"
                     />
                   </div>
                   <Link href={`/profile/${c.username}`} className="text-indigo-600 hover:underline text-xs">

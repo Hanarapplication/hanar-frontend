@@ -125,6 +125,7 @@ export async function POST(req: Request) {
         .eq('id', businessId)
         .maybeSingle();
       if (!data) return NextResponse.json({ error: 'Business not found' }, { status: 404 });
+      if (!data.owner_id) return NextResponse.json({ error: 'Cannot send login email to unclaimed business' }, { status: 400 });
       const email = (data.email || await resolveEmail(data.owner_id))?.trim().toLowerCase();
       if (!email) return NextResponse.json({ error: 'Business has no email' }, { status: 400 });
       recipients.push({ email, userId: data.owner_id, name: data.business_name || 'Business' });
@@ -145,10 +146,12 @@ export async function POST(req: Request) {
       }
       const { data } = await q;
       for (const b of data || []) {
-        const email = (b.email || await resolveEmail(b.owner_id))?.trim().toLowerCase();
+        const ownerId = b.owner_id;
+        if (!ownerId) continue; // Skip unclaimed imported businesses (no auth user)
+        const email = (b.email || await resolveEmail(ownerId))?.trim().toLowerCase();
         if (!email || seen.has(email)) continue;
         seen.add(email);
-        recipients.push({ email, userId: b.owner_id, name: b.business_name || 'Business' });
+        recipients.push({ email, userId: ownerId, name: b.business_name || 'Business' });
       }
     } else if (audience === 'all_organizations' || audience === 'organization_admin_added') {
       let q = supabaseAdmin.from('organizations').select('id, full_name, email, user_id');

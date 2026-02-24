@@ -669,6 +669,20 @@ export default function EditBusinessPage() {
           return;
         }
 
+        const ownerId = (businessData as { owner_id?: string | null }).owner_id;
+        if (!ownerId) {
+          setModal({ isOpen: true, title: 'Unclaimed', message: 'This business is unclaimed and cannot be edited.', onConfirm: () => {} });
+          router.push('/business-dashboard');
+          return;
+        }
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && ownerId !== user.id) {
+          setModal({ isOpen: true, title: 'Forbidden', message: "You don't have permission to edit this business.", onConfirm: () => {} });
+          router.push('/business-dashboard');
+          return;
+        }
+
         setBusinessId(businessData.id); // Store the Supabase 'id' for the business
 
         // Set plan limits from business data

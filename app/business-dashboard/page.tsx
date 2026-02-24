@@ -166,6 +166,8 @@ function BusinessDashboardContent() {
   const [promotionBannersExpanded, setPromotionBannersExpanded] = useState(false);
   const [bannerToRemoveId, setBannerToRemoveId] = useState<string | null>(null);
   const [removingBannerId, setRemovingBannerId] = useState<string | null>(null);
+  const [notificationToDelete, setNotificationToDelete] = useState<NotificationHistoryItem | null>(null);
+  const [deletingNotificationId, setDeletingNotificationId] = useState<string | null>(null);
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [insightsData, setInsightsData] = useState<{
     businessViews: number;
@@ -617,11 +619,15 @@ function BusinessDashboardContent() {
 
   const deleteNotification = async (item: NotificationHistoryItem) => {
     if (!business) return;
-    if (!confirm('Unsend this notification? This will remove it for recipients.')) return;
+    setDeletingNotificationId(item.id);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch('/api/notifications/delete-broadcast', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
           businessId: business.id,
           kind: item.kind,
@@ -633,10 +639,17 @@ function BusinessDashboardContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to delete notification');
       setNotificationHistory((prev) => prev.filter((n) => n.id !== item.id));
+      setNotificationToDelete(null);
       toast.success('Notification removed');
     } catch (err: any) {
       toast.error(err?.message || 'Failed to delete notification');
+    } finally {
+      setDeletingNotificationId(null);
     }
+  };
+
+  const confirmDeleteNotification = () => {
+    if (notificationToDelete) deleteNotification(notificationToDelete);
   };
 
   if (loading) {
@@ -1033,7 +1046,7 @@ function BusinessDashboardContent() {
                                       {new Date(item.created_at).toLocaleString()}
                                     </span>
                                     <button
-                                      onClick={() => deleteNotification(item)}
+                                      onClick={() => setNotificationToDelete(item)}
                                       className="rounded-full border border-rose-200 bg-rose-50 dark:border-rose-800 dark:bg-rose-900/30 px-2.5 py-1 text-xs font-semibold text-rose-600 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-900/50"
                                     >
                                       Delete
@@ -1156,21 +1169,81 @@ function BusinessDashboardContent() {
                   )}
                 </div>
 
+                {notificationToDelete && typeof document !== 'undefined' && createPortal(
+                  <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="confirm-unsend-title"
+                    onClick={() => setNotificationToDelete(null)}
+                  >
+                    <div
+                      className="my-8 w-full max-w-sm shrink-0 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-gray-600 dark:bg-gray-800"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/40">
+                          <Trash2 className="h-5 w-5 text-rose-600 dark:text-rose-300" />
+                        </div>
+                        <h3 id="confirm-unsend-title" className="text-lg font-semibold text-slate-900 dark:text-gray-100">
+                          Unsend this notification?
+                        </h3>
+                      </div>
+                      <p className="mt-3 text-sm text-slate-600 dark:text-gray-300">
+                        This will remove it for recipients. This action cannot be undone.
+                      </p>
+                      <div className="mt-6 flex justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setNotificationToDelete(null)}
+                          disabled={!!deletingNotificationId}
+                          className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={confirmDeleteNotification}
+                          disabled={!!deletingNotificationId}
+                          className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
+                        >
+                          {deletingNotificationId ? 'Removing…' : 'Unsend'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>,
+                  document.body
+                )}
+
                 {bannerToRemoveId && typeof document !== 'undefined' && createPortal(
-                  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-remove-title">
-                    <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-gray-600 dark:bg-gray-800" onClick={(e) => e.stopPropagation()}>
-                      <h3 id="confirm-remove-title" className="text-lg font-semibold text-slate-900 dark:text-gray-100">
-                        End campaign?
-                      </h3>
-                      <p className="mt-2 text-sm text-slate-600 dark:text-gray-300">
+                  <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="confirm-remove-title"
+                    onClick={() => setBannerToRemoveId(null)}
+                  >
+                    <div
+                      className="my-8 w-full max-w-sm shrink-0 rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-gray-600 dark:bg-gray-800"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/40">
+                          <Megaphone className="h-5 w-5 text-amber-600 dark:text-amber-300" />
+                        </div>
+                        <h3 id="confirm-remove-title" className="text-lg font-semibold text-slate-900 dark:text-gray-100">
+                          End campaign?
+                        </h3>
+                      </div>
+                      <p className="mt-3 text-sm text-slate-600 dark:text-gray-300">
                         Are you sure you want to end this campaign? This will remove the banner from your list and stop it from showing.
                       </p>
-                      <div className="mt-5 flex justify-end gap-3">
+                      <div className="mt-6 flex justify-end gap-3">
                         <button
                           type="button"
                           onClick={() => setBannerToRemoveId(null)}
                           disabled={!!removingBannerId}
-                          className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                          className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
                         >
                           Cancel
                         </button>
@@ -1178,7 +1251,7 @@ function BusinessDashboardContent() {
                           type="button"
                           onClick={() => bannerToRemoveId && removeBanner(bannerToRemoveId)}
                           disabled={!!removingBannerId}
-                          className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
+                          className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
                         >
                           {removingBannerId === bannerToRemoveId ? 'Ending…' : 'End campaign'}
                         </button>

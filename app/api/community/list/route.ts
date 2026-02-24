@@ -62,71 +62,100 @@ function scorePost(
   return score;
 }
 
+const SELECT_FIELDS = `
+  id,
+  title,
+  body,
+  created_at,
+  author,
+  author_type,
+  username,
+  user_id,
+  org_id,
+  image,
+  video,
+  likes_post,
+  replies,
+  language,
+  tags,
+  community_comments(count)
+`;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyBaseFilters(query: any, search: string, tags: string[]): any {
+  if (search.trim() !== '') {
+    const term = `%${search.trim()}%`;
+    query = query.or(`title.ilike.${term},body.ilike.${term},author.ilike.${term}`);
+  }
+  if (tags.length > 0) {
+    query = query.or(tags.map((tag: string) => `tags.cs.{${tag}}`).join(','));
+  }
+  return query;
+}
+
 export async function POST(req: Request) {
   try {
-    const { lang = 'en', tags = [], search = '', offset = 0, sortMode = 'latest', userId } = await req.json();
+    const { lang = '', tags = [], search = '', offset = 0, sortMode = 'latest', userId } = await req.json();
     const limit = 10;
+    const feedLang = (lang && String(lang).toLowerCase()) || '';
+    const useLangPriority = feedLang && feedLang !== 'all';
 
-    // Build base query – only posts visible in community feed (not profile-only)
-    let query = supabaseAdmin
-      .from('community_posts')
-      .select(`
-        id,
-        title,
-        body,
-        created_at,
-        author,
-        author_type,
-        username,
-        user_id,
-        org_id,
-        image,
-        video,
-        likes_post,
-        replies,
-        language,
-        tags,
-        community_comments(count)
-      `)
-      .eq('deleted', false)
-      .or('visibility.eq.community,visibility.is.null')
-      .range(offset, offset + limit - 1);
+    const base = () =>
+      supabaseAdmin
+        .from('community_posts')
+        .select(SELECT_FIELDS)
+        .eq('deleted', false)
+        .or('visibility.eq.community,visibility.is.null');
 
-    // Filter by language
-    if (lang) {
-      query = query.in('language', [lang, 'en']);
-    }
+    let posts: unknown[] = [];
 
-    // Accurate search using ilike and OR
-    if (search.trim() !== '') {
-      const term = `%${search.trim()}%`;
-      query = query.or(`title.ilike.${term},body.ilike.${term},author.ilike.${term}`);
-    }
+    if (useLangPriority) {
+      // Order: selected language first, then English, then others. If no posts in selected lang, English then others.
+      const orderOpt = sortMode === 'popular' ? { ascending: false } : { ascending: false };
+      const orderCol = sortMode === 'popular' ? 'likes_post' : 'created_at';
+      const need = offset + limit;
 
-    // Filter by tags
-    if (tags.length > 0) {
-      query = query.or(tags.map((tag: string) => `tags.cs.{${tag}}`).join(','));
-    }
+      const q1 = base().eq('language', feedLang).order(orderCol, orderOpt);
+      const q2 = feedLang !== 'en' ? base().eq('language', 'en').order(orderCol, orderOpt) : null;
+      const q3 =
+        feedLang === 'en'
+          ? base().neq('language', 'en').order(orderCol, orderOpt)
+          : base().not('language', 'in', `("${feedLang}","en")`).order(orderCol, orderOpt);
 
-    // Sorting
-    if (sortMode === 'popular') {
-      query = query.order('likes_post', { ascending: false });
+      const query1 = applyBaseFilters(q1, search, tags);
+      const query2 = q2 ? applyBaseFilters(q2, search, tags) : null;
+      const query3 = applyBaseFilters(q3, search, tags);
+
+      const [r1, r2, r3] = await Promise.all([
+        query1.range(0, need - 1),
+        query2 ? query2.range(0, need - 1) : Promise.resolve({ data: [] }),
+        query3.range(0, need - 1),
+      ]);
+
+      const a = (r1.data || []) as unknown[];
+      const b = (feedLang === 'en' ? [] : (r2?.data || [])) as unknown[];
+      const c = (r3.data || []) as unknown[];
+      const merged = [...a, ...b, ...c];
+      posts = merged.slice(offset, offset + limit);
     } else {
-      query = query.order('created_at', { ascending: false });
+      // No language priority: single query, all languages
+      let query = applyBaseFilters(base(), search, tags);
+      if (sortMode === 'popular') {
+        query = query.order('likes_post', { ascending: false });
+      } else {
+        query = query.order('created_at', { ascending: false });
+      }
+      const { data, error } = await query.range(offset, offset + limit - 1);
+      if (error) throw error;
+      posts = data || [];
     }
 
-    const { data: posts, error } = await query;
-
-    if (error) {
-      console.error('[Supabase Query Error]', error.message);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const postList = posts || [];
+    type PostRow = { id: string; likes_post?: number; [k: string]: unknown };
+    const postList = posts as PostRow[];
     if (postList.length === 0) return NextResponse.json([]);
 
     // Enrich with like counts from community_post_likes
-    const postIds = postList.map((p: { id: string }) => p.id);
+    const postIds = postList.map((p) => p.id);
     const { data: likesData } = await supabaseAdmin
       .from('community_post_likes')
       .select('post_id')
@@ -138,7 +167,7 @@ export async function POST(req: Request) {
       likeCounts[row.post_id] = (likeCounts[row.post_id] ?? 0) + 1;
     });
 
-    const enriched = postList.map((p: { id: string; likes_post?: number }) => ({
+    const enriched = postList.map((p) => ({
       ...p,
       likes_post: likeCounts[p.id] ?? p.likes_post ?? 0,
     }));
@@ -160,37 +189,37 @@ export async function POST(req: Request) {
       }
     });
 
-    // Algorithm: rank by relevance (language + topic) then by sort mode
-    const currentLang = (lang && String(lang)) || 'en';
-    const searchWords = searchTopicWords(search || '');
-    let userLangs = new Set<string>();
-    let userTags = new Set<string>();
-    if (userId && typeof userId === 'string') {
-      const prefs = await getUserPostPreferences(userId);
-      userLangs = prefs.languages;
-      userTags = prefs.tags;
+    // When we already applied language-priority order (selected → en → others), keep it; otherwise rank by relevance then sort
+    let result: unknown[];
+    if (useLangPriority) {
+      result = enriched;
+    } else {
+      const currentLang = (feedLang && String(feedLang)) || 'en';
+      const searchWords = searchTopicWords(search || '');
+      let userLangs = new Set<string>();
+      let userTags = new Set<string>();
+      if (userId && typeof userId === 'string') {
+        const prefs = await getUserPostPreferences(userId);
+        userLangs = prefs.languages;
+        userTags = prefs.tags;
+      }
+      const scored = enriched.map((p: Record<string, unknown>) => ({
+        ...p,
+        _relevanceScore: scorePost(
+          p as { language?: string | null; tags?: string[] | null; title?: string; body?: string },
+          currentLang,
+          searchWords,
+          userLangs,
+          userTags
+        ),
+      }));
+      scored.sort((a: { _relevanceScore: number; created_at?: string; likes_post?: number }, b: { _relevanceScore: number; created_at?: string; likes_post?: number }) => {
+        if (b._relevanceScore !== a._relevanceScore) return b._relevanceScore - a._relevanceScore;
+        if (sortMode === 'popular') return (b.likes_post ?? 0) - (a.likes_post ?? 0);
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      });
+      result = scored.map(({ _relevanceScore, ...rest }) => rest);
     }
-
-    const scored = enriched.map((p: Record<string, unknown>) => ({
-      ...p,
-      _relevanceScore: scorePost(
-        p as { language?: string | null; tags?: string[] | null; title?: string; body?: string },
-        currentLang,
-        searchWords,
-        userLangs,
-        userTags
-      ),
-    }));
-
-    // Sort: higher relevance first, then by date or popularity
-    scored.sort((a: { _relevanceScore: number; created_at?: string; likes_post?: number }, b: { _relevanceScore: number; created_at?: string; likes_post?: number }) => {
-      if (b._relevanceScore !== a._relevanceScore) return b._relevanceScore - a._relevanceScore;
-      if (sortMode === 'popular') return (b.likes_post ?? 0) - (a.likes_post ?? 0);
-      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-    });
-
-    // Remove internal score from response
-    const result = scored.map(({ _relevanceScore, ...rest }) => rest);
 
     return NextResponse.json(result);
   } catch (err) {

@@ -9,12 +9,15 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase } from '@/lib/supabaseClient';
+import { supportedLanguages } from '@/utils/languages';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
+import { Avatar } from '@/components/Avatar';
 import { t } from '@/utils/translations';
 
 const COMMUNITY_CACHE_KEY = 'hanar_community_cache';
+const COMMUNITY_FEED_LANG_KEY = 'hanar_community_feed_lang';
 const COMMUNITY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 type CommunityCache = {
@@ -64,8 +67,26 @@ export default function CommunityFeedPage() {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [sortMode, setSortMode] = useState<'latest' | 'popular'>('latest');
+  const [feedLang, setFeedLangState] = useState<string>('');
+  const [feedLangReady, setFeedLangReady] = useState(false);
+  const setFeedLang = useCallback((value: string) => {
+    setFeedLangState(value);
+    try {
+      localStorage.setItem(COMMUNITY_FEED_LANG_KEY, value);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = localStorage.getItem(COMMUNITY_FEED_LANG_KEY);
+      if (stored !== null && stored !== '') setFeedLangState(stored);
+    } catch {}
+    setFeedLangReady(true);
+  }, []);
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const { lang, effectiveLang } = useLanguage();
+  const { effectiveLang } = useLanguage();
   const [isBusinessUser, setIsBusinessUser] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null; displayName: string | null }>({ id: '', username: null, displayName: null });
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
@@ -142,7 +163,7 @@ export default function CommunityFeedPage() {
         body: JSON.stringify({
           search,
           offset,
-          lang,
+          lang: feedLang,
           sortMode,
           userId: currentUser.id || undefined,
         }),
@@ -170,9 +191,9 @@ export default function CommunityFeedPage() {
     }
   };
 
-  // Initial load: use cache if available, otherwise fetch
+  // Initial load: wait for feed lang to be restored from localStorage, then use cache or fetch
   useEffect(() => {
-    if (hasFetchedRef.current) return;
+    if (!feedLangReady || hasFetchedRef.current) return;
     hasFetchedRef.current = true;
 
     const cache = readCommunityCache();
@@ -185,15 +206,15 @@ export default function CommunityFeedPage() {
       loadBanner();
       loadMorePosts(0);
     }
-  }, []);
+  }, [feedLangReady]);
 
-  // Reload when search / sort / lang changes
+  // Reload when search / sort / lang changes (only after feed lang has been restored)
   useEffect(() => {
-    if (!hasFetchedRef.current) return;
+    if (!feedLangReady || !hasFetchedRef.current) return;
     setVisiblePosts([]);
     setHasMore(true);
     loadMorePosts(0);
-  }, [search, lang, sortMode, currentUser.id]);
+  }, [search, feedLang, sortMode, currentUser.id, feedLangReady]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -485,7 +506,7 @@ export default function CommunityFeedPage() {
         body: JSON.stringify({
           search,
           offset: 0,
-          lang,
+          lang: feedLang,
           sortMode,
           userId: currentUser.id || undefined,
         }),
@@ -500,32 +521,46 @@ export default function CommunityFeedPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, lang, sortMode, currentUser.id, communityBanner]);
+  }, [search, feedLang, sortMode, currentUser.id, communityBanner]);
+
+  const feedLangOptions: { value: string; label: string; emoji?: string }[] = [
+    { value: '', label: t(effectiveLang, 'All languages'), emoji: '🌐' },
+    ...supportedLanguages.filter((l) => l.code !== 'auto').map((l) => ({ value: l.code, label: t(effectiveLang, l.name), emoji: l.emoji })),
+  ];
 
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="container mx-auto px-4 pt-0 pb-8">
-      <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-        {t(effectiveLang, 'Showing posts in')}: <strong className="dark:text-gray-200">{t(effectiveLang, lang)}</strong>
-      </div>
-
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-2 mb-6">
         <button
           onClick={() => setSortMode('latest')}
-          className={`px-4 py-2 rounded-md text-sm font-medium ${
-            sortMode === 'latest' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 dark:text-gray-200 text-gray-800'
+          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            sortMode === 'latest' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           {t(effectiveLang, 'Latest')}
         </button>
         <button
           onClick={() => setSortMode('popular')}
-          className={`px-4 py-2 rounded-md text-sm font-medium ${
-            sortMode === 'popular' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600 dark:text-gray-200 text-gray-800'
+          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            sortMode === 'popular' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           {t(effectiveLang, 'Most Popular')}
         </button>
+        <select
+          value={feedLang}
+          onChange={(e) => setFeedLang(e.target.value)}
+          className="shrink-0 h-8 min-w-[7rem] rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-medium pl-2 pr-6 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer bg-[length:12px] bg-[right_0.35rem_center] bg-no-repeat"
+          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")` }}
+          title={feedLang ? t(effectiveLang, 'Posts in this language first') : t(effectiveLang, 'All languages')}
+        >
+          {feedLangOptions.map((opt) => (
+            <option key={opt.value || 'all'} value={opt.value}>
+              {opt.emoji ? `${opt.emoji} ${opt.label}` : opt.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="flex items-center mb-6 gap-4">
@@ -609,11 +644,10 @@ export default function CommunityFeedPage() {
             >
               {/* Author row */}
               <div className="flex items-center gap-3 mb-3 text-sm text-gray-500 dark:text-gray-400">
-                <img
-                  src={post.logo_url || post.profile_pic_url || '/default-avatar.png'}
+                <Avatar
+                  src={post.logo_url || post.profile_pic_url}
                   alt=""
-                  className="h-9 w-9 flex-shrink-0 rounded-full object-cover"
-                  onError={(e) => { e.currentTarget.src = '/default-avatar.png'; }}
+                  className="h-9 w-9 flex-shrink-0 rounded-full"
                 />
                 {post.author_type === 'organization' && post.username ? (
                   <Link href={`/organization/${post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">

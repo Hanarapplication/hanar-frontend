@@ -1,0 +1,841 @@
+[
+    {
+      "title": "Where can I find halal meat that’s actually fresh?",
+      "body": "New in town and I want a halal butcher (not just frozen packs). Any tips on what to ask and what to look for?",
+      "authorIndex": 2,
+      "language": "ar",
+      "tags": ["food", "halal", "community"],
+      "comments": [
+        { "body": "اسأل إذا الذبح يومي أو أسبوعي، وهل لديهم شهادة من جهة محلية. أفضل شيء تشوف حركة المحل وكثرة الزبائن.", "authorIndex": 10 },
+        { "body": "إذا عندهم قسم ملحمة داخل السوق عادة يكون أ fresher. خذ كمية صغيرة أول مرة وجرب جودة اللحم.", "authorIndex": 18 },
+        { "body": "اسأل عن لحم الغنم: هل هو أسترالي/أمريكي؟ الفرق يبان في الطعم والدهون.", "authorIndex": 34 }
+      ],
+      "likeCount": 27
+    },
+    {
+      "title": "Easy weeknight meal ideas when you’re exhausted",
+      "body": "Between work and adjusting to life here, cooking feels impossible. What are your go-to quick meals?",
+      "authorIndex": 8,
+      "language": "en",
+      "tags": ["food", "life", "tips"],
+      "comments": [
+        { "body": "Rotisserie chicken + microwave rice + bagged salad. Add salsa or lemon to change flavors.", "authorIndex": 0 },
+        { "body": "Sheet-pan veggies (broccoli, carrots) + sausage at 425°F for ~20 min. Minimal cleanup.", "authorIndex": 16 },
+        { "body": "Eggs save me: omelet + toast + fruit. Cheap and fast.", "authorIndex": 24 }
+      ],
+      "likeCount": 31
+    },
+    {
+      "title": "Как не переплачивать за мобильную связь в США?",
+      "body": "Подписался на дорогой тариф. Есть ли нормальные варианты без контракта?",
+      "authorIndex": 17,
+      "language": "ru",
+      "tags": ["money", "mobile", "tips"],
+      "comments": [
+        { "body": "Смотрите MVNO: Mint, Visible, Cricket. Обычно дешевле и без контракта.", "authorIndex": 1 },
+        { "body": "Проверьте покрытие по вашему району: иногда дешёвый тариф плохо ловит внутри зданий.", "authorIndex": 9 },
+        { "body": "Если телефон разлочен, можно просто вставить новую SIM и уйти от оператора.", "authorIndex": 25 }
+      ],
+      "likeCount": 22
+    },
+    {
+      "title": "미국 마트에서 뭘 사야 할지 모르겠어요",
+      "body": "마트가 너무 크고 종류가 많아요. 처음 정착할 때 기본 장보기 리스트 추천해주세요.",
+      "authorIndex": 19,
+      "language": "ko",
+      "tags": ["shopping", "food", "korean"],
+      "comments": [
+        { "body": "계란, 우유/두유, 쌀(또는 파스타), 닭가슴살/두부, 냉동야채, 과일, 요거트부터 시작해요.", "authorIndex": 3 },
+        { "body": "양념은 소금, 후추, 간장, 올리브오일, 마늘가루만 있어도 웬만한 요리 가능해요.", "authorIndex": 11 },
+        { "body": "처음엔 코스트코보다 동네 마트에서 소량 구매가 덜 낭비돼요.", "authorIndex": 27 }
+      ],
+      "likeCount": 29
+    },
+    {
+      "title": "新移民第一次去医院要注意什么？",
+      "body": "担心账单太贵，也不知道该去Urgent Care还是ER。",
+      "authorIndex": 20,
+      "language": "zh",
+      "tags": ["health", "tips", "immigrant"],
+      "comments": [
+        { "body": "一般小病去Urgent Care更便宜，紧急危险才去ER。", "authorIndex": 4 },
+        { "body": "先问清楚是否in-network，很多账单贵是因为out-of-network。", "authorIndex": 12 },
+        { "body": "可以要求itemized bill（明细账单），有时会发现重复收费。", "authorIndex": 28 }
+      ],
+      "likeCount": 34
+    },
+    {
+      "title": "スーパーで買えるおすすめの日本食材は？",
+      "body": "日本の味が恋しいです。アメリカのスーパーでも手に入る食材ありますか？",
+      "authorIndex": 21,
+      "language": "ja",
+      "tags": ["food", "japanese", "recipes"],
+      "comments": [
+        { "body": "しょうゆ・みりん・だしパックがあると料理が一気に楽になります。", "authorIndex": 5 },
+        { "body": "Trader Joe’sの冷凍枝豆や餃子も意外と使えます。", "authorIndex": 13 },
+        { "body": "海苔はアジア系スーパーが安いです。まとめ買いおすすめ。", "authorIndex": 29 }
+      ],
+      "likeCount": 18
+    },
+    {
+      "title": "ABD’de ilk defa doktor randevusu nasıl alınır?",
+      "body": "Aile doktoru, urgent care, specialist… kafam karıştı. Nereden başlamalıyım?",
+      "authorIndex": 22,
+      "language": "tr",
+      "tags": ["health", "howto", "life"],
+      "comments": [
+        { "body": "Önce primary care (aile hekimi) bulun. Sigortanız varsa in-network seçin.", "authorIndex": 6 },
+        { "body": "Acil değilse urgent care daha hızlı ama pahalı olabilir; ER en pahalıdır.", "authorIndex": 14 },
+        { "body": "Uzman doktora gitmek için bazen referral gerekir. Poliçenizi kontrol edin.", "authorIndex": 30 }
+      ],
+      "likeCount": 24
+    },
+    {
+      "title": "چطور در آمریکا خرید مواد غذایی را ارزان‌تر انجام بدیم؟",
+      "body": "قیمت‌ها بالاست. چه ترفندهایی برای صرفه‌جویی دارید؟",
+      "authorIndex": 23,
+      "language": "fa",
+      "tags": ["money", "shopping", "food"],
+      "comments": [
+        { "body": "اپ‌های کوپن مثل Kroger/Target و تخفیف‌های هفتگی خیلی کمک می‌کنه.", "authorIndex": 7 },
+        { "body": "خرید برندهای store-brand معمولاً کیفیت خوب و قیمت کمتر داره.", "authorIndex": 15 },
+        { "body": "سبزیجات فریزری برای غذاهای روزمره هم ارزون‌تره هم کمتر دورریز میشه.", "authorIndex": 31 }
+      ],
+      "likeCount": 37
+    },
+  
+    {
+      "title": "How do you make friends as an adult immigrant?",
+      "body": "I work a lot and don’t know anyone here. Where do people actually meet friends?",
+      "authorIndex": 16,
+      "language": "en",
+      "tags": ["community", "life", "friends"],
+      "comments": [
+        { "body": "Join one repeatable activity: weekly soccer, gym class, language exchange, volunteering. Consistency is what builds friendships.", "authorIndex": 32 },
+        { "body": "Libraries and community centers have free events—book clubs, ESL, kids programs. Low pressure way to meet people.", "authorIndex": 48 },
+        { "body": "If you’re religious, places of worship are often the fastest community network for newcomers.", "authorIndex": 56 }
+      ],
+      "likeCount": 41
+    },
+    {
+      "title": "كيف أتعامل مع فواتير المستشفى إذا كانت غالية؟",
+      "body": "وصلتني فاتورة كبيرة بعد زيارة بسيطة. هل أقدر أخفضها؟",
+      "authorIndex": 58,
+      "language": "ar",
+      "tags": ["health", "money", "help"],
+      "comments": [
+        { "body": "اطلب فاتورة مفصلة (itemized) وراجعها. كثيراً توجد رسوم مكررة.", "authorIndex": 26 },
+        { "body": "اسأل عن برنامج المساعدة المالية (financial assistance/charity care). بعض المستشفيات تخفض حسب الدخل.", "authorIndex": 42 },
+        { "body": "اطلب خطة دفع بدون فوائد. لا تدفع مرة واحدة إذا ما تقدر.", "authorIndex": 74 }
+      ],
+      "likeCount": 33
+    },
+    {
+      "title": "Где покупать продукты дешевле: Costco или обычные магазины?",
+      "body": "Стоит ли брать членство, если семья из двух человек?",
+      "authorIndex": 57,
+      "language": "ru",
+      "tags": ["money", "shopping", "food"],
+      "comments": [
+        { "body": "Для двоих выгодно, если берёте не скоропорт (бумага, бытовая химия, заморозка).", "authorIndex": 33 },
+        { "body": "Сравнивайте цену за единицу (per oz/per lb). В Costco не всё дешевле.", "authorIndex": 65 },
+        { "body": "Если мало места дома, членство может не окупиться из-за перепокупок.", "authorIndex": 81 }
+      ],
+      "likeCount": 26
+    },
+    {
+      "title": "미국에서 팁 문화 너무 헷갈려요",
+      "body": "레스토랑, 배달, 미용실… 어디까지 팁을 줘야 하나요?",
+      "authorIndex": 59,
+      "language": "ko",
+      "tags": ["culture", "money", "korean"],
+      "comments": [
+        { "body": "레스토랑은 보통 15~20% (서비스 좋으면 20%+).", "authorIndex": 35 },
+        { "body": "배달은 거리/날씨에 따라 3~8달러 정도 많이 줘요.", "authorIndex": 67 },
+        { "body": "카운터에서 주문만 하면 팁은 선택(0도 괜찮아요).", "authorIndex": 83 }
+      ],
+      "likeCount": 45
+    },
+    {
+      "title": "如何在美国买二手家具不踩坑？",
+      "body": "想省钱买二手沙发和床，哪里买比较靠谱？要注意什么？",
+      "authorIndex": 60,
+      "language": "zh",
+      "tags": ["shopping", "home", "money"],
+      "comments": [
+        { "body": "床垫建议不要买二手（卫生/虫害风险）。", "authorIndex": 36 },
+        { "body": "买沙发先检查缝隙有没有床虱痕迹，问清楚是否来自无烟/无宠家庭。", "authorIndex": 44 },
+        { "body": "Facebook Marketplace见面最好在公共场所或白天，现金交易要小心。", "authorIndex": 76 }
+      ],
+      "likeCount": 38
+    },
+    {
+      "title": "簡単な味噌汁の作り方（アメリカ食材でもOK）",
+      "body": "だしを取らなくても美味しく作れる方法ありますか？",
+      "authorIndex": 61,
+      "language": "ja",
+      "tags": ["recipes", "food", "japanese"],
+      "comments": [
+        { "body": "だしパックか顆粒だしを使うと簡単です。豆腐＋わかめ＋ねぎが定番。", "authorIndex": 21 },
+        { "body": "味噌は沸騰させないのがコツ。火を止めてから溶かすと香りが残ります。", "authorIndex": 37 },
+        { "body": "具は冷凍ほうれん草でも全然OK。時短になります。", "authorIndex": 93 }
+      ],
+      "likeCount": 21
+    },
+    {
+      "title": "ABD’de ehliyet sınavına nasıl hazırlanılır?",
+      "body": "Yazılı sınav için kaynak önerisi var mı?",
+      "authorIndex": 62,
+      "language": "tr",
+      "tags": ["license", "howto", "life"],
+      "comments": [
+        { "body": "DMV/DPS sitesindeki handbook’u okuyun. Çoğu soru oradan geliyor.", "authorIndex": 22 },
+        { "body": "Online practice test çözün; yanlışları not alın.", "authorIndex": 46 },
+        { "body": "Trafik tabelaları kısmına özellikle çalışın.", "authorIndex": 78 }
+      ],
+      "likeCount": 17
+    },
+    {
+      "title": "بهترین دستور عدس‌پلو ساده و سریع چیه؟",
+      "body": "مواد محدود دارم و می‌خوام برای چند روز غذا آماده کنم.",
+      "authorIndex": 63,
+      "language": "fa",
+      "tags": ["recipes", "food", "mealprep"],
+      "comments": [
+        { "body": "عدس رو جدا نیم‌پز کن، بعد با برنج دم کن تا له نشه.", "authorIndex": 23 },
+        { "body": "اگه گوشت نداری، پیاز داغ + کشمش + دارچین خیلی طعم می‌ده.", "authorIndex": 39 },
+        { "body": "برای meal prep، جداگانه فریز کن و موقع گرم کردن کمی آب اضافه کن که خشک نشه.", "authorIndex": 87 }
+      ],
+      "likeCount": 30
+    },
+  
+    {
+      "title": "What’s a realistic first car budget in the US?",
+      "body": "I don’t want to get trapped in a bad loan. What’s a smart approach for a newcomer?",
+      "authorIndex": 24,
+      "language": "en",
+      "tags": ["car", "money", "tips"],
+      "comments": [
+        { "body": "If possible, buy a reliable used car outright (Toyota/Honda). Avoid long loans on old cars.", "authorIndex": 40 },
+        { "body": "If financing, aim for 20% down, 3–4 year term, and keep total car costs under ~15% of monthly take-home.", "authorIndex": 64 },
+        { "body": "Always get a pre-purchase inspection from an independent mechanic—usually $100–$200 and saves headaches.", "authorIndex": 72 }
+      ],
+      "likeCount": 36
+    },
+    {
+      "title": "كيف أتعامل مع المدارس إذا طفلي ما يعرف إنجليزي؟",
+      "body": "ابني جديد وخايف يتأخر في الدراسة.",
+      "authorIndex": 66,
+      "language": "ar",
+      "tags": ["kids", "school", "arabic"],
+      "comments": [
+        { "body": "اطلب برنامج ESL/ELL في المدرسة. هذا حق للطلاب ويساعدهم بسرعة.", "authorIndex": 2 },
+        { "body": "اطلب اجتماع مع المرشد (counselor) وخطة دعم. كثير مدارس توفر مترجم.", "authorIndex": 50 },
+        { "body": "في البيت اقرأوا كتب بسيطة بالإنجليزي يومياً 10-15 دقيقة بدون ضغط.", "authorIndex": 82 }
+      ],
+      "likeCount": 28
+    },
+    {
+      "title": "Как выбрать детский сад и не ошибиться?",
+      "body": "Какие вопросы задать при просмотре daycare?",
+      "authorIndex": 65,
+      "language": "ru",
+      "tags": ["kids", "childcare", "life"],
+      "comments": [
+        { "body": "Спросите про соотношение воспитатель/дети и лицензии (state licensing).", "authorIndex": 17 },
+        { "body": "Уточните правила по болезням, камерам, и как они сообщают родителям.", "authorIndex": 41 },
+        { "body": "Посмотрите чистоту и как персонал общается с детьми — это самый честный индикатор.", "authorIndex": 89 }
+      ],
+      "likeCount": 19
+    },
+    {
+      "title": "미국에서 중고차 딜러 vs 개인거래 뭐가 나아요?",
+      "body": "사기 당할까봐 걱정돼요.",
+      "authorIndex": 67,
+      "language": "ko",
+      "tags": ["car", "shopping", "safety"],
+      "comments": [
+        { "body": "개인거래는 싸지만 보증이 없어요. 딜러는 수수료가 붙고요.", "authorIndex": 19 },
+        { "body": "어디서 사든 Carfax + 정비소 점검은 필수입니다.", "authorIndex": 43 },
+        { "body": "현금 들고 혼자 가지 말고 공공장소/은행에서 거래하세요.", "authorIndex": 91 }
+      ],
+      "likeCount": 23
+    },
+    {
+      "title": "美国超市里的“organic”真的值得买吗？",
+      "body": "预算有限，哪些东西值得买有机，哪些没必要？",
+      "authorIndex": 68,
+      "language": "zh",
+      "tags": ["food", "money", "shopping"],
+      "comments": [
+        { "body": "预算有限可以优先买你吃皮的水果（草莓/苹果），其他普通也行。", "authorIndex": 20 },
+        { "body": "冷冻蔬菜性价比高，营养也不错。", "authorIndex": 52 },
+        { "body": "看“每磅/每盎司价格”更重要，有机不一定更划算。", "authorIndex": 84 }
+      ],
+      "likeCount": 32
+    },
+    {
+      "title": "自炊が続かない…簡単な作り置きありますか？",
+      "body": "仕事が忙しくて料理する気力がないです。",
+      "authorIndex": 69,
+      "language": "ja",
+      "tags": ["recipes", "mealprep", "life"],
+      "comments": [
+        { "body": "鶏むね＋塩こしょう＋レモンで焼いて、サラダや丼に使い回すと楽です。", "authorIndex": 13 },
+        { "body": "冷凍野菜＋うどんで鍋風にするとすぐ食べられます。", "authorIndex": 45 },
+        { "body": "味付けを3パターン（醤油/味噌/カレー）で回すと飽きにくいです。", "authorIndex": 77 }
+      ],
+      "likeCount": 17
+    },
+    {
+      "title": "ABD’de yeni gelenler için en güvenli dolandırıcılık uyarıları?",
+      "body": "Telefonla sürekli arıyorlar. Neye dikkat etmeliyim?",
+      "authorIndex": 70,
+      "language": "tr",
+      "tags": ["safety", "scams", "life"],
+      "comments": [
+        { "body": "IRS/SSA asla telefonda hediye kartı istemez. Bu %100 dolandırıcılık.", "authorIndex": 30 },
+        { "body": "Kendini polis gibi tanıtıp para isteyenlere inanmayın; numarayı kapatın.", "authorIndex": 54 },
+        { "body": "Resmi kurumsa mektup gönderir. ‘Acil ödeme’ baskısı scam işareti.", "authorIndex": 94 }
+      ],
+      "likeCount": 44
+    },
+    {
+      "title": "چطور برای خرید ماشین بیمه مناسب انتخاب کنم؟",
+      "body": "اصطلاحات بیمه مثل deductible و liability رو نمی‌فهمم.",
+      "authorIndex": 71,
+      "language": "fa",
+      "tags": ["insurance", "car", "money"],
+      "comments": [
+        { "body": "Liability یعنی خسارت به دیگران؛ معمولاً حداقل قانونی لازم است.", "authorIndex": 31 },
+        { "body": "Deductible یعنی سهمی که خودت در هر خسارت می‌پردازی؛ هرچه بالاتر، حق بیمه کمتر.", "authorIndex": 47 },
+        { "body": "حتماً چند جا quote بگیر و پوشش‌ها را دقیق مقایسه کن، نه فقط قیمت.", "authorIndex": 95 }
+      ],
+      "likeCount": 28
+    },
+  
+    {
+      "title": "What are the must-have apps when you move to the US?",
+      "body": "Banking, maps, food delivery, anything that makes life easier.",
+      "authorIndex": 40,
+      "language": "en",
+      "tags": ["life", "tips", "apps"],
+      "comments": [
+        { "body": "Google Maps/Waze, your bank app, a budgeting app, and your local grocery app for coupons.", "authorIndex": 72 },
+        { "body": "For documents: a scanner app + cloud storage so you don’t lose papers.", "authorIndex": 88 },
+        { "body": "If you drive: a gas price app + toll tag app for your state.", "authorIndex": 96 }
+      ],
+      "likeCount": 39
+    },
+    {
+      "title": "أبغى وصفة شاورما في البيت بطعم قريب للمطاعم",
+      "body": "إذا عندكم تتبيلة ممتازة للدجاج وكيف أسويه بدون شواية؟",
+      "authorIndex": 50,
+      "language": "ar",
+      "tags": ["recipes", "food", "arabic"],
+      "comments": [
+        { "body": "تتبيلة: لبن/زبادي + ثوم + ليمون + خل + بهارات شاورما + ملح. خليها 6 ساعات.", "authorIndex": 18 },
+        { "body": "استخدم مقلاة حارة جداً أو الفرن على broil. لا تزحم المقلاة عشان يتحمر.", "authorIndex": 34 },
+        { "body": "صلصة الثوم: ثوم + عصير ليمون + زيت تدريجياً + رشة ملح. تطلع مثل المطاعم.", "authorIndex": 74 }
+      ],
+      "likeCount": 52
+    },
+    {
+      "title": "Как правильно читать ценники в магазине? (per oz / per lb)",
+      "body": "Я путаюсь в размерах и упаковках. Как понять, что реально дешевле?",
+      "authorIndex": 73,
+      "language": "ru",
+      "tags": ["shopping", "money", "tips"],
+      "comments": [
+        { "body": "Смотрите unit price: per oz или per lb — это цена за единицу, а не за упаковку.", "authorIndex": 57 },
+        { "body": "Большая упаковка не всегда выгоднее: сравните unit price и срок годности.", "authorIndex": 81 },
+        { "body": "Для мяса/сыра важнее per lb, для напитков — per oz. Так проще ориентироваться.", "authorIndex": 97 }
+      ],
+      "likeCount": 20
+    },
+    {
+      "title": "미국에서 집 렌트 계약서 뭐가 중요해요?",
+      "body": "리스(lease) 사인하기 전에 꼭 확인할 것들 알려주세요.",
+      "authorIndex": 75,
+      "language": "ko",
+      "tags": ["housing", "life", "tips"],
+      "comments": [
+        { "body": "렌트, 디파짓, 계약 기간, 해지/위약금 조항부터 확인하세요.", "authorIndex": 27 },
+        { "body": "수리 요청 방법(온라인 포털/전화)과 응답 시간도 중요해요.", "authorIndex": 51 },
+        { "body": "입주 전 사진/동영상으로 상태 기록해두면 디파짓 분쟁에 도움됩니다.", "authorIndex": 99 }
+      ],
+      "likeCount": 40
+    },
+    {
+      "title": "如何做一锅番茄鸡蛋面，简单又像家里味道？",
+      "body": "忙的时候想吃热的，10分钟搞定那种。",
+      "authorIndex": 76,
+      "language": "zh",
+      "tags": ["recipes", "food", "quick"],
+      "comments": [
+        { "body": "先炒鸡蛋盛出，再炒番茄出汁，加水/鸡汤，最后放面和鸡蛋。", "authorIndex": 60 },
+        { "body": "一小勺糖能提番茄味，盐要最后放。", "authorIndex": 12 },
+        { "body": "喜欢浓一点就加一点番茄酱，特别省事。", "authorIndex": 92 }
+      ],
+      "likeCount": 47
+    },
+    {
+      "title": "初めてのアメリカの歯医者、何を聞けばいい？",
+      "body": "料金が不安です。保険の仕組みもよくわかりません。",
+      "authorIndex": 77,
+      "language": "ja",
+      "tags": ["health", "money", "japanese"],
+      "comments": [
+        { "body": "in-networkか確認して、治療前に見積もり（estimate）を必ずもらってください。", "authorIndex": 29 },
+        { "body": "クリーニングは保険でカバーされることが多いですが、追加検査は別料金の場合があります。", "authorIndex": 61 },
+        { "body": "高い場合は分割払いができるか聞くと良いです。", "authorIndex": 85 }
+      ],
+      "likeCount": 14
+    },
+    {
+      "title": "Evde Türk kahvesi köpüklü nasıl yapılır?",
+      "body": "Market kahvesi aldım ama köpük tutmuyor. Püf noktası var mı?",
+      "authorIndex": 78,
+      "language": "tr",
+      "tags": ["recipes", "food", "turkish"],
+      "comments": [
+        { "body": "Soğuk suyla cezvede yavaş ısı. Kaynatma, kabarmaya başlayınca al.", "authorIndex": 14 },
+        { "body": "Şekeri en başta ekle, karıştırmayı sonra bırak. Köpük bozulmasın.", "authorIndex": 46 },
+        { "body": "Kahvenin öğütümü çok önemli: Türk kahvesi inceliğinde olmalı.", "authorIndex": 62 }
+      ],
+      "likeCount": 26
+    },
+    {
+      "title": "چطور برای بچه‌ها ناهار مدرسه آماده کنیم که سالم باشه؟",
+      "body": "ایده‌هایی می‌خوام که سریع آماده بشه و بچه هم بخوره.",
+      "authorIndex": 79,
+      "language": "fa",
+      "tags": ["kids", "food", "school"],
+      "comments": [
+        { "body": "ساندویچ کوچک + میوه + ماست/پنیر. تنوع در سس‌ها بچه‌ها رو علاقه‌مند می‌کنه.", "authorIndex": 15 },
+        { "body": "اگر زمان کم داری، meal prep آخر هفته عالیه: مرغ ریش‌ریش + سبزیجات.", "authorIndex": 63 },
+        { "body": "آجیل بدون حساسیت/کره بادام زمینی را با قوانین مدرسه چک کن (بعضی مدارس ممنوعه).", "authorIndex": 7 }
+      ],
+      "likeCount": 35
+    },
+  
+    {
+      "title": "How do you deal with homesickness without spiraling?",
+      "body": "Some days I’m fine, other days I miss home so much it hurts. What helps you?",
+      "authorIndex": 56,
+      "language": "en",
+      "tags": ["mentalhealth", "life", "community"],
+      "comments": [
+        { "body": "Build a small routine that feels like ‘home’—same tea, music, weekly call, one comfort meal.", "authorIndex": 24 },
+        { "body": "Don’t isolate. Even one weekly meetup (gym class, volunteering) helps your brain feel anchored.", "authorIndex": 80 },
+        { "body": "I keep a list of ‘why I moved’ and read it on hard days. It sounds simple but it works.", "authorIndex": 96 }
+      ],
+      "likeCount": 58
+    },
+    {
+      "title": "هل في بدائل أرخص للرز البسمتي؟",
+      "body": "الأسعار ارتفعت كثير. أبغى خيارات كويسة للطعم والطبخ اليومي.",
+      "authorIndex": 74,
+      "language": "ar",
+      "tags": ["food", "money", "shopping"],
+      "comments": [
+        { "body": "رز الياسمين أرخص غالباً ويعطي رائحة حلوة، ممتاز للطبخ اليومي.", "authorIndex": 2 },
+        { "body": "اشترِ كيس كبير من محلات الجملة، السعر بالباوند يكون أقل بكثير.", "authorIndex": 50 },
+        { "body": "لو تبغى قوام قريب للبسمتي، اغسله كويس وخليه ينقع 20 دقيقة قبل الطبخ.", "authorIndex": 90 }
+      ],
+      "likeCount": 23
+    },
+    {
+      "title": "Как понять, что район безопасный, если ты новенький?",
+      "body": "Смотрю квартиры и не знаю, как оценить безопасность без предвзятости.",
+      "authorIndex": 89,
+      "language": "ru",
+      "tags": ["housing", "safety", "tips"],
+      "comments": [
+        { "body": "Пройдитесь по району днём и вечером: освещение, люди, шум, транспорт.", "authorIndex": 49 },
+        { "body": "Посмотрите, как выглядят дворы и подъезды: мусор, граффити, разбитые окна — индикаторы.", "authorIndex": 73 },
+        { "body": "Проверьте время до работы/школы: безопасность — это ещё и удобство, чтобы не возвращаться поздно.", "authorIndex": 25 }
+      ],
+      "likeCount": 29
+    },
+    {
+      "title": "미국에서 은행 계좌 만들 때 수수료 피하는 법",
+      "body": "월 유지비 같은 게 있던데, 어떻게 하면 안 내도 되나요?",
+      "authorIndex": 83,
+      "language": "ko",
+      "tags": ["banking", "money", "tips"],
+      "comments": [
+        { "body": "월급 자동입금(Direct Deposit) 걸면 유지비 면제되는 경우 많아요.", "authorIndex": 35 },
+        { "body": "최소 잔액 조건(minimum balance) 확인하고 못 지키면 수수료 붙을 수 있어요.", "authorIndex": 59 },
+        { "body": "온라인 은행은 수수료가 더 적은 편이라 비교해보세요.", "authorIndex": 11 }
+      ],
+      "likeCount": 27
+    },
+    {
+      "title": "搬家后水电网怎么开通？流程是什么？",
+      "body": "刚租到房子，不知道怎么开通电、水、网。",
+      "authorIndex": 84,
+      "language": "zh",
+      "tags": ["home", "howto", "life"],
+      "comments": [
+        { "body": "电力通常选provider，输入地址会显示可选公司和费率。", "authorIndex": 28 },
+        { "body": "水费多是城市/郡负责，去官网按地址开户。", "authorIndex": 60 },
+        { "body": "网络建议提前预约安装时间，热门时段会排队。", "authorIndex": 4 }
+      ],
+      "likeCount": 31
+    },
+    {
+      "title": "アメリカのチップ、結局いくらが無難？",
+      "body": "レストラン以外もチップが増えていて困ります。",
+      "authorIndex": 85,
+      "language": "ja",
+      "tags": ["culture", "money", "japanese"],
+      "comments": [
+        { "body": "着席レストランは15〜20%。テイクアウトは基本0でもOKなことが多いです。", "authorIndex": 45 },
+        { "body": "美容室やタクシーは10〜20%がよく見ます。サービスの質で調整。", "authorIndex": 13 },
+        { "body": "端末が提案してきても必須ではない場面も多いので、無理しなくて大丈夫です。", "authorIndex": 93 }
+      ],
+      "likeCount": 22
+    },
+    {
+      "title": "ABD’de evde yemek yapıp satmak mümkün mü?",
+      "body": "Ev yapımı börek/dolma satmak istiyorum. Nereden başlamalıyım?",
+      "authorIndex": 86,
+      "language": "tr",
+      "tags": ["food", "business", "tips"],
+      "comments": [
+        { "body": "Eyalette ‘cottage food law’ var mı bakın. Bazı ürünler evden satışa izinli.", "authorIndex": 6 },
+        { "body": "Etli ürünler daha sıkı kurallara tabi olabilir. Etiketi ve alerjen uyarılarını unutmayın.", "authorIndex": 30 },
+        { "body": "Önce küçük başlayın: siparişle, haftalık menü. Fotoğraf ve hijyen çok önemli.", "authorIndex": 62 }
+      ],
+      "likeCount": 33
+    },
+    {
+      "title": "چطور قبض برق رو کمتر کنیم؟",
+      "body": "اولین قبض برق خیلی بالا اومد. چه کارهایی واقعاً تاثیر داره؟",
+      "authorIndex": 95,
+      "language": "fa",
+      "tags": ["home", "money", "tips"],
+      "comments": [
+        { "body": "ترموستات رو چند درجه بالاتر/پایین‌تر تنظیم کن، بزرگترین تاثیر رو دارد.", "authorIndex": 39 },
+        { "body": "فیلتر کولر/هواکش رو عوض کن؛ دستگاه کمتر فشار میاره.", "authorIndex": 71 },
+        { "body": "پیک مصرف (ظهر/عصر) رو کمتر کن. اگر پلن time-of-use داری خیلی فرق می‌کنه.", "authorIndex": 15 }
+      ],
+      "likeCount": 42
+    },
+  
+    {
+      "title": "Best affordable spices that make everything taste better",
+      "body": "I’m trying to cook at home more. What spices are worth buying first?",
+      "authorIndex": 72,
+      "language": "en",
+      "tags": ["food", "cooking", "tips"],
+      "comments": [
+        { "body": "Garlic powder, cumin, paprika, black pepper, and chili flakes cover a lot of cuisines.", "authorIndex": 8 },
+        { "body": "Buy spices at ethnic markets—same quality, often much cheaper than big grocery stores.", "authorIndex": 16 },
+        { "body": "Add one ‘signature’ blend (Italian seasoning or curry powder) for quick flavor without thinking.", "authorIndex": 32 }
+      ],
+      "likeCount": 46
+    },
+    {
+      "title": "وين ألقى خبز عربي طازج؟",
+      "body": "الخبز اللي في السوبرماركت ناشف. أبغى شي طازج مثل الفرن.",
+      "authorIndex": 82,
+      "language": "ar",
+      "tags": ["food", "community", "shopping"],
+      "comments": [
+        { "body": "شوف المخابز العربية/التركية، غالباً يخبزون يومياً في الصباح.", "authorIndex": 26 },
+        { "body": "إذا ما لقيت، جرب خبز النان الطازج من محلات الهندي/الباكستاني.", "authorIndex": 58 },
+        { "body": "اسأل الموظف متى يوم التوريد. أحياناً يجيهم خبز طازج مرتين بالأسبوع.", "authorIndex": 98 }
+      ],
+      "likeCount": 19
+    },
+    {
+      "title": "Как выбрать хороший подержанный ноутбук для учёбы?",
+      "body": "Нужен недорогой ноутбук, чтобы учиться и работать удалённо.",
+      "authorIndex": 97,
+      "language": "ru",
+      "tags": ["tech", "shopping", "tips"],
+      "comments": [
+        { "body": "Для базовых задач: i5/Ryzen 5, 8–16GB RAM, SSD 256GB+. SSD важнее всего.", "authorIndex": 57 },
+        { "body": "Проверяйте батарею и экран (битые пиксели). Попросите включить и показать системную инфо.", "authorIndex": 41 },
+        { "body": "Лучше брать у продавцов с гарантией (refurbished) чем ‘as-is’ с рук.", "authorIndex": 73 }
+      ],
+      "likeCount": 25
+    },
+    {
+      "title": "한국 음식 재료 어디서 싸게 사요?",
+      "body": "한인마트가 멀어서요. 일반 마트에서 대체 가능한 재료가 있을까요?",
+      "authorIndex": 91,
+      "language": "ko",
+      "tags": ["food", "shopping", "korean"],
+      "comments": [
+        { "body": "간장/참기름은 월마트에도 있고, 고추가루는 아시아 코너에서 가끔 있어요.", "authorIndex": 59 },
+        { "body": "김치는 한인마트가 제일 낫지만, 급하면 코스트코 김치도 괜찮아요.", "authorIndex": 3 },
+        { "body": "라면/만두는 아시안 마켓(중국/베트남)에서도 많이 팔아요.", "authorIndex": 75 }
+      ],
+      "likeCount": 30
+    },
+    {
+      "title": "搬家时怎么打包最省钱省力？",
+      "body": "第一次搬家，怕买很多箱子浪费钱。",
+      "authorIndex": 92,
+      "language": "zh",
+      "tags": ["home", "moving", "tips"],
+      "comments": [
+        { "body": "去超市/酒类店问免费纸箱，质量很好。", "authorIndex": 52 },
+        { "body": "衣服用垃圾袋套住衣架直接搬，省箱子也省时间。", "authorIndex": 20 },
+        { "body": "易碎品用毛巾/衣服包，比买气泡膜更省钱。", "authorIndex": 68 }
+      ],
+      "likeCount": 44
+    },
+    {
+      "title": "簡単カレー（市販ルー＋アレンジ）",
+      "body": "アメリカでも作れる、失敗しないカレーのコツありますか？",
+      "authorIndex": 93,
+      "language": "ja",
+      "tags": ["recipes", "food", "japanese"],
+      "comments": [
+        { "body": "玉ねぎをしっかり炒めるとコクが出ます。焦がさず飴色が目標。", "authorIndex": 5 },
+        { "body": "隠し味に少しだけ醤油かウスターソースを入れると日本っぽくなります。", "authorIndex": 37 },
+        { "body": "翌日の方が美味しいので、多めに作って冷凍もおすすめです。", "authorIndex": 69 }
+      ],
+      "likeCount": 28
+    },
+    {
+      "title": "ABD’de iş görüşmesi için ne giymek gerekir?",
+      "body": "Kültür farkı var mı? Çok mu resmi olmalı?",
+      "authorIndex": 94,
+      "language": "tr",
+      "tags": ["jobs", "culture", "tips"],
+      "comments": [
+        { "body": "Şirket sektörüne göre değişir: banka/kurumsal daha resmi, startup daha rahat.", "authorIndex": 38 },
+        { "body": "Emin değilseniz ‘business casual’ güvenli: gömlek + temiz ayakkabı.", "authorIndex": 54 },
+        { "body": "Kıyafetten çok bakımlı görünmek önemli: saç/sakal, ütü, temiz ayakkabı.", "authorIndex": 70 }
+      ],
+      "likeCount": 21
+    },
+    {
+      "title": "چطور از Marketplace امن خرید کنیم؟",
+      "body": "می‌خوام از افراد ناشناس وسایل بخرم ولی نگران کلاهبرداری هستم.",
+      "authorIndex": 87,
+      "language": "fa",
+      "tags": ["safety", "shopping", "marketplace"],
+      "comments": [
+        { "body": "قرار را در مکان عمومی و روز بگذار. ترجیحاً جلوی بانک یا پلیس‌استیشن.", "authorIndex": 7 },
+        { "body": "قبل پرداخت تست کن (مثلاً لپ‌تاپ روشن شود، شماره سریال را چک کن).", "authorIndex": 47 },
+        { "body": "اگر قیمت خیلی پایین و عجله دارد، معمولاً نشانه scam است.", "authorIndex": 63 }
+      ],
+      "likeCount": 49
+    },
+  
+    {
+      "title": "First time filing taxes: what documents should I keep?",
+      "body": "I want to be organized next year. What’s worth saving and how?",
+      "authorIndex": 88,
+      "language": "en",
+      "tags": ["tax", "life", "tips"],
+      "comments": [
+        { "body": "Save W-2/1099s, rent receipts (if relevant), donation receipts, medical premiums, and any business expenses.", "authorIndex": 32 },
+        { "body": "Keep a simple folder (digital scans) by year. Take photos immediately so you don’t lose paper.", "authorIndex": 56 },
+        { "body": "If you’re self-employed: track mileage, supplies, and invoices—small things add up.", "authorIndex": 96 }
+      ],
+      "likeCount": 27
+    },
+    {
+      "title": "أفضل وجبة سريعة للدوام بدون ما تخرب؟",
+      "body": "أحتاج أفكار لوجبات خفيفة ومشبعة للعمل.",
+      "authorIndex": 90,
+      "language": "ar",
+      "tags": ["food", "work", "mealprep"],
+      "comments": [
+        { "body": "سلطة حمص: حمص + خيار + طماطم + زيت زيتون + ليمون. تعيش يومين بسهولة.", "authorIndex": 10 },
+        { "body": "رز + دجاج مشوي + خضار فريزر. سخنها 2-3 دقائق وخلاص.", "authorIndex": 66 },
+        { "body": "سندويش تونة مع ذرة + مايونيز خفيف، وخليها في براد صغير.", "authorIndex": 34 }
+      ],
+      "likeCount": 32
+    },
+    {
+      "title": "Что делать, если пришёл штраф за парковку?",
+      "body": "Не понимаю, как оплатить и что будет, если проигнорировать.",
+      "authorIndex": 81,
+      "language": "ru",
+      "tags": ["car", "money", "life"],
+      "comments": [
+        { "body": "Обычно на штрафе есть сайт/номер. Оплатите вовремя — иначе растёт сумма.", "authorIndex": 9 },
+        { "body": "Сфотографируйте знак/место. Если ошибка — можно подать апелляцию онлайн.", "authorIndex": 65 },
+        { "body": "Игнорировать не стоит: могут отправить в коллекшн или усложнить регистрацию авто.", "authorIndex": 97 }
+      ],
+      "likeCount": 18
+    },
+    {
+      "title": "미국에서 신용점수 빨리 떨어지는 실수들 뭐가 있나요?",
+      "body": "크레딧 처음이라서 조심하고 싶어요.",
+      "authorIndex": 99,
+      "language": "ko",
+      "tags": ["credit", "money", "tips"],
+      "comments": [
+        { "body": "결제일 늦는 게 제일 큽니다. 자동이체 걸어두세요.", "authorIndex": 11 },
+        { "body": "카드 한도 거의 다 쓰면(utilization) 점수 떨어질 수 있어요.", "authorIndex": 35 },
+        { "body": "짧은 기간에 카드/대출을 여러 개 신청하면 hard inquiry가 누적됩니다.", "authorIndex": 75 }
+      ],
+      "likeCount": 26
+    },
+    {
+      "title": "哪里可以找到靠谱的二手车修理店？",
+      "body": "不想去被坑的地方，想找诚实的修车师傅。",
+      "authorIndex": 12,
+      "language": "zh",
+      "tags": ["car", "tips", "community"],
+      "comments": [
+        { "body": "先看Google评价，重点看差评内容是不是“乱收费/不透明”。", "authorIndex": 28 },
+        { "body": "去之前问是否可以提供书面报价（estimate）。", "authorIndex": 60 },
+        { "body": "尽量找专修某品牌的店，经验更足，也更透明。", "authorIndex": 4 }
+      ],
+      "likeCount": 20
+    },
+    {
+      "title": "初めての賃貸、入居前に写真を撮るべき？",
+      "body": "デポジットを返してもらうために何をしておくといいですか？",
+      "authorIndex": 45,
+      "language": "ja",
+      "tags": ["housing", "tips", "life"],
+      "comments": [
+        { "body": "必ず撮るべきです。壁、床、キッチン、浴室、傷や汚れは全部。日付付きで保管。", "authorIndex": 61 },
+        { "body": "入居チェックリストがあるなら提出してコピーを残してください。", "authorIndex": 29 },
+        { "body": "退去時も同じ角度で写真を撮ると、比較できて強いです。", "authorIndex": 77 }
+      ],
+      "likeCount": 24
+    },
+    {
+      "title": "ABD’de ikinci el eşya alırken pazarlık nasıl yapılır?",
+      "body": "Kaba görünmek istemiyorum ama bütçem sınırlı.",
+      "authorIndex": 14,
+      "language": "tr",
+      "tags": ["shopping", "money", "tips"],
+      "comments": [
+        { "body": "Nazikçe: ‘Would you take $X?’ diye sor. Direkt düşük teklif yerine gerekçe ekle.", "authorIndex": 62 },
+        { "body": "Teslim alma/taşıma sizdeyse, bu pazarlık için iyi bir argüman.", "authorIndex": 38 },
+        { "body": "Yeni gibi değilse fotoğraftaki kusurları işaret edip makul indirim iste.", "authorIndex": 94 }
+      ],
+      "likeCount": 16
+    },
+    {
+      "title": "چطور غذای ایرانی را با مواد آمریکایی خوش‌طعم کنیم؟",
+      "body": "بعضی مواد مثل سبزی قورمه یا کشک پیدا نمی‌کنم. جایگزین چی خوبه؟",
+      "authorIndex": 31,
+      "language": "fa",
+      "tags": ["food", "recipes", "tips"],
+      "comments": [
+        { "body": "سبزی قورمه: ترکیب cilantro + parsley + green onion + کمی fenugreek خشک نزدیک میشه.", "authorIndex": 87 },
+        { "body": "برای کشک، می‌تونی از Greek yogurt غلیظ + کمی نمک + سیر استفاده کنی.", "authorIndex": 55 },
+        { "body": "ادویه‌ها را از فروشگاه‌های خاورمیانه‌ای/هندی بگیر، قیمت و کیفیت بهتره.", "authorIndex": 15 }
+      ],
+      "likeCount": 33
+    },
+  
+    {
+      "title": "How to handle a noisy neighbor in an apartment?",
+      "body": "I don’t want drama, but it’s affecting my sleep. What’s the proper way here?",
+      "authorIndex": 64,
+      "language": "en",
+      "tags": ["housing", "life", "tips"],
+      "comments": [
+        { "body": "Start polite: a short note or quick chat at a calm time. Many people don’t realize the noise carries.", "authorIndex": 16 },
+        { "body": "If it continues, document dates/times and contact the leasing office. They usually have quiet hours policies.", "authorIndex": 40 },
+        { "body": "Avoid confrontation late at night. Let management handle repeated issues.", "authorIndex": 80 }
+      ],
+      "likeCount": 29
+    },
+    {
+      "title": "كيف أطبخ رز مثل المطاعم؟",
+      "body": "رز مفلفل وما يطلع معجن. أي طريقة تنصحون؟",
+      "authorIndex": 98,
+      "language": "ar",
+      "tags": ["recipes", "food", "tips"],
+      "comments": [
+        { "body": "اغسل الرز 3-4 مرات وانقعه 20-30 دقيقة. هذا يفرق كثير.", "authorIndex": 50 },
+        { "body": "النار أول شيء عالية حتى يغلي، بعدها خفف جداً وغطه 15-18 دقيقة بدون فتح الغطا.", "authorIndex": 10 },
+        { "body": "بعد ما يخلص، اتركه 10 دقائق يرتاح ثم قلّبه بالشوكة.", "authorIndex": 66 }
+      ],
+      "likeCount": 41
+    },
+    {
+      "title": "Как быстро улучшить разговорный английский без стыда?",
+      "body": "Понимаю, но говорить страшно. Что реально помогает?",
+      "authorIndex": 25,
+      "language": "ru",
+      "tags": ["english", "life", "education"],
+      "comments": [
+        { "body": "Языковой обмен 1–2 раза в неделю: лучше коротко, но регулярно.", "authorIndex": 57 },
+        { "body": "Выберите 10 фраз для повседневных ситуаций (магазин, работа) и повторяйте их вслух каждый день.", "authorIndex": 73 },
+        { "body": "Смотрите сериалы с субтитрами и повторяйте (shadowing). Это прокачивает произношение.", "authorIndex": 1 }
+      ],
+      "likeCount": 38
+    },
+    {
+      "title": "미국에서 약국(Pharmacy) 이용하는 방법",
+      "body": "처방전, OTC, 보험 적용… 너무 복잡해요.",
+      "authorIndex": 43,
+      "language": "ko",
+      "tags": ["health", "howto", "life"],
+      "comments": [
+        { "body": "처방약은 의사가 prescription 보내면 약국에서 준비해요. 신분증 필요할 때도 있어요.", "authorIndex": 19 },
+        { "body": "OTC는 처방 없이 살 수 있는 약(타이레놀 등)이고, 성분을 확인하세요.", "authorIndex": 67 },
+        { "body": "보험 있으면 약값이 달라져요. 약국에 보험카드 정보 등록해두면 편해요.", "authorIndex": 83 }
+      ],
+      "likeCount": 21
+    },
+    {
+      "title": "美国冬天室内太干怎么办？",
+      "body": "皮肤干、喉咙也不舒服，有没有简单办法？",
+      "authorIndex": 4,
+      "language": "zh",
+      "tags": ["health", "home", "tips"],
+      "comments": [
+        { "body": "加湿器很有效，目标湿度40%-50%比较舒服。", "authorIndex": 60 },
+        { "body": "洗澡水别太烫，护肤用保湿霜比乳液更顶用。", "authorIndex": 84 },
+        { "body": "晚上放一杯水在暖气旁也能稍微改善（但不如加湿器）。", "authorIndex": 12 }
+      ],
+      "likeCount": 26
+    },
+    {
+      "title": "忙しい人向け：5分でできる朝ごはん",
+      "body": "朝バタバタで食べない日が多いです。簡単な案ありますか？",
+      "authorIndex": 13,
+      "language": "ja",
+      "tags": ["food", "life", "quick"],
+      "comments": [
+        { "body": "ヨーグルト＋果物＋グラノーラは最強です。", "authorIndex": 53 },
+        { "body": "前夜にオートミール（overnight oats）作ると朝は取り出すだけ。", "authorIndex": 61 },
+        { "body": "ゆで卵をまとめて作っておくとタンパク質が簡単に取れます。", "authorIndex": 5 }
+      ],
+      "likeCount": 19
+    },
+    {
+      "title": "ABD’de ev sahibi depozitoyu vermiyor, ne yapmalı?",
+      "body": "Evi temiz bıraktım ama depozitodan kesinti yaptı.",
+      "authorIndex": 38,
+      "language": "tr",
+      "tags": ["housing", "money", "tips"],
+      "comments": [
+        { "body": "Çıkışta foto/video şart. ‘Normal wear and tear’ için kesinti yapamazlar.", "authorIndex": 70 },
+        { "body": "Yazılı olarak itemized deduction isteyin. Gerekirse küçük mahkemeye (small claims) gider.", "authorIndex": 6 },
+        { "body": "Eyalet kuralları değişir ama çoğu yerde belirli sürede iade zorunlu.", "authorIndex": 94 }
+      ],
+      "likeCount": 34
+    },
+    {
+      "title": "چطور بچه‌ها را از نظر زبان سریع‌تر جلو ببریم؟",
+      "body": "می‌خوام هم انگلیسی یاد بگیرن هم زبان مادری را فراموش نکنن.",
+      "authorIndex": 15,
+      "language": "fa",
+      "tags": ["kids", "language", "family"],
+      "comments": [
+        { "body": "قانون خانه: داخل خانه فقط زبان مادری، مدرسه انگلیسی. این کمک می‌کنه هر دو قوی بمونه.", "authorIndex": 63 },
+        { "body": "کتاب‌های دو زبانه و کارتون با زیرنویس خیلی موثره.", "authorIndex": 79 },
+        { "body": "با خانواده/دوستان تماس تصویری منظم بگذار تا انگیزه زبان مادری بالا بمونه.", "authorIndex": 23 }
+      ],
+      "likeCount": 40
+    }
+  ]
