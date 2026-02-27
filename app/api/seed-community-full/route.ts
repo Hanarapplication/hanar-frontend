@@ -11,12 +11,16 @@
  *
  * Creates real Auth users (email: username@seed.local) so profiles.id satisfies FK.
  * Re-running reuses existing seed users.
+ *
+ * Allow up to 5 min so seed works on Vercel (Pro: maxDuration up to 300s).
  */
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import seedData from '@/public/data/community_seed.json';
 import immigrantPosts from '@/public/data/community_seed_immigrant_posts.json';
+
+export const maxDuration = 300;
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
