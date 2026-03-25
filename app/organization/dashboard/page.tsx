@@ -2,7 +2,7 @@
 
 import { createPortal } from 'react-dom';
 import { Suspense, useEffect, useState, useRef, ChangeEvent, FormEvent, FC } from 'react';
-import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Calendar, Eye, Megaphone, User, Building2 } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Calendar, Eye, Megaphone, User, Building2, Ban } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { Avatar } from '@/components/Avatar';
 import { supabase } from '@/lib/supabaseClient';
@@ -234,7 +234,6 @@ function OrganizationDashboardContent() {
   const [newLanguageInput, setNewLanguageInput] = useState('');
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   // Add form state for profile editing
   const [form, setForm] = useState({
     full_name: '',
@@ -1204,64 +1203,25 @@ function OrganizationDashboardContent() {
   // Update fetchComments function
   const fetchComments = async (postId: string) => {
     try {
-      console.log('Fetching comments for post:', postId);
-      const { data, error } = await supabase
-        .from('community_comments')
-        .select('*')
-        .eq('post_id', postId)
-        .eq('deleted', false)
-        .order(commentSort === 'newest' ? 'created_at' : 'likes', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching comments:', error);
-        console.error('Error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        throw error;
-      }
-
-      console.log('Fetched comments:', data);
-
-      // Get the current authenticated user ID
       const { data: { user } } = await supabase.auth.getUser();
-      const currentUserId = user?.id;
-
-      // Fetch comment likes for this post
-      const commentIds = (data || []).map(comment => comment.id);
-      let commentLikes: any[] = [];
-      
-      if (commentIds.length > 0) {
-        const { data: likesData, error: likesError } = await supabase
-          .from('community_comment_likes')
-          .select('comment_id, user_id')
-          .in('comment_id', commentIds);
-
-        if (!likesError && likesData) {
-          commentLikes = likesData;
-        }
+      const params = new URLSearchParams({ postId });
+      if (user?.id) params.set('userId', user.id);
+      const res = await fetch(`/api/community/comments?${params.toString()}`);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result?.error || 'fetch failed');
+      let list = (result.comments || []) as Comment[];
+      list = list.map((c) => ({
+        ...c,
+        body: (c.body ?? c.text ?? '') as string,
+        likes: c.likes ?? c.likes_comment ?? 0,
+        likes_comment: c.likes ?? c.likes_comment ?? 0,
+      }));
+      if (commentSort !== 'newest') {
+        list = [...list].sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
       }
-
-      const processedComments: Comment[] = (data || []).map((comment: Record<string, unknown> & { id: string; likes?: number }) => {
-        const commentLikeCount = commentLikes.filter(like => like.comment_id === comment.id).length;
-        const userLikedThisComment = commentLikes.some(like =>
-          like.comment_id === comment.id && like.user_id === currentUserId
-        );
-        const likes = commentLikeCount > 0 ? commentLikeCount : (comment.likes ?? 0);
-        return {
-          ...comment,
-          body: (comment.body ?? comment.text) as string,
-          likes,
-          likes_comment: likes,
-          user_liked: userLikedThisComment
-        } as Comment;
-      });
-
-      setComments(prev => ({
+      setComments((prev) => ({
         ...prev,
-        [postId]: processedComments
+        [postId]: list,
       }));
     } catch (error) {
       console.error('Error in fetchComments:', error);
@@ -1472,6 +1432,7 @@ function OrganizationDashboardContent() {
     { label: 'Edit Organization', onClick: () => document.getElementById('edit-profile')?.scrollIntoView({ behavior: 'smooth' }), icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
     { label: 'Send Notification', onClick: () => setNotificationModalOpen(true), icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
     { label: 'Promote Event / Message', href: '/promote?for=organization', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
+    { label: 'Blocked accounts', href: '/organization/dashboard/blocked', icon: <Ban className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-gray-800/80' },
     { label: 'Delete My Account', href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
   ];
 

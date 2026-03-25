@@ -16,9 +16,12 @@ import PullToRefresh from '@/components/PullToRefresh';
 import { Avatar } from '@/components/Avatar';
 import { t } from '@/utils/translations';
 
-const COMMUNITY_CACHE_KEY = 'hanar_community_cache';
+const COMMUNITY_CACHE_PREFIX = 'hanar_community_cache_';
 const COMMUNITY_FEED_LANG_KEY = 'hanar_community_feed_lang';
 const COMMUNITY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+const communityCacheKey = (userKey: string, lang: string, sortMode: 'latest' | 'popular') =>
+  `${COMMUNITY_CACHE_PREFIX}${userKey}::${lang || 'all'}::${sortMode}`;
 
 type CommunityCache = {
   ts: number;
@@ -26,9 +29,9 @@ type CommunityCache = {
   banner: { id: string; image: string; link: string; alt: string } | null;
 };
 
-function readCommunityCache(): CommunityCache | null {
+function readCommunityCache(storageKey: string): CommunityCache | null {
   try {
-    const raw = sessionStorage.getItem(COMMUNITY_CACHE_KEY);
+    const raw = sessionStorage.getItem(storageKey);
     if (!raw) return null;
     const cache: CommunityCache = JSON.parse(raw);
     if (Date.now() - cache.ts > COMMUNITY_CACHE_TTL) return null;
@@ -38,9 +41,13 @@ function readCommunityCache(): CommunityCache | null {
   }
 }
 
-function writeCommunityCache(posts: Post[], banner: { id: string; image: string; link: string; alt: string } | null) {
+function writeCommunityCache(
+  storageKey: string,
+  posts: Post[],
+  banner: { id: string; image: string; link: string; alt: string } | null
+) {
   try {
-    sessionStorage.setItem(COMMUNITY_CACHE_KEY, JSON.stringify({ ts: Date.now(), posts, banner }));
+    sessionStorage.setItem(storageKey, JSON.stringify({ ts: Date.now(), posts, banner }));
   } catch {}
 }
 
@@ -69,21 +76,28 @@ export default function CommunityFeedPage() {
   const [sortMode, setSortMode] = useState<'latest' | 'popular'>('latest');
   const [feedLang, setFeedLangState] = useState<string>('');
   const [feedLangReady, setFeedLangReady] = useState(false);
-  const setFeedLang = useCallback((value: string) => {
-    setFeedLangState(value);
-    try {
-      localStorage.setItem(COMMUNITY_FEED_LANG_KEY, value);
-    } catch {}
+  const requestSeqRef = useRef(0);
+  const normalizeFeedLang = useCallback((value: string) => {
+    const v = String(value || '').trim().toLowerCase();
+    if (!v || v === 'all' || v === 'auto') return '';
+    return supportedLanguages.some((l) => l.code === v) ? v : '';
   }, []);
+  const setFeedLang = useCallback((value: string) => {
+    const next = normalizeFeedLang(value);
+    setFeedLangState(next);
+    try {
+      localStorage.setItem(COMMUNITY_FEED_LANG_KEY, next);
+    } catch {}
+  }, [normalizeFeedLang]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const stored = localStorage.getItem(COMMUNITY_FEED_LANG_KEY);
-      if (stored !== null && stored !== '') setFeedLangState(stored);
+      if (stored !== null) setFeedLangState(normalizeFeedLang(stored));
     } catch {}
     setFeedLangReady(true);
-  }, []);
+  }, [normalizeFeedLang]);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const { effectiveLang } = useLanguage();
@@ -97,6 +111,25 @@ export default function CommunityFeedPage() {
   const [deletingPost, setDeletingPost] = useState<string | null>(null);
   const [communityBanner, setCommunityBanner] = useState<{ id: string; image: string; link: string; alt: string } | null>(null);
   const hasFetchedRef = useRef(false);
+  const audienceCacheRef = useRef<{
+    preferred_language: string | null;
+    spoken_languages: string[];
+  } | null>(null);
+
+  const getAudienceForFeed = useCallback(async () => {
+    if (audienceCacheRef.current) return audienceCacheRef.current;
+    try {
+      const res = await fetch('/api/user/audience-segment');
+      const j = await res.json().catch(() => ({}));
+      audienceCacheRef.current = {
+        preferred_language: j.preferred_language ?? null,
+        spoken_languages: Array.isArray(j.spoken_languages) ? j.spoken_languages : [],
+      };
+    } catch {
+      audienceCacheRef.current = { preferred_language: null, spoken_languages: [] };
+    }
+    return audienceCacheRef.current;
+  }, []);
 
   const loadBanner = async () => {
     try {
@@ -146,17 +179,19 @@ export default function CommunityFeedPage() {
   const sortPosts = (posts: Post[]): Post[] => {
     if (sortMode === 'popular') {
       return [...posts].sort((a, b) => (b.likes_post || 0) - (a.likes_post || 0));
-    } else {
-      return [...posts].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
     }
+    return posts;
   };
 
   const loadMorePosts = async (offset = 0) => {
     if (loading || (!hasMore && offset > 0)) return;
+    const requestId = ++requestSeqRef.current;
     setLoading(true);
     try {
+      const audience = await getAudienceForFeed();
+      const deviceLang =
+        typeof navigator !== 'undefined' ? (navigator.language?.split('-')[0] || '').toLowerCase() : '';
+
       const response = await fetch('/api/community/list', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -166,23 +201,27 @@ export default function CommunityFeedPage() {
           lang: feedLang,
           sortMode,
           userId: currentUser.id || undefined,
+          primaryLang: audience.preferred_language,
+          spokenLanguages: audience.spoken_languages,
+          deviceLang: deviceLang || undefined,
         }),
       });
       const newPosts: Post[] = await response.json();
-      const sorted = sortPosts(newPosts);
+      if (requestId !== requestSeqRef.current) return;
+      const ordered = sortMode === 'popular' ? sortPosts(newPosts) : newPosts;
       if (offset === 0) {
-        setVisiblePosts(sorted);
+        setVisiblePosts(ordered);
       } else {
         setVisiblePosts((prev) => {
-          const unique = [...new Map([...prev, ...sorted].map(p => [p.id, p])).values()];
+          const unique = [...new Map([...prev, ...ordered].map((p) => [p.id, p])).values()];
           return unique;
         });
       }
       setHasMore(newPosts.length === 10);
 
-      // Cache initial batch
+      const cacheKey = communityCacheKey(currentUser.id || 'anon', feedLang, sortMode);
       if (offset === 0 && !search) {
-        writeCommunityCache(sorted, communityBanner);
+        writeCommunityCache(cacheKey, ordered, communityBanner);
       }
     } catch (err) {
       console.error('Error loading posts:', err);
@@ -196,7 +235,8 @@ export default function CommunityFeedPage() {
     if (!feedLangReady || hasFetchedRef.current) return;
     hasFetchedRef.current = true;
 
-    const cache = readCommunityCache();
+    const cacheKey = communityCacheKey(currentUser.id || 'anon', feedLang, sortMode);
+    const cache = readCommunityCache(cacheKey);
     if (cache && !search) {
       setVisiblePosts(cache.posts);
       if (cache.banner) setCommunityBanner(cache.banner);
@@ -206,11 +246,12 @@ export default function CommunityFeedPage() {
       loadBanner();
       loadMorePosts(0);
     }
-  }, [feedLangReady]);
+  }, [feedLangReady, feedLang, sortMode, currentUser.id, search]);
 
   // Reload when search / sort / lang changes (only after feed lang has been restored)
   useEffect(() => {
     if (!feedLangReady || !hasFetchedRef.current) return;
+    requestSeqRef.current += 1;
     setVisiblePosts([]);
     setHasMore(true);
     loadMorePosts(0);
@@ -296,6 +337,10 @@ export default function CommunityFeedPage() {
     });
     return () => subscription.unsubscribe();
   }, [fetchLikedPosts]);
+
+  useEffect(() => {
+    audienceCacheRef.current = null;
+  }, [currentUser.id]);
 
   const requireLogin = () => {
     if (!currentUser.id) {
@@ -397,7 +442,9 @@ export default function CommunityFeedPage() {
     if (!commentsByPost[postId] && !commentLoading[postId]) {
       setCommentLoading((prev) => ({ ...prev, [postId]: true }));
       try {
-        const res = await fetch(`/api/community/comments?postId=${postId}`);
+        const params = new URLSearchParams({ postId });
+        if (currentUser.id) params.set('userId', currentUser.id);
+        const res = await fetch(`/api/community/comments?${params.toString()}`);
         const data = await res.json();
         setCommentsByPost((prev) => ({ ...prev, [postId]: data.comments || [] }));
       } finally {
@@ -491,15 +538,18 @@ export default function CommunityFeedPage() {
   };
 
   const handlePullRefresh = useCallback(async () => {
+    audienceCacheRef.current = null;
     try {
-      sessionStorage.removeItem(COMMUNITY_CACHE_KEY);
+      sessionStorage.removeItem(communityCacheKey(currentUser.id || 'anon', feedLang, sortMode));
     } catch {}
     setVisiblePosts([]);
     setHasMore(true);
     const banner = await loadBanner();
-    // Refetch from scratch
     setLoading(true);
     try {
+      const audience = await getAudienceForFeed();
+      const deviceLang =
+        typeof navigator !== 'undefined' ? (navigator.language?.split('-')[0] || '').toLowerCase() : '';
       const response = await fetch('/api/community/list', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -509,19 +559,26 @@ export default function CommunityFeedPage() {
           lang: feedLang,
           sortMode,
           userId: currentUser.id || undefined,
+          primaryLang: audience.preferred_language,
+          spokenLanguages: audience.spoken_languages,
+          deviceLang: deviceLang || undefined,
         }),
       });
       const newPosts: Post[] = await response.json();
-      const sorted = sortPosts(newPosts);
-      setVisiblePosts(sorted);
+      const ordered = sortMode === 'popular' ? sortPosts(newPosts) : newPosts;
+      setVisiblePosts(ordered);
       setHasMore(newPosts.length === 10);
-      writeCommunityCache(sorted, banner || communityBanner);
+      writeCommunityCache(
+        communityCacheKey(currentUser.id || 'anon', feedLang, sortMode),
+        ordered,
+        banner || communityBanner
+      );
     } catch (err) {
       console.error('Error refreshing posts:', err);
     } finally {
       setLoading(false);
     }
-  }, [search, feedLang, sortMode, currentUser.id, communityBanner]);
+  }, [search, feedLang, sortMode, currentUser.id, communityBanner, getAudienceForFeed]);
 
   const feedLangOptions: { value: string; label: string; emoji?: string }[] = [
     { value: '', label: t(effectiveLang, 'All languages'), emoji: '🌐' },
@@ -538,7 +595,7 @@ export default function CommunityFeedPage() {
             sortMode === 'latest' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
-          {t(effectiveLang, 'Latest')}
+          {t(effectiveLang, 'For you')}
         </button>
         <button
           onClick={() => setSortMode('popular')}

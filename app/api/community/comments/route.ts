@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getMutuallyBlockedUserIds, usersAreMutuallyBlocked } from '@/lib/userBlocksServer';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,7 +28,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    const list = comments || [];
+    let list = comments || [];
+    if (userId) {
+      const blocked = await getMutuallyBlockedUserIds(supabaseAdmin, userId);
+      list = list.filter((c: { user_id: string | null }) => !c.user_id || !blocked.has(c.user_id));
+    }
     const commentIds = list.map((c: { id: string }) => c.id);
     const userIds = [...new Set(list.map((c: { user_id: string | null }) => c.user_id).filter(Boolean))] as string[];
 
@@ -84,6 +89,16 @@ export async function POST(req: Request) {
     }
 
     const displayAuthor = authorVal || username || 'User';
+
+    const { data: postRow } = await supabaseAdmin
+      .from('community_posts')
+      .select('user_id')
+      .eq('id', post_id)
+      .maybeSingle();
+    const postAuthorId = (postRow as { user_id?: string } | null)?.user_id;
+    if (postAuthorId && (await usersAreMutuallyBlocked(supabaseAdmin, user_id, postAuthorId))) {
+      return NextResponse.json({ error: 'You cannot comment on this post' }, { status: 403 });
+    }
 
     const { data: inserted, error } = await supabaseAdmin
       .from('community_comments')

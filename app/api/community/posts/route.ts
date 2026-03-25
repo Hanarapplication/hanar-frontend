@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { usersAreMutuallyBlocked } from '@/lib/userBlocksServer';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,9 +12,16 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const orgId = searchParams.get('orgId');
     const userId = searchParams.get('userId');
+    const viewerUserId = searchParams.get('viewerUserId');
 
     if (!orgId && !userId) {
       return NextResponse.json({ error: 'Missing orgId or userId' }, { status: 400 });
+    }
+
+    if (viewerUserId && userId && viewerUserId !== userId) {
+      if (await usersAreMutuallyBlocked(supabaseAdmin, viewerUserId, userId)) {
+        return NextResponse.json({ posts: [], commentCounts: {} });
+      }
     }
 
     const individualOnly = searchParams.get('individualOnly') === 'true';

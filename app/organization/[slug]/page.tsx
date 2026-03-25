@@ -18,6 +18,7 @@ import {
   MessageCircle,
   Share2,
   Trash2,
+  Ban,
 } from 'lucide-react';
 import ReportButton from '@/components/ReportButton';
 
@@ -135,11 +136,22 @@ export default function OrganizationProfilePage() {
   const [commentsLoading, setCommentsLoading] = useState<Record<string, boolean>>({});
   const [commentInput, setCommentInput] = useState<Record<string, string>>({});
   const [postingComment, setPostingComment] = useState<Record<string, boolean>>({});
-  const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    username: string | null;
+    isIndividual: boolean;
+    isOrganization: boolean;
+  } | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [deletingPost, setDeletingPost] = useState<string | null>(null);
+  const [blockStatus, setBlockStatus] = useState<{
+    mutuallyBlocked: boolean;
+    iBlockedThem: boolean;
+    theyBlockedMe: boolean;
+  } | null>(null);
+  const [blockActionLoading, setBlockActionLoading] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -182,7 +194,19 @@ export default function OrganizationProfilePage() {
         .eq('user_id', user.id)
         .single();
 
-      setCurrentUser({ id: user.id, username: profileData?.username || null });
+      const [biz, org] = await Promise.all([
+        supabase.from('businesses').select('id').eq('owner_id', user.id).maybeSingle(),
+        supabase.from('organizations').select('id').eq('user_id', user.id).maybeSingle(),
+      ]);
+      const isIndividual = !biz.data && !org.data;
+      const isOrganization = !!org.data;
+
+      setCurrentUser({
+        id: user.id,
+        username: profileData?.username || null,
+        isIndividual: !!isIndividual,
+        isOrganization,
+      });
     };
 
     loadCurrentUser();
@@ -211,10 +235,10 @@ export default function OrganizationProfilePage() {
       if (!profile?.user_id) return;
       setPostsLoading(true);
 
-      const params = new URLSearchParams({
-        userId: profile.user_id,
-      });
+      const { data: { user } } = await supabase.auth.getUser();
+      const params = new URLSearchParams({ userId: profile.user_id });
       if (profile.id) params.set('orgId', profile.id);
+      if (user?.id) params.set('viewerUserId', user.id);
 
       const res = await fetch(`/api/community/posts?${params.toString()}`);
       const result = await res.json();
@@ -229,6 +253,87 @@ export default function OrganizationProfilePage() {
 
     loadPosts();
   }, [profile?.user_id, profile?.id]);
+
+  useEffect(() => {
+    const run = async () => {
+      if (!currentUser?.id || !profile?.user_id || currentUser.id === profile.user_id) {
+        setBlockStatus(null);
+        return;
+      }
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch(`/api/user/block-status?otherUserId=${encodeURIComponent(profile.user_id)}`, {
+        credentials: 'include',
+        headers,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setBlockStatus({
+          mutuallyBlocked: !!data.mutuallyBlocked,
+          iBlockedThem: !!data.iBlockedThem,
+          theyBlockedMe: !!data.theyBlockedMe,
+        });
+      } else setBlockStatus(null);
+    };
+    run();
+  }, [currentUser?.id, profile?.user_id]);
+
+  const handleBlockToggle = async () => {
+    if (!currentUser?.id || !profile?.user_id || currentUser.id === profile.user_id || blockActionLoading) return;
+    setBlockActionLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+      if (blockStatus?.iBlockedThem) {
+        const res = await fetch(`/api/user/blocks?blockedUserId=${encodeURIComponent(profile.user_id)}`, {
+          method: 'DELETE',
+          credentials: 'include',
+          headers,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(err?.error || 'Could not unblock');
+          return;
+        }
+        setBlockStatus({
+          mutuallyBlocked: !!blockStatus.theyBlockedMe,
+          iBlockedThem: false,
+          theyBlockedMe: !!blockStatus.theyBlockedMe,
+        });
+        const { data: { user } } = await supabase.auth.getUser();
+        const params = new URLSearchParams({ userId: profile.user_id });
+        if (profile.id) params.set('orgId', profile.id);
+        if (user?.id) params.set('viewerUserId', user.id);
+        const pr = await fetch(`/api/community/posts?${params.toString()}`);
+        const result = await pr.json();
+        if (pr.ok) {
+          setPosts(result.posts || []);
+          setCommentCounts(result.commentCounts || {});
+        }
+      } else {
+        const res = await fetch('/api/user/blocks', {
+          method: 'POST',
+          credentials: 'include',
+          headers,
+          body: JSON.stringify({ blockedUserId: profile.user_id }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(err?.error || 'Could not block');
+          return;
+        }
+        setBlockStatus({ mutuallyBlocked: true, iBlockedThem: true, theyBlockedMe: false });
+        setPosts([]);
+        setCommentCounts({});
+        setIsFollowing(false);
+      }
+    } finally {
+      setBlockActionLoading(false);
+    }
+  };
 
   const handleShare = async (postId: string, title: string) => {
     const url = `${window.location.origin}/community/post/${postId}`;
@@ -249,6 +354,8 @@ export default function OrganizationProfilePage() {
       return;
     }
     if (!profile?.user_id || currentUser.id === profile.user_id) return;
+    if (!currentUser.isIndividual && !currentUser.isOrganization) return;
+    if (blockStatus?.mutuallyBlocked) return;
 
     setFollowLoading(true);
     try {
@@ -282,7 +389,9 @@ export default function OrganizationProfilePage() {
 
     setCommentsLoading(prev => ({ ...prev, [postId]: true }));
     try {
-      const res = await fetch(`/api/community/comments?postId=${postId}`);
+      const params = new URLSearchParams({ postId });
+      if (currentUser?.id) params.set('userId', currentUser.id);
+      const res = await fetch(`/api/community/comments?${params.toString()}`);
       const result = await res.json();
       if (res.ok) {
         setCommentsByPost(prev => ({ ...prev, [postId]: result.comments || [] }));
@@ -368,6 +477,26 @@ export default function OrganizationProfilePage() {
 
   const hasSocials = Boolean(profile.socials?.website || profile.socials?.instagram || profile.socials?.facebook);
 
+  const canFollow =
+    !!currentUser?.id &&
+    !!profile?.user_id &&
+    currentUser.id !== profile.user_id &&
+    !blockStatus?.mutuallyBlocked &&
+    (currentUser.isIndividual || currentUser.isOrganization);
+
+  const showBlockControls =
+    !!currentUser?.id &&
+    !!profile?.user_id &&
+    currentUser.id !== profile.user_id &&
+    (currentUser.isIndividual || currentUser.isOrganization);
+
+  const showFollowBlockRow =
+    !!currentUser?.id &&
+    !!profile?.user_id &&
+    currentUser.id !== profile.user_id &&
+    (currentUser.isIndividual || currentUser.isOrganization) &&
+    (canFollow || !!blockStatus?.mutuallyBlocked);
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="relative">
@@ -407,19 +536,54 @@ export default function OrganizationProfilePage() {
                   Organization
                 </span>
 
-                {currentUser?.id !== profile.user_id && (
-                  <button
-                    type="button"
-                    onClick={handleToggleFollow}
-                    disabled={followLoading}
-                    className={`rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm ${
-                      isFollowing
-                        ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                    }`}
-                  >
-                    {followLoading ? '...' : isFollowing ? 'Following' : 'Follow'}
-                  </button>
+                {showFollowBlockRow && (
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    {canFollow && (
+                      <button
+                        type="button"
+                        onClick={handleToggleFollow}
+                        disabled={followLoading}
+                        className={`group rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm transition ${
+                          isFollowing
+                            ? 'border border-slate-300 bg-white text-slate-700 hover:border-red-300 hover:bg-red-50 hover:text-red-600'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        }`}
+                      >
+                        {followLoading ? (
+                          '...'
+                        ) : isFollowing ? (
+                          <>
+                            <span className="group-hover:hidden">Following</span>
+                            <span className="hidden group-hover:inline">Unfollow</span>
+                          </>
+                        ) : (
+                          'Follow'
+                        )}
+                      </button>
+                    )}
+                    {showBlockControls && (
+                      <button
+                        type="button"
+                        onClick={handleBlockToggle}
+                        disabled={blockActionLoading || !!blockStatus?.theyBlockedMe}
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        title={blockStatus?.theyBlockedMe ? undefined : blockStatus?.iBlockedThem ? 'Unblock' : 'Block'}
+                      >
+                        <Ban className="h-3.5 w-3.5" />
+                        {blockStatus?.theyBlockedMe
+                          ? 'Blocked'
+                          : blockStatus?.iBlockedThem
+                            ? 'Unblock'
+                            : 'Block'}
+                      </button>
+                    )}
+                  </span>
+                )}
+                {currentUser &&
+                  currentUser.id !== profile.user_id &&
+                  !currentUser.isIndividual &&
+                  !currentUser.isOrganization && (
+                  <span className="text-xs text-slate-500">Only individual and organization accounts can follow.</span>
                 )}
                 {currentUser?.id !== profile.user_id && (
                   <ReportButton

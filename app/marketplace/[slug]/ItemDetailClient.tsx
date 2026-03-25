@@ -8,6 +8,7 @@ import { FaHeart, FaRegHeart, FaShareAlt, FaExternalLinkAlt, FaPhoneAlt, FaStore
 import { supabase } from '@/lib/supabaseClient';
 import ReportButton from '@/components/ReportButton';
 import { Avatar } from '@/components/Avatar';
+import { recordMarketplaceItemView, readMarketplaceBrowseSignals, personalizationScoreForItem } from '@/lib/marketplacePersonalize';
 
 type MarketplaceItem = {
   id: string;
@@ -402,7 +403,26 @@ export default function ItemDetailClient() {
       .then((res) => res.json())
       .then((data: { items?: RelatedItem[] }) => {
         if (!cancelled && Array.isArray(data?.items)) {
-          setRelatedItems(data.items.slice(0, 12));
+          const browsed = readMarketplaceBrowseSignals();
+          const scored = data.items.map((ri, idx) => ({
+            ri,
+            idx,
+            score: personalizationScoreForItem(
+              {
+                id: ri.id,
+                source: ri.source,
+                title: ri.title || '',
+                category: ri.category || '',
+                location: ri.location,
+              },
+              browsed
+            ),
+          }));
+          scored.sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return a.idx - b.idx;
+          });
+          setRelatedItems(scored.map(({ ri }) => ri).slice(0, 12));
         }
       })
       .catch(() => {
@@ -426,6 +446,17 @@ export default function ItemDetailClient() {
       body: JSON.stringify({ type, id: item.id }),
     }).catch(() => {});
   }, [item?.id, item?.source]);
+
+  // Local personalization signals for marketplace feed + related rail
+  useEffect(() => {
+    if (!item?.id || !item.source) return;
+    recordMarketplaceItemView({
+      source: item.source,
+      id: item.id,
+      title: item.title || '',
+      category: item.category || '',
+    });
+  }, [item?.id, item?.source, item?.title, item?.category]);
 
   const getFavoriteKey = (value: MarketplaceItem) => `${value.source}:${value.id}`;
   const isFavorited = item ? favoriteItems.some((fav) => fav.key === getFavoriteKey(item)) : false;

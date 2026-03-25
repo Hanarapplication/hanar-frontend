@@ -32,6 +32,8 @@ type CommunityPost = {
   community_comments?: { count: number }[];
   profile_pic_url?: string | null;
   logo_url?: string | null;
+  /** Set when ranked by /api/community/home-feed-posts (0–100); used for mixed-feed ordering */
+  home_rank_score?: number;
 };
 
 type Business = {
@@ -502,6 +504,30 @@ export default function Home() {
   }, [fetchLikedPosts]);
 
   useEffect(() => {
+    if (!currentUser.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token || cancelled) return;
+      try {
+        const res = await fetch('/api/user/blocks', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          credentials: 'include',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        const blocked = new Set((data.mutualBlockedUserIds || []) as string[]);
+        setCommunityPosts((prev) => prev.filter((p) => !p.user_id || !blocked.has(p.user_id)));
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser.id]);
+
+  useEffect(() => {
     const stored = localStorage.getItem('userCoords');
     if (stored) {
       try {
@@ -524,14 +550,10 @@ export default function Home() {
   }, []);
 
   const loadHomeFeed = async () => {
-    const [postsRes, businessRes, orgRes, retailRes, dealershipRes, realEstateRes, individualRes] = await Promise.all([
-      supabase
-        .from('community_posts')
-        .select('id, title, body, created_at, author, author_type, username, user_id, org_id, image, video, likes_post, community_comments(count)')
-        .eq('deleted', false)
-        .or('visibility.eq.community,visibility.is.null')
-        .order('created_at', { ascending: false })
-        .limit(12),
+    const [audienceJson, businessRes, orgRes, retailRes, dealershipRes, realEstateRes, individualRes] = await Promise.all([
+      fetch('/api/user/audience-segment')
+        .then((r) => r.json().catch(() => ({})))
+        .catch(() => ({})),
       supabase
         .from('businesses')
         .select('id, business_name, category, subcategory, address, logo_url, slug, lat, lon, created_at, plan')
@@ -637,14 +659,61 @@ export default function Home() {
       };
     });
 
-    const rawPosts = postsRes.data || [];
+    const { data: homeSession } = await supabase.auth.getSession();
+    const deviceLang =
+      typeof navigator !== 'undefined' ? (navigator.language?.split('-')[0] || '').toLowerCase() : '';
+
+    let rawPosts: CommunityPost[] = [];
+    try {
+      const rankedRes = await fetch('/api/community/home-feed-posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(homeSession?.session?.access_token
+            ? { Authorization: `Bearer ${homeSession.session.access_token}` }
+            : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          userId: homeSession?.session?.user?.id,
+          limit: 12,
+          candidateLimit: 100,
+          primaryLang: audienceJson?.preferred_language ?? null,
+          spokenLanguages: Array.isArray(audienceJson?.spoken_languages) ? audienceJson.spoken_languages : [],
+          deviceLang: deviceLang || null,
+        }),
+      });
+      const rankedPayload = await rankedRes.json().catch(() => ({}));
+      if (rankedRes.ok && Array.isArray(rankedPayload.posts) && rankedPayload.posts.length > 0) {
+        rawPosts = rankedPayload.posts as CommunityPost[];
+      }
+    } catch {
+      /* fallback query below */
+    }
+
+    if (rawPosts.length === 0) {
+      const fb = await supabase
+        .from('community_posts')
+        .select(
+          'id, title, body, created_at, author, author_type, username, user_id, org_id, image, video, likes_post, community_comments(count)'
+        )
+        .eq('deleted', false)
+        .or('visibility.eq.community,visibility.is.null')
+        .order('created_at', { ascending: false })
+        .limit(12);
+      rawPosts = (fb.data || []) as CommunityPost[];
+    }
+
     const postIds = rawPosts.map((p: { id: string }) => p.id);
-    if (postIds.length > 0) {
+    const skipLikeRefetch =
+      rawPosts.length > 0 && rawPosts.some((p) => p.home_rank_score !== undefined && p.home_rank_score !== null);
+
+    if (postIds.length > 0 && !skipLikeRefetch) {
       try {
         const countsRes = await fetch(`/api/community/post/counts?postIds=${postIds.join(',')}`);
         const { counts } = await countsRes.json();
         if (counts) {
-          rawPosts.forEach((p: { id: string; likes_post?: number }) => {
+          rawPosts.forEach((p) => {
             p.likes_post = counts[p.id] ?? p.likes_post ?? 0;
           });
         }
@@ -667,6 +736,20 @@ export default function Home() {
           (p as Record<string, unknown>).profile_pic_url = profileMap.get(p.user_id) ?? null;
         }
       });
+    }
+
+    if (homeSession?.session?.access_token && homeSession.session.user?.id) {
+      try {
+        const br = await fetch('/api/user/blocks', {
+          headers: { Authorization: `Bearer ${homeSession.session.access_token}` },
+          credentials: 'include',
+        });
+        const bd = await br.json().catch(() => ({}));
+        const blocked = new Set((bd.mutualBlockedUserIds || []) as string[]);
+        rawPosts = rawPosts.filter((p: { user_id?: string | null }) => !p.user_id || !blocked.has(p.user_id));
+      } catch {
+        // keep posts if block fetch fails
+      }
     }
 
     const combinedItems = [...normalizedRetail, ...normalizedDealership, ...normalizedRealEstate, ...normalizedIndividual].sort((a, b) =>
@@ -774,7 +857,11 @@ export default function Home() {
     setMarketplaceItems(data.marketplaceItems);
     setFeedBanners(banners);
     if (data.rawPosts.length > 0) {
-      latestPostDateRef.current = data.rawPosts[0].created_at;
+      const newest = data.rawPosts.reduce((a, p) => {
+        const t = new Date(p.created_at || 0).getTime();
+        return t > a.t ? { t, iso: p.created_at } : a;
+      }, { t: 0, iso: data.rawPosts[0].created_at });
+      latestPostDateRef.current = newest.iso;
     }
     writeFeedCache({
       communityPosts: data.rawPosts,
@@ -813,7 +900,14 @@ export default function Home() {
         setMarketplaceItems(cache.marketplaceItems);
         setFeedBanners(cache.feedBanners);
         if (cache.communityPosts.length > 0) {
-          latestPostDateRef.current = cache.communityPosts[0].created_at;
+          const newest = cache.communityPosts.reduce(
+            (a, p) => {
+              const t = new Date(p.created_at || 0).getTime();
+              return t > a.t ? { t, iso: p.created_at } : a;
+            },
+            { t: 0, iso: cache.communityPosts[0].created_at }
+          );
+          latestPostDateRef.current = newest.iso;
         }
         setLoading(false);
       } else {
@@ -1221,7 +1315,10 @@ const formatDateLabel = (value?: string | null) => {
     const datedPool: { item: FeedItem; date: number }[] = [];
 
     for (const post of communityPosts) {
-      datedPool.push({ item: { type: 'post', post }, date: new Date(post.created_at || 0).getTime() });
+      const created = new Date(post.created_at || 0).getTime();
+      const rank = post.home_rank_score ?? 0;
+      const virtualBoost = Math.min(56 * 3600000, rank * 560000);
+      datedPool.push({ item: { type: 'post', post }, date: created + virtualBoost });
     }
     for (const business of nearbyBusinesses.slice(0, 12)) {
       datedPool.push({ item: { type: 'business', business }, date: new Date(business.created_at || 0).getTime() });
@@ -1315,7 +1412,9 @@ const formatDateLabel = (value?: string | null) => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-lg font-semibold text-slate-800 dark:text-gray-100">Hanar Feed</h1>
-              <p className="text-sm text-slate-500 dark:text-gray-400">Latest community updates, nearby businesses, and organizations.</p>
+              <p className="text-sm text-slate-500 dark:text-gray-400">
+                Community picks matched to your languages and interests, plus nearby businesses and organizations.
+              </p>
             </div>
             {!loading && (
               <button

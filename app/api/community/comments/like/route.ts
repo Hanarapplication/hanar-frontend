@@ -2,6 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { usersAreMutuallyBlocked } from '@/lib/userBlocksServer';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,6 +15,16 @@ export async function POST(req: Request) {
 
     if (!comment_id || !user_id) {
       return NextResponse.json({ error: 'Missing comment_id or user_id' }, { status: 400 });
+    }
+
+    const { data: commentRow } = await supabaseAdmin
+      .from('community_comments')
+      .select('user_id')
+      .eq('id', comment_id)
+      .maybeSingle();
+    const commentAuthorId = (commentRow as { user_id?: string | null } | null)?.user_id;
+    if (commentAuthorId && (await usersAreMutuallyBlocked(supabaseAdmin, user_id, commentAuthorId))) {
+      return NextResponse.json({ error: 'Blocked' }, { status: 403 });
     }
 
     const { data: existing } = await supabaseAdmin
@@ -63,6 +74,16 @@ export async function DELETE(req: Request) {
 
     if (!comment_id || !user_id) {
       return NextResponse.json({ error: 'Missing comment_id or user_id' }, { status: 400 });
+    }
+
+    const { data: commentRow } = await supabaseAdmin
+      .from('community_comments')
+      .select('user_id')
+      .eq('id', comment_id)
+      .maybeSingle();
+    const commentAuthorId = (commentRow as { user_id?: string | null } | null)?.user_id;
+    if (commentAuthorId && (await usersAreMutuallyBlocked(supabaseAdmin, user_id, commentAuthorId))) {
+      return NextResponse.json({ error: 'Blocked' }, { status: 403 });
     }
 
     const { error: deleteError } = await supabaseAdmin

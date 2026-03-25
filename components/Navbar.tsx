@@ -11,6 +11,7 @@ import MobileMenu from './MobileMenu';
 import { supabase } from '@/lib/supabaseClient';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
+import { readSavedSearchRadiusMiles, writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
 
 type CityResult = { label: string; lat: number; lng: number };
 
@@ -31,6 +32,7 @@ export default function Navbar() {
   const [locationSearchLoading, setLocationSearchLoading] = useState(false);
   const [locationRequesting, setLocationRequesting] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationRadiusMiles, setLocationRadiusMiles] = useState(() => readSavedSearchRadiusMiles(40));
   const locationSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationModalRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -136,13 +138,14 @@ export default function Navbar() {
 
   const applyLocation = useCallback((lat: number, lon: number, label: string | null, meta?: { city?: string | null; state?: string | null; zip?: string | null; source?: string }) => {
     localStorage.setItem('userCoords', JSON.stringify({ lat, lon }));
+    writeSavedSearchRadiusMiles(locationRadiusMiles);
     if (label) {
       localStorage.setItem('userLocationLabel', label);
       setLocationLabel(label);
     }
     persistLocation(lat, lon, meta);
-    window.dispatchEvent(new CustomEvent('location:updated', { detail: { lat, lon, label, ...meta } }));
-  }, [persistLocation]);
+    window.dispatchEvent(new CustomEvent('location:updated', { detail: { lat, lon, label, radiusMiles: locationRadiusMiles, ...meta } }));
+  }, [locationRadiusMiles, persistLocation]);
 
   const fetchLabelFromCoords = useCallback((lat: number, lon: number) => {
     fetch(`/api/geocode/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`)
@@ -163,6 +166,7 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
+    setLocationRadiusMiles(readSavedSearchRadiusMiles(40));
     const storedLabel = typeof localStorage !== 'undefined' ? localStorage.getItem('userLocationLabel') : null;
     const storedCoords = typeof localStorage !== 'undefined' ? localStorage.getItem('userCoords') : null;
     if (storedLabel) {
@@ -180,10 +184,14 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleLocationUpdated = (event: Event) => {
-      const detail = (event as CustomEvent).detail as { lat?: number; lon?: number; label?: string; city?: string | null; state?: string | null; zip?: string | null; source?: string } | undefined;
+      const detail = (event as CustomEvent).detail as { lat?: number; lon?: number; label?: string; radiusMiles?: number; city?: string | null; state?: string | null; zip?: string | null; source?: string } | undefined;
       if (detail?.lat != null && detail?.lon != null) {
         setLocationLabel(detail.label ?? null);
         if (detail.label) localStorage.setItem('userLocationLabel', detail.label);
+      }
+      if (detail?.radiusMiles != null) {
+        setLocationRadiusMiles(detail.radiusMiles);
+        writeSavedSearchRadiusMiles(detail.radiusMiles);
       }
     };
     window.addEventListener('location:updated', handleLocationUpdated as EventListener);
@@ -293,8 +301,9 @@ export default function Navbar() {
         const lon = pos.coords.longitude;
         try {
           localStorage.setItem('userCoords', JSON.stringify({ lat, lon }));
+          writeSavedSearchRadiusMiles(locationRadiusMiles);
           persistLocation(lat, lon, { source: 'gps' });
-          window.dispatchEvent(new CustomEvent('location:updated', { detail: { lat, lon } }));
+          window.dispatchEvent(new CustomEvent('location:updated', { detail: { lat, lon, radiusMiles: locationRadiusMiles } }));
         } catch (_) {}
         fetchLabelFromCoords(lat, lon);
         setLocationRequesting(false);
@@ -307,7 +316,7 @@ export default function Navbar() {
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
-  }, [effectiveLang, persistLocation, fetchLabelFromCoords]);
+  }, [effectiveLang, locationRadiusMiles, persistLocation, fetchLabelFromCoords]);
 
   const chooseCity = useCallback((city: CityResult) => {
     applyLocation(city.lat, city.lng, city.label, { source: 'search' });
@@ -493,6 +502,42 @@ export default function Navbar() {
                       ))}
                     </ul>
                   )}
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">
+                      {t(effectiveLang, 'Radius')}: {locationRadiusMiles} {t(effectiveLang, 'miles')}
+                    </label>
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      step="5"
+                      value={locationRadiusMiles}
+                      onChange={(e) => setLocationRadiusMiles(Number(e.target.value))}
+                      className="w-full h-2 rounded-lg appearance-none bg-slate-200 dark:bg-slate-600 accent-blue-500"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      writeSavedSearchRadiusMiles(locationRadiusMiles);
+                      const stored = localStorage.getItem('userCoords');
+                      if (stored) {
+                        try {
+                          const parsed = JSON.parse(stored) as { lat: number; lon: number };
+                          if (parsed?.lat != null && parsed?.lon != null) {
+                            window.dispatchEvent(new CustomEvent('location:updated', { detail: { lat: parsed.lat, lon: parsed.lon, label: locationLabel, radiusMiles: locationRadiusMiles } }));
+                          }
+                        } catch {
+                          window.dispatchEvent(new CustomEvent('location:updated', { detail: { radiusMiles: locationRadiusMiles } }));
+                        }
+                      } else {
+                        window.dispatchEvent(new CustomEvent('location:updated', { detail: { radiusMiles: locationRadiusMiles } }));
+                      }
+                    }}
+                    className="mt-3 w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-medium text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    {t(effectiveLang, 'Apply radius')}
+                  </button>
                 </div>
                 {!locationRequired && (
                   <div className="px-6 py-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700">

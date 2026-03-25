@@ -40,6 +40,7 @@ export default function CommunityPostPage() {
   const [popupImage, setPopupImage] = useState<string | null>(null);
   const [bannerTop, setBannerTop] = useState<{ id: string; image: string; link: string; alt: string } | null>(null);
   const [bannerBottom, setBannerBottom] = useState<{ id: string; image: string; link: string; alt: string } | null>(null);
+  const [feedRestricted, setFeedRestricted] = useState(false);
 
   useEffect(() => {
     let lat: number | null = null;
@@ -127,6 +128,7 @@ export default function CommunityPostPage() {
   }, [bannerBottom?.id]);
 
   useEffect(() => {
+    setFeedRestricted(false);
     const fetchPostAndComments = async () => {
       const { data: post, error: postError } = await supabase
         .from('community_posts')
@@ -138,6 +140,25 @@ export default function CommunityPostPage() {
         toast.error('Post not found');
         setLoading(false);
         return;
+      }
+
+      const { data: sessData } = await supabase.auth.getSession();
+      const viewerId = sessData.session?.user?.id;
+      if (viewerId && post.user_id && viewerId !== post.user_id) {
+        const headers: Record<string, string> = {};
+        if (sessData.session?.access_token) headers.Authorization = `Bearer ${sessData.session.access_token}`;
+        const bs = await fetch(`/api/user/block-status?otherUserId=${encodeURIComponent(post.user_id)}`, {
+          credentials: 'include',
+          headers,
+        });
+        const bj = await bs.json().catch(() => ({}));
+        if (bj.mutuallyBlocked) {
+          setFeedRestricted(true);
+          setPost(null);
+          setComments([]);
+          setLoading(false);
+          return;
+        }
       }
     
       setPost(post);
@@ -154,8 +175,9 @@ export default function CommunityPostPage() {
         setLikes(post.likes_post || 0);
       }
     
-      // Fetch comments via API (avoids RLS and client join issues)
-      const commentsRes = await fetch(`/api/community/comments?postId=${id}`);
+      const commentParams = new URLSearchParams({ postId: String(id) });
+      if (viewerId) commentParams.set('userId', viewerId);
+      const commentsRes = await fetch(`/api/community/comments?${commentParams.toString()}`);
       const commentsPayload = await commentsRes.json();
 
       if (!commentsRes.ok) {
@@ -359,6 +381,18 @@ export default function CommunityPostPage() {
   const commentCount = comments.length;
 
   if (loading) return <div className="p-6 text-center">Loading...</div>;
+  if (feedRestricted) {
+    return (
+      <div className="min-h-screen bg-slate-100 py-6">
+        <div className="max-w-3xl mx-auto px-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-600">
+            This post isn&apos;t available. You or the author may have blocked the other.
+          </div>
+          <Link href="/community" className="mt-4 inline-block text-indigo-600 hover:underline text-sm">Back to community</Link>
+        </div>
+      </div>
+    );
+  }
   if (!post || post.deleted) return <div className="p-6 text-center text-red-500">Post not found.</div>;
 
   return (

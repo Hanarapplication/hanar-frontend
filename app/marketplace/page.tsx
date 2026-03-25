@@ -8,17 +8,17 @@ import { FaHeart, FaRegHeart, FaMapMarkerAlt } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
 import PullToRefresh from '@/components/PullToRefresh';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
-
-function getDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 3958.8;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+import {
+  readMarketplaceBrowseSignals,
+  recordMarketplaceItemView,
+  personalizationScoreForItem,
+} from '@/lib/marketplacePersonalize';
+import {
+  getDistanceMiles,
+  readSavedSearchRadiusMiles,
+  resolveLatLon,
+  writeSavedSearchRadiusMiles,
+} from '@/lib/geoDistance';
 
 type MarketplaceItem = {
   id: string;
@@ -154,7 +154,7 @@ export default function MarketplacePage() {
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
-  const [radius, setRadius] = useState(50);
+  const [radius, setRadius] = useState(() => readSavedSearchRadiusMiles(40));
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sort, setSort] = useState('');
@@ -164,8 +164,9 @@ export default function MarketplacePage() {
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [locationSearchValue, setLocationSearchValue] = useState('');
-  const [tempRadius, setTempRadius] = useState(50);
+  const [tempRadius, setTempRadius] = useState(() => readSavedSearchRadiusMiles(40));
   const hasFetchedRef = useRef(false);
+  const [_personalizeBump, setPersonalizeBump] = useState(0);
 
   const addToRecentSearches = async (term: string) => {
     const t = term.trim().toLowerCase();
@@ -253,6 +254,7 @@ export default function MarketplacePage() {
 
   const handleApplyLocation = () => {
     setRadius(tempRadius);
+    writeSavedSearchRadiusMiles(tempRadius);
     setLocationModalOpen(false);
     setVisibleCount(6);
   };
@@ -321,15 +323,29 @@ export default function MarketplacePage() {
     }
 
     const handleLocationUpdated = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { lat?: number; lon?: number; label?: string; city?: string } | undefined;
+      const detail = (e as CustomEvent).detail as { lat?: number; lon?: number; label?: string; city?: string; radiusMiles?: number } | undefined;
       if (detail?.lat != null && detail?.lon != null) {
         setUserCoords({ lat: detail.lat, lon: detail.lon });
         if (detail.label) setLocationLabel(detail.label);
         else setLocationLabel((prev) => prev ?? 'Your location');
       }
+      if (detail?.radiusMiles != null) {
+        setRadius(detail.radiusMiles);
+        setTempRadius(detail.radiusMiles);
+      }
     };
     window.addEventListener('location:updated', handleLocationUpdated);
     return () => window.removeEventListener('location:updated', handleLocationUpdated);
+  }, []);
+
+  useEffect(() => {
+    const bump = () => setPersonalizeBump((n) => n + 1);
+    window.addEventListener('focus', bump);
+    window.addEventListener('pageshow', bump);
+    return () => {
+      window.removeEventListener('focus', bump);
+      window.removeEventListener('pageshow', bump);
+    };
   }, []);
 
   useEffect(() => {
@@ -482,8 +498,15 @@ export default function MarketplacePage() {
         }).filter(([, loc]) => loc.length > 0)
       );
       businessCoordsMap = new Map(
-        (businessRows || []).filter((row: { lat?: number | null; lon?: number | null }) => row.lat != null && row.lon != null)
-          .map((row: { id: string; lat: number; lon: number }) => [row.id, { lat: row.lat, lon: row.lon }] as [string, { lat: number; lon: number }])
+        (businessRows || [])
+          .map((row: { id: string; lat?: number | null; lon?: number | null; address?: unknown }) => {
+            const ll = resolveLatLon(
+              { lat: row.lat ?? undefined, lon: row.lon ?? undefined },
+              row.address
+            );
+            return ll ? ([row.id, ll] as [string, { lat: number; lon: number }]) : null;
+          })
+          .filter((entry): entry is [string, { lat: number; lon: number }] => entry != null)
       );
     }
     const withMetadata = combined.map((item) => {
@@ -636,7 +659,8 @@ export default function MarketplacePage() {
     });
   }
 
-  // Relevance: words from current search + recent searches; boost items that match
+  // Relevance: current search + recent searches + listings you've opened (local)
+  const browsedSignals = readMarketplaceBrowseSignals();
   const currentSearchWords = tokens.map(normalizeToken).filter((w) => w.length >= 2);
   const recentSearchWords = Array.from(
     new Set(
@@ -657,6 +681,17 @@ export default function MarketplacePage() {
     for (const word of allRelevanceWords) {
       if (text.includes(word)) score += currentSearchWords.includes(word) ? 2 : 1;
     }
+    score += personalizationScoreForItem(
+      {
+        id: item.id,
+        source: item.source,
+        title: item.title || '',
+        category: item.category || '',
+        description: item.description,
+        location: item.location,
+      },
+      browsedSignals
+    );
     return score;
   };
 
@@ -703,6 +738,14 @@ export default function MarketplacePage() {
     <Link
       key={item.id}
       href={`/marketplace/${item.slug}`}
+      onClick={() => {
+        recordMarketplaceItemView({
+          source: item.source,
+          id: item.id,
+          title: item.title || '',
+          category: item.category || '',
+        });
+      }}
       className="group relative bg-gradient-to-b from-blue-50/60 to-blue-50/30 dark:from-gray-800 dark:to-gray-800 rounded-lg sm:rounded-xl overflow-hidden shadow-sm hover:shadow-md dark:shadow-gray-900/50 transition-all duration-300 border border-blue-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-gray-500 hover:-translate-y-0.5 flex flex-col h-full text-sm sm:text-base"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
@@ -907,9 +950,14 @@ export default function MarketplacePage() {
           ))}
         </div>
       )}
+      {browsedSignals.length > 0 && !sort && items.length > 0 && (
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+          Personalized from your recent searches and views
+        </p>
+      )}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
         {filteredItems.slice(0, visibleCount).map((item) => (
-          <ItemCard key={item.id} item={item} />
+          <ItemCard key={`${item.source}-${item.id}`} item={item} />
         ))}
       </div>
 

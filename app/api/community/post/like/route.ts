@@ -1,36 +1,16 @@
 // API for liking/unliking community posts using community_post_likes table
 
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
+import { getAuthenticatedUserId } from '@/lib/authApi';
+import { usersAreMutuallyBlocked } from '@/lib/userBlocksServer';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const supabaseAdmin = createClient(SUPABASE_URL!, SERVICE_ROLE_KEY!, {
   auth: { persistSession: false },
 });
-
-async function getAuthenticatedUserId(req: Request): Promise<string | null> {
-  const supabaseServer = createRouteHandlerClient({ cookies });
-  const { data: { user }, error } = await supabaseServer.auth.getUser();
-  if (!error && user?.id) return user.id;
-  const authHeader = req.headers.get('authorization') || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-  if (!token) return null;
-  if (ANON_KEY) {
-    const client = createClient(SUPABASE_URL!, ANON_KEY, {
-      auth: { persistSession: false },
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-    const { data: { user: u } } = await client.auth.getUser();
-    if (u?.id) return u.id;
-  }
-  const { data } = await supabaseAdmin.auth.getUser(token);
-  return data?.user?.id ?? null;
-}
 
 export async function POST(req: Request) {
   try {
@@ -43,6 +23,16 @@ export async function POST(req: Request) {
 
     if (!post_id) {
       return NextResponse.json({ error: 'Missing post_id' }, { status: 400 });
+    }
+
+    const { data: postRow } = await supabaseAdmin
+      .from('community_posts')
+      .select('user_id')
+      .eq('id', post_id)
+      .maybeSingle();
+    const authorId = (postRow as { user_id?: string } | null)?.user_id;
+    if (authorId && (await usersAreMutuallyBlocked(supabaseAdmin, userId, authorId))) {
+      return NextResponse.json({ error: 'Blocked' }, { status: 403 });
     }
 
     // Check if user already liked this post
@@ -92,6 +82,16 @@ export async function DELETE(req: Request) {
 
     if (!post_id) {
       return NextResponse.json({ error: 'Missing post_id' }, { status: 400 });
+    }
+
+    const { data: postRow } = await supabaseAdmin
+      .from('community_posts')
+      .select('user_id')
+      .eq('id', post_id)
+      .maybeSingle();
+    const authorId = (postRow as { user_id?: string } | null)?.user_id;
+    if (authorId && (await usersAreMutuallyBlocked(supabaseAdmin, userId, authorId))) {
+      return NextResponse.json({ error: 'Blocked' }, { status: 403 });
     }
 
     const { error: deleteError } = await supabaseAdmin

@@ -10,6 +10,12 @@ import toast from 'react-hot-toast';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 import PullToRefresh from '@/components/PullToRefresh';
+import {
+  getDistanceMiles,
+  readSavedSearchRadiusMiles,
+  resolveLatLon,
+  writeSavedSearchRadiusMiles,
+} from '@/lib/geoDistance';
 
 const BUSINESSES_CACHE_KEY = 'hanar_businesses_cache';
 const BUSINESSES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -48,17 +54,8 @@ interface Business {
   plan?: string | null;
 }
 
-function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-function getDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  return getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) / 1.60934;
+function businessLatLon(b: Business) {
+  return resolveLatLon({ lat: b.lat, lon: b.lon }, b.address);
 }
 
 const categoryColors: Record<string, string> = {
@@ -88,6 +85,22 @@ function formatBusinessCategory(value: string) {
   return value;
 }
 
+function toTitleCaseWords(value: string): string {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function formatStateLabel(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  // Keep common state abbreviations fully uppercase (CA, NY, TX...)
+  if (/^[A-Za-z]{2}$/.test(trimmed)) return trimmed.toUpperCase();
+  return toTitleCaseWords(trimmed);
+}
+
 function getCityState(address: any): string {
   if (!address) return 'Location not available';
 
@@ -97,18 +110,18 @@ function getCityState(address: any): string {
       const potentialState = parts[parts.length - 1].split(' ')[0];
       const potentialCity = parts[parts.length - 2];
       if (potentialState.length <= 3 && /[A-Z]{2}/.test(potentialState)) {
-        return `${potentialCity}, ${potentialState}`;
+        return `${toTitleCaseWords(potentialCity)}, ${potentialState.toUpperCase()}`;
       }
     }
-    return address;
+    return toTitleCaseWords(address);
   }
 
   if (typeof address === 'object' && address !== null) {
     const city = address.city || address.town || address.locality || '';
     const state = address.state || address.state_code || address.province || address.region || '';
-    if (city && state) return `${city}, ${state}`;
-    if (city) return city;
-    if (state) return state;
+    if (city && state) return `${toTitleCaseWords(String(city))}, ${formatStateLabel(String(state))}`;
+    if (city) return toTitleCaseWords(String(city));
+    if (state) return formatStateLabel(String(state));
   }
 
   return 'Location not available';
@@ -123,9 +136,9 @@ export default function BusinessesPage() {
   const [searching, setSearching] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
-  const [radius, setRadius] = useState(50);
+  const [radius, setRadius] = useState(() => readSavedSearchRadiusMiles(40));
   const [locationModalOpen, setLocationModalOpen] = useState(false);
-  const [tempRadius, setTempRadius] = useState(50);
+  const [tempRadius, setTempRadius] = useState(() => readSavedSearchRadiusMiles(40));
   const [locationSearchValue, setLocationSearchValue] = useState('');
   const [visibleCount, setVisibleCount] = useState(6);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -242,11 +255,15 @@ export default function BusinessesPage() {
       } catch { /* ignore */ }
     }
     const handleLocationUpdated = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { lat?: number; lon?: number; label?: string } | undefined;
+      const detail = (e as CustomEvent).detail as { lat?: number; lon?: number; label?: string; radiusMiles?: number } | undefined;
       if (detail?.lat != null && detail?.lon != null) {
         setUserCoords({ lat: detail.lat, lon: detail.lon });
         if (detail.label) setLocationLabel(detail.label);
         else setLocationLabel((prev) => prev ?? 'Your location');
+      }
+      if (detail?.radiusMiles != null) {
+        setRadius(detail.radiusMiles);
+        setTempRadius(detail.radiusMiles);
       }
     };
     window.addEventListener('location:updated', handleLocationUpdated);
@@ -387,25 +404,26 @@ export default function BusinessesPage() {
         if (!matchesText && !relatedBusinessIds.has(b.id)) return false;
       }
       if (userCoords) {
-        if (b.lat != null && b.lon != null) {
-          return getDistanceMiles(userCoords.lat, userCoords.lon, b.lat, b.lon) <= radius;
+        const ll = businessLatLon(b);
+        if (ll) {
+          return getDistanceMiles(userCoords.lat, userCoords.lon, ll.lat, ll.lon) <= radius;
         }
         if (!cityFromLabel || cityFromLabel === 'your location') return false;
-        const loc = getCityState(b.address).toLowerCase();
+        const loc = `${getCityState(b.address)} ${typeof b.address === 'string' ? b.address : ''}`.toLowerCase();
         return new RegExp(`\\b${cityFromLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(loc);
       }
       return true;
     })
     .sort((a, b) => {
       if (userCoords) {
-        const aHasCoords = a.lat != null && a.lon != null;
-        const bHasCoords = b.lat != null && b.lon != null;
-        if (aHasCoords && bHasCoords) {
-          const aDist = getDistanceMiles(userCoords.lat, userCoords.lon, a.lat!, a.lon!);
-          const bDist = getDistanceMiles(userCoords.lat, userCoords.lon, b.lat!, b.lon!);
+        const aLL = businessLatLon(a);
+        const bLL = businessLatLon(b);
+        if (aLL && bLL) {
+          const aDist = getDistanceMiles(userCoords.lat, userCoords.lon, aLL.lat, aLL.lon);
+          const bDist = getDistanceMiles(userCoords.lat, userCoords.lon, bLL.lat, bLL.lon);
           if (aDist !== bDist) return aDist - bDist;
-        } else if (aHasCoords && !bHasCoords) return -1;
-        else if (!aHasCoords && bHasCoords) return 1;
+        } else if (aLL && !bLL) return -1;
+        else if (!aLL && bLL) return 1;
       }
       const aMatch = speaksUserLang(a);
       const bMatch = speaksUserLang(b);
@@ -529,7 +547,12 @@ export default function BusinessesPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setRadius(tempRadius); setLocationModalOpen(false); setVisibleCount(6); }}
+                  onClick={() => {
+                    setRadius(tempRadius);
+                    writeSavedSearchRadiusMiles(tempRadius);
+                    setLocationModalOpen(false);
+                    setVisibleCount(6);
+                  }}
                   className="flex-1 py-2.5 rounded-xl bg-blue-600 dark:bg-blue-500 text-white font-medium text-sm hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
                 >
                   {t(effectiveLang, 'Apply')}
@@ -546,6 +569,7 @@ export default function BusinessesPage() {
             const displayCategory = formatBusinessCategory(biz.subcategory || biz.category);
             const catColor = categoryColors[displayCategory] || categoryColors.default;
             const locationText = getCityState(biz.address);
+            const bizCoords = businessLatLon(biz);
 
             return (
               <Link
@@ -609,9 +633,9 @@ export default function BusinessesPage() {
                     </p>
                   </div>
 
-                  {userCoords && biz.lat != null && biz.lon != null && (
+                  {userCoords && bizCoords && (
                     <div className="mt-2 inline-flex items-center px-2 py-0.5 bg-blue-100/70 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs font-medium rounded-full">
-                      ≈ {getDistanceFromLatLonInKm(userCoords.lat, userCoords.lon, biz.lat, biz.lon).toFixed(1)} km
+                      ≈ {getDistanceMiles(userCoords.lat, userCoords.lon, bizCoords.lat, bizCoords.lon).toFixed(1)} mi
                     </div>
                   )}
                 </div>

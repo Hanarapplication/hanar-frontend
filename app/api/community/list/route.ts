@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getMutuallyBlockedUserIds } from '@/lib/userBlocksServer';
+import { getHomeRankContext } from '@/lib/communityFeedPersonalize';
+import { scoreHomePost, scoresToRank0to100 } from '@/lib/homeFeedRank';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -95,7 +98,29 @@ function applyBaseFilters(query: any, search: string, tags: string[]): any {
 
 export async function POST(req: Request) {
   try {
-    const { lang = '', tags = [], search = '', offset = 0, sortMode = 'latest', userId } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const {
+      lang = '',
+      tags = [],
+      search = '',
+      offset: rawOffset = 0,
+      sortMode = 'latest',
+      userId,
+      primaryLang: bodyPrimaryLang,
+      spokenLanguages: bodySpokenLangs,
+      deviceLang: bodyDeviceLang,
+    } = body as {
+      lang?: string;
+      tags?: string[];
+      search?: string;
+      offset?: number;
+      sortMode?: string;
+      userId?: string;
+      primaryLang?: string | null;
+      spokenLanguages?: string[];
+      deviceLang?: string | null;
+    };
+    const offset = Math.max(0, Number(rawOffset) || 0);
     const limit = 10;
     const feedLang = (lang && String(lang).toLowerCase()) || '';
     const useLangPriority = feedLang && feedLang !== 'all';
@@ -108,8 +133,76 @@ export async function POST(req: Request) {
         .or('visibility.eq.community,visibility.is.null');
 
     let posts: unknown[] = [];
+    let usedPersonalizedRanking = false;
 
-    if (useLangPriority) {
+    const usePersonalizedLatest = sortMode === 'latest' && !useLangPriority;
+
+    if (usePersonalizedLatest) {
+      usedPersonalizedRanking = true;
+      const poolSize = Math.min(500, Math.max(120, offset + limit + 100));
+      let query = applyBaseFilters(base(), String(search || ''), Array.isArray(tags) ? tags : []);
+      const { data, error } = await query.order('created_at', { ascending: false }).limit(poolSize);
+      if (error) throw error;
+      let pool = (data || []) as Array<Record<string, unknown> & { id: string; created_at: string }>;
+
+      const uid = typeof userId === 'string' && userId.trim() ? userId.trim() : null;
+      if (uid) {
+        const blocked = await getMutuallyBlockedUserIds(supabaseAdmin, uid);
+        pool = pool.filter((p) => !p.user_id || !blocked.has(p.user_id as string));
+      }
+
+      const postIds = pool.map((p) => p.id);
+      const likeCounts: Record<string, number> = {};
+      postIds.forEach((id) => {
+        likeCounts[id] = 0;
+      });
+      if (postIds.length > 0) {
+        const { data: likesRows } = await supabaseAdmin
+          .from('community_post_likes')
+          .select('post_id')
+          .in('post_id', postIds);
+        (likesRows || []).forEach((r: { post_id: string }) => {
+          likeCounts[r.post_id] = (likeCounts[r.post_id] ?? 0) + 1;
+        });
+      }
+
+      const ctx = await getHomeRankContext(supabaseAdmin, {
+        userId: uid,
+        primaryLang: bodyPrimaryLang ?? null,
+        spokenLanguages: Array.isArray(bodySpokenLangs) ? bodySpokenLangs : [],
+        deviceLang: bodyDeviceLang ?? null,
+      });
+
+      const scored = pool.map((p) => {
+        const commentCount =
+          (p.community_comments as { count?: number }[] | undefined)?.[0]?.count ?? 0;
+        const likeCount = likeCounts[p.id] ?? (p.likes_post as number) ?? 0;
+        const raw = scoreHomePost(
+          {
+            created_at: p.created_at,
+            language: p.language as string | null,
+            tags: p.tags as string[] | null,
+            title: p.title as string,
+            body: p.body as string,
+            likeCount,
+            commentCount,
+          },
+          ctx
+        );
+        return { p, raw, likeCount, commentCount };
+      });
+      const rawScores = scored.map((x) => x.raw);
+      const norm = scoresToRank0to100(rawScores);
+      const withNorm = scored.map((row, i) => ({ ...row, home_rank_score: norm[i] ?? 0 }));
+      withNorm.sort((a, b) => b.raw - a.raw);
+      const slice = withNorm.slice(offset, offset + limit).map((row) => ({
+        ...row.p,
+        likes_post: row.likeCount,
+        community_comments: [{ count: row.commentCount }],
+        home_rank_score: row.home_rank_score,
+      }));
+      posts = slice;
+    } else if (useLangPriority) {
       // Order: selected language first, then English, then others. If no posts in selected lang, English then others.
       const orderOpt = sortMode === 'popular' ? { ascending: false } : { ascending: false };
       const orderCol = sortMode === 'popular' ? 'likes_post' : 'created_at';
@@ -167,7 +260,7 @@ export async function POST(req: Request) {
       likeCounts[row.post_id] = (likeCounts[row.post_id] ?? 0) + 1;
     });
 
-    const enriched = postList.map((p) => ({
+    let enriched = postList.map((p) => ({
       ...p,
       likes_post: likeCounts[p.id] ?? p.likes_post ?? 0,
     }));
@@ -189,9 +282,17 @@ export async function POST(req: Request) {
       }
     });
 
+    if (userId && typeof userId === 'string') {
+      const blocked = await getMutuallyBlockedUserIds(supabaseAdmin, userId);
+      enriched = enriched.filter((p) => {
+        const uid = (p as { user_id?: string | null }).user_id;
+        return !uid || !blocked.has(uid);
+      });
+    }
+
     // When we already applied language-priority order (selected → en → others), keep it; otherwise rank by relevance then sort
     let result: unknown[];
-    if (useLangPriority) {
+    if (useLangPriority || usedPersonalizedRanking) {
       result = enriched;
     } else {
       const currentLang = (feedLang && String(feedLang)) || 'en';
