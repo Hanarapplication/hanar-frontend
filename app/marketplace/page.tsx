@@ -459,7 +459,10 @@ export default function MarketplacePage() {
     const retail = (retailRes.data || []).map(normalizeRetailItem);
     const dealership = (dealershipRes.data || []).map(normalizeDealershipItem);
     const realEstate = (realEstateRes.data || []).map((row: Record<string, unknown>) => normalizeRealEstateItem(row));
-    const individual = (individualRes.data || []).map(normalizeIndividualItem);
+    const nowIso = new Date().toISOString();
+    const individual = (individualRes.data || [])
+      .filter((row: { expires_at?: string | null }) => !row.expires_at || row.expires_at >= nowIso)
+      .map(normalizeIndividualItem);
     const combined = [...retail, ...dealership, ...realEstate, ...individual].sort(sortByCreatedAt);
     const businessIds = Array.from(
       new Set(combined.map((item) => item.business_id).filter(Boolean) as string[])

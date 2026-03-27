@@ -233,6 +233,10 @@ export default function ItemDetailClient() {
           if (!cancelled) setError('Item not found.');
           return;
         }
+        if (individualRow.expires_at && new Date(individualRow.expires_at).getTime() < Date.now()) {
+          if (!cancelled) setError('Item not found.');
+          return;
+        }
 
         const raw = individualRow.image_urls ?? individualRow.imageUrls;
         const urls = normalizeImages(raw, 'marketplace-images');

@@ -67,7 +67,7 @@ export async function GET(req: Request) {
     };
 
     // Marketplace (individual) items
-    let qInd = supabaseAdmin.from('marketplace_items').select('id, title, price, location, category, image_urls');
+    let qInd = supabaseAdmin.from('marketplace_items').select('id, title, price, location, category, image_urls, expires_at');
     if (excludeId && source === 'individual') qInd = qInd.neq('id', excludeId);
     if (hasFilter) {
       if (hasCategory) qInd = qInd.ilike('category', `%${escape(category)}%`);
@@ -77,7 +77,9 @@ export async function GET(req: Request) {
     }
     const { data: rowsInd, error: errInd } = await qInd.limit(12);
     if (!errInd && rowsInd?.length) {
+      const nowIso = new Date().toISOString();
       for (const row of rowsInd as any[]) {
+        if (row.expires_at && String(row.expires_at) < nowIso) continue;
         const imgs = normalizeImages(row.image_urls, 'marketplace-images');
         add({
           id: String(row.id),
