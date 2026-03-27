@@ -570,13 +570,13 @@ export default function AdminFeedBannersPage() {
                       <button type="button" onClick={() => openEdit(b)} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200">
                         <Pencil className="h-3.5 w-3.5" /> Edit
                       </button>
-                      <button type="button" onClick={() => setExtendBannerId(extendBannerId === b.id ? null : b.id)} className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-200">
+                      <button type="button" onClick={() => setExtendBannerId(extendBannerId === b.id ? null : b.id)} className="inline-flex items-center gap-1 rounded-lg bg-rose-100 px-2.5 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-200">
                         <CalendarPlus className="h-3.5 w-3.5" /> Extend
                       </button>
                       {extendBannerId === b.id && (
                         <span className="inline-flex items-center gap-1">
                           <input type="number" min={1} value={extendDays} onChange={(e) => setExtendDays(e.target.value)} className="w-16 rounded border border-slate-300 px-2 py-1 text-xs" />
-                          <button type="button" onClick={() => handleExtend(b.id)} disabled={updatingId === b.id} className="text-xs font-medium text-blue-600 hover:underline">Apply</button>
+                          <button type="button" onClick={() => handleExtend(b.id)} disabled={updatingId === b.id} className="text-xs font-medium text-rose-600 hover:underline">Apply</button>
                         </span>
                       )}
                       <button type="button" onClick={() => handleDelete(b.id)} disabled={deletingId === b.id} className="inline-flex items-center gap-1 rounded-lg bg-red-100 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-200 disabled:opacity-50" title="Permanently remove this banner">

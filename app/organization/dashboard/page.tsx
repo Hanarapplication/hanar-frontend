@@ -134,14 +134,14 @@ const Spinner: FC<{ size?: number; className?: string }> = ({ size = 24, classNa
 const Notification: FC<NotificationType & { onDismiss: () => void }> = ({ message, type, onDismiss }) => (
   <div
     className={`p-4 rounded-lg shadow-lg max-w-sm w-full bg-white border-l-4 ${
-      type === 'success' ? 'border-green-500' : type === 'info' ? 'border-blue-500' : 'border-red-500'
+      type === 'success' ? 'border-green-500' : type === 'info' ? 'border-rose-500' : 'border-red-500'
     }`}
   >
     <div className="flex items-start">
       <div className="flex-1">
         <p
           className={`text-sm font-medium ${
-            type === 'success' ? 'text-green-800' : type === 'info' ? 'text-blue-800' : 'text-red-800'
+            type === 'success' ? 'text-green-800' : type === 'info' ? 'text-rose-800' : 'text-red-800'
           }`}
         >
           {message}
@@ -1429,7 +1429,7 @@ function OrganizationDashboardContent() {
   }
   
   const burgerItems = [
-    { label: 'Edit Organization', onClick: () => document.getElementById('edit-profile')?.scrollIntoView({ behavior: 'smooth' }), icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
+    { label: 'Edit Organization', onClick: () => document.getElementById('edit-profile')?.scrollIntoView({ behavior: 'smooth' }), icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
     { label: 'Send Notification', onClick: () => setNotificationModalOpen(true), icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
     { label: 'Promote Event / Message', href: '/promote?for=organization', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
     { label: 'Blocked accounts', href: '/organization/dashboard/blocked', icon: <Ban className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-gray-800/80' },
@@ -1535,7 +1535,7 @@ function OrganizationDashboardContent() {
           </Link>
           <button
             onClick={() => setNotificationModalOpen(true)}
-            className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md inline-flex items-center justify-center gap-2"
+            className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md inline-flex items-center justify-center gap-2"
           >
             <Bell className="w-4 h-4 shrink-0" />
             Send Notification to Members
@@ -1782,7 +1782,7 @@ function OrganizationDashboardContent() {
                       maxLength={140}
                       disabled={sendingNotification}
                       placeholder="e.g. Upcoming event"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-60"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-200 disabled:opacity-60"
                     />
                     <span className="text-xs text-slate-500">{notificationTitle.length}/140</span>
                   </div>
@@ -1795,7 +1795,7 @@ function OrganizationDashboardContent() {
                       rows={4}
                       disabled={sendingNotification}
                       placeholder="Write your message to members..."
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-60 resize-none"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-200 disabled:opacity-60 resize-none"
                     />
                     <span className="text-xs text-slate-500">{notificationBody.length}/1000</span>
                   </div>
@@ -1818,7 +1818,7 @@ function OrganizationDashboardContent() {
                       type="button"
                       onClick={sendNotificationToMembers}
                       disabled={sendingNotification || !notificationTitle.trim() || !notificationBody.trim()}
-                      className="btn-primary flex-1 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-400"
+                      className="btn-primary flex-1 bg-rose-600 hover:bg-rose-500 disabled:bg-slate-400"
                     >
                       {sendingNotification ? (
                         <>

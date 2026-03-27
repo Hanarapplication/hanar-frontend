@@ -36,9 +36,9 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-300 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-100 to-rose-300 px-4">
       <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-2xl">
-        <h1 className="text-2xl font-bold text-center text-blue-600 mb-4">
+        <h1 className="text-2xl font-bold text-center text-rose-600 mb-4">
           {t(effectiveLang, 'Forgot Password')}
         </h1>
         <p className="text-sm text-gray-600 text-center mb-6">
@@ -57,14 +57,14 @@ export default function ForgotPasswordPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t(effectiveLang, 'you@example.com')}
-              className="mt-1 w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="mt-1 w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-rose-400"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2 bg-rose-600 text-white rounded-md font-semibold hover:bg-rose-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? t(effectiveLang, 'Sending...') : t(effectiveLang, 'Send Reset Link')}
           </button>
@@ -77,7 +77,7 @@ export default function ForgotPasswordPage() {
         )}
 
         <p className="mt-6 text-center text-sm text-gray-500">
-          <a href="/login" className="text-blue-600 hover:underline">
+          <a href="/login" className="text-rose-600 hover:underline">
             {t(effectiveLang, 'Back to Login')}
           </a>
         </p>

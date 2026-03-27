@@ -715,7 +715,7 @@ function BusinessDashboardContent() {
   const canViewPublicProfile = true;
 
   const burgerItems = [
-    { label: 'Edit Business', href: `/businesses/edit/${business.slug}`, icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
+    { label: 'Edit Business', href: `/businesses/edit/${business.slug}`, icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
     { label: 'View full insights', href: '/business-dashboard/insights', icon: <BarChart3 className="h-5 w-5 shrink-0" />, color: 'bg-indigo-50 dark:bg-indigo-900/30' },
     { label: 'Promote your business', href: '/promote', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
     { label: 'Send Notification', onClick: () => { setSendNotificationExpanded(true); setTimeout(() => document.getElementById('send-notification')?.scrollIntoView({ behavior: 'smooth' }), 100); }, icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
@@ -733,7 +733,7 @@ function BusinessDashboardContent() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 px-4 pt-16 pb-12">
       <DashboardBurgerMenu open={burgerMenuOpen} onOpen={() => setBurgerMenuOpen(true)} onClose={() => setBurgerMenuOpen(false)} items={burgerItems} />
       <div className="max-w-5xl mx-auto">
-        <div className="rounded-3xl border-2 border-blue-300 bg-white shadow-lg shadow-slate-100/60">
+        <div className="rounded-3xl border-2 border-rose-300 bg-white shadow-lg shadow-slate-100/60">
           {/* Header */}
           <div className="flex flex-col gap-6 border-b border-slate-100 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-4">
@@ -816,7 +816,7 @@ function BusinessDashboardContent() {
               </button>
               <button
                 onClick={() => router.push(appIOS ? withAppParam('/dashboard/account', true) : '/business/plan')}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:from-indigo-500 hover:to-blue-500"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:from-indigo-500 hover:to-rose-500"
               >
                 <Crown className="h-4 w-4" />
                 Manage Plan
@@ -875,7 +875,7 @@ function BusinessDashboardContent() {
                         />
                         Notify followers
                       </label>
-                      <label className={`flex items-center gap-2 rounded-xl border border-blue-200 dark:border-gray-600 bg-blue-50 dark:bg-gray-700 px-3 py-2 text-sm text-blue-700 dark:text-gray-100 shadow-sm ${!isAreaBlastAvailable ? 'opacity-50' : ''}`}>
+                      <label className={`flex items-center gap-2 rounded-xl border border-rose-200 dark:border-gray-600 bg-rose-50 dark:bg-gray-700 px-3 py-2 text-sm text-rose-700 dark:text-gray-100 shadow-sm ${!isAreaBlastAvailable ? 'opacity-50' : ''}`}>
                         <input
                           type="radio"
                           name="notificationMode"
@@ -883,7 +883,7 @@ function BusinessDashboardContent() {
                           checked={notificationMode === 'area_blast'}
                           onChange={() => setNotificationMode('area_blast')}
                           disabled={!isAreaBlastAvailable}
-                          className="accent-blue-600"
+                          className="accent-rose-600"
                         />
                         Area blast ({areaBlastRadiusMiles} miles)
                       </label>
@@ -1021,7 +1021,7 @@ function BusinessDashboardContent() {
                               item.status === 'pending'
                                 ? { label: 'Pending', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200' }
                                 : item.status === 'approved'
-                                ? { label: 'Approved', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200' }
+                                ? { label: 'Approved', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200' }
                                 : item.status === 'rejected'
                                 ? { label: 'Rejected', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200' }
                                 : { label: 'Sent', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200' };
@@ -1115,7 +1115,7 @@ function BusinessDashboardContent() {
                                 : item.status === 'active'
                                 ? { label: 'Active', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200' }
                                 : item.status === 'approved'
-                                ? { label: 'Approved', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-200' }
+                                ? { label: 'Approved', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200' }
                                 : item.status === 'rejected'
                                 ? { label: 'Rejected', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200' }
                                 : item.status === 'expired'

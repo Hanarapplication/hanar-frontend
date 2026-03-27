@@ -28,7 +28,7 @@ export default function CommentForm({ parentId, onSubmit }: Props) {
       <div>
         <button
           type="submit"
-          className="bg-blue-600 text-white text-xs px-3 py-1 rounded hover:bg-blue-700"
+          className="bg-rose-600 text-white text-xs px-3 py-1 rounded hover:bg-rose-700"
         >
           Post
         </button>

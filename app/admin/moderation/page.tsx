@@ -129,7 +129,7 @@ export default function AdminCommunityModeration() {
             key={post.id}
             className={cn(
               "p-4 rounded border shadow-sm bg-white",
-              selected.has(post.id) && "border-blue-400 bg-blue-50"
+              selected.has(post.id) && "border-rose-400 bg-rose-50"
             )}
           >
             <div className="flex justify-between items-start">

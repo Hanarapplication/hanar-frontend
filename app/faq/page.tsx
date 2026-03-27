@@ -320,7 +320,7 @@ export default function FaqPage() {
                 setOpenId(null);
               }}
               placeholder="Search questions..."
-              className="w-full rounded-full border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 pl-10 pr-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 transition"
+              className="w-full rounded-full border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 pl-10 pr-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100 dark:focus:ring-rose-900 transition"
             />
           </div>
         </div>
@@ -336,7 +336,7 @@ export default function FaqPage() {
             }}
             className={`shrink-0 flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition ${
               activeCategory === 'all'
-                ? 'bg-blue-600 text-white shadow-sm'
+                ? 'bg-rose-600 text-white shadow-sm'
                 : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
             }`}
           >
@@ -352,7 +352,7 @@ export default function FaqPage() {
               }}
               className={`shrink-0 flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition ${
                 activeCategory === cat.key
-                  ? 'bg-blue-600 text-white shadow-sm'
+                  ? 'bg-rose-600 text-white shadow-sm'
                   : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
               }`}
             >
@@ -379,7 +379,7 @@ export default function FaqPage() {
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Try a different search term or{' '}
-                <Link href="/contact" className="text-blue-600 dark:text-blue-400 hover:underline">
+                <Link href="/contact" className="text-rose-600 dark:text-rose-400 hover:underline">
                   contact us
                 </Link>{' '}
                 for help.
@@ -396,7 +396,7 @@ export default function FaqPage() {
                   key={id}
                   className={`rounded-xl bg-white dark:bg-gray-900 border transition-all ${
                     isOpen
-                      ? 'border-blue-200 dark:border-blue-800 shadow-sm'
+                      ? 'border-rose-200 dark:border-rose-800 shadow-sm'
                       : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
                   }`}
                 >
@@ -407,7 +407,7 @@ export default function FaqPage() {
                     <div
                       className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         isOpen
-                          ? 'bg-blue-600 text-white'
+                          ? 'bg-rose-600 text-white'
                           : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
                       }`}
                     >
@@ -442,7 +442,7 @@ export default function FaqPage() {
                                   e.stopPropagation();
                                   setHelpful((h) => ({ ...h, [id]: true }));
                                 }}
-                                className="flex items-center gap-1 rounded-full border border-gray-200 dark:border-gray-700 px-2.5 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-800 transition"
+                                className="flex items-center gap-1 rounded-full border border-gray-200 dark:border-gray-700 px-2.5 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-800 transition"
                               >
                                 <ThumbsUp className="h-3 w-3" />
                                 Yes
@@ -458,7 +458,7 @@ export default function FaqPage() {
                               </button>
                             </>
                           ) : isHelpful ? (
-                            <span className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+                            <span className="flex items-center gap-1 text-xs text-rose-600 dark:text-rose-400">
                               <ThumbsUp className="h-3 w-3" />
                               Thanks for your feedback!
                             </span>
@@ -467,7 +467,7 @@ export default function FaqPage() {
                               Thanks for letting us know.{' '}
                               <Link
                                 href="/contact"
-                                className="text-blue-600 dark:text-blue-400 hover:underline"
+                                className="text-rose-600 dark:text-rose-400 hover:underline"
                               >
                                 Contact us
                               </Link>{' '}
@@ -486,7 +486,7 @@ export default function FaqPage() {
 
         {/* Still need help */}
         <div className="mt-8 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-6 text-center">
-          <Heart className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+          <Heart className="h-8 w-8 text-rose-500 mx-auto mb-2" />
           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
             Still have questions?
           </p>
@@ -495,7 +495,7 @@ export default function FaqPage() {
           </p>
           <Link
             href="/contact"
-            className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 transition"
+            className="inline-flex items-center gap-2 rounded-full bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-rose-500 transition"
           >
             Contact Us
           </Link>

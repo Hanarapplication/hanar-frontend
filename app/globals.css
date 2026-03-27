@@ -27,13 +27,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #e3f2fde3;  /* Soft baby blue */
+    --background: #fce8ede3;  /* Soft rose tint */
     --foreground: #171717;
   }
 }
 
 body {
-  background-color: #f7faff3b !important;
+  background-color: #fff5f73b !important;
   color: #171717 !important;
   font-family: Arial, Helvetica, sans-serif;
 }
@@ -55,8 +55,8 @@ body {
 .dark .bg-zinc-50 { background-color: #27272a !important; }
 .dark .bg-zinc-100 { background-color: #3f3f46 !important; }
 .dark .bg-indigo-50 { background-color: #312e81 !important; }
-.dark .bg-blue-50 { background-color: #1e3a5f !important; }
-.dark .bg-blue-100 { background-color: #1e40af !important; }
+.dark .bg-rose-50 { background-color: #3d1f28 !important; }
+.dark .bg-rose-100 { background-color: #5c2330 !important; }
 
 /* Home feed cards: force dark background so business cards stay dark */
 .dark .home-feed-card {

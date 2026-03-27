@@ -139,7 +139,8 @@ export async function POST(req: Request) {
 
     if (usePersonalizedLatest) {
       usedPersonalizedRanking = true;
-      const poolSize = Math.min(500, Math.max(120, offset + limit + 100));
+      // Smaller pool on early pages = faster TTFB; still grows with offset for pagination depth.
+      const poolSize = Math.min(320, Math.max(52, offset + limit + 42));
       let query = applyBaseFilters(base(), String(search || ''), Array.isArray(tags) ? tags : []);
       const { data, error } = await query.order('created_at', { ascending: false }).limit(poolSize);
       if (error) throw error;

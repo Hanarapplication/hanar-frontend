@@ -141,7 +141,7 @@ export default function EditPostPage() {
               />
               <button
                 onClick={addTag}
-                className="relative -ml-px inline-flex items-center space-x-2 rounded-r-md border border-gray-300 bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
+                className="relative -ml-px inline-flex items-center space-x-2 rounded-r-md border border-gray-300 bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 focus:ring-2 focus:ring-rose-500"
               >
                 Add
               </button>
@@ -188,7 +188,7 @@ export default function EditPostPage() {
               Delete This Post
             </button>
             <button
-              className="rounded-md bg-blue-600 px-6 py-3 text-lg font-semibold text-white hover:bg-blue-700"
+              className="rounded-md bg-rose-600 px-6 py-3 text-lg font-semibold text-white hover:bg-rose-700"
             >
               Save Changes
             </button>

@@ -308,7 +308,7 @@ export default function CreateCommunityPostClient() {
           </p>
           <Link
             href="/community"
-            className="mt-4 inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            className="mt-4 inline-flex items-center justify-center rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
           >
             Back to Community
           </Link>

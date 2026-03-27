@@ -60,8 +60,8 @@ function businessLatLon(b: Business) {
 
 const categoryColors: Record<string, string> = {
   Restaurant: 'bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-900/40 dark:text-rose-200 dark:border-rose-700',
-  'Car Dealership': 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700',
-  Dealership: 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700',
+  'Car Dealership': 'bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-900/40 dark:text-rose-200 dark:border-rose-700',
+  Dealership: 'bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-900/40 dark:text-rose-200 dark:border-rose-700',
   Retail: 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700',
   Cafe: 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700',
   'Coffee Shop': 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/40 dark:text-amber-200 dark:border-amber-700',
@@ -70,8 +70,8 @@ const categoryColors: Record<string, string> = {
   Gym: 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700',
   Fitness: 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700',
   'Pet Store': 'bg-cyan-100 text-cyan-700 border-cyan-300 dark:bg-cyan-900/40 dark:text-cyan-200 dark:border-cyan-700',
-  Clinic: 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700',
-  'Medical Center': 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/40 dark:text-blue-200 dark:border-blue-700',
+  Clinic: 'bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-900/40 dark:text-rose-200 dark:border-rose-700',
+  'Medical Center': 'bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-900/40 dark:text-rose-200 dark:border-rose-700',
   Shop: 'bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-700',
   Store: 'bg-indigo-100 text-indigo-700 border-indigo-300 dark:bg-indigo-900/40 dark:text-indigo-200 dark:border-indigo-700',
   default: 'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-700/50 dark:text-gray-200 dark:border-gray-600',
@@ -457,7 +457,7 @@ export default function BusinessesPage() {
 
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
+    <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
       <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-2 sm:pt-3">
         {/* Search with location inside - modern style */}
         <div className="sticky top-0 z-10 -mx-3 sm:-mx-5 px-3 sm:px-5 pt-0 pb-4 mb-5 sm:mb-6">
@@ -482,7 +482,7 @@ export default function BusinessesPage() {
               onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
               className="flex items-center gap-2 px-4 sm:px-5 h-full min-h-[56px] text-left hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-colors"
             >
-              <FaMapMarkerAlt className="w-4 h-4 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+              <FaMapMarkerAlt className="w-4 h-4 text-rose-500 dark:text-rose-400 flex-shrink-0" />
               <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[110px] sm:max-w-[140px]">
                 {locationLabel || t(effectiveLang, 'Location')}
               </span>
@@ -513,15 +513,15 @@ export default function BusinessesPage() {
                     placeholder="Search city, ZIP, or address..."
                     mode="locality"
                     className="w-full"
-                    inputClassName="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 text-sm"
+                    inputClassName="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500/40 focus:border-rose-400 text-sm"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={handleUseMyLocation}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-700 dark:text-gray-300 font-medium text-sm transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-800 hover:bg-rose-50 dark:hover:bg-rose-900/30 text-slate-700 dark:text-gray-300 font-medium text-sm transition-colors"
                 >
-                  <FaMapMarkerAlt className="w-4 h-4 text-blue-500" />
+                  <FaMapMarkerAlt className="w-4 h-4 text-rose-500" />
                   {t(effectiveLang, 'Use my current location')}
                 </button>
                 <div>
@@ -533,7 +533,7 @@ export default function BusinessesPage() {
                     step="5"
                     value={tempRadius}
                     onChange={(e) => setTempRadius(Number(e.target.value))}
-                    className="w-full h-2 rounded-lg appearance-none bg-slate-200 dark:bg-gray-600 accent-blue-500"
+                    className="w-full h-2 rounded-lg appearance-none bg-slate-200 dark:bg-gray-600 accent-rose-500"
                   />
                 </div>
               </div>
@@ -553,7 +553,7 @@ export default function BusinessesPage() {
                     setLocationModalOpen(false);
                     setVisibleCount(6);
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 dark:bg-blue-500 text-white font-medium text-sm hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 dark:bg-rose-500 text-white font-medium text-sm hover:bg-rose-700 dark:hover:bg-rose-600 transition-colors"
                 >
                   {t(effectiveLang, 'Apply')}
                 </button>
@@ -575,9 +575,9 @@ export default function BusinessesPage() {
               <Link
                 key={biz.id}
                 href={`/business/${biz.slug}`}
-                className="group bg-gradient-to-b from-blue-50/60 to-blue-50/30 dark:from-gray-800 dark:to-gray-800 rounded-lg sm:rounded-xl overflow-hidden shadow-sm hover:shadow-md dark:shadow-gray-900/50 transition-all duration-300 border border-blue-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-gray-500 hover:-translate-y-0.5 flex flex-col h-full text-sm sm:text-base"
+                className="group bg-gradient-to-b from-rose-50/60 to-rose-50/30 dark:from-gray-800 dark:to-gray-800 rounded-lg sm:rounded-xl overflow-hidden shadow-sm hover:shadow-md dark:shadow-gray-900/50 transition-all duration-300 border border-rose-200 dark:border-gray-600 hover:border-rose-400 dark:hover:border-gray-500 hover:-translate-y-0.5 flex flex-col h-full text-sm sm:text-base"
               >
-                <div className="relative aspect-[4/3] overflow-hidden bg-blue-50 dark:bg-gray-700">
+                <div className="relative aspect-[4/3] overflow-hidden bg-rose-50 dark:bg-gray-700">
                   <img
                     src={biz.logo_url || `https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop`}
                     alt={biz.business_name}
@@ -617,7 +617,7 @@ export default function BusinessesPage() {
                     )}
                   </div>
 
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors leading-tight line-clamp-2 mb-1 sm:mb-1.5 text-sm sm:text-base">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-rose-700 dark:group-hover:text-rose-300 transition-colors leading-tight line-clamp-2 mb-1 sm:mb-1.5 text-sm sm:text-base">
                     {biz.business_name}
                   </h3>
 
@@ -627,14 +627,14 @@ export default function BusinessesPage() {
                     </p>
                   )}
 
-                  <div className="mt-auto inline-block max-w-full rounded border border-blue-700 dark:border-blue-800 bg-blue-700 dark:bg-blue-800 px-1.5 py-0.5">
+                  <div className="mt-auto inline-block max-w-full rounded border border-rose-700 dark:border-rose-800 bg-rose-700 dark:bg-rose-800 px-1.5 py-0.5">
                     <p className="text-[10px] font-bold text-white line-clamp-1 truncate max-w-[100px]">
                       {locationText === 'Location not available' ? t(effectiveLang, 'Location not available') : locationText}
                     </p>
                   </div>
 
                   {userCoords && bizCoords && (
-                    <div className="mt-2 inline-flex items-center px-2 py-0.5 bg-blue-100/70 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs font-medium rounded-full">
+                    <div className="mt-2 inline-flex items-center px-2 py-0.5 bg-rose-100/70 dark:bg-rose-900/50 text-rose-800 dark:text-rose-200 text-xs font-medium rounded-full">
                       ≈ {getDistanceMiles(userCoords.lat, userCoords.lon, bizCoords.lat, bizCoords.lon).toFixed(1)} mi
                     </div>
                   )}
@@ -647,7 +647,7 @@ export default function BusinessesPage() {
         <div ref={bottomRef} className="mt-8 sm:mt-10 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
           {visible.length < filtered.length ? (
             <span className="inline-flex items-center gap-2">
-              <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-gray-300 dark:border-gray-600 border-t-blue-500 dark:border-t-blue-400"></div>
+              <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-gray-300 dark:border-gray-600 border-t-rose-500 dark:border-t-rose-400"></div>
               {t(effectiveLang, 'Loading more...')}
             </span>
           ) : (

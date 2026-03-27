@@ -2772,9 +2772,9 @@ export default function EditBusinessPage() {
                                   file:mr-4 file:py-2 file:px-4
                                   file:rounded-md file:border-0
                                   file:text-sm file:font-semibold
-                                  file:bg-blue-50 file:text-blue-700
-                                  hover:file:bg-blue-100 transition duration-200
-                                  dark:file:bg-blue-900 dark:file:text-blue-200 dark:hover:file:bg-blue-800"
+                                  file:bg-rose-50 file:text-rose-700
+                                  hover:file:bg-rose-100 transition duration-200
+                                  dark:file:bg-rose-900 dark:file:text-rose-200 dark:hover:file:bg-rose-800"
                               />
                               <div className="mt-3 flex flex-wrap gap-2">
                                 {item.images && item.images.map((img: ImageFileObject) => (
@@ -2811,7 +2811,7 @@ export default function EditBusinessPage() {
                                 updatedMenu[index] = { ...updatedMenu[index], _isDeleted: false, _isHiding: false };
                                 return { ...prevForm, menu: updatedMenu };
                               })}
-                              className="ml-2 text-blue-600 hover:underline"
+                              className="ml-2 text-rose-600 hover:underline"
                             >
                               Undo
                             </button>
@@ -2927,8 +2927,8 @@ export default function EditBusinessPage() {
                                   file:mr-4 file:py-2 file:px-4
                                   file:rounded-md file:border-0
                                   file:text-sm file:font-semibold
-                                  file:bg-blue-50 file:text-blue-700
-                                  hover:file:bg-blue-100"
+                                  file:bg-rose-50 file:text-rose-700
+                                  hover:file:bg-rose-100"
                               />
                               {item.images && item.images.length > 0 && (
                                 <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -2967,7 +2967,7 @@ export default function EditBusinessPage() {
                                 updatedListings[index] = { ...updatedListings[index], _isDeleted: false, _isHiding: false };
                                 return { ...prevForm, carListings: updatedListings };
                               })}
-                              className="ml-2 text-blue-600 hover:underline"
+                              className="ml-2 text-rose-600 hover:underline"
                             >
                               Undo
                             </button>
@@ -3071,8 +3071,8 @@ export default function EditBusinessPage() {
                                   file:mr-4 file:py-2 file:px-4
                                   file:rounded-md file:border-0
                                   file:text-sm file:font-semibold
-                                  file:bg-blue-50 file:text-blue-700
-                                  hover:file:bg-blue-100"
+                                  file:bg-rose-50 file:text-rose-700
+                                  hover:file:bg-rose-100"
                               />
                               {item.images && item.images.length > 0 && (
                                 <div className="mt-3 flex flex-wrap gap-2">
@@ -3111,7 +3111,7 @@ export default function EditBusinessPage() {
                                 updated[index] = { ...updated[index], _isDeleted: false, _isHiding: false };
                                 return { ...prevForm, realEstateListings: updated };
                               })}
-                              className="ml-2 text-blue-600 hover:underline"
+                              className="ml-2 text-rose-600 hover:underline"
                             >
                               Undo
                             </button>
@@ -3211,9 +3211,9 @@ export default function EditBusinessPage() {
                                   file:mr-4 file:py-2 file:px-4
                                   file:rounded-md file:border-0
                                   file:text-sm file:font-semibold
-                                  file:bg-blue-50 file:text-blue-700
-                                  hover:file:bg-blue-100 transition duration-200
-                                  dark:file:bg-blue-900 dark:file:text-blue-200 dark:hover:file:bg-blue-800"
+                                  file:bg-rose-50 file:text-rose-700
+                                  hover:file:bg-rose-100 transition duration-200
+                                  dark:file:bg-rose-900 dark:file:text-rose-200 dark:hover:file:bg-rose-800"
                               />
                               <div className="mt-3 flex flex-wrap gap-2">
                                 {item.images && item.images.map((img: ImageFileObject) => (
@@ -3250,7 +3250,7 @@ export default function EditBusinessPage() {
                                 updatedItems[index] = { ...updatedItems[index], _isDeleted: false, _isHiding: false };
                                 return { ...prevForm, retailItems: updatedItems };
                               })}
-                              className="ml-2 text-blue-600 hover:underline"
+                              className="ml-2 text-rose-600 hover:underline"
                             >
                               Undo
                             </button>

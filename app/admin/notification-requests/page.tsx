@@ -110,7 +110,7 @@ export default function NotificationRequestsPage() {
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-10">
       <div className="mx-auto max-w-4xl">
-        <button onClick={() => router.push('/admin/owner')} className="mb-4 text-blue-600 underline">
+        <button onClick={() => router.push('/admin/owner')} className="mb-4 text-rose-600 underline">
           ← Back to Owner Dashboard
         </button>
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-100/70">
@@ -149,7 +149,7 @@ export default function NotificationRequestsPage() {
                   req.status === 'pending'
                     ? { label: 'Pending', color: 'bg-amber-100 text-amber-700' }
                     : req.status === 'approved'
-                    ? { label: 'Approved', color: 'bg-blue-100 text-blue-700' }
+                    ? { label: 'Approved', color: 'bg-rose-100 text-rose-700' }
                     : req.status === 'rejected'
                     ? { label: 'Rejected', color: 'bg-rose-100 text-rose-700' }
                     : { label: 'Sent', color: 'bg-emerald-100 text-emerald-700' };

@@ -35,21 +35,56 @@ type Body = {
   spokenLanguages?: string[];
   /** e.g. navigator.language */
   deviceLang?: string | null;
+  /** Random-ish order with some newest posts mixed in (home feed). */
+  explore?: boolean;
 };
+
+type PostRow = Record<string, unknown> & { id: string; created_at: string };
+
+function shuffleInPlace<T>(arr: T[]) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+/** Random draw from the candidate pool, while periodically surfacing the newest posts. */
+function pickExplorePosts(posts: PostRow[], limit: number): PostRow[] {
+  if (posts.length === 0) return [];
+  const ts = (iso: string) => new Date(iso || 0).getTime();
+  const freshN = Math.min(14, Math.max(4, Math.ceil(limit * 0.22)));
+  const byDate = [...posts].sort((a, b) => ts(b.created_at) - ts(a.created_at));
+  const fresh = byDate.slice(0, freshN);
+  const freshIds = new Set(fresh.map((p) => p.id));
+  const pool = posts.filter((p) => !freshIds.has(p.id));
+  shuffleInPlace(pool);
+  const take = pool.slice(0, Math.max(0, limit - fresh.length));
+  const merged: PostRow[] = [];
+  let pi = 0;
+  let fi = 0;
+  while (merged.length < limit && (pi < take.length || fi < fresh.length)) {
+    if (Math.random() < 0.32 && fi < fresh.length) {
+      merged.push(fresh[fi++]);
+    } else if (pi < take.length) {
+      merged.push(take[pi++]);
+    } else if (fi < fresh.length) {
+      merged.push(fresh[fi++]);
+    }
+  }
+  return merged.slice(0, limit);
+}
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => ({}))) as Body;
-    const limit = Math.min(24, Math.max(4, Number(body.limit) || 12));
-    const candidateLimit = Math.min(200, Math.max(40, Number(body.candidateLimit) || 100));
+    const explore = Boolean(body.explore);
+    const limit = explore
+      ? Math.min(80, Math.max(12, Number(body.limit) || 48))
+      : Math.min(24, Math.max(4, Number(body.limit) || 12));
+    const candidateLimit = explore
+      ? Math.min(500, Math.max(80, Number(body.candidateLimit) || 320))
+      : Math.min(200, Math.max(40, Number(body.candidateLimit) || 100));
     const userId = typeof body.userId === 'string' && body.userId.trim() ? body.userId.trim() : null;
-
-    const ctx = await getHomeRankContext(supabaseAdmin, {
-      userId,
-      primaryLang: body.primaryLang ?? null,
-      spokenLanguages: body.spokenLanguages,
-      deviceLang: body.deviceLang ?? null,
-    });
 
     const { data: rows, error } = await supabaseAdmin
       .from('community_posts')
@@ -64,65 +99,100 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    let posts = rows || [];
+    let posts: PostRow[] = (rows || []) as PostRow[];
 
     if (userId) {
       const blocked = await getMutuallyBlockedUserIds(supabaseAdmin, userId);
-      posts = posts.filter((p: { user_id?: string | null }) => !p.user_id || !blocked.has(p.user_id));
+      posts = posts.filter((p) => !p.user_id || !blocked.has(p.user_id as string));
     }
 
-    const postIds = posts.map((p: { id: string }) => p.id);
+    if (posts.length === 0) {
+      return NextResponse.json({ posts: [] });
+    }
+
+    if (explore) {
+      posts = pickExplorePosts(posts, limit);
+      const exploreIds = posts.map((p) => p.id);
+      const likeCounts: Record<string, number> = {};
+      exploreIds.forEach((id) => {
+        likeCounts[id] = 0;
+      });
+      if (exploreIds.length > 0) {
+        const { data: likesRows } = await supabaseAdmin
+          .from('community_post_likes')
+          .select('post_id')
+          .in('post_id', exploreIds);
+        (likesRows || []).forEach((r: { post_id: string }) => {
+          likeCounts[r.post_id] = (likeCounts[r.post_id] ?? 0) + 1;
+        });
+      }
+      const top = posts.map((p) => {
+        const commentCount =
+          (p.community_comments as { count?: number }[] | undefined)?.[0]?.count ?? 0;
+        return {
+          ...p,
+          likes_post: likeCounts[p.id] ?? (p.likes_post as number) ?? 0,
+          community_comments: [{ count: commentCount }],
+        };
+      });
+      return NextResponse.json({ posts: top });
+    }
+
+    const ctx = await getHomeRankContext(supabaseAdmin, {
+      userId,
+      primaryLang: body.primaryLang ?? null,
+      spokenLanguages: body.spokenLanguages,
+      deviceLang: body.deviceLang ?? null,
+    });
+
+    const postIds = posts.map((p) => p.id);
     const likeCounts: Record<string, number> = {};
     postIds.forEach((id) => {
       likeCounts[id] = 0;
     });
 
-    if (postIds.length > 0) {
-      const { data: likesRows } = await supabaseAdmin
-        .from('community_post_likes')
-        .select('post_id')
-        .in('post_id', postIds);
+    const { data: likesRows } = await supabaseAdmin
+      .from('community_post_likes')
+      .select('post_id')
+      .in('post_id', postIds);
 
-      (likesRows || []).forEach((r: { post_id: string }) => {
-        likeCounts[r.post_id] = (likeCounts[r.post_id] ?? 0) + 1;
-      });
+    (likesRows || []).forEach((r: { post_id: string }) => {
+      likeCounts[r.post_id] = (likeCounts[r.post_id] ?? 0) + 1;
+    });
 
-      const scored = posts.map((p: Record<string, unknown> & { id: string; created_at: string }) => {
-        const commentCount =
-          (p.community_comments as { count?: number }[] | undefined)?.[0]?.count ?? 0;
-        const likeCount = likeCounts[p.id] ?? (p.likes_post as number) ?? 0;
-        const raw = scoreHomePost(
-          {
-            created_at: p.created_at,
-            language: p.language as string | null,
-            tags: p.tags as string[] | null,
-            title: p.title as string,
-            body: p.body as string,
-            likeCount,
-            commentCount,
-          },
-          ctx
-        );
-        return { p, raw, likeCount, commentCount };
-      });
+    const scored = posts.map((p) => {
+      const commentCount =
+        (p.community_comments as { count?: number }[] | undefined)?.[0]?.count ?? 0;
+      const likeCount = likeCounts[p.id] ?? (p.likes_post as number) ?? 0;
+      const raw = scoreHomePost(
+        {
+          created_at: p.created_at,
+          language: p.language as string | null,
+          tags: p.tags as string[] | null,
+          title: p.title as string,
+          body: p.body as string,
+          likeCount,
+          commentCount,
+        },
+        ctx
+      );
+      return { p, raw, likeCount, commentCount };
+    });
 
-      const rawScores = scored.map((x) => x.raw);
-      const norm = scoresToRank0to100(rawScores);
+    const rawScores = scored.map((x) => x.raw);
+    const norm = scoresToRank0to100(rawScores);
 
-      const withNorm = scored.map((row, i) => ({ ...row, home_rank_score: norm[i] ?? 0 }));
-      withNorm.sort((a, b) => b.raw - a.raw);
+    const withNorm = scored.map((row, i) => ({ ...row, home_rank_score: norm[i] ?? 0 }));
+    withNorm.sort((a, b) => b.raw - a.raw);
 
-      const top = withNorm.slice(0, limit).map((row) => ({
-        ...row.p,
-        likes_post: row.likeCount,
-        community_comments: [{ count: row.commentCount }],
-        home_rank_score: row.home_rank_score,
-      }));
+    const top = withNorm.slice(0, limit).map((row) => ({
+      ...row.p,
+      likes_post: row.likeCount,
+      community_comments: [{ count: row.commentCount }],
+      home_rank_score: row.home_rank_score,
+    }));
 
-      return NextResponse.json({ posts: top });
-    }
-
-    return NextResponse.json({ posts: [] });
+    return NextResponse.json({ posts: top });
   } catch (err) {
     console.error('[home-feed-posts]', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

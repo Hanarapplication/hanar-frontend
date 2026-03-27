@@ -37,7 +37,7 @@ export default function MobileTopNav() {
               href={item.href}
               className={`relative flex flex-col items-center py-1.5 px-3 rounded-lg transition-all duration-200 focus:outline-none ${
                 isActive
-                  ? 'text-blue-600 dark:text-blue-400'
+                  ? 'text-rose-600 dark:text-rose-400'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >
@@ -46,7 +46,7 @@ export default function MobileTopNav() {
                 {item.label}
               </span>
               {isActive && (
-                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-0.5 w-6 rounded-full bg-blue-600 dark:bg-blue-400" />
+                <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-0.5 w-6 rounded-full bg-rose-600 dark:bg-rose-400" />
               )}
             </Link>
           );

@@ -31,7 +31,7 @@ export default function CommentThread({ comment, allComments, depth = 0, onReply
         <div className="text-xs text-gray-500 mt-1">{new Date(comment.createdAt).toLocaleString()}</div>
         <button
           onClick={() => setReplying(!replying)}
-          className="text-xs text-blue-500 mt-2 hover:underline"
+          className="text-xs text-rose-500 mt-2 hover:underline"
         >
           {replying ? 'Cancel' : 'Reply'}
         </button>

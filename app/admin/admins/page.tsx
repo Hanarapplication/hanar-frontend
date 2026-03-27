@@ -96,7 +96,7 @@ export default function AdminAdminsPage() {
               placeholder="admin@example.com"
               required
               autoComplete="off"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
             />
           </div>
           <div>
@@ -112,7 +112,7 @@ export default function AdminAdminsPage() {
               required
               minLength={6}
               autoComplete="new-password"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
             />
             <p className="text-xs text-slate-500 mt-1">At least 6 characters</p>
           </div>
@@ -129,7 +129,7 @@ export default function AdminAdminsPage() {
               required
               minLength={6}
               autoComplete="new-password"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -138,7 +138,7 @@ export default function AdminAdminsPage() {
               type="checkbox"
               checked={showPassword}
               onChange={(e) => setShowPassword(e.target.checked)}
-              className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              className="rounded border-slate-300 text-rose-600 focus:ring-rose-500"
             />
             <label htmlFor="admin-show-password" className="text-sm text-slate-700 cursor-pointer">
               Show password
@@ -147,7 +147,7 @@ export default function AdminAdminsPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-rose-600 text-white rounded-lg font-medium hover:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? 'Adding…' : 'Add admin'}
           </button>

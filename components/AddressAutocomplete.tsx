@@ -198,7 +198,7 @@ export default function AddressAutocomplete({
               role="option"
               aria-selected={i === selectedIndex}
               className={`cursor-pointer px-3 py-2 text-sm text-slate-800 dark:text-gray-200 ${
-                i === selectedIndex ? 'bg-blue-100 dark:bg-blue-900/40' : 'hover:bg-slate-100 dark:hover:bg-gray-700'
+                i === selectedIndex ? 'bg-rose-100 dark:bg-rose-900/40' : 'hover:bg-slate-100 dark:hover:bg-gray-700'
               }`}
               onMouseDown={(e) => {
                 e.preventDefault();

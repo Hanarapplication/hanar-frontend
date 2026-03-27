@@ -63,6 +63,33 @@ export async function POST(req: Request) {
     const newCount = currentCount + 1;
     await supabaseAdmin.from('community_posts').update({ likes_post: newCount }).eq('id', post_id);
 
+    // Notify post author when someone likes their post (skip self-like notifications)
+    if (authorId && authorId !== userId) {
+      let likerName = 'Someone';
+      try {
+        const { data: account } = await supabaseAdmin
+          .from('registeredaccounts')
+          .select('full_name, username')
+          .eq('user_id', userId)
+          .maybeSingle();
+        likerName =
+          (account as { full_name?: string | null } | null)?.full_name?.trim() ||
+          (account as { username?: string | null } | null)?.username?.trim() ||
+          'Someone';
+      } catch {
+        // keep fallback label
+      }
+
+      await supabaseAdmin.from('notifications').insert({
+        user_id: authorId,
+        type: 'post_liked',
+        title: 'Someone liked your post',
+        body: `${likerName} liked your post. Tap to view.`,
+        url: `/community/post/${post_id}`,
+        data: { post_id, liked_by: userId, liker_name: likerName },
+      });
+    }
+
     return NextResponse.json({ success: true, likes: newCount }, { status: 200 });
   } catch (err) {
     console.error('Post like API error:', err);

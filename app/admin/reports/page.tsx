@@ -44,7 +44,7 @@ type ReportComment = {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
   unread: { label: 'Unread', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', icon: <Clock className="h-3.5 w-3.5" /> },
-  read: { label: 'Read', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200', icon: <Eye className="h-3.5 w-3.5" /> },
+  read: { label: 'Read', color: 'text-rose-700', bg: 'bg-rose-50 border-rose-200', icon: <Eye className="h-3.5 w-3.5" /> },
   archived: { label: 'Archived', color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200', icon: <Archive className="h-3.5 w-3.5" /> },
   resolved: { label: 'Resolved', color: 'text-green-700', bg: 'bg-green-50 border-green-200', icon: <CheckCircle className="h-3.5 w-3.5" /> },
 };
@@ -240,7 +240,7 @@ export default function AdminReportsPage() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-rose-200"
           >
             <option value="all">All</option>
             <option value="unread">Unread</option>
@@ -254,7 +254,7 @@ export default function AdminReportsPage() {
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-rose-200"
           >
             <option value="all">All</option>
             <option value="post">Posts</option>
@@ -363,7 +363,7 @@ export default function AdminReportsPage() {
                         href={ENTITY_LINK[report.entity_type]?.(report.entity_id) || '#'}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                        className="inline-flex items-center gap-1.5 text-sm text-rose-600 hover:text-rose-700 hover:underline"
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
                         View reported {report.entity_type}
@@ -377,7 +377,7 @@ export default function AdminReportsPage() {
                           type="button"
                           onClick={() => updateStatus(report.id, 'read')}
                           disabled={isLoading}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50 transition"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 transition"
                         >
                           <Eye className="h-3.5 w-3.5" />
                           Mark as Read
@@ -454,7 +454,7 @@ export default function AdminReportsPage() {
                               submitComment(report.id);
                             }
                           }}
-                          className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300"
+                          className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-200 focus:border-rose-300"
                         />
                         <button
                           type="button"

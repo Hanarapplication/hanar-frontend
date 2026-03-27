@@ -169,6 +169,49 @@ const normalizeImages = (value: unknown, bucket: string): string[] => {
 const sortByCreatedAtDesc = (a?: string | null, b?: string | null) =>
   new Date(b || 0).getTime() - new Date(a || 0).getTime();
 
+function feedItemStableKey(item: FeedItem): string {
+  switch (item.type) {
+    case 'post':
+      return `p:${item.post.id}`;
+    case 'business':
+      return `b:${item.business.id}`;
+    case 'organization':
+      return `o:${item.organization.id}`;
+    case 'item':
+      return `i:${item.item.source ?? 'm'}:${item.item.id}`;
+    case 'ad':
+      return `a:${item.banner.id}`;
+    case 'sliderBusinesses':
+      return 'sb';
+    case 'sliderMarketplace':
+      return 'sm';
+    default:
+      return 'x';
+  }
+}
+
+/** Shuffle cards from the home pool; sprinkle some of the newest items into early positions. */
+function shuffleHomeFeedWithFreshSprinkle(pool: { item: FeedItem; date: number }[]): FeedItem[] {
+  if (pool.length === 0) return [];
+  const arr = [...pool];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  const byNewest = [...pool].sort((a, b) => b.date - a.date);
+  const topN = Math.min(12, Math.max(4, Math.ceil(pool.length * 0.05)));
+  const latestEntries = byNewest.slice(0, topN);
+  const latestKeys = new Set(latestEntries.map((e) => feedItemStableKey(e.item)));
+  const without = arr.filter((e) => !latestKeys.has(feedItemStableKey(e.item)));
+  const out: FeedItem[] = without.map((e) => e.item);
+  for (const entry of latestEntries) {
+    const cap = Math.min(out.length + 1, Math.max(12, Math.floor(out.length * 0.3) + 1));
+    const pos = Math.floor(Math.random() * cap);
+    out.splice(pos, 0, entry.item);
+  }
+  return out;
+}
+
 const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
   if (!items.length) return null;
   const [sliderRef, slider] = useKeenSlider({
@@ -192,7 +235,7 @@ const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
     <section className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-slate-700">Featured Businesses</h2>
-        <Link href="/businesses" className="text-xs text-blue-600 hover:underline">View all</Link>
+        <Link href="/businesses" className="text-xs text-rose-600 hover:underline">View all</Link>
       </div>
       <div ref={sliderRef} className="keen-slider overflow-hidden rounded-lg">
         {items.map((biz) => (
@@ -246,7 +289,7 @@ const MarketplaceSliderCard = ({ items }: { items: SliderItem[] }) => {
     <section className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-slate-700">Trending Items</h2>
-        <Link href="/marketplace" className="text-xs text-blue-600 hover:underline">Browse</Link>
+        <Link href="/marketplace" className="text-xs text-rose-600 hover:underline">Browse</Link>
       </div>
       <div ref={sliderRef} className="keen-slider overflow-hidden rounded-lg">
         {items.map((item) => (
@@ -439,7 +482,7 @@ export default function Home() {
   const [marketplaceItems, setMarketplaceItems] = useState<MarketplaceItem[]>([]);
   const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [visibleCount, setVisibleCount] = useState(8);
+  const [visibleCount, setVisibleCount] = useState(12);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null; displayName: string | null }>({ id: '', username: null, displayName: null });
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
@@ -561,33 +604,33 @@ export default function Home() {
         .eq('is_archived', false)
         .neq('lifecycle_status', 'archived')
         .order('created_at', { ascending: false })
-        .limit(50),
+        .limit(200),
       supabase
         .from('organizations')
         .select('id, full_name, username, logo_url, banner_url, mission, created_at')
         .or('moderation_status.neq.on_hold,moderation_status.is.null')
         .order('created_at', { ascending: false })
-        .limit(8),
+        .limit(100),
       supabase
         .from('retail_items')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(50),
+        .limit(120),
       supabase
         .from('dealerships')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(50),
+        .limit(120),
       supabase
         .from('real_estate_listings')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(50),
+        .limit(120),
       supabase
         .from('marketplace_items')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(50),
+        .limit(120),
     ]);
 
     const normalizedRetail = (retailRes.data || []).map((row: any) => ({
@@ -676,8 +719,9 @@ export default function Home() {
         credentials: 'include',
         body: JSON.stringify({
           userId: homeSession?.session?.user?.id,
-          limit: 12,
-          candidateLimit: 100,
+          explore: true,
+          limit: 48,
+          candidateLimit: 320,
           primaryLang: audienceJson?.preferred_language ?? null,
           spokenLanguages: Array.isArray(audienceJson?.spoken_languages) ? audienceJson.spoken_languages : [],
           deviceLang: deviceLang || null,
@@ -700,7 +744,7 @@ export default function Home() {
         .eq('deleted', false)
         .or('visibility.eq.community,visibility.is.null')
         .order('created_at', { ascending: false })
-        .limit(12);
+        .limit(48);
       rawPosts = (fb.data || []) as CommunityPost[];
     }
 
@@ -878,7 +922,7 @@ export default function Home() {
     try {
       const [data, banners] = await Promise.all([loadHomeFeed(), loadBanners()]);
       applyFeedData(data, banners);
-      setVisibleCount(8);
+      setVisibleCount(12);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setRefreshing(false);
@@ -1309,37 +1353,32 @@ const formatDateLabel = (value?: string | null) => {
     }
   };
 
-  // Build feed sorted by created_at (latest first), with ads and sliders interspersed
+  // Mixed feed: random order with some newest cards sprinkled in; sliders + ads layered after.
   const feedItems = useMemo<FeedItem[]>(() => {
-    // Collect all dated items into a single pool
     const datedPool: { item: FeedItem; date: number }[] = [];
 
     for (const post of communityPosts) {
       const created = new Date(post.created_at || 0).getTime();
-      const rank = post.home_rank_score ?? 0;
-      const virtualBoost = Math.min(56 * 3600000, rank * 560000);
-      datedPool.push({ item: { type: 'post', post }, date: created + virtualBoost });
+      datedPool.push({ item: { type: 'post', post }, date: created });
     }
-    for (const business of nearbyBusinesses.slice(0, 12)) {
+    for (const business of nearbyBusinesses) {
       datedPool.push({ item: { type: 'business', business }, date: new Date(business.created_at || 0).getTime() });
     }
-    for (const organization of organizations.slice(0, 8)) {
+    for (const organization of organizations) {
       datedPool.push({ item: { type: 'organization', organization }, date: new Date(organization.created_at || 0).getTime() });
     }
-    for (const item of nearbyMarketplaceItems.slice(0, 12)) {
+    for (const item of nearbyMarketplaceItems) {
       datedPool.push({ item: { type: 'item', item }, date: new Date(item.created_at || 0).getTime() });
     }
 
-    // Sort by date descending (latest first)
-    datedPool.sort((a, b) => b.date - a.date);
-
-    const ordered = datedPool.map((d) => d.item);
+    let ordered =
+      datedPool.length > 0 ? shuffleHomeFeedWithFreshSprinkle(datedPool) : [];
 
     if (!ordered.length && !loading) {
-      for (const business of nearbyBusinesses.slice(0, 6)) {
+      for (const business of nearbyBusinesses) {
         ordered.push({ type: 'business', business });
       }
-      for (const item of nearbyMarketplaceItems.slice(0, 6)) {
+      for (const item of nearbyMarketplaceItems) {
         ordered.push({ type: 'item', item });
       }
     }
@@ -1391,7 +1430,7 @@ const formatDateLabel = (value?: string | null) => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          setVisibleCount((prev) => prev + 6);
+          setVisibleCount((prev) => prev + 12);
         }
       },
       { threshold: 0.1 }
@@ -1413,7 +1452,7 @@ const formatDateLabel = (value?: string | null) => {
             <div>
               <h1 className="text-lg font-semibold text-slate-800 dark:text-gray-100">Hanar Feed</h1>
               <p className="text-sm text-slate-500 dark:text-gray-400">
-                Community picks matched to your languages and interests, plus nearby businesses and organizations.
+                A mixed discover feed—posts, businesses, orgs, and listings in varied order, with fresh items sprinkled in as you scroll.
               </p>
             </div>
             {!loading && (
@@ -1437,7 +1476,7 @@ const formatDateLabel = (value?: string | null) => {
           <button
             type="button"
             onClick={refreshFeed}
-            className="w-full rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 px-4 py-3 text-sm font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors shadow-sm flex items-center justify-center gap-2"
+            className="w-full rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 px-4 py-3 text-sm font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors shadow-sm flex items-center justify-center gap-2"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
@@ -1607,12 +1646,12 @@ const formatDateLabel = (value?: string | null) => {
                           setCommentInputs((prev) => ({ ...prev, [item.post.id]: e.target.value }))
                         }
                         placeholder="Write a comment..."
-                        className="flex-1 rounded-full border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:placeholder-gray-400"
+                        className="flex-1 rounded-full border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 dark:placeholder-gray-400"
                       />
                       <button
                         onClick={() => submitComment(item.post.id)}
                         disabled={!commentInputs[item.post.id]?.trim()}
-                        className="rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                        className="rounded-full bg-rose-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
                       >
                         Post
                       </button>

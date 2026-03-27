@@ -36,11 +36,11 @@ export default function NotFound() {
             placeholder="Search businesses..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-rose-400"
           />
           <button
             type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+            className="bg-rose-600 text-white px-4 py-2 rounded-md hover:bg-rose-700 transition"
           >
             Search
           </button>
@@ -48,7 +48,7 @@ export default function NotFound() {
 
         <Link
           href="/"
-          className="inline-block mt-2 text-sm text-blue-600 hover:underline"
+          className="inline-block mt-2 text-sm text-rose-600 hover:underline"
         >
           ← Back to Hanar Home
         </Link>

@@ -84,7 +84,7 @@ function BlockedAccountsContent() {
         subtitle: t(effectiveLang, 'Post to Community feed — everyone can see it'),
         href: '/community/post?visibility=community',
         icon: <Globe className="h-5 w-5 shrink-0" />,
-        color: 'bg-blue-50 dark:bg-blue-900/30',
+        color: 'bg-rose-50 dark:bg-rose-900/30',
       },
       {
         label: t(effectiveLang, 'Blocked accounts'),

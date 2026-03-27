@@ -336,7 +336,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="bg-blue-600 dark:bg-blue-800 h-16 flex items-center justify-between px-4 sticky top-0 z-50 transition-all relative border-b border-blue-500 dark:border-blue-700">
+      <nav className="bg-rose-800 dark:bg-rose-900 h-16 flex items-center justify-between px-4 sticky top-0 z-50 transition-all relative border-b border-rose-700 dark:border-rose-800">
         {/* Logo */}
         <div className="flex items-center shrink-0">
           <Link href="/" className="focus:outline-none block">
@@ -355,14 +355,14 @@ export default function Navbar() {
         {/* Search bar - Facebook style */}
         <div className="flex-1 max-w-md mx-2 sm:mx-4 relative" ref={dropdownRef}>
           <div className="relative">
-            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-200 text-sm pointer-events-none" />
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-rose-200 text-sm pointer-events-none" />
             <input
               type="search"
               placeholder={t(effectiveLang, 'Search')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setSearchOpen(true)}
-              className="w-full h-9 pl-9 pr-3 rounded-full bg-blue-500/50 dark:bg-blue-900/40 border border-blue-400/50 dark:border-blue-600/50 text-white placeholder-blue-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent"
+              className="w-full h-9 pl-9 pr-3 rounded-full bg-rose-700/50 dark:bg-rose-950/40 border border-rose-500/45 dark:border-rose-800/60 text-white placeholder-rose-200 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent"
               aria-label="Search"
             />
           </div>
@@ -423,10 +423,10 @@ export default function Navbar() {
           <button
             type="button"
             onClick={openLocationModal}
-            className="group flex items-center gap-1.5 text-sm text-blue-100 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50 rounded-lg px-2 py-1.5 transition-colors duration-200 max-w-[160px]"
+            className="group flex items-center gap-1.5 text-sm text-rose-100 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50 rounded-lg px-2 py-1.5 transition-colors duration-200 max-w-[160px]"
             aria-label={locationLabel ? t(effectiveLang, 'Change location') : t(effectiveLang, 'Set location')}
           >
-            <FaMapMarkerAlt size={14} className="text-blue-200 group-hover:text-white shrink-0" />
+            <FaMapMarkerAlt size={14} className="text-rose-200 group-hover:text-white shrink-0" />
             <span className="truncate">
               {locationLabel ? (
                 <span className="flex items-center gap-1.5">
@@ -466,7 +466,7 @@ export default function Navbar() {
                     type="button"
                     onClick={useMyLocation}
                     disabled={locationRequesting}
-                    className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-500 disabled:cursor-wait text-white font-medium text-base transition-colors"
+                    className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:bg-rose-500 disabled:cursor-wait text-white font-medium text-base transition-colors"
                   >
                     <FaMapMarkerAlt className="text-lg shrink-0" />
                     {locationRequesting ? t(effectiveLang, 'Getting location…') : t(effectiveLang, 'Use my location')}
@@ -482,7 +482,7 @@ export default function Navbar() {
                     value={locationSearchQuery}
                     onChange={(e) => setLocationSearchQuery(e.target.value)}
                     placeholder="e.g. Los Angeles, New York"
-                    className="mt-2 w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="mt-2 w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
                   />
                   {locationSearchLoading && (
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t(effectiveLang, 'Searching…')}</p>
@@ -513,7 +513,7 @@ export default function Navbar() {
                       step="5"
                       value={locationRadiusMiles}
                       onChange={(e) => setLocationRadiusMiles(Number(e.target.value))}
-                      className="w-full h-2 rounded-lg appearance-none bg-slate-200 dark:bg-slate-600 accent-blue-500"
+                      className="w-full h-2 rounded-lg appearance-none bg-slate-200 dark:bg-slate-600 accent-rose-500"
                     />
                   </div>
                   <button
@@ -558,9 +558,9 @@ export default function Navbar() {
           {/* Notifications */}
           <Link href="/notifications" className="relative focus:outline-none">
             <div className="relative group">
-              <FaBell className="text-blue-100 text-xl group-hover:text-white transition-colors duration-200 cursor-pointer" />
+              <FaBell className="text-rose-100 text-xl group-hover:text-white transition-colors duration-200 cursor-pointer" />
               {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full shadow-sm">
+                <span className="absolute -top-0.5 -right-0.5 bg-blue-500 text-white text-[10px] font-semibold px-1 py-0 rounded-full shadow-sm leading-none min-w-[1rem] h-4 inline-flex items-center justify-center">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
@@ -570,7 +570,7 @@ export default function Navbar() {
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="text-blue-100 hover:text-white transition-colors duration-200 text-2xl focus:outline-none"
+            className="text-rose-100 hover:text-white transition-colors duration-200 text-2xl focus:outline-none"
             aria-label="Toggle Menu"
           >
             <FaBars />

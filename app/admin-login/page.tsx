@@ -186,7 +186,7 @@ export default function AdminLoginPage() {
             type="checkbox"
             checked={showPassword}
             onChange={(e) => setShowPassword(e.target.checked)}
-            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="rounded border-gray-300 text-rose-600 focus:ring-rose-500"
             disabled={isLockedOut}
           />
           <label htmlFor="admin-login-show-password" className="text-sm text-gray-700 cursor-pointer">
@@ -197,7 +197,7 @@ export default function AdminLoginPage() {
         <button
           type="submit"
           disabled={loading || isLockedOut}
-          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-rose-600 text-white py-2 rounded-lg hover:bg-rose-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Signing in...' : 'Sign in'}
         </button>

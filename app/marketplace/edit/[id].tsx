@@ -145,7 +145,7 @@ export default function EditItemPage({ params }: { params: { id: string } }) {
 
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="bg-rose-600 text-white px-4 py-2 rounded hover:bg-rose-700"
         >
           Save Changes
         </button>

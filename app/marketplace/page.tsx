@@ -746,7 +746,7 @@ export default function MarketplacePage() {
           category: item.category || '',
         });
       }}
-      className="group relative bg-gradient-to-b from-blue-50/60 to-blue-50/30 dark:from-gray-800 dark:to-gray-800 rounded-lg sm:rounded-xl overflow-hidden shadow-sm hover:shadow-md dark:shadow-gray-900/50 transition-all duration-300 border border-blue-200 dark:border-gray-600 hover:border-blue-400 dark:hover:border-gray-500 hover:-translate-y-0.5 flex flex-col h-full text-sm sm:text-base"
+      className="group relative bg-gradient-to-b from-rose-50/60 to-rose-50/30 dark:from-gray-800 dark:to-gray-800 rounded-lg sm:rounded-xl overflow-hidden shadow-sm hover:shadow-md dark:shadow-gray-900/50 transition-all duration-300 border border-rose-200 dark:border-gray-600 hover:border-rose-400 dark:hover:border-gray-500 hover:-translate-y-0.5 flex flex-col h-full text-sm sm:text-base"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
         <img
@@ -809,7 +809,7 @@ export default function MarketplacePage() {
             </span>
           )}
           {item.location && (
-            <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-lg bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 truncate max-w-[120px]">
+            <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-lg bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-200 truncate max-w-[120px]">
               {getCityStateFromLocation(item.location) || item.location}
             </span>
           )}
@@ -820,7 +820,7 @@ export default function MarketplacePage() {
 
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
+    <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
     <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-0 sm:pt-1">
       {/* Search with location inside - modern style */}
       <div className="sticky top-0 z-10 -mx-3 sm:-mx-5 px-3 sm:px-5 pt-0 pb-3 mb-6">
@@ -967,7 +967,7 @@ export default function MarketplacePage() {
       )}
       {filteredItems.length > visibleCount && (
         <div className="text-center mt-8 sm:mt-10">
-          <button onClick={() => setVisibleCount(visibleCount + 6)} className="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition text-sm">
+          <button onClick={() => setVisibleCount(visibleCount + 6)} className="bg-rose-500 text-white px-6 py-2 rounded-md hover:bg-rose-600 transition text-sm">
             Show More
           </button>
         </div>

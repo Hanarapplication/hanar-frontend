@@ -55,7 +55,7 @@ export default function ResetPasswordPage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-300 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-100 to-rose-300 px-4">
         <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-2xl text-center">
           <p className="text-gray-600">{t(effectiveLang, 'Loading...')}</p>
         </div>
@@ -65,7 +65,7 @@ export default function ResetPasswordPage() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-300 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-100 to-rose-300 px-4">
         <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-2xl text-center">
           <h1 className="text-xl font-bold text-gray-800 mb-2">{t(effectiveLang, 'Invalid or expired link')}</h1>
           <p className="text-sm text-gray-600 mb-6">
@@ -73,12 +73,12 @@ export default function ResetPasswordPage() {
           </p>
           <Link
             href="/forgot-password"
-            className="text-blue-600 hover:underline font-medium"
+            className="text-rose-600 hover:underline font-medium"
           >
             {t(effectiveLang, 'Request new reset link')}
           </Link>
           <p className="mt-6 text-sm text-gray-500">
-            <Link href="/login" className="text-blue-600 hover:underline">{t(effectiveLang, 'Back to Login')}</Link>
+            <Link href="/login" className="text-rose-600 hover:underline">{t(effectiveLang, 'Back to Login')}</Link>
           </p>
         </div>
       </div>
@@ -86,9 +86,9 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-300 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-100 to-rose-300 px-4">
       <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-2xl">
-        <h1 className="text-2xl font-bold text-center text-blue-600 mb-2">
+        <h1 className="text-2xl font-bold text-center text-rose-600 mb-2">
           {t(effectiveLang, 'Set new password')}
         </h1>
         <p className="text-sm text-gray-600 text-center mb-6">
@@ -108,7 +108,7 @@ export default function ResetPasswordPage() {
               required
               minLength={6}
               placeholder="••••••••"
-              className="mt-1 w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="mt-1 w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-rose-400"
             />
           </div>
           <div>
@@ -123,20 +123,20 @@ export default function ResetPasswordPage() {
               required
               minLength={6}
               placeholder="••••••••"
-              className="mt-1 w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="mt-1 w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-rose-400"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2 bg-rose-600 text-white rounded-md font-semibold hover:bg-rose-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? t(effectiveLang, 'Updating...') : t(effectiveLang, 'Update password')}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-gray-500">
-          <Link href="/login" className="text-blue-600 hover:underline">
+          <Link href="/login" className="text-rose-600 hover:underline">
             {t(effectiveLang, 'Back to Login')}
           </Link>
         </p>

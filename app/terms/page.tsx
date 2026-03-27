@@ -1,7 +1,7 @@
 export default function TermsPage() {
     return (
       <div className="max-w-3xl mx-auto px-6 py-10 text-gray-800">
-        <h1 className="text-3xl font-bold mb-6 text-blue-700">Terms of Service</h1>
+        <h1 className="text-3xl font-bold mb-6 text-rose-700">Terms of Service</h1>
   
         <p className="mb-4">
           By using Hanar.net, you agree to follow these terms. These rules are here to protect both our platform and you as a user.

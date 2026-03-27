@@ -1,7 +1,7 @@
 export default function PrivacyPage() {
     return (
       <div className="max-w-3xl mx-auto px-6 py-10 text-gray-800">
-        <h1 className="text-3xl font-bold mb-6 text-blue-700">Privacy Policy</h1>
+        <h1 className="text-3xl font-bold mb-6 text-rose-700">Privacy Policy</h1>
   
         <p className="mb-4">
           Your privacy matters to us. This policy explains how Hanar collects, uses, and protects your personal data.

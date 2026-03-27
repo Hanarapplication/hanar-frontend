@@ -16,7 +16,7 @@ const supabase = createClient(
 );
 
 const identityColors: Record<string, string> = {
-  user: 'bg-blue-100 text-blue-800',
+  user: 'bg-rose-100 text-rose-800',
 };
 
 export default function CommunityPostPage() {
@@ -526,13 +526,13 @@ export default function CommunityPostPage() {
                 <textarea
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  className="w-full border border-slate-200 p-3 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-slate-200 p-3 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
                   rows={3}
                   placeholder="Write your comment here..."
                 />
                 <button
                   onClick={handleCommentSubmit}
-                  className="self-end rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+                  className="self-end rounded-full bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700"
                 >
                   Post Comment
                 </button>
@@ -542,8 +542,8 @@ export default function CommunityPostPage() {
 
           <div className="mt-4 flex gap-4 text-xs text-slate-500">
             <span>Sort by:</span>
-            <button onClick={() => handleSortChange('latest')} className={sortMode === 'latest' ? 'font-semibold text-blue-600' : ''}>Latest</button>
-            <button onClick={() => handleSortChange('popular')} className={sortMode === 'popular' ? 'font-semibold text-blue-600' : ''}>Most Popular</button>
+            <button onClick={() => handleSortChange('latest')} className={sortMode === 'latest' ? 'font-semibold text-rose-600' : ''}>Latest</button>
+            <button onClick={() => handleSortChange('popular')} className={sortMode === 'popular' ? 'font-semibold text-rose-600' : ''}>Most Popular</button>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -567,7 +567,7 @@ export default function CommunityPostPage() {
                   {userSession && (
                     <button
                       onClick={() => handleCommentLike(c.id)}
-                      className={`ml-auto text-xs ${commentLikeStates[c.id] ? 'text-blue-600 font-semibold' : 'text-gray-500'} hover:underline`}
+                      className={`ml-auto text-xs ${commentLikeStates[c.id] ? 'text-rose-600 font-semibold' : 'text-gray-500'} hover:underline`}
                     >
                       {commentLikeStates[c.id] ? '💙 Liked' : '👍 Like'} ({c.likes ?? c.likes_comment ?? 0})
                     </button>

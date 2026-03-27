@@ -19,7 +19,7 @@ function OrganizationBlockedContent() {
 
   const orgBurgerItems = useMemo(
     () => [
-      { label: t(effectiveLang, 'Edit Organization'), href: '/organization/dashboard#edit-profile', icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
+      { label: t(effectiveLang, 'Edit Organization'), href: '/organization/dashboard#edit-profile', icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
       { label: t(effectiveLang, 'Send Notification'), href: '/organization/dashboard', icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
       { label: t(effectiveLang, 'Promote Event / Message'), href: '/promote?for=organization', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
       { label: t(effectiveLang, 'Blocked accounts'), href: '/organization/dashboard/blocked', icon: <Ban className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-gray-800/80' },

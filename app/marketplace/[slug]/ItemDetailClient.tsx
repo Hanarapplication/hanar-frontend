@@ -829,7 +829,7 @@ export default function ItemDetailClient() {
           <h2 className="font-semibold text-sm text-gray-700 mb-2">Share</h2>
           <button
             onClick={handleNativeShare}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full flex items-center gap-2 text-sm mb-2"
+            className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-full flex items-center gap-2 text-sm mb-2"
           >
             <FaShareAlt /> Share Item
           </button>
@@ -838,7 +838,7 @@ export default function ItemDetailClient() {
               Sharing not supported —
               <button
                 onClick={copyLinkFallback}
-                className="underline text-blue-600 ml-1"
+                className="underline text-rose-600 ml-1"
               >
                 Copy link instead
               </button>

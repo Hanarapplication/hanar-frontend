@@ -94,7 +94,7 @@ export default function PullToRefresh({ onRefresh, children, className = '' }: P
           }}
         >
           <svg
-            className={`h-6 w-6 text-blue-500 ${refreshing ? 'animate-spin' : ''}`}
+            className={`h-6 w-6 text-rose-500 ${refreshing ? 'animate-spin' : ''}`}
             style={!refreshing ? { transform: `rotate(${progress * 360}deg)` } : undefined}
             fill="none"
             viewBox="0 0 24 24"

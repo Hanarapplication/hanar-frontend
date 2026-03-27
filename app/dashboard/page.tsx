@@ -149,7 +149,7 @@ function DashboardContent() {
   const burgerItems = [
     ...(profile?.username ? [{ label: t(effectiveLang, 'View Profile'), href: `/profile/${profile.username}`, icon: <User className="h-5 w-5 shrink-0" />, color: 'bg-indigo-50 dark:bg-indigo-900/30' }] : []),
     { label: t(effectiveLang, 'Followers only'), subtitle: t(effectiveLang, 'Post to your profile — only followers see it'), href: '/community/post?visibility=profile', icon: <Users className="h-5 w-5 shrink-0" />, color: 'bg-violet-50 dark:bg-violet-900/30' },
-    { label: t(effectiveLang, 'Public (Community)'), subtitle: t(effectiveLang, 'Post to Community feed — everyone can see it'), href: '/community/post?visibility=community', icon: <Globe className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
+    { label: t(effectiveLang, 'Public (Community)'), subtitle: t(effectiveLang, 'Post to Community feed — everyone can see it'), href: '/community/post?visibility=community', icon: <Globe className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
     { label: t(effectiveLang, 'Blocked accounts'), subtitle: t(effectiveLang, 'People you blocked or who blocked you'), href: '/dashboard/blocked', icon: <Ban className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-gray-800/80' },
     { label: t(effectiveLang, 'Sell Item'), href: '/marketplace/post', icon: <Tag className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
     { label: t(effectiveLang, 'Delete My Account'), href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
@@ -815,13 +815,13 @@ function DashboardContent() {
                     </Link>
                     <Link
                       href="/community/post?visibility=community"
-                      className="inline-flex flex-col gap-1 rounded-xl border-2 border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/30 px-4 py-3 text-left text-sm font-semibold text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition min-w-[140px]"
+                      className="inline-flex flex-col gap-1 rounded-xl border-2 border-rose-300 dark:border-rose-600 bg-rose-50 dark:bg-rose-900/30 px-4 py-3 text-left text-sm font-semibold text-rose-800 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition min-w-[140px]"
                     >
                       <span className="flex items-center gap-2">
                         <Globe className="h-4 w-4 shrink-0" />
                         {t(effectiveLang, 'Public (Community)')}
                       </span>
-                      <span className="text-xs font-normal text-blue-600 dark:text-blue-300">
+                      <span className="text-xs font-normal text-rose-600 dark:text-rose-300">
                         {t(effectiveLang, 'Everyone can see')}
                       </span>
                     </Link>

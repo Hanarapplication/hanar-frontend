@@ -215,12 +215,12 @@ export default function NotificationsPage() {
                   className={`w-full rounded-2xl border px-5 py-4 text-left transition shadow-sm hover:-translate-y-0.5 hover:shadow-md ${
                     n.read_at
                       ? 'border-slate-200 bg-white'
-                      : 'border-blue-200 bg-gradient-to-r from-blue-50 via-white to-white'
+                      : 'border-rose-200 bg-gradient-to-r from-rose-50 via-white to-white'
                   }`}
                 >
                     <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
-                      {!n.read_at && <span className="mt-2 h-2 w-2 rounded-full bg-blue-500" />}
+                      {!n.read_at && <span className="mt-2 h-2 w-2 rounded-full bg-rose-500" />}
                       <div>
                         <p className="text-sm font-semibold text-slate-900">{n.title}</p>
                         {n.data?.business_name && (

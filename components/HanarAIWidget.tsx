@@ -194,7 +194,7 @@ If the user asks unrelated topics, reply:
               <div className="pt-2 text-center">
                 <button
                   onClick={handleAskCommunity}
-                  className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 text-sm"
+                  className="mt-4 bg-rose-600 text-white px-4 py-2 rounded-xl hover:bg-rose-700 text-sm"
                 >
                   🤝 Ask the Hanar Community
                 </button>

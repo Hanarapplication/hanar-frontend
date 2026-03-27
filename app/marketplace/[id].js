@@ -51,7 +51,7 @@ export default function ItemDetailPage() {
     <div className="max-w-3xl mx-auto px-4 py-8">
       <button
         onClick={() => router.back()}
-        className="text-blue-600 hover:underline mb-4"
+        className="text-rose-600 hover:underline mb-4"
       >
         ← Back to Marketplace
       </button>
@@ -94,7 +94,7 @@ export default function ItemDetailPage() {
               <div
                 key={idx}
                 className={`w-2 h-2 rounded-full ${
-                  currentSlide === idx ? 'bg-blue-600' : 'bg-gray-300'
+                  currentSlide === idx ? 'bg-rose-600' : 'bg-gray-300'
                 }`}
               />
             ))}
@@ -108,7 +108,7 @@ export default function ItemDetailPage() {
             {mockUserId === item.ownerId && (
               <button
                 onClick={() => router.push(`/marketplace/edit/${item.id}`)}
-                className="text-sm text-blue-600 hover:underline"
+                className="text-sm text-rose-600 hover:underline"
               >
                 ✏️ Edit
               </button>
@@ -137,7 +137,7 @@ export default function ItemDetailPage() {
                 </a>
               )}
               {item.contact.phone && (
-                <a href={`tel:${item.contact.phone}`} className="text-blue-600 flex items-center gap-2 hover:underline">
+                <a href={`tel:${item.contact.phone}`} className="text-rose-600 flex items-center gap-2 hover:underline">
                   <FaPhone /> Call
                 </a>
               )}

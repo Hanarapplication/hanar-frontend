@@ -47,9 +47,9 @@ export default function ContactPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-blue-100 to-blue-300 px-4 py-10 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-rose-100 to-rose-300 px-4 py-10 flex items-center justify-center">
         <div className="bg-white w-full max-w-2xl p-8 rounded-2xl shadow-2xl">
-          <h1 className="text-3xl font-bold text-blue-600 text-center mb-6">
+          <h1 className="text-3xl font-bold text-rose-600 text-center mb-6">
             {t(effectiveLang, 'Contact Us')}
           </h1>
 
@@ -63,7 +63,7 @@ export default function ContactPage() {
                 value={form.name}
                 onChange={handleChange}
                 placeholder={t(effectiveLang, 'Your Name')}
-                className="mt-1 w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                className="mt-1 w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-rose-400 focus:outline-none"
               />
             </div>
 
@@ -76,7 +76,7 @@ export default function ContactPage() {
                 value={form.email}
                 onChange={handleChange}
                 placeholder={t(effectiveLang, 'you@example.com')}
-                className="mt-1 w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                className="mt-1 w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-rose-400 focus:outline-none"
               />
             </div>
 
@@ -89,7 +89,7 @@ export default function ContactPage() {
                 value={form.subject}
                 onChange={handleChange}
                 placeholder={t(effectiveLang, 'Subject')}
-                className="mt-1 w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                className="mt-1 w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-rose-400 focus:outline-none"
               />
             </div>
 
@@ -102,14 +102,14 @@ export default function ContactPage() {
                 value={form.message}
                 onChange={handleChange}
                 placeholder={t(effectiveLang, 'Type your message here...')}
-                className="mt-1 w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-400 focus:outline-none resize-none"
+                className="mt-1 w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-rose-400 focus:outline-none resize-none"
               ></textarea>
             </div>
 
             <button
               type="submit"
               className={`w-full py-2 rounded-md text-white font-semibold transition-transform duration-300 transform ${
-                sent ? 'scale-95 bg-green-600' : 'bg-blue-600 hover:bg-blue-700'
+                sent ? 'scale-95 bg-green-600' : 'bg-rose-600 hover:bg-rose-700'
               }`}
             >
               {sent ? t(effectiveLang, 'Message Sent!') : t(effectiveLang, 'Send Message')}
@@ -124,7 +124,7 @@ export default function ContactPage() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             {t(effectiveLang, 'Or email us directly at')}{' '}
-            <a href="mailto:support@hanar.net" className="text-blue-600 hover:underline">
+            <a href="mailto:support@hanar.net" className="text-rose-600 hover:underline">
               support@hanar.net
             </a>
           </p>

@@ -68,6 +68,12 @@ interface Post {
   logo_url?: string | null;
 }
 
+type AudienceFeedCache = {
+  preferred_language: string | null;
+  spoken_languages: string[];
+  segmentResponse: Record<string, unknown> | null;
+};
+
 export default function CommunityFeedPage() {
   const [search, setSearch] = useState('');
   const [visiblePosts, setVisiblePosts] = useState<Post[]>([]);
@@ -111,27 +117,43 @@ export default function CommunityFeedPage() {
   const [deletingPost, setDeletingPost] = useState<string | null>(null);
   const [communityBanner, setCommunityBanner] = useState<{ id: string; image: string; link: string; alt: string } | null>(null);
   const hasFetchedRef = useRef(false);
-  const audienceCacheRef = useRef<{
-    preferred_language: string | null;
-    spoken_languages: string[];
-  } | null>(null);
+  /** Avoids a second effect that immediately clears posts and refetches on the same mount (double network work). */
+  const skipReloadDuplicateMountRef = useRef(true);
+
+  const audienceCacheRef = useRef<AudienceFeedCache | null>(null);
+  const audienceFetchRef = useRef<Promise<AudienceFeedCache> | null>(null);
 
   const getAudienceForFeed = useCallback(async () => {
     if (audienceCacheRef.current) return audienceCacheRef.current;
-    try {
-      const res = await fetch('/api/user/audience-segment');
-      const j = await res.json().catch(() => ({}));
-      audienceCacheRef.current = {
-        preferred_language: j.preferred_language ?? null,
-        spoken_languages: Array.isArray(j.spoken_languages) ? j.spoken_languages : [],
-      };
-    } catch {
-      audienceCacheRef.current = { preferred_language: null, spoken_languages: [] };
+    if (!audienceFetchRef.current) {
+      audienceFetchRef.current = (async (): Promise<AudienceFeedCache> => {
+        try {
+          const res = await fetch('/api/user/audience-segment');
+          const j = await res.json().catch(() => ({}));
+          const v: AudienceFeedCache = {
+            preferred_language: j.preferred_language ?? null,
+            spoken_languages: Array.isArray(j.spoken_languages) ? j.spoken_languages : [],
+            segmentResponse: j && typeof j === 'object' ? (j as Record<string, unknown>) : null,
+          };
+          audienceCacheRef.current = v;
+          return v;
+        } catch {
+          const v: AudienceFeedCache = {
+            preferred_language: null,
+            spoken_languages: [],
+            segmentResponse: null,
+          };
+          audienceCacheRef.current = v;
+          return v;
+        } finally {
+          audienceFetchRef.current = null;
+        }
+      })();
     }
-    return audienceCacheRef.current;
+    return audienceFetchRef.current!;
   }, []);
 
-  const loadBanner = async () => {
+  const loadBanner = useCallback(async () => {
     try {
       let lat: number | null = null;
       let lon: number | null = null;
@@ -149,14 +171,19 @@ export default function CommunityFeedPage() {
           // ignore
         }
       }
-      const segRes = await fetch('/api/user/audience-segment');
-      const seg = await segRes.json().catch(() => ({}));
+      const aud = await getAudienceForFeed();
+      const seg = aud.segmentResponse ?? {};
+      const ageGroup = seg.age_group as string | undefined;
+      const gender = seg.gender as string | undefined;
+      const prefLang = seg.preferred_language as string | undefined;
+      const spoken = seg.spoken_languages as unknown;
+      const state = seg.state as string | undefined;
       const params = new URLSearchParams();
-      if (seg.age_group) params.set('age_group', seg.age_group);
-      if (seg.gender) params.set('gender', seg.gender);
-      if (seg.preferred_language) params.append('lang', seg.preferred_language);
-      if (Array.isArray(seg.spoken_languages)) seg.spoken_languages.forEach((l: string) => params.append('lang', l));
-      if (seg.state) params.set('state', seg.state);
+      if (ageGroup) params.set('age_group', ageGroup);
+      if (gender) params.set('gender', gender);
+      if (prefLang) params.append('lang', prefLang);
+      if (Array.isArray(spoken)) (spoken as string[]).forEach((l: string) => params.append('lang', l));
+      if (state) params.set('state', state);
       if (lat != null && lon != null) {
         params.set('lat', String(lat));
         params.set('lon', String(lon));
@@ -174,7 +201,7 @@ export default function CommunityFeedPage() {
       }
     } catch {}
     return null;
-  };
+  }, [getAudienceForFeed]);
 
   const sortPosts = (posts: Post[]): Post[] => {
     if (sortMode === 'popular') {
@@ -248,9 +275,13 @@ export default function CommunityFeedPage() {
     }
   }, [feedLangReady, feedLang, sortMode, currentUser.id, search]);
 
-  // Reload when search / sort / lang changes (only after feed lang has been restored)
+  // Reload when search / sort / lang / user changes (not on the same tick as the initial load effect)
   useEffect(() => {
     if (!feedLangReady || !hasFetchedRef.current) return;
+    if (skipReloadDuplicateMountRef.current) {
+      skipReloadDuplicateMountRef.current = false;
+      return;
+    }
     requestSeqRef.current += 1;
     setVisiblePosts([]);
     setHasMore(true);
@@ -340,6 +371,7 @@ export default function CommunityFeedPage() {
 
   useEffect(() => {
     audienceCacheRef.current = null;
+    audienceFetchRef.current = null;
   }, [currentUser.id]);
 
   const requireLogin = () => {
@@ -539,6 +571,7 @@ export default function CommunityFeedPage() {
 
   const handlePullRefresh = useCallback(async () => {
     audienceCacheRef.current = null;
+    audienceFetchRef.current = null;
     try {
       sessionStorage.removeItem(communityCacheKey(currentUser.id || 'anon', feedLang, sortMode));
     } catch {}
@@ -578,7 +611,7 @@ export default function CommunityFeedPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, feedLang, sortMode, currentUser.id, communityBanner, getAudienceForFeed]);
+  }, [search, feedLang, sortMode, currentUser.id, communityBanner, getAudienceForFeed, loadBanner]);
 
   const feedLangOptions: { value: string; label: string; emoji?: string }[] = [
     { value: '', label: t(effectiveLang, 'All languages'), emoji: '🌐' },
@@ -592,7 +625,7 @@ export default function CommunityFeedPage() {
         <button
           onClick={() => setSortMode('latest')}
           className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            sortMode === 'latest' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            sortMode === 'latest' ? 'bg-rose-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           {t(effectiveLang, 'For you')}
@@ -600,7 +633,7 @@ export default function CommunityFeedPage() {
         <button
           onClick={() => setSortMode('popular')}
           className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            sortMode === 'popular' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            sortMode === 'popular' ? 'bg-rose-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           {t(effectiveLang, 'Most Popular')}
@@ -608,7 +641,7 @@ export default function CommunityFeedPage() {
         <select
           value={feedLang}
           onChange={(e) => setFeedLang(e.target.value)}
-          className="shrink-0 h-8 min-w-[7rem] rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-medium pl-2 pr-6 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer bg-[length:12px] bg-[right_0.35rem_center] bg-no-repeat"
+          className="shrink-0 h-8 min-w-[7rem] rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-medium pl-2 pr-6 py-1 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent appearance-none cursor-pointer bg-[length:12px] bg-[right_0.35rem_center] bg-no-repeat"
           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")` }}
           title={feedLang ? t(effectiveLang, 'Posts in this language first') : t(effectiveLang, 'All languages')}
         >
@@ -627,7 +660,7 @@ export default function CommunityFeedPage() {
             placeholder={t(effectiveLang, 'Search posts...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:border-blue-500 dark:focus:border-blue-400"
+            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:border-rose-500 dark:focus:border-rose-400"
           />
           <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500" />
           {search && (
@@ -639,7 +672,7 @@ export default function CommunityFeedPage() {
         {!isBusinessUser && (
           <Link
             href="/community/post"
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors"
           >
             <PlusIcon className="h-5 w-5" />
             <span>{t(effectiveLang, 'New Post')}</span>
@@ -816,12 +849,12 @@ export default function CommunityFeedPage() {
                         setCommentInputs((prev) => ({ ...prev, [post.id]: e.target.value }))
                       }
                       placeholder="Write a comment..."
-                      className="flex-1 rounded-full border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:placeholder-gray-400"
+                      className="flex-1 rounded-full border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 dark:placeholder-gray-400"
                     />
                     <button
                       onClick={() => submitComment(post.id)}
                       disabled={!commentInputs[post.id]?.trim()}
-                      className="rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                      className="rounded-full bg-rose-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
                     >
                       Post
                     </button>
@@ -835,7 +868,7 @@ export default function CommunityFeedPage() {
 
       {loading && visiblePosts.length > 0 && (
         <div className="flex justify-center py-4">
-          <div className="h-6 w-6 rounded-full border-2 border-slate-300 dark:border-gray-600 border-t-blue-600 dark:border-t-blue-400 animate-spin" />
+          <div className="h-6 w-6 rounded-full border-2 border-slate-300 dark:border-gray-600 border-t-rose-600 dark:border-t-rose-400 animate-spin" />
         </div>
       )}
       <div ref={bottomRef} className="h-10" />

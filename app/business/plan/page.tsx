@@ -227,7 +227,7 @@ function BusinessPlanContent() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/50 px-3 py-6 sm:px-4 sm:py-8 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-rose-50/30 to-indigo-50/50 px-3 py-6 sm:px-4 sm:py-8 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200/50 overflow-hidden">
           <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-indigo-800 px-4 py-6 sm:px-6 sm:py-8 lg:py-10 text-white">

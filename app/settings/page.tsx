@@ -150,7 +150,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-10">
-      <h1 className="text-2xl font-bold text-blue-700 dark:text-blue-300 mb-6">{t(effectiveLang, 'Settings')}</h1>
+      <h1 className="text-2xl font-bold text-rose-700 dark:text-rose-300 mb-6">{t(effectiveLang, 'Settings')}</h1>
 
       {/* Dark Mode Toggle */}
       <div className="mb-6 flex items-center justify-between">

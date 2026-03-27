@@ -24,7 +24,7 @@ export default function BusinessOnboardPage() {
       </p>
       <button
         onClick={() => router.push('/business-dashboard')}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-lg font-semibold"
+        className="bg-rose-600 hover:bg-rose-700 text-white px-6 py-3 rounded-lg text-lg font-semibold"
       >
         Start Business Setup →
       </button>

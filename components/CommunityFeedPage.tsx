@@ -134,7 +134,7 @@ const CommunityFeedPage = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search posts or users..."
-              className="pl-10 pr-3 py-2 w-full rounded-full text-sm border bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="pl-10 pr-3 py-2 w-full rounded-full text-sm border bg-gray-100 focus:outline-none focus:ring-2 focus:ring-rose-400"
             />
           </div>
           <button
@@ -159,7 +159,7 @@ onClick={async () => {
           <span className="text-sm font-medium text-yellow-800">Item deleted</span>
           <button
             onClick={() => handleUndo(undoBuffer[0])}
-            className="text-sm text-blue-600 hover:underline"
+            className="text-sm text-rose-600 hover:underline"
           >
             Undo
           </button>
