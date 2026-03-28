@@ -26,6 +26,7 @@ export default function PostItemPage() {
     location: '',
     locationCity: '',
     locationState: '',
+    locationCountry: '',
     locationZip: '',
     locationLat: null as number | null,
     locationLng: null as number | null,
@@ -148,7 +149,7 @@ export default function PostItemPage() {
     if (limitReached && !isBusiness) return toast.error('Listing limit reached. Delete one from your dashboard or get the Casual Seller Pack to list more.');
 
     setSubmitting(true);
-    const { imageUrls, locationCity, locationState, locationZip, locationLat, locationLng, externalBuyUrl, ...rest } = form;
+    const { imageUrls, locationCity, locationState, locationCountry, locationZip, locationLat, locationLng, externalBuyUrl, ...rest } = form;
     const insertPayload: Record<string, unknown> = {
       ...rest,
       price: parseFloat(form.price),
@@ -158,6 +159,7 @@ export default function PostItemPage() {
     if (trimmedUrl) insertPayload.external_buy_url = trimmedUrl;
     if (locationCity) insertPayload.location_city = locationCity;
     if (locationState) insertPayload.location_state = locationState;
+    if (locationCountry) insertPayload.location_country = locationCountry;
     if (locationZip) insertPayload.location_zip = locationZip;
     if (locationLat != null) insertPayload.location_lat = locationLat;
     if (locationLng != null) insertPayload.location_lng = locationLng;
@@ -272,6 +274,7 @@ export default function PostItemPage() {
                     location: locationLabel,
                     locationCity: result.city || '',
                     locationState: result.state || '',
+                    locationCountry: result.country || '',
                     locationZip: result.zip || '',
                     locationLat: result.lat ?? null,
                     locationLng: result.lng ?? null,

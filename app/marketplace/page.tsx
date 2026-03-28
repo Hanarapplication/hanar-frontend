@@ -19,6 +19,12 @@ import {
   resolveLatLon,
   writeSavedSearchRadiusMiles,
 } from '@/lib/geoDistance';
+import {
+  itemMatchesCountryFilter,
+  itemMatchesStateFilter,
+  scopeFromAddressResult,
+  type MarketplaceLocationScope,
+} from '@/lib/marketplaceLocationFilter';
 
 type MarketplaceItem = {
   id: string;
@@ -38,6 +44,9 @@ type MarketplaceItem = {
   user_id?: string | null;
   business_verified?: boolean;
   business_plan?: string | null;
+  location_country?: string | null;
+  location_state?: string | null;
+  location_city?: string | null;
 };
 
 type FavoriteItem = {
@@ -131,6 +140,7 @@ const getPlanRank = (value?: string | null) => {
 
 const MARKETPLACE_CACHE_KEY = 'hanar_marketplace_cache';
 const MARKETPLACE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const USER_LOCATION_SCOPE_KEY = 'userLocationScope';
 
 function readMarketplaceCache(): { ts: number; items: MarketplaceItem[] } | null {
   try {
@@ -165,6 +175,7 @@ export default function MarketplacePage() {
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [locationSearchValue, setLocationSearchValue] = useState('');
   const [tempRadius, setTempRadius] = useState(() => readSavedSearchRadiusMiles(40));
+  const [locationScope, setLocationScope] = useState<MarketplaceLocationScope>({ mode: 'none' });
   const hasFetchedRef = useRef(false);
   const [_personalizeBump, setPersonalizeBump] = useState(0);
 
@@ -194,7 +205,10 @@ export default function MarketplacePage() {
     }
 
     // Log for admin marketplace insights (radius: applied filter or null = unlimited)
-    const radiusMiles = userCoords ? radius : null;
+    const radiusMiles =
+      userCoords && (locationScope.mode === 'city_radius' || locationScope.mode === 'none')
+        ? radius
+        : null;
     void supabase
       .from('marketplace_search_log')
       .insert({
@@ -213,19 +227,56 @@ export default function MarketplacePage() {
   };
 
   const handleLocationSelect = (result: AddressResult) => {
+    const scope = scopeFromAddressResult(result);
+    setLocationScope(scope);
+    try {
+      localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(scope));
+    } catch {}
+
+    const label =
+      [result.city, result.state, result.country].filter(Boolean).join(', ') ||
+      result.formatted_address ||
+      'Selected location';
+    setLocationLabel(label);
+    setLocationSearchValue('');
+    try {
+      if (label) localStorage.setItem('userLocationLabel', label);
+    } catch {}
+
     if (result.lat != null && result.lng != null) {
       const coords = { lat: result.lat, lon: result.lng };
-      const label = [result.city, result.state].filter(Boolean).join(', ') || result.formatted_address || 'Selected location';
       setUserCoords(coords);
-      setLocationLabel(label);
-      setLocationSearchValue('');
       try {
         localStorage.setItem('userCoords', JSON.stringify(coords));
-        if (label) localStorage.setItem('userLocationLabel', label);
       } catch {}
-      window.dispatchEvent(new CustomEvent('location:updated', {
-        detail: { ...coords, label, city: result.city, state: result.state, zip: result.zip },
-      }));
+      window.dispatchEvent(
+        new CustomEvent('location:updated', {
+          detail: {
+            ...coords,
+            label,
+            city: result.city,
+            state: result.state,
+            country: result.country,
+            zip: result.zip,
+          },
+        })
+      );
+    } else {
+      setUserCoords(null);
+      try {
+        localStorage.removeItem('userCoords');
+      } catch {}
+      window.dispatchEvent(
+        new CustomEvent('location:updated', {
+          detail: {
+            label,
+            city: result.city,
+            state: result.state,
+            country: result.country,
+            zip: result.zip,
+          },
+        })
+      );
     }
   };
 
@@ -236,6 +287,17 @@ export default function MarketplacePage() {
         const { lat, lon } = JSON.parse(stored);
         setUserCoords({ lat, lon });
         setLocationLabel('Your location');
+        try {
+          const rawScope = localStorage.getItem(USER_LOCATION_SCOPE_KEY);
+          if (rawScope) setLocationScope(JSON.parse(rawScope) as MarketplaceLocationScope);
+          else {
+            const geoScope: MarketplaceLocationScope = { mode: 'city_radius', country: '', state: '', city: '' };
+            setLocationScope(geoScope);
+            localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(geoScope));
+          }
+        } catch {
+          setLocationScope({ mode: 'city_radius', country: '', state: '', city: '' });
+        }
         return;
       } catch { /* ignore */ }
     }
@@ -243,10 +305,15 @@ export default function MarketplacePage() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        const scope: MarketplaceLocationScope = { mode: 'city_radius', country: '', state: '', city: '' };
+        setLocationScope(scope);
+        try {
+          localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(scope));
+        } catch {}
         setUserCoords(coords);
         localStorage.setItem('userCoords', JSON.stringify(coords));
         setLocationLabel('Your location');
-        window.dispatchEvent(new CustomEvent('location:updated', { detail: coords }));
+        window.dispatchEvent(new CustomEvent('location:updated', { detail: { ...coords, label: 'Your location' } }));
       },
       () => alert('Could not get your location.')
     );
@@ -322,8 +389,30 @@ export default function MarketplacePage() {
       }
     }
 
+    try {
+      const rawScope = localStorage.getItem(USER_LOCATION_SCOPE_KEY);
+      if (rawScope) {
+        setLocationScope(JSON.parse(rawScope) as MarketplaceLocationScope);
+      } else if (saved) {
+        setLocationScope({ mode: 'city_radius', country: '', state: '', city: '' });
+      }
+    } catch {
+      /* ignore */
+    }
+
     const handleLocationUpdated = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { lat?: number; lon?: number; label?: string; city?: string; radiusMiles?: number } | undefined;
+      const detail = (e as CustomEvent).detail as
+        | {
+            lat?: number;
+            lon?: number;
+            lng?: number;
+            label?: string;
+            city?: string;
+            state?: string;
+            country?: string;
+            radiusMiles?: number;
+          }
+        | undefined;
       if (detail?.lat != null && detail?.lon != null) {
         setUserCoords({ lat: detail.lat, lon: detail.lon });
         if (detail.label) setLocationLabel(detail.label);
@@ -332,6 +421,21 @@ export default function MarketplacePage() {
       if (detail?.radiusMiles != null) {
         setRadius(detail.radiusMiles);
         setTempRadius(detail.radiusMiles);
+      }
+      if (detail && (detail.city != null || detail.state != null || detail.country != null)) {
+        const next = scopeFromAddressResult({
+          city: detail.city,
+          state: detail.state,
+          country: detail.country,
+          lat: detail.lat,
+          lng: detail.lng ?? detail.lon,
+        });
+        setLocationScope(next);
+        try {
+          localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(next));
+        } catch {
+          /* ignore */
+        }
       }
     };
     window.addEventListener('location:updated', handleLocationUpdated);
@@ -413,6 +517,9 @@ export default function MarketplacePage() {
       source: 'individual',
       business_id: null,
       user_id: row.user_id || null,
+      location_country: row.location_country ?? null,
+      location_state: row.location_state ?? null,
+      location_city: row.location_city ?? null,
     };
   };
 
@@ -467,9 +574,32 @@ export default function MarketplacePage() {
     const businessIds = Array.from(
       new Set(combined.map((item) => item.business_id).filter(Boolean) as string[])
     );
+    const parseBusinessAddress = (address: unknown): { city: string; state: string; country: string } => {
+      const empty = { city: '', state: '', country: '' };
+      if (address == null) return empty;
+      let obj: { city?: string; state?: string; country?: string } | null = null;
+      if (typeof address === 'object' && !Array.isArray(address)) {
+        obj = address as { city?: string; state?: string; country?: string };
+      } else if (typeof address === 'string') {
+        try {
+          const parsed = JSON.parse(address) as { city?: string; state?: string; country?: string };
+          if (parsed && typeof parsed === 'object') obj = parsed;
+        } catch {
+          return empty;
+        }
+      }
+      if (!obj) return empty;
+      return {
+        city: typeof obj.city === 'string' ? obj.city : '',
+        state: typeof obj.state === 'string' ? obj.state : '',
+        country: typeof obj.country === 'string' ? obj.country : '',
+      };
+    };
+
     let verifiedMap = new Map<string, boolean>();
     let planMap = new Map<string, string>();
     let businessLocationMap = new Map<string, string>();
+    let businessAddressPartsMap = new Map<string, { city: string; state: string; country: string }>();
     let businessCoordsMap = new Map<string, { lat: number; lon: number }>();
     if (businessIds.length > 0) {
       const { data: businessRows } = await supabase
@@ -485,18 +615,16 @@ export default function MarketplacePage() {
       planMap = new Map(
         (businessRows || []).map((row: { id: string; plan?: string | null }) => [row.id, row.plan || ''])
       );
+      businessAddressPartsMap = new Map(
+        (businessRows || []).map((row: { id: string; address?: unknown }) => {
+          const p = parseBusinessAddress(row.address);
+          return [row.id, p] as [string, { city: string; state: string; country: string }];
+        })
+      );
       businessLocationMap = new Map(
-        (businessRows || []).map((row: { id: string; address?: { city?: string; state?: string } | string | null }) => {
-          let addr: { city?: string; state?: string } | null = null;
-          if (row.address) {
-            if (typeof row.address === 'object') addr = row.address;
-            else if (typeof row.address === 'string') {
-              try { addr = JSON.parse(row.address) as { city?: string; state?: string }; } catch { /* ignore */ }
-            }
-          }
-          const city = addr?.city || '';
-          const state = addr?.state || '';
-          const loc = [city, state].filter(Boolean).join(', ');
+        (businessRows || []).map((row: { id: string; address?: unknown }) => {
+          const p = parseBusinessAddress(row.address);
+          const loc = [p.city, p.state].filter(Boolean).join(', ');
           return [row.id, loc] as [string, string];
         }).filter(([, loc]) => loc.length > 0)
       );
@@ -519,11 +647,15 @@ export default function MarketplacePage() {
           ? businessLocation
           : (item.location && String(item.location).trim()) || '';
       const businessCoords = item.business_id ? businessCoordsMap.get(item.business_id) : null;
+      const addrParts = item.business_id ? businessAddressPartsMap.get(item.business_id) : undefined;
       return {
         ...item,
         location: location || item.location || '',
         lat: item.lat ?? businessCoords?.lat ?? null,
         lon: item.lon ?? businessCoords?.lon ?? null,
+        location_country: item.location_country || addrParts?.country || null,
+        location_state: item.location_state || addrParts?.state || null,
+        location_city: item.location_city || addrParts?.city || null,
         business_verified: item.business_id ? verifiedMap.get(item.business_id) || false : false,
         business_plan: item.business_id ? planMap.get(item.business_id) || null : null,
       };
@@ -650,15 +782,34 @@ export default function MarketplacePage() {
       return value !== null && value <= max;
     });
   }
-  if (userCoords) {
-    const cityFromLabel = (locationLabel || '').split(',')[0]?.trim().toLowerCase() || '';
+  const itemLocFields = (i: MarketplaceItem) => ({
+    location: i.location || '',
+    location_country: i.location_country,
+    location_state: i.location_state,
+    location_city: i.location_city,
+  });
+
+  if (locationScope.mode === 'country') {
+    filteredItems = filteredItems.filter((i) =>
+      itemMatchesCountryFilter(itemLocFields(i), locationScope.country)
+    );
+  } else if (locationScope.mode === 'state') {
+    filteredItems = filteredItems.filter((i) =>
+      itemMatchesStateFilter(itemLocFields(i), locationScope.state, locationScope.country)
+    );
+  } else if (userCoords && (locationScope.mode === 'city_radius' || locationScope.mode === 'none')) {
+    const cityForFallback =
+      locationScope.mode === 'city_radius' ? (locationScope.city || '').trim().toLowerCase() : '';
+    const escapedCity = cityForFallback.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     filteredItems = filteredItems.filter((i) => {
       if (i.lat != null && i.lon != null) {
         return getDistanceMiles(userCoords.lat, userCoords.lon, i.lat, i.lon) <= radius;
       }
-      if (!cityFromLabel || cityFromLabel === 'your location') return false;
-      const loc = (i.location || '').toLowerCase();
-      return new RegExp(`\\b${cityFromLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(loc);
+      if (cityForFallback && escapedCity) {
+        const loc = (i.location || '').toLowerCase();
+        return new RegExp(`\\b${escapedCity}\\b`, 'i').test(loc);
+      }
+      return false;
     });
   }
 
@@ -866,7 +1017,13 @@ export default function MarketplacePage() {
             <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[110px] sm:max-w-[140px]">
               {locationLabel || 'Location'}
             </span>
-            {locationLabel && (
+            {locationLabel && locationScope.mode === 'country' && (
+              <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">Country</span>
+            )}
+            {locationLabel && locationScope.mode === 'state' && (
+              <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">State</span>
+            )}
+            {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && userCoords && (
               <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{radius} mi</span>
             )}
           </button>
@@ -883,9 +1040,12 @@ export default function MarketplacePage() {
         >
           <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-slate-200 dark:border-gray-700 p-5 sm:p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Search in this area</h3>
+            <p className="text-xs text-slate-500 dark:text-gray-400 mb-4">
+              Type a country (e.g. United States), a state or region, or a city. Country and state show all matching listings; city uses the radius below.
+            </p>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-2">City or address</label>
+                <label className="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-2">Country, state, or city</label>
                 <AddressAutocomplete
                   value={locationSearchValue}
                   onSelect={handleLocationSelect}
