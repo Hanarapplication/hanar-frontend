@@ -39,11 +39,14 @@ export default function ConditionalAppShell({
     <>
       <LocationPromptModal />
       <Navbar />
-      <MobileTopNav />
       <ClientRedirectTracker />
-      <main key={animKey} className="animate-page-enter">
+      <main
+        key={animKey}
+        className="animate-page-enter pb-[calc(3.85rem+env(safe-area-inset-bottom,0px))]"
+      >
         {children}
       </main>
+      <MobileTopNav />
       <HanarAIWidget />
     </>
   );

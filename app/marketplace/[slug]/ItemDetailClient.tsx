@@ -730,11 +730,12 @@ export default function ItemDetailClient() {
                   href={individualSeller.username ? `/profile/${individualSeller.username}` : '#'}
                   className={`flex items-center gap-3 ${individualSeller.username ? 'hover:opacity-90' : ''}`}
                 >
-                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-slate-200 bg-slate-100 ring-2 ring-transparent transition hover:ring-slate-300">
+                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-amber-400/90 bg-slate-100 transition hover:opacity-90 dark:border-amber-500/60">
                     <Avatar
                       src={individualSeller.profile_pic_url}
                       alt={individualSeller.username ? `@${individualSeller.username}` : 'Seller'}
                       className="h-full w-full rounded-full"
+                      unframed
                     />
                   </div>
                   <div>

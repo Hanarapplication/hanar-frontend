@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { HeartIcon, ChatBubbleLeftIcon, MagnifyingGlassIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid';
-import { Trash2, Megaphone } from 'lucide-react';
+import { Trash2, Megaphone, SendHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import Link from 'next/link';
@@ -15,6 +15,11 @@ import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
 import { Avatar } from '@/components/Avatar';
 import { t } from '@/utils/translations';
+
+/** Gold outline — matches home feed cards and header search */
+const COMMUNITY_GOLD_FRAME = 'border border-amber-400 dark:border-amber-500/90';
+const COMMUNITY_SEARCH_GOLD =
+  `${COMMUNITY_GOLD_FRAME} focus:ring-2 focus:ring-amber-300/80 dark:focus:ring-amber-400/60 focus:border-amber-500`;
 
 const COMMUNITY_CACHE_PREFIX = 'hanar_community_cache_';
 const COMMUNITY_FEED_LANG_KEY = 'hanar_community_feed_lang';
@@ -74,8 +79,12 @@ type AudienceFeedCache = {
   segmentResponse: Record<string, unknown> | null;
 };
 
+const SEARCH_DEBOUNCE_MS = 380;
+
 export default function CommunityFeedPage() {
   const [search, setSearch] = useState('');
+  /** Passed to API / pagination so we do not refetch on every keystroke */
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [visiblePosts, setVisiblePosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -119,6 +128,11 @@ export default function CommunityFeedPage() {
   const hasFetchedRef = useRef(false);
   /** Avoids a second effect that immediately clears posts and refetches on the same mount (double network work). */
   const skipReloadDuplicateMountRef = useRef(true);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(id);
+  }, [search]);
 
   const audienceCacheRef = useRef<AudienceFeedCache | null>(null);
   const audienceFetchRef = useRef<Promise<AudienceFeedCache> | null>(null);
@@ -223,7 +237,7 @@ export default function CommunityFeedPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          search,
+          search: debouncedSearch,
           offset,
           lang: feedLang,
           sortMode,
@@ -247,7 +261,7 @@ export default function CommunityFeedPage() {
       setHasMore(newPosts.length === 10);
 
       const cacheKey = communityCacheKey(currentUser.id || 'anon', feedLang, sortMode);
-      if (offset === 0 && !search) {
+      if (offset === 0 && !debouncedSearch) {
         writeCommunityCache(cacheKey, ordered, communityBanner);
       }
     } catch (err) {
@@ -264,7 +278,7 @@ export default function CommunityFeedPage() {
 
     const cacheKey = communityCacheKey(currentUser.id || 'anon', feedLang, sortMode);
     const cache = readCommunityCache(cacheKey);
-    if (cache && !search) {
+    if (cache && !debouncedSearch) {
       setVisiblePosts(cache.posts);
       if (cache.banner) setCommunityBanner(cache.banner);
       setHasMore(cache.posts.length >= 10);
@@ -273,9 +287,9 @@ export default function CommunityFeedPage() {
       loadBanner();
       loadMorePosts(0);
     }
-  }, [feedLangReady, feedLang, sortMode, currentUser.id, search]);
+  }, [feedLangReady, feedLang, sortMode, currentUser.id, debouncedSearch]);
 
-  // Reload when search / sort / lang / user changes (not on the same tick as the initial load effect)
+  // Reload when debounced search / sort / lang / user changes (not on the same tick as the initial load effect)
   useEffect(() => {
     if (!feedLangReady || !hasFetchedRef.current) return;
     if (skipReloadDuplicateMountRef.current) {
@@ -286,7 +300,7 @@ export default function CommunityFeedPage() {
     setVisiblePosts([]);
     setHasMore(true);
     loadMorePosts(0);
-  }, [search, feedLang, sortMode, currentUser.id, feedLangReady]);
+  }, [debouncedSearch, feedLang, sortMode, currentUser.id, feedLangReady]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -620,8 +634,9 @@ export default function CommunityFeedPage() {
 
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
-    <div className="container mx-auto px-4 pt-0 pb-8">
-      <div className="flex flex-wrap items-center gap-2 mb-6">
+    <div className="min-h-screen bg-slate-100 dark:bg-gray-900">
+      <div className="w-full pb-6 pt-0">
+      <div className="flex flex-wrap items-center gap-2 mb-6 px-4">
         <button
           onClick={() => setSortMode('latest')}
           className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
@@ -653,14 +668,14 @@ export default function CommunityFeedPage() {
         </select>
       </div>
 
-      <div className="flex items-center mb-6 gap-4">
+      <div className="flex items-center mb-6 gap-4 px-4">
         <div className="relative flex-1">
           <input
             type="text"
             placeholder={t(effectiveLang, 'Search posts...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:border-rose-500 dark:focus:border-rose-400"
+            className={`w-full pl-10 pr-4 py-2 rounded-lg dark:bg-gray-800 dark:text-gray-100 focus:outline-none ${COMMUNITY_SEARCH_GOLD}`}
           />
           <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500" />
           {search && (
@@ -681,7 +696,7 @@ export default function CommunityFeedPage() {
       </div>
 
       {communityBanner?.image && (
-        <div className="mb-6 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden shadow-sm">
+        <div className={`mb-6 ${COMMUNITY_GOLD_FRAME} bg-white dark:bg-gray-800 overflow-hidden shadow-sm`}>
           <Link href={communityBanner.link || '#'} target="_blank" rel="noopener noreferrer" className="block w-full">
             <div className="relative w-full aspect-[1200/630] bg-slate-100 dark:bg-gray-700">
               <img
@@ -696,11 +711,11 @@ export default function CommunityFeedPage() {
         </div>
       )}
 
-      <div className="space-y-6">
+      <div className="divide-y divide-black dark:divide-gray-500">
         {visiblePosts.length === 0 && loading && (
           <>
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
+              <div key={i} className={`bg-white dark:bg-gray-800 ${COMMUNITY_GOLD_FRAME} p-5 space-y-3`}>
                 <div className="flex items-center gap-3">
                   <div className="skeleton h-10 w-10 rounded-full" />
                   <div className="flex-1 space-y-1.5">
@@ -730,7 +745,7 @@ export default function CommunityFeedPage() {
           return (
             <article
               key={`${post.id}-${index}`}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md dark:shadow-lg dark:shadow-black/20 dark:border dark:border-gray-700 transition-shadow p-6"
+              className={`bg-white dark:bg-gray-800 ${COMMUNITY_GOLD_FRAME} p-6 shadow-sm`}
             >
               {/* Author row */}
               <div className="flex items-center gap-3 mb-3 text-sm text-gray-500 dark:text-gray-400">
@@ -802,6 +817,29 @@ export default function CommunityFeedPage() {
                 postId={post.id}
                 postTitle={post.title}
               />
+              <div className="mt-2 flex items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-2">
+                <input
+                  value={commentInputs[post.id] || ''}
+                  onChange={(e) =>
+                    setCommentInputs((prev) => ({ ...prev, [post.id]: e.target.value }))
+                  }
+                  onFocus={() => {
+                    if (!currentUser.id) requireLogin();
+                  }}
+                  placeholder={currentUser.id ? 'Write a comment...' : 'Log in to write a comment'}
+                  disabled={!currentUser.id}
+                  className="flex-1 rounded-full border border-sky-300 px-4 py-2 text-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-400 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-sky-300 dark:focus:ring-sky-400/45 dark:placeholder-gray-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => submitComment(post.id)}
+                  disabled={!currentUser.id || !commentInputs[post.id]?.trim()}
+                  aria-label="Post comment"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-sky-200 disabled:text-sky-100/90 dark:bg-sky-600 dark:hover:bg-sky-500 dark:disabled:bg-slate-600 dark:disabled:text-slate-400"
+                >
+                  <SendHorizontal className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+                </button>
+              </div>
 
               {currentUser.id && post.user_id === currentUser.id && (
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-3 text-sm">
@@ -833,7 +871,7 @@ export default function CommunityFeedPage() {
                         <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
                       )}
                       {comments.map((comment) => (
-                        <div key={comment.id} className="rounded-lg bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm">
+                        <div key={comment.id} className="rounded-lg border border-amber-400/80 dark:border-amber-500/45 bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm">
                           <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
                             {comment.author || comment.username || 'User'}
                           </p>
@@ -842,23 +880,6 @@ export default function CommunityFeedPage() {
                       ))}
                     </div>
                   )}
-                  <div className="mt-3 flex items-center gap-2">
-                    <input
-                      value={commentInputs[post.id] || ''}
-                      onChange={(e) =>
-                        setCommentInputs((prev) => ({ ...prev, [post.id]: e.target.value }))
-                      }
-                      placeholder="Write a comment..."
-                      className="flex-1 rounded-full border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 dark:placeholder-gray-400"
-                    />
-                    <button
-                      onClick={() => submitComment(post.id)}
-                      disabled={!commentInputs[post.id]?.trim()}
-                      className="rounded-full bg-rose-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
-                    >
-                      Post
-                    </button>
-                  </div>
                 </div>
               )}
             </article>
@@ -872,6 +893,7 @@ export default function CommunityFeedPage() {
         </div>
       )}
       <div ref={bottomRef} className="h-10" />
+      </div>
     </div>
     </PullToRefresh>
   );

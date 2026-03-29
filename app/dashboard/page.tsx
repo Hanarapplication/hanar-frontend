@@ -663,7 +663,7 @@ function DashboardContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-gray-900 px-4 pt-16 pb-10">
+      <div className="min-h-screen bg-slate-50 dark:bg-gray-900 px-4 pt-14 pb-10">
         <div className="max-w-5xl mx-auto space-y-6">
           <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-6 sm:p-8">
             <div className="flex items-center gap-6">
@@ -691,18 +691,19 @@ function DashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-gray-900 px-4 pt-16 pb-10">
+    <div className="min-h-screen bg-slate-50 dark:bg-gray-900 px-4 pt-14 pb-10">
       <DashboardBurgerMenu open={burgerMenuOpen} onOpen={() => setBurgerMenuOpen(true)} onClose={() => setBurgerMenuOpen(false)} items={burgerItems} />
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Profile card */}
         <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg shadow-slate-100/60 dark:shadow-black/20 p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             <label className="relative block shrink-0 cursor-pointer group">
-              <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-slate-200 dark:border-gray-600 bg-slate-100 dark:bg-gray-700 ring-2 ring-transparent group-hover:ring-indigo-200 dark:group-hover:ring-indigo-500 transition">
+              <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-amber-400/90 bg-slate-100 ring-2 ring-transparent transition group-hover:ring-indigo-200 dark:border-amber-500/60 dark:bg-gray-700 dark:group-hover:ring-indigo-500">
                 <Avatar
                   src={profile?.profile_pic_url}
                   alt="Profile"
                   className="h-full w-full rounded-full"
+                  unframed
                 />
               </div>
               <span className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white shadow-md">

@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import { SendHorizontal } from 'lucide-react';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import { Avatar } from '@/components/Avatar';
@@ -33,7 +34,6 @@ export default function CommunityPostPage() {
   const [userSession, setUserSession] = useState<any>(null);
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState<string | null>(null);
-  const [reported, setReported] = useState(false);
   const [commentLikeStates, setCommentLikeStates] = useState<Record<string, boolean>>({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [sortMode, setSortMode] = useState<'latest' | 'popular'>('latest');
@@ -41,6 +41,8 @@ export default function CommunityPostPage() {
   const [bannerTop, setBannerTop] = useState<{ id: string; image: string; link: string; alt: string } | null>(null);
   const [bannerBottom, setBannerBottom] = useState<{ id: string; image: string; link: string; alt: string } | null>(null);
   const [feedRestricted, setFeedRestricted] = useState(false);
+  /** Show first 4 comments until user expands (Facebook-style). */
+  const [commentsExpanded, setCommentsExpanded] = useState(false);
 
   useEffect(() => {
     let lat: number | null = null;
@@ -239,14 +241,26 @@ export default function CommunityPostPage() {
     getSessionAndProfile();
   }, [id, sortMode]);
 
+  useEffect(() => {
+    setCommentsExpanded(false);
+  }, [sortMode]);
+
   const handleSortChange = (mode: 'latest' | 'popular') => {
     setSortMode(mode);
   };
 
-  const handleCommentSubmit = async () => {
-    if (!userSession || !newComment.trim() || !username) {
-      return toast.error('Cannot submit comment');
+  const requireLogin = () => {
+    if (!userSession) {
+      const redirect = encodeURIComponent(`/community/post/${id}`);
+      window.location.href = `/login?redirect=${redirect}`;
+      return false;
     }
+    return true;
+  };
+
+  const handleCommentSubmit = async () => {
+    if (!requireLogin()) return;
+    if (!newComment.trim() || !username) return;
 
     const res = await fetch('/api/community/comments', {
       method: 'POST',
@@ -369,14 +383,6 @@ export default function CommunityPostPage() {
     router.push('/community');
   };
 
-  const handleReport = async () => {
-    if (!userSession) return toast.error('Login required');
-    await supabase.from('community_reports').insert([{ post_id: id, reporter: userSession.user.id }]);
-    setReported(true);
-    toast.success('Post reported');
-  };
-  
-
   const isPostAuthor = post?.user_id === userSession?.user?.id;
   const commentCount = comments.length;
 
@@ -395,14 +401,18 @@ export default function CommunityPostPage() {
   }
   if (!post || post.deleted) return <div className="p-6 text-center text-red-500">Post not found.</div>;
 
+  const COMMENTS_PREVIEW = 4;
+  const visibleComments = commentsExpanded ? comments : comments.slice(0, COMMENTS_PREVIEW);
+  const showLoadMoreComments = comments.length > COMMENTS_PREVIEW && !commentsExpanded;
+
   return (
-    <div className="min-h-screen bg-slate-100 py-6">
-      <div className="max-w-3xl mx-auto px-4 space-y-4">
+    <div className="min-h-screen bg-slate-100 py-6 dark:bg-gray-900">
+      <div className="w-full space-y-0">
         {bannerTop?.image && (() => {
           const href = bannerTop.link || '#';
           const isInternal = href.startsWith('/') || href.includes(window.location.hostname);
           return (
-            <div ref={bannerTopRef} className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+            <div ref={bannerTopRef} className="overflow-hidden border-b border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
               <Link href={href} {...(isInternal ? {} : { target: '_blank', rel: 'noopener noreferrer' })} className="block w-full">
                 <div className="relative w-full aspect-[3/1] max-h-32 bg-slate-100">
                   <img
@@ -418,7 +428,7 @@ export default function CommunityPostPage() {
           );
         })()}
 
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <article className="border-b border-slate-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center justify-between text-xs text-slate-500">
             <div className="flex flex-wrap items-center gap-2">
               {post.author_type === 'organization' && post.username ? (
@@ -488,24 +498,128 @@ export default function CommunityPostPage() {
             postTitle={post.title}
           />
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-sm">
-            {!reported && userSession && (
+          <div className="mt-4 border-t border-slate-100 pt-4 dark:border-gray-600">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Comments</h3>
+            <div className="mt-3 flex gap-4 text-xs text-slate-500 dark:text-gray-400">
+              <span>Sort by:</span>
+              <button type="button" onClick={() => handleSortChange('latest')} className={sortMode === 'latest' ? 'font-semibold text-rose-600 dark:text-rose-400' : ''}>
+                Latest
+              </button>
+              <button type="button" onClick={() => handleSortChange('popular')} className={sortMode === 'popular' ? 'font-semibold text-rose-600 dark:text-rose-400' : ''}>
+                Most Popular
+              </button>
+            </div>
+
+            <div className="mt-4">
+              {comments.length === 0 && (
+                <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
+              )}
+              {visibleComments.length > 0 && (
+              <div className="-mx-5 flex flex-col gap-0">
+              {visibleComments.map((c) => (
+                <div
+                  key={c.id}
+                  className="rounded-lg border border-amber-400/90 bg-slate-50 px-5 py-3 dark:border-amber-500/50 dark:bg-gray-700/80"
+                >
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <div className="h-7 w-7 flex-shrink-0 overflow-hidden rounded-full">
+                      <Avatar
+                        src={c.profiles?.profile_pic_url ? `${c.profiles.profile_pic_url}?t=${Date.now()}` : null}
+                        alt="avatar"
+                        className="h-full w-full rounded-full"
+                      />
+                    </div>
+                    {c.username ? (
+                      <Link href={`/profile/${c.username}`} className="text-xs text-indigo-600 hover:underline dark:text-indigo-400">
+                        {c.author || c.username || 'User'}
+                      </Link>
+                    ) : (
+                      <span className="text-xs text-slate-700 dark:text-gray-200">{c.author || 'User'}</span>
+                    )}
+                    <span>• {new Date(c.created_at).toLocaleDateString()}</span>
+                    {userSession && (
+                      <button
+                        type="button"
+                        onClick={() => handleCommentLike(c.id)}
+                        aria-label={commentLikeStates[c.id] ? 'Unlike comment' : 'Like comment'}
+                        aria-pressed={!!commentLikeStates[c.id]}
+                        className={`ml-auto inline-flex items-center gap-1 text-xs font-medium ${commentLikeStates[c.id] ? 'text-rose-600' : 'text-gray-500 dark:text-gray-400'} hover:opacity-90`}
+                      >
+                        <span aria-hidden>{commentLikeStates[c.id] ? '💙' : '👍'}</span>
+                        <span className="tabular-nums">{c.likes ?? c.likes_comment ?? 0}</span>
+                      </button>
+                    )}
+                    {!userSession && (
+                      <span className="ml-auto inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                        <span aria-hidden>👍</span>
+                        <span className="tabular-nums">{c.likes ?? c.likes_comment ?? 0}</span>
+                      </span>
+                    )}
+                    {userSession?.user?.id === c.user_id && (
+                      <button type="button" onClick={() => handleDeleteComment(c.id)} className="ml-2 text-xs text-red-500 hover:underline">
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-2 text-sm text-slate-700 dark:text-gray-200">{c.body ?? c.text}</p>
+                </div>
+              ))}
+              </div>
+              )}
+            </div>
+
+            {showLoadMoreComments && (
               <button
-                onClick={handleReport}
-                className="rounded-full bg-orange-500 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-orange-600"
+                type="button"
+                onClick={() => setCommentsExpanded(true)}
+                className="mt-3 w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-gray-600 dark:bg-gray-700/80 dark:text-gray-200 dark:hover:bg-gray-700"
               >
-                🚩 Report
+                Load more comments
               </button>
             )}
+          </div>
+
+          <div id="comment-box" className="mt-4 border-t border-slate-100 pt-4 dark:border-gray-600">
+            {!userSession && <p className="mb-2 text-xs italic text-slate-500 dark:text-gray-400">Log in to comment.</p>}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onFocus={() => {
+                  if (!userSession) requireLogin();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCommentSubmit();
+                }}
+                placeholder={userSession ? 'Write a comment...' : 'Log in to write a comment'}
+                disabled={!userSession}
+                className="flex-1 rounded-full border border-sky-300 px-4 py-2 text-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-400 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-sky-300 dark:focus:ring-sky-400/45 dark:placeholder-gray-400"
+              />
+              <button
+                type="button"
+                onClick={handleCommentSubmit}
+                disabled={!userSession || !newComment.trim()}
+                aria-label="Post comment"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-sky-200 disabled:text-sky-100/90 dark:bg-sky-600 dark:hover:bg-sky-500 dark:disabled:bg-slate-600 dark:disabled:text-slate-400"
+              >
+                <SendHorizontal className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-sm dark:border-gray-600">
             {isPostAuthor && (
               <>
                 <button
+                  type="button"
                   onClick={() => toast('Promote coming soon.')}
                   className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700"
                 >
                   📢 Promote
                 </button>
                 <button
+                  type="button"
                   onClick={confirmDeletePost}
                   className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-red-700"
                 >
@@ -516,79 +630,11 @@ export default function CommunityPostPage() {
           </div>
         </article>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-700">Comments</h3>
-          <div id="comment-box" className="mt-3">
-            {!userSession ? (
-              <p className="text-xs text-slate-500 italic">Login to comment</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <textarea
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  className="w-full border border-slate-200 p-3 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
-                  rows={3}
-                  placeholder="Write your comment here..."
-                />
-                <button
-                  onClick={handleCommentSubmit}
-                  className="self-end rounded-full bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700"
-                >
-                  Post Comment
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-4 flex gap-4 text-xs text-slate-500">
-            <span>Sort by:</span>
-            <button onClick={() => handleSortChange('latest')} className={sortMode === 'latest' ? 'font-semibold text-rose-600' : ''}>Latest</button>
-            <button onClick={() => handleSortChange('popular')} className={sortMode === 'popular' ? 'font-semibold text-rose-600' : ''}>Most Popular</button>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {comments.length === 0 && (
-              <p className="text-xs text-slate-500">Be the first to comment.</p>
-            )}
-            {comments.map(c => (
-              <div key={c.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
-                    <Avatar
-                      src={c.profiles?.profile_pic_url ? `${c.profiles.profile_pic_url}?t=${Date.now()}` : null}
-                      alt="avatar"
-                      className="w-full h-full rounded-full"
-                    />
-                  </div>
-                  <Link href={`/profile/${c.username}`} className="text-indigo-600 hover:underline text-xs">
-                    {c.author || c.username || 'User'}
-                  </Link>
-                  <span>• {new Date(c.created_at).toLocaleDateString()}</span>
-                  {userSession && (
-                    <button
-                      onClick={() => handleCommentLike(c.id)}
-                      className={`ml-auto text-xs ${commentLikeStates[c.id] ? 'text-rose-600 font-semibold' : 'text-gray-500'} hover:underline`}
-                    >
-                      {commentLikeStates[c.id] ? '💙 Liked' : '👍 Like'} ({c.likes ?? c.likes_comment ?? 0})
-                    </button>
-                  )}
-                  {userSession?.user?.id === c.user_id && (
-                    <button onClick={() => handleDeleteComment(c.id)} className="text-xs text-red-500 hover:underline ml-2">
-                      Delete
-                    </button>
-                  )}
-                </div>
-                <p className="mt-2 text-sm text-slate-700">{c.body ?? c.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {bannerBottom?.image && (() => {
           const href = bannerBottom.link || '#';
           const isInternal = href.startsWith('/') || href.includes(window.location.hostname);
           return (
-            <div ref={bannerBottomRef} className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+            <div ref={bannerBottomRef} className="overflow-hidden border-b border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
               <Link href={href} {...(isInternal ? {} : { target: '_blank', rel: 'noopener noreferrer' })} className="block w-full">
                 <div className="relative w-full aspect-[3/1] max-h-32 bg-slate-100">
                   <img

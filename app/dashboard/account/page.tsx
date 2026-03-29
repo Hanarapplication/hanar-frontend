@@ -92,7 +92,7 @@ function DashboardAccountContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 pt-16 pb-12">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 pt-14 pb-12">
       <div className="max-w-xl mx-auto">
         <Link
           href={appIOS ? withAppParam('/dashboard', true) : '/dashboard'}

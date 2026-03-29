@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '@/lib/supabaseClient';
 import Link from 'next/link';
-import { User, Trash2, X, ShoppingBag, Building2, Ban } from 'lucide-react';
+import { User, Trash2, X, ShoppingBag, Building2, Ban, SendHorizontal } from 'lucide-react';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import { Avatar } from '@/components/Avatar';
@@ -795,11 +795,12 @@ export default function ProfilePage() {
       <div className="mx-auto max-w-2xl border-x border-slate-200 dark:border-gray-800 bg-white dark:bg-gray-900 min-h-screen">
         <div className="px-4 pt-6 pb-6 flex gap-4 sm:gap-6 items-start">
           {/* Avatar */}
-          <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-full border-4 border-white dark:border-gray-900 bg-slate-200 dark:bg-gray-700 overflow-hidden shadow-lg shrink-0">
+          <div className="h-24 w-24 sm:h-28 sm:w-28 shrink-0 overflow-hidden rounded-full border-2 border-amber-400/90 bg-slate-200 shadow-lg dark:border-amber-500/60 dark:bg-gray-700">
             <Avatar
               src={profilePicUrl}
               alt={`@${profile.username}`}
               className="h-full w-full rounded-full"
+              unframed
             />
           </div>
 
@@ -968,6 +969,14 @@ export default function ProfilePage() {
                       ))}
                     </div>
                   )}
+                  <div className="mt-2">
+                    <Link
+                      href={`/community/post/${post.id}`}
+                      className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+                    >
+                      View post
+                    </Link>
+                  </div>
                   <PostActionsBar
                     liked={likedPosts.has(post.id)}
                     likesCount={post.likes_post ?? 0}
@@ -978,15 +987,31 @@ export default function ProfilePage() {
                     onShare={() => handleShare(post.id, post.title)}
                     postId={post.id}
                     postTitle={post.title}
+                    className="mt-1.5"
                   />
-                  <div className="mt-2">
-                    <Link
-                      href={`/community/post/${post.id}`}
-                      className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
-                    >
-                      View post
-                    </Link>
-                  </div>
+                  {currentUser && (
+                    <div className="mt-2 flex items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-2">
+                      <input
+                        type="text"
+                        value={commentInput[post.id] || ''}
+                        onChange={(e) => setCommentInput((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                        placeholder="Write a comment..."
+                        className="flex-1 rounded-full border border-sky-300 px-4 py-2 text-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200/90 dark:border-sky-400 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-sky-300 dark:focus:ring-sky-400/45 dark:placeholder-gray-400"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleAddComment(post.id);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddComment(post.id)}
+                        disabled={postingComment[post.id] || !commentInput[post.id]?.trim()}
+                        aria-label="Post comment"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-sky-200 disabled:text-sky-100/90 dark:bg-sky-600 dark:hover:bg-sky-500 dark:disabled:bg-slate-600 dark:disabled:text-slate-400"
+                      >
+                        <SendHorizontal className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+                      </button>
+                    </div>
+                  )}
 
                   {expandedPosts.has(post.id) && (
                     <div className="mt-4 border-t border-slate-100 dark:border-gray-600 pt-4">
@@ -999,7 +1024,7 @@ export default function ProfilePage() {
                               <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
                             )}
                             {(commentsByPost[post.id] || []).map((c) => (
-                              <div key={c.id} className="rounded-lg bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm flex gap-2">
+                              <div key={c.id} className="rounded-lg border border-amber-400/80 dark:border-amber-500/45 bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm flex gap-2">
                                 <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                                   <Avatar
                                     src={c.profiles?.profile_pic_url ? `${c.profiles.profile_pic_url}?t=${Date.now()}` : null}
@@ -1019,43 +1044,29 @@ export default function ProfilePage() {
                                       <button
                                         type="button"
                                         onClick={() => handleCommentLike(post.id, c.id)}
-                                        className={`text-xs font-medium transition ${
+                                        aria-label={c.user_liked ? 'Unlike comment' : 'Like comment'}
+                                        aria-pressed={!!c.user_liked}
+                                        className={`inline-flex items-center gap-1 text-xs font-medium transition ${
                                           c.user_liked ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-gray-500 hover:text-rose-500 dark:hover:text-rose-400'
                                         }`}
                                       >
-                                        👍 {c.user_liked ? 'Liked' : 'Like'}
+                                        <span aria-hidden>👍</span>
+                                        <span className="tabular-nums text-slate-500 dark:text-gray-400">
+                                          {c.likes ?? c.likes_comment ?? 0}
+                                        </span>
                                       </button>
                                     )}
-                                    <span className="text-xs text-slate-400 dark:text-gray-500">
-                                      {c.likes ?? c.likes_comment ?? 0} likes
-                                    </span>
+                                    {!currentUser?.id && (
+                                      <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-gray-500">
+                                        <span aria-hidden>👍</span>
+                                        <span className="tabular-nums">{c.likes ?? c.likes_comment ?? 0}</span>
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               </div>
                             ))}
                           </div>
-                          {currentUser && (
-                            <div className="mt-3 flex items-center gap-2">
-                              <input
-                                type="text"
-                                value={commentInput[post.id] || ''}
-                                onChange={(e) => setCommentInput((prev) => ({ ...prev, [post.id]: e.target.value }))}
-                                placeholder="Write a comment..."
-                                className="flex-1 rounded-full border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:placeholder-gray-400"
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') handleAddComment(post.id);
-                                }}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleAddComment(post.id)}
-                                disabled={postingComment[post.id] || !commentInput[post.id]?.trim()}
-                                className="rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-                              >
-                                Post
-                              </button>
-                            </div>
-                          )}
                         </>
                       )}
                     </div>

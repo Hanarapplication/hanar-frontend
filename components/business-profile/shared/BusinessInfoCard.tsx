@@ -34,7 +34,7 @@ export function BusinessInfoCard({
           <div className="flex items-center gap-4 flex-1 min-w-0">
             {business.logo_url && (
               <div
-                className="w-24 sm:w-28 h-24 sm:h-28 flex-shrink-0 rounded-xl overflow-hidden shadow-md"
+                className="w-24 sm:w-28 h-24 sm:h-28 flex-shrink-0 rounded-xl overflow-hidden shadow-md ring-1 ring-inset ring-amber-400/90 dark:ring-amber-500/55"
                 style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.border}` }}
               >
                 <img

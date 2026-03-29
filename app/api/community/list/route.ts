@@ -124,6 +124,7 @@ export async function POST(req: Request) {
     const limit = 10;
     const feedLang = (lang && String(lang).toLowerCase()) || '';
     const useLangPriority = feedLang && feedLang !== 'all';
+    const hasSearch = String(search || '').trim() !== '';
 
     const base = () =>
       supabaseAdmin
@@ -135,7 +136,8 @@ export async function POST(req: Request) {
     let posts: unknown[] = [];
     let usedPersonalizedRanking = false;
 
-    const usePersonalizedLatest = sortMode === 'latest' && !useLangPriority;
+    // Personalized ranking loads a large pool + like counts + rank — skip when searching for fast results
+    const usePersonalizedLatest = sortMode === 'latest' && !useLangPriority && !hasSearch;
 
     if (usePersonalizedLatest) {
       usedPersonalizedRanking = true;

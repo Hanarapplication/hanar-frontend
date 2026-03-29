@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
+import { readSavedSearchRadiusMiles } from '@/lib/geoDistance';
 
 export default function LocationPromptModal() {
   const [showModal, setShowModal] = useState(false);
@@ -57,19 +58,43 @@ export default function LocationPromptModal() {
   const handleAllow = () => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const coords = {
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
-        };
-        localStorage.setItem('userCoords', JSON.stringify(coords));
-        localStorage.setItem('hasSeenLocationPrompt', 'true');
-        persistLocation(coords.lat, coords.lon, {
-          source: 'gps',
-        });
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('location:updated', { detail: { ...coords, source: 'gps' } }));
-        }
-        setShowModal(false);
+        void (async () => {
+          const coords = {
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude,
+          };
+          localStorage.setItem('userCoords', JSON.stringify(coords));
+          localStorage.setItem('hasSeenLocationPrompt', 'true');
+          void persistLocation(coords.lat, coords.lon, { source: 'gps' });
+
+          const radiusMiles = readSavedSearchRadiusMiles(40);
+          let label: string | undefined;
+          try {
+            const res = await fetch(
+              `/api/geocode/reverse?lat=${encodeURIComponent(coords.lat)}&lon=${encodeURIComponent(coords.lon)}`
+            );
+            const data = await res.json();
+            const city =
+              data.address?.city ||
+              data.address?.town ||
+              data.address?.village ||
+              data.address?.state ||
+              data.display_name;
+            if (city) {
+              label = String(city);
+              localStorage.setItem('userLocationLabel', label);
+            }
+          } catch {
+            /* optional label */
+          }
+
+          window.dispatchEvent(
+            new CustomEvent('location:updated', {
+              detail: { ...coords, label, radiusMiles, source: 'gps' },
+            })
+          );
+          setShowModal(false);
+        })();
       },
       () => {
         setShowFallback(true);
@@ -99,6 +124,7 @@ export default function LocationPromptModal() {
       source: 'google_places',
     });
     if (typeof window !== 'undefined') {
+      const radiusMiles = readSavedSearchRadiusMiles(40);
       window.dispatchEvent(new CustomEvent('location:updated', {
         detail: {
           ...coords,
@@ -106,6 +132,7 @@ export default function LocationPromptModal() {
           city: cityValue,
           state: stateValue,
           zip: zipValue,
+          radiusMiles,
           source: 'google_places',
         },
       }));

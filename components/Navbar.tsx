@@ -1,19 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { FaMapMarkerAlt, FaBell, FaBars, FaSearch, FaCheck } from 'react-icons/fa';
+import { FaBell, FaBars, FaComments, FaSearch } from 'react-icons/fa';
 import { usePathname } from 'next/navigation';
 import MobileMenu from './MobileMenu';
 import { supabase } from '@/lib/supabaseClient';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
-import { readSavedSearchRadiusMiles, writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
+import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
 
-type CityResult = { label: string; lat: number; lng: number };
+const HEADER_SEARCH_BORDER =
+  'border border-amber-400 dark:border-amber-500/90 focus:ring-2 focus:ring-amber-300/80 dark:focus:ring-amber-400/60 focus:border-amber-500 dark:focus:border-amber-400';
 
 type SearchResultItem = {
   type: 'user' | 'business' | 'organization';
@@ -24,17 +23,6 @@ type SearchResultItem = {
 };
 
 export default function Navbar() {
-  const [locationLabel, setLocationLabel] = useState<string | null>(null);
-  const [locationModalOpen, setLocationModalOpen] = useState(false);
-  const [locationRequired, setLocationRequired] = useState(false);
-  const [locationSearchQuery, setLocationSearchQuery] = useState('');
-  const [locationSearchResults, setLocationSearchResults] = useState<CityResult[]>([]);
-  const [locationSearchLoading, setLocationSearchLoading] = useState(false);
-  const [locationRequesting, setLocationRequesting] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [locationRadiusMiles, setLocationRadiusMiles] = useState(() => readSavedSearchRadiusMiles(40));
-  const locationSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const locationModalRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
@@ -136,63 +124,12 @@ export default function Navbar() {
     }
   }, []);
 
-  const applyLocation = useCallback((lat: number, lon: number, label: string | null, meta?: { city?: string | null; state?: string | null; zip?: string | null; source?: string }) => {
-    localStorage.setItem('userCoords', JSON.stringify({ lat, lon }));
-    writeSavedSearchRadiusMiles(locationRadiusMiles);
-    if (label) {
-      localStorage.setItem('userLocationLabel', label);
-      setLocationLabel(label);
-    }
-    persistLocation(lat, lon, meta);
-    window.dispatchEvent(new CustomEvent('location:updated', { detail: { lat, lon, label, radiusMiles: locationRadiusMiles, ...meta } }));
-  }, [locationRadiusMiles, persistLocation]);
-
-  const fetchLabelFromCoords = useCallback((lat: number, lon: number) => {
-    fetch(`/api/geocode/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`)
-      .then((res) => res.json())
-      .then((data) => {
-        const city =
-          data.address?.city ||
-          data.address?.town ||
-          data.address?.village ||
-          data.address?.state ||
-          data.display_name;
-        if (city) {
-          localStorage.setItem('userLocationLabel', city);
-          setLocationLabel(city);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    setLocationRadiusMiles(readSavedSearchRadiusMiles(40));
-    const storedLabel = typeof localStorage !== 'undefined' ? localStorage.getItem('userLocationLabel') : null;
-    const storedCoords = typeof localStorage !== 'undefined' ? localStorage.getItem('userCoords') : null;
-    if (storedLabel) {
-      setLocationLabel(storedLabel);
-    } else if (storedCoords) {
-      try {
-        const { lat, lon } = JSON.parse(storedCoords);
-        if (typeof lat === 'number' && typeof lon === 'number') fetchLabelFromCoords(lat, lon);
-      } catch {}
-    } else {
-      setLocationModalOpen(true);
-      setLocationRequired(true);
-    }
-  }, [fetchLabelFromCoords]);
-
+  /** Keep shared location prefs in sync when Set on Businesses/Marketplace/Location prompt (no header UI). */
   useEffect(() => {
     const handleLocationUpdated = (event: Event) => {
-      const detail = (event as CustomEvent).detail as { lat?: number; lon?: number; label?: string; radiusMiles?: number; city?: string | null; state?: string | null; zip?: string | null; source?: string } | undefined;
-      if (detail?.lat != null && detail?.lon != null) {
-        setLocationLabel(detail.label ?? null);
-        if (detail.label) localStorage.setItem('userLocationLabel', detail.label);
-      }
-      if (detail?.radiusMiles != null) {
-        setLocationRadiusMiles(detail.radiusMiles);
-        writeSavedSearchRadiusMiles(detail.radiusMiles);
-      }
+      const detail = (event as CustomEvent).detail as { label?: string; radiusMiles?: number } | undefined;
+      if (detail?.label) localStorage.setItem('userLocationLabel', detail.label);
+      if (detail?.radiusMiles != null) writeSavedSearchRadiusMiles(detail.radiusMiles);
     };
     window.addEventListener('location:updated', handleLocationUpdated as EventListener);
     return () => window.removeEventListener('location:updated', handleLocationUpdated as EventListener);
@@ -212,37 +149,6 @@ export default function Navbar() {
     const { data: authListener } = supabase.auth.onAuthStateChange(() => { syncStoredLocationIfLoggedIn(); });
     return () => authListener?.subscription?.unsubscribe();
   }, [persistLocation]);
-
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !locationRequired) setLocationModalOpen(false);
-    };
-    if (locationModalOpen) document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [locationModalOpen, locationRequired]);
-
-  useEffect(() => {
-    const q = locationSearchQuery.trim();
-    if (q.length < 2) {
-      setLocationSearchResults([]);
-      return;
-    }
-    if (locationSearchTimeoutRef.current) clearTimeout(locationSearchTimeoutRef.current);
-    setLocationSearchLoading(true);
-    locationSearchTimeoutRef.current = setTimeout(() => {
-      locationSearchTimeoutRef.current = null;
-      fetch(`/api/geocode/cities?q=${encodeURIComponent(q)}`)
-        .then((res) => res.json())
-        .then((data) => {
-          setLocationSearchResults(Array.isArray(data.results) ? data.results : []);
-        })
-        .catch(() => setLocationSearchResults([]))
-        .finally(() => setLocationSearchLoading(false));
-    }, 280);
-    return () => {
-      if (locationSearchTimeoutRef.current) clearTimeout(locationSearchTimeoutRef.current);
-    };
-  }, [locationSearchQuery]);
 
   useEffect(() => {
     const loadUnreadCount = async () => {
@@ -288,279 +194,96 @@ export default function Navbar() {
     return () => window.removeEventListener('notifications:updated', handler);
   }, []);
 
-  const useMyLocation = useCallback(() => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setLocationError(t(effectiveLang, 'Location is not supported by your browser'));
-      return;
-    }
-    setLocationError(null);
-    setLocationRequesting(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        try {
-          localStorage.setItem('userCoords', JSON.stringify({ lat, lon }));
-          writeSavedSearchRadiusMiles(locationRadiusMiles);
-          persistLocation(lat, lon, { source: 'gps' });
-          window.dispatchEvent(new CustomEvent('location:updated', { detail: { lat, lon, radiusMiles: locationRadiusMiles } }));
-        } catch (_) {}
-        fetchLabelFromCoords(lat, lon);
-        setLocationRequesting(false);
-        setLocationModalOpen(false);
-        setLocationRequired(false);
-      },
-      () => {
-        setLocationRequesting(false);
-        setLocationError(t(effectiveLang, 'Could not get location. Please allow access or search for a city.'));
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-    );
-  }, [effectiveLang, locationRadiusMiles, persistLocation, fetchLabelFromCoords]);
-
-  const chooseCity = useCallback((city: CityResult) => {
-    applyLocation(city.lat, city.lng, city.label, { source: 'search' });
-    setLocationSearchQuery('');
-    setLocationSearchResults([]);
-    setLocationModalOpen(false);
-    setLocationRequired(false);
-  }, [applyLocation]);
-
-  const openLocationModal = () => {
-    setLocationError(null);
-    setLocationSearchQuery('');
-    setLocationSearchResults([]);
-    setLocationRequired(!locationLabel);
-    setLocationModalOpen(true);
-  };
-
   return (
     <>
-      <nav className="bg-rose-800 dark:bg-rose-900 h-16 flex items-center justify-between px-4 sticky top-0 z-50 transition-all relative border-b border-rose-700 dark:border-rose-800">
-        {/* Logo */}
-        <div className="flex items-center shrink-0">
-          <Link href="/" className="focus:outline-none block">
-            <Image
-              src="/hanar.logo.png"
-              alt="Hanar Logo"
-              width={100}
-              height={40}
-              className="h-10 w-auto object-contain transition-transform transform hover:scale-105 focus:scale-105"
-              unoptimized
-              priority
-            />
+      <nav className="bg-white dark:bg-slate-900 h-[3.75rem] sm:h-16 flex items-center justify-between gap-2 px-3 sticky top-0 z-50 transition-all relative border-b border-slate-200 dark:border-slate-800">
+        {/* Messages + search */}
+        <div className="flex flex-1 max-w-md mx-1.5 sm:mx-3 items-center gap-2 sm:gap-2.5 min-w-0">
+          <Link
+            href="/messages"
+            className="shrink-0 rounded-full p-1.5 text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/55 dark:focus-visible:ring-rose-500/45"
+            aria-label="Messages"
+          >
+            <FaComments className="text-xl" />
           </Link>
-        </div>
-
-        {/* Search bar - Facebook style */}
-        <div className="flex-1 max-w-md mx-2 sm:mx-4 relative" ref={dropdownRef}>
-          <div className="relative">
-            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-rose-200 text-sm pointer-events-none" />
-            <input
-              type="search"
-              placeholder={t(effectiveLang, 'Search')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchOpen(true)}
-              className="w-full h-9 pl-9 pr-3 rounded-full bg-rose-700/50 dark:bg-rose-950/40 border border-rose-500/45 dark:border-rose-800/60 text-white placeholder-rose-200 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-transparent"
-              aria-label="Search"
-            />
-          </div>
-          {searchOpen && (searchQuery.trim().length >= 1 || searchResults.length > 0) && (
-            <div className="absolute top-full left-0 mt-1.5 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-[100] max-h-[70vh] overflow-y-auto w-[min(100vw-2rem,440px)] min-w-[280px]">
-              {searchLoading ? (
-                <div className="p-6 text-center text-slate-500 dark:text-slate-400 text-base">
-                  {t(effectiveLang, 'Searching…')}
-                </div>
-              ) : searchQuery.trim().length >= 1 && searchResults.length === 0 ? (
-                <div className="p-6 text-center text-slate-500 dark:text-slate-400 text-base">
-                  {t(effectiveLang, 'No results found')}
-                </div>
-              ) : (
-                <ul className="py-2">
-                  {searchResults.map((item, idx) => (
-                    <li key={`${item.type}-${item.href}-${idx}`}>
-                      <button
-                        type="button"
-                        onClick={() => handleSearchSelect(item.href)}
-                        className="w-full flex items-center gap-4 px-4 py-3.5 text-left hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-colors"
-                      >
-                        <span className="w-14 h-14 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center shrink-0 overflow-hidden">
-                          {item.imageUrl ? (
-                            <img
-                              src={item.imageUrl}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-slate-500 dark:text-slate-400 text-xl font-medium">
-                              {item.label.charAt(0).toUpperCase()}
-                            </span>
-                          )}
-                        </span>
-                        <div className="flex-1 min-w-0 text-left overflow-hidden">
-                          <div className="font-semibold text-slate-800 dark:text-slate-200 text-base break-words">
-                            {item.label}
-                          </div>
-                          {item.subtitle && (
-                            <div className="text-sm text-slate-500 dark:text-slate-400 break-words mt-0.5">
-                              {item.subtitle}
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+          <div className="flex-1 min-w-0 relative" ref={dropdownRef}>
+            <div className="relative">
+              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-sm pointer-events-none" />
+              <input
+                type="search"
+                placeholder={t(effectiveLang, 'Search')}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setSearchOpen(true)}
+                className={`w-full h-9 pl-9 pr-3 rounded-full bg-white dark:bg-gray-100 text-slate-900 placeholder-slate-400 text-sm shadow-sm focus:outline-none ${HEADER_SEARCH_BORDER}`}
+                aria-label="Search"
+              />
             </div>
-          )}
+            {searchOpen && (searchQuery.trim().length >= 1 || searchResults.length > 0) && (
+              <div className="absolute top-full left-0 mt-1.5 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-[100] max-h-[70vh] overflow-y-auto w-[min(100vw-2rem,440px)] min-w-[280px]">
+                {searchLoading ? (
+                  <div className="p-6 text-center text-slate-500 dark:text-slate-400 text-base">
+                    {t(effectiveLang, 'Searching…')}
+                  </div>
+                ) : searchQuery.trim().length >= 1 && searchResults.length === 0 ? (
+                  <div className="p-6 text-center text-slate-500 dark:text-slate-400 text-base">
+                    {t(effectiveLang, 'No results found')}
+                  </div>
+                ) : (
+                  <ul className="py-2">
+                    {searchResults.map((item, idx) => (
+                      <li key={`${item.type}-${item.href}-${idx}`}>
+                        <button
+                          type="button"
+                          onClick={() => handleSearchSelect(item.href)}
+                          className="w-full flex items-center gap-4 px-4 py-3.5 text-left hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-colors"
+                        >
+                          <span className="w-14 h-14 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center shrink-0 overflow-hidden">
+                            {item.imageUrl ? (
+                              <img
+                                src={item.imageUrl}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-slate-500 dark:text-slate-400 text-xl font-medium">
+                                {item.label.charAt(0).toUpperCase()}
+                              </span>
+                            )}
+                          </span>
+                          <div className="flex-1 min-w-0 text-left overflow-hidden">
+                            <div className="font-semibold text-slate-800 dark:text-slate-200 text-base break-words">
+                              {item.label}
+                            </div>
+                            {item.subtitle && (
+                              <div className="text-sm text-slate-500 dark:text-slate-400 break-words mt-0.5">
+                                {item.subtitle}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-6 sm:gap-8">
-          {/* Location: click opens popup to set/change location */}
-          <button
-            type="button"
-            onClick={openLocationModal}
-            className="group flex items-center gap-1.5 text-sm text-rose-100 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50 rounded-lg px-2 py-1.5 transition-colors duration-200 max-w-[160px]"
-            aria-label={locationLabel ? t(effectiveLang, 'Change location') : t(effectiveLang, 'Set location')}
-          >
-            <FaMapMarkerAlt size={14} className="text-rose-200 group-hover:text-white shrink-0" />
-            <span className="truncate">
-              {locationLabel ? (
-                <span className="flex items-center gap-1.5">
-                  <span className="truncate">{locationLabel}</span>
-                  <FaCheck className="text-emerald-300 shrink-0 w-3 h-3" aria-hidden />
-                </span>
-              ) : (
-                t(effectiveLang, 'Set location')
-              )}
-            </span>
-          </button>
-
-          {/* Location popup modal — portaled to body so it receives clicks and is on top */}
-          {locationModalOpen && typeof document !== 'undefined' && createPortal(
-            <div
-              className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-              onClick={(e: React.MouseEvent<HTMLDivElement>) => {
-                if (!locationRequired && e.target === e.currentTarget) setLocationModalOpen(false);
-              }}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="location-modal-title"
-            >
-              <div
-                ref={locationModalRef}
-                className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"
-                onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
-              >
-                <div className="p-6">
-                  <h2 id="location-modal-title" className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
-                    {t(effectiveLang, 'Set your location')}
-                  </h2>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">
-                    {t(effectiveLang, 'We’ll use this to show you nearby content and relevant banners.')}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={useMyLocation}
-                    disabled={locationRequesting}
-                    className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:bg-rose-500 disabled:cursor-wait text-white font-medium text-base transition-colors"
-                  >
-                    <FaMapMarkerAlt className="text-lg shrink-0" />
-                    {locationRequesting ? t(effectiveLang, 'Getting location…') : t(effectiveLang, 'Use my location')}
-                  </button>
-                  {locationError && (
-                    <p className="mt-2 text-sm text-red-600 dark:text-red-400">{locationError}</p>
-                  )}
-                  <p className="mt-4 text-xs text-slate-500 dark:text-slate-400 text-center">
-                    {t(effectiveLang, 'Or search for a city')}
-                  </p>
-                  <input
-                    type="text"
-                    value={locationSearchQuery}
-                    onChange={(e) => setLocationSearchQuery(e.target.value)}
-                    placeholder="e.g. Los Angeles, New York"
-                    className="mt-2 w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
-                  />
-                  {locationSearchLoading && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t(effectiveLang, 'Searching…')}</p>
-                  )}
-                  {locationSearchResults.length > 0 && (
-                    <ul className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-600 divide-y divide-slate-100 dark:divide-slate-700">
-                      {locationSearchResults.map((city, idx) => (
-                        <li key={`${city.label}-${idx}`}>
-                          <button
-                            type="button"
-                            onClick={() => chooseCity(city)}
-                            className="w-full text-left px-3 py-2.5 text-sm text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-colors"
-                          >
-                            {city.label}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className="mt-4">
-                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2">
-                      {t(effectiveLang, 'Radius')}: {locationRadiusMiles} {t(effectiveLang, 'miles')}
-                    </label>
-                    <input
-                      type="range"
-                      min="10"
-                      max="100"
-                      step="5"
-                      value={locationRadiusMiles}
-                      onChange={(e) => setLocationRadiusMiles(Number(e.target.value))}
-                      className="w-full h-2 rounded-lg appearance-none bg-slate-200 dark:bg-slate-600 accent-rose-500"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      writeSavedSearchRadiusMiles(locationRadiusMiles);
-                      const stored = localStorage.getItem('userCoords');
-                      if (stored) {
-                        try {
-                          const parsed = JSON.parse(stored) as { lat: number; lon: number };
-                          if (parsed?.lat != null && parsed?.lon != null) {
-                            window.dispatchEvent(new CustomEvent('location:updated', { detail: { lat: parsed.lat, lon: parsed.lon, label: locationLabel, radiusMiles: locationRadiusMiles } }));
-                          }
-                        } catch {
-                          window.dispatchEvent(new CustomEvent('location:updated', { detail: { radiusMiles: locationRadiusMiles } }));
-                        }
-                      } else {
-                        window.dispatchEvent(new CustomEvent('location:updated', { detail: { radiusMiles: locationRadiusMiles } }));
-                      }
-                    }}
-                    className="mt-3 w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-medium text-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                  >
-                    {t(effectiveLang, 'Apply radius')}
-                  </button>
-                </div>
-                {!locationRequired && (
-                  <div className="px-6 py-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700">
-                    <button
-                      type="button"
-                      onClick={() => setLocationModalOpen(false)}
-                      className="w-full py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-                    >
-                      {t(effectiveLang, 'Cancel')}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>,
-            document.body
-          )}
-
+        <div className="flex items-center gap-4 sm:gap-5">
           {/* Notifications */}
-          <Link href="/notifications" className="relative focus:outline-none">
+          <Link
+            href="/notifications"
+            className="relative inline-flex p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/55 dark:focus-visible:ring-rose-500/45 rounded-md"
+          >
             <div className="relative group">
-              <FaBell className="text-rose-100 text-xl group-hover:text-white transition-colors duration-200 cursor-pointer" />
+              <FaBell
+                className="text-xl text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 transition-colors duration-200 cursor-pointer"
+              />
               {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-blue-500 text-white text-[10px] font-semibold px-1 py-0 rounded-full shadow-sm leading-none min-w-[1rem] h-4 inline-flex items-center justify-center">
+                <span className="absolute -top-0.5 -right-0.5 bg-blue-500 text-white text-[10px] font-semibold px-0.5 py-0 rounded-full shadow-sm leading-none min-w-[1rem] h-4 inline-flex items-center justify-center">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
@@ -570,7 +293,7 @@ export default function Navbar() {
           {/* Mobile Menu Toggle */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="text-rose-100 hover:text-white transition-colors duration-200 text-2xl focus:outline-none"
+            className="text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 transition-colors duration-200 text-2xl p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/55 dark:focus-visible:ring-rose-500/45 rounded-md"
             aria-label="Toggle Menu"
           >
             <FaBars />

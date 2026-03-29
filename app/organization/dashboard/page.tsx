@@ -1437,7 +1437,7 @@ function OrganizationDashboardContent() {
   ];
 
   return (
-    <div className="bg-slate-50 min-h-screen font-sans pt-16">
+    <div className="bg-slate-50 min-h-screen font-sans pt-14">
         <DashboardBurgerMenu open={burgerMenuOpen} onOpen={() => setBurgerMenuOpen(true)} onClose={() => setBurgerMenuOpen(false)} items={burgerItems} />
         <div className="fixed top-5 right-5 z-50 space-y-3">
             {notifications.map(n => (

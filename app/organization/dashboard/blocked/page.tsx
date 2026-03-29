@@ -64,7 +64,7 @@ function OrganizationBlockedContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 pt-16">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 pt-14">
         <p className="text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading...')}</p>
       </div>
     );
@@ -73,7 +73,7 @@ function OrganizationBlockedContent() {
   if (!allowed) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-16 pb-10">
+    <div className="min-h-screen bg-slate-50 pt-14 pb-10">
       <DashboardBurgerMenu open={burgerMenuOpen} onOpen={() => setBurgerMenuOpen(true)} onClose={() => setBurgerMenuOpen(false)} items={orgBurgerItems} />
       <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <Link

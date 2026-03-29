@@ -148,7 +148,7 @@ If the user asks unrelated topics, reply:
   return (
     <>
       <div
-        className="fixed bottom-6 right-6 z-50 bg-transparent cursor-pointer transition transform hover:scale-105"
+        className="fixed right-6 z-50 bg-transparent cursor-pointer transition transform hover:scale-105 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))]"
         onClick={() => setOpen(!open)}
       >
         <Image
@@ -161,7 +161,7 @@ If the user asks unrelated topics, reply:
       </div>
 
       {open && (
-        <div className="fixed bottom-20 right-6 z-50 w-80 h-96 bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-200">
+        <div className="fixed right-6 z-50 w-80 h-96 bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-200 bottom-[calc(8.25rem+env(safe-area-inset-bottom,0px))]">
           <div className="flex items-center justify-between p-3 font-bold bg-pink-100 rounded-t-2xl border-b border-gray-300">
             <span>HanarAI 💬</span>
             <button

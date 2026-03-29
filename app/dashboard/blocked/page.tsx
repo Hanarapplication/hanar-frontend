@@ -111,14 +111,14 @@ function BlockedAccountsContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-gray-900 px-4 pt-16">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-gray-900 px-4 pt-14">
         <p className="text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading...')}</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-gray-900 px-4 pt-16 pb-10">
+    <div className="min-h-screen bg-slate-50 dark:bg-gray-900 px-4 pt-14 pb-10">
       <DashboardBurgerMenu open={burgerMenuOpen} onOpen={() => setBurgerMenuOpen(true)} onClose={() => setBurgerMenuOpen(false)} items={burgerItems} />
       <div className="mx-auto max-w-5xl space-y-6">
         <Link

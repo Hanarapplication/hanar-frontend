@@ -4,16 +4,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useKeenSlider } from 'keen-slider/react';
 import Footer from '@/components/Footer';
-import { Trash2, Megaphone } from 'lucide-react';
+import { Trash2, Megaphone, SendHorizontal } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
-import { Avatar } from '@/components/Avatar';
+import { Avatar, LOGO_GOLD_BORDER } from '@/components/Avatar';
+
+/** Gold outline on home feed content cards (posts, listings, sliders, ads). */
+const HOME_FEED_CARD_BORDER = 'border border-amber-400 dark:border-amber-500/90';
 
 type SliderBusiness = { id: string; name: string; category: string; image: string; plan?: string | null };
-type SliderItem = { id: string; title: string; price: string; image: string; business_id?: string | null; business_verified?: boolean };
 type AdBanner = { id: string; image: string; link: string; alt: string };
 
 type CommunityPost = {
@@ -100,10 +102,9 @@ type FeedItem =
   | { type: 'post'; post: CommunityPost }
   | { type: 'business'; business: Business }
   | { type: 'organization'; organization: Organization }
-  | { type: 'item'; item: MarketplaceItem }
+  | { type: 'marketplaceCategorySlider'; categoryLabel: string; items: MarketplaceItem[] }
   | { type: 'ad'; banner: AdBanner }
-  | { type: 'sliderBusinesses' }
-  | { type: 'sliderMarketplace' };
+  | { type: 'sliderBusinesses' };
 
 const getDistanceMiles = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 3958.8;
@@ -177,14 +178,12 @@ function feedItemStableKey(item: FeedItem): string {
       return `b:${item.business.id}`;
     case 'organization':
       return `o:${item.organization.id}`;
-    case 'item':
-      return `i:${item.item.source ?? 'm'}:${item.item.id}`;
+    case 'marketplaceCategorySlider':
+      return `mc:${item.categoryLabel}`;
     case 'ad':
       return `a:${item.banner.id}`;
     case 'sliderBusinesses':
       return 'sb';
-    case 'sliderMarketplace':
-      return 'sm';
     default:
       return 'x';
   }
@@ -232,21 +231,21 @@ const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
   }, [slider]);
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
+    <section className={`rounded-xl ${HOME_FEED_CARD_BORDER} bg-white dark:bg-gray-800 shadow-sm p-4`}>
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-slate-700">Featured Businesses</h2>
         <Link href="/businesses" className="text-xs text-rose-600 hover:underline">View all</Link>
       </div>
       <div ref={sliderRef} className="keen-slider overflow-hidden rounded-lg">
         {items.map((biz) => (
-          <div key={biz.id} className="keen-slider__slide bg-white rounded-lg border border-slate-200">
+          <div key={biz.id} className={`keen-slider__slide rounded-lg border bg-white ${LOGO_GOLD_BORDER}`}>
             <div className="relative">
               <img
                 src={biz.image}
                 alt={biz.name}
                 loading="lazy"
                 decoding="async"
-                className="w-full h-24 object-cover rounded-t-lg"
+                className="h-24 w-full rounded-t-lg object-cover ring-1 ring-inset ring-amber-400/70 dark:ring-amber-500/45"
               />
               {(biz.plan || '').toLowerCase() === 'premium' && (
                 <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-amber-500/90 backdrop-blur-sm px-1 py-[1px] text-[8px] font-bold text-white shadow-sm">
@@ -266,10 +265,19 @@ const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
   );
 };
 
-const MarketplaceSliderCard = ({ items }: { items: SliderItem[] }) => {
-  if (!items.length) return null;
+const MARKETPLACE_CATEGORY_SLIDER_MAX = 20;
+
+const MarketplaceCategorySliderCard = ({
+  categoryLabel,
+  items,
+}: {
+  categoryLabel: string;
+  items: MarketplaceItem[];
+}) => {
+  const slides = items.slice(0, MARKETPLACE_CATEGORY_SLIDER_MAX);
+  if (!slides.length) return null;
   const [sliderRef, slider] = useKeenSlider({
-    loop: true,
+    loop: slides.length > 2,
     slides: { perView: 3, spacing: 8 },
     breakpoints: {
       '(max-width: 768px)': {
@@ -286,41 +294,58 @@ const MarketplaceSliderCard = ({ items }: { items: SliderItem[] }) => {
   }, [slider]);
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-slate-700">Trending Items</h2>
-        <Link href="/marketplace" className="text-xs text-rose-600 hover:underline">Browse</Link>
+    <section className={`rounded-xl ${HOME_FEED_CARD_BORDER} bg-white dark:bg-gray-800 shadow-sm p-4`}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="min-w-0 truncate text-sm font-semibold text-slate-700 dark:text-gray-200">{categoryLabel}</h2>
+        <Link href="/marketplace" className="shrink-0 text-xs text-rose-600 hover:underline dark:text-rose-400">
+          Browse
+        </Link>
       </div>
       <div ref={sliderRef} className="keen-slider overflow-hidden rounded-lg">
-        {items.map((item) => (
-          <div key={item.id} className="keen-slider__slide bg-white rounded-lg border border-slate-200">
+        {slides.map((item) => (
+          <Link
+            key={item.id}
+            href={`/marketplace/${item.slug || item.id}`}
+            className={`keen-slider__slide block rounded-lg border bg-white no-underline dark:bg-gray-800 ${LOGO_GOLD_BORDER}`}
+          >
             <div className="relative">
               <img
-                src={item.image}
+                src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
                 alt={item.title}
                 loading="lazy"
                 decoding="async"
-                className="w-full h-24 object-cover rounded-t-lg"
+                className="h-24 w-full rounded-t-lg object-cover ring-1 ring-inset ring-amber-400/70 dark:ring-amber-500/45"
               />
-              {item.business_id && (
-                item.business_verified ? (
-                  <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-emerald-500/90 backdrop-blur-sm px-1 py-[1px] text-[8px] font-bold text-white shadow-sm">
-                    <svg className="h-2 w-2" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.403 12.652a3 3 0 010-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-5.11-1.36a.75.75 0 10-1.085-1.035l-2.165 2.27-.584-.614a.75.75 0 10-1.085 1.035l1.126 1.182a.75.75 0 001.085 0l2.708-2.839z" clipRule="evenodd" /></svg>
+              {item.business_id &&
+                (item.business_verified ? (
+                  <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-emerald-500/90 px-1 py-[1px] text-[8px] font-bold text-white shadow-sm backdrop-blur-sm">
+                    <svg className="h-2 w-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M16.403 12.652a3 3 0 010-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-5.11-1.36a.75.75 0 10-1.085-1.035l-2.165 2.27-.584-.614a.75.75 0 10-1.085 1.035l1.126 1.182a.75.75 0 001.085 0l2.708-2.839z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
                     Verified
                   </span>
                 ) : (
-                  <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-indigo-500/90 backdrop-blur-sm px-1 py-[1px] text-[8px] font-bold text-white shadow-sm">
-                    <svg className="h-2 w-2" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.581.814L10 13.197l-4.419 3.617A1 1 0 014 16V4z" clipRule="evenodd" /></svg>
+                  <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-indigo-500/90 px-1 py-[1px] text-[8px] font-bold text-white shadow-sm backdrop-blur-sm">
+                    <svg className="h-2 w-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path
+                        fillRule="evenodd"
+                        d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.581.814L10 13.197l-4.419 3.617A1 1 0 014 16V4z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
                     Business
                   </span>
-                )
-              )}
+                ))}
             </div>
             <div className="p-2">
-              <p className="text-xs font-semibold text-slate-800 truncate">{item.title}</p>
-              <p className="text-[11px] text-emerald-600 font-semibold">{item.price}</p>
+              <p className="truncate text-xs font-semibold text-slate-800 dark:text-gray-100">{item.title}</p>
+              <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{formatPrice(item.price)}</p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </section>
@@ -353,7 +378,7 @@ function AdCardWithTrack({ banner }: { banner: AdBanner }) {
   return (
     <section
       ref={ref}
-      className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden shadow-sm"
+      className={`rounded-xl ${HOME_FEED_CARD_BORDER} bg-white dark:bg-gray-800 overflow-hidden shadow-sm`}
     >
       <Link href={banner.link} {...(banner.link.startsWith('/') || (typeof window !== 'undefined' && banner.link.includes(window.location.hostname)) ? {} : { target: '_blank', rel: 'noopener noreferrer' })} className="block w-full">
         <div className="relative w-full aspect-[1200/630] bg-slate-100 dark:bg-gray-700">
@@ -404,7 +429,7 @@ function FeedBusinessCardWithTrack({
   return (
     <article
       ref={ref}
-      className="hanar-feed-business-card rounded-xl border border-emerald-200 dark:border-gray-700 bg-emerald-50/60 dark:bg-gray-800 p-5 shadow-sm dark:shadow-lg dark:shadow-black/20"
+      className={`hanar-feed-business-card rounded-xl ${HOME_FEED_CARD_BORDER} bg-emerald-50/60 dark:bg-gray-800 p-5 shadow-sm dark:shadow-lg dark:shadow-black/20`}
     >
       <div className="flex items-center gap-3">
         <Link href={`/business/${business.slug}`} className="shrink-0">
@@ -413,7 +438,7 @@ function FeedBusinessCardWithTrack({
             alt={business.business_name}
             loading="lazy"
             decoding="async"
-            className="h-14 w-14 rounded-lg object-cover"
+            className={`h-14 w-14 rounded-lg object-cover ${LOGO_GOLD_BORDER}`}
           />
         </Link>
         <div>
@@ -581,10 +606,17 @@ export default function Home() {
     }
 
     const handleLocationUpdate = (event: Event) => {
-      const detail = (event as CustomEvent).detail as { lat?: number; lon?: number } | undefined;
+      const detail = (event as CustomEvent).detail as { lat?: number; lon?: number; label?: string } | undefined;
       if (detail?.lat && detail?.lon) {
         setUserCoords({ lat: detail.lat, lon: detail.lon });
         localStorage.setItem('userCoords', JSON.stringify({ lat: detail.lat, lon: detail.lon }));
+      }
+      if (detail?.label) {
+        try {
+          localStorage.setItem('userLocationLabel', detail.label);
+        } catch {
+          /* ignore */
+        }
       }
     };
 
@@ -1091,18 +1123,26 @@ const formatDateLabel = (value?: string | null) => {
     [nearbyBusinesses]
   );
 
-  const trendingItems = useMemo<SliderItem[]>(
-    () =>
-      nearbyMarketplaceItems.slice(0, 8).map((item) => ({
-        id: item.id,
-        title: item.title,
-        price: formatPrice(item.price),
-        image: getFirstImage(item.imageUrls) || '/placeholder.jpg',
-        business_id: item.business_id,
-        business_verified: item.business_verified,
-      })),
-    [nearbyMarketplaceItems]
-  );
+  const marketplaceCategoryFeedBuckets = useMemo(() => {
+    const groups = new Map<string, MarketplaceItem[]>();
+    for (const item of nearbyMarketplaceItems) {
+      const label =
+        item.category && String(item.category).trim() ? String(item.category).trim() : 'Latest on MarketPlace';
+      const list = groups.get(label) ?? [];
+      list.push(item);
+      groups.set(label, list);
+    }
+    return Array.from(groups.entries())
+      .map(([categoryLabel, raw]) => {
+        const items = [...raw].sort((a, b) => sortByCreatedAtDesc(a.created_at, b.created_at));
+        const date = items.reduce(
+          (max, i) => Math.max(max, new Date(i.created_at || 0).getTime()),
+          0
+        );
+        return { categoryLabel, items, date };
+      })
+      .sort((a, b) => b.date - a.date);
+  }, [nearbyMarketplaceItems]);
 
   const requireLogin = () => {
     if (!currentUser.id) {
@@ -1353,6 +1393,12 @@ const formatDateLabel = (value?: string | null) => {
     }
   };
 
+  /** First banner is reserved for the hero slot above the feed; rest are inlined below. */
+  const heroFeedBanner = useMemo(
+    () => feedBanners.find((b) => !!b.image) ?? null,
+    [feedBanners]
+  );
+
   // Mixed feed: random order with some newest cards sprinkled in; sliders + ads layered after.
   const feedItems = useMemo<FeedItem[]>(() => {
     const datedPool: { item: FeedItem; date: number }[] = [];
@@ -1367,8 +1413,16 @@ const formatDateLabel = (value?: string | null) => {
     for (const organization of organizations) {
       datedPool.push({ item: { type: 'organization', organization }, date: new Date(organization.created_at || 0).getTime() });
     }
-    for (const item of nearbyMarketplaceItems) {
-      datedPool.push({ item: { type: 'item', item }, date: new Date(item.created_at || 0).getTime() });
+    for (const bucket of marketplaceCategoryFeedBuckets) {
+      if (!bucket.items.length) continue;
+      datedPool.push({
+        item: {
+          type: 'marketplaceCategorySlider',
+          categoryLabel: bucket.categoryLabel,
+          items: bucket.items,
+        },
+        date: bucket.date,
+      });
     }
 
     let ordered =
@@ -1378,36 +1432,34 @@ const formatDateLabel = (value?: string | null) => {
       for (const business of nearbyBusinesses) {
         ordered.push({ type: 'business', business });
       }
-      for (const item of nearbyMarketplaceItems) {
-        ordered.push({ type: 'item', item });
+      for (const bucket of marketplaceCategoryFeedBuckets) {
+        if (!bucket.items.length) continue;
+        ordered.push({
+          type: 'marketplaceCategorySlider',
+          categoryLabel: bucket.categoryLabel,
+          items: bucket.items,
+        });
       }
     }
 
-    // Insert slider cards at specific positions
-    const hasSlider = featuredBusinesses.length > 0 || trendingItems.length > 0;
-    if (hasSlider && ordered.length > 2) {
-      if (featuredBusinesses.length > 0) {
-        ordered.splice(Math.min(2, ordered.length), 0, { type: 'sliderBusinesses' });
-      }
-      if (trendingItems.length > 0) {
-        const sliderPos = featuredBusinesses.length > 0 ? Math.min(6, ordered.length) : Math.min(2, ordered.length);
-        ordered.splice(sliderPos, 0, { type: 'sliderMarketplace' });
-      }
-    } else if (hasSlider) {
-      if (featuredBusinesses.length > 0) ordered.push({ type: 'sliderBusinesses' });
-      if (trendingItems.length > 0) ordered.push({ type: 'sliderMarketplace' });
+    // Insert featured-business slider at a stable position
+    const hasBizSlider = featuredBusinesses.length > 0;
+    if (hasBizSlider && ordered.length > 2) {
+      ordered.splice(Math.min(2, ordered.length), 0, { type: 'sliderBusinesses' });
+    } else if (hasBizSlider) {
+      ordered.push({ type: 'sliderBusinesses' });
     }
 
-    // Intersperse ad banners every 4-5 items
+    // Intersperse ad banners every 4th item (hero slot uses the first banner)
     const validBanners = feedBanners.filter((b) => !!b.image);
-    if (validBanners.length === 0) return ordered;
+    const inlineBanners = validBanners.length > 1 ? validBanners.slice(1) : [];
+    if (inlineBanners.length === 0) return ordered;
 
     let bannerIdx = 0;
     const result: FeedItem[] = [];
     for (let i = 0; i < ordered.length; i++) {
-      // Insert a banner every 4th content item (starting at position 3)
-      if (i > 0 && i % 4 === 3 && bannerIdx < validBanners.length * 2) {
-        result.push({ type: 'ad', banner: validBanners[bannerIdx % validBanners.length] });
+      if (i > 0 && i % 4 === 3 && bannerIdx < inlineBanners.length * 2) {
+        result.push({ type: 'ad', banner: inlineBanners[bannerIdx % inlineBanners.length] });
         bannerIdx++;
       }
       result.push(ordered[i]);
@@ -1421,7 +1473,7 @@ const formatDateLabel = (value?: string | null) => {
     nearbyBusinesses,
     nearbyMarketplaceItems,
     organizations,
-    trendingItems.length,
+    marketplaceCategoryFeedBuckets,
   ]);
 
   useEffect(() => {
@@ -1446,49 +1498,33 @@ const formatDateLabel = (value?: string | null) => {
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="min-h-screen bg-slate-100 dark:bg-gray-900">
-      <div className="mx-auto max-w-3xl px-4 py-6 space-y-4">
-        <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-lg font-semibold text-slate-800 dark:text-gray-100">Hanar Feed</h1>
-              <p className="text-sm text-slate-500 dark:text-gray-400">
-                A mixed discover feed—posts, businesses, orgs, and listings in varied order, with fresh items sprinkled in as you scroll.
-              </p>
-            </div>
-            {!loading && (
-              <button
-                type="button"
-                onClick={refreshFeed}
-                disabled={refreshing}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-600 disabled:opacity-50 transition"
-              >
-                <svg className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                {refreshing ? 'Refreshing...' : 'Refresh'}
-              </button>
-            )}
+      <div className="w-full pb-6 pt-0">
+        {heroFeedBanner && (
+          <div className="border-b border-black dark:border-gray-500">
+            <AdCardWithTrack banner={heroFeedBanner} />
           </div>
-        </div>
+        )}
 
         {/* New content banner */}
         {hasNewContent && !refreshing && (
-          <button
-            type="button"
-            onClick={refreshFeed}
-            className="w-full rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 px-4 py-3 text-sm font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors shadow-sm flex items-center justify-center gap-2"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-            </svg>
-            New posts available — tap to refresh
-          </button>
+          <div className="border-b border-black dark:border-gray-500">
+            <button
+              type="button"
+              onClick={refreshFeed}
+              className="w-full rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 px-4 py-3 text-sm font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors shadow-sm flex items-center justify-center gap-2"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+              New posts available — tap to refresh
+            </button>
+          </div>
         )}
 
         {loading && (
-          <div className="space-y-4">
+          <div className="divide-y divide-black dark:divide-gray-500">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm space-y-3">
+              <div key={i} className={`rounded-xl ${HOME_FEED_CARD_BORDER} bg-white dark:bg-gray-800 p-5 shadow-sm space-y-3`}>
                 <div className="flex items-center gap-3">
                   <div className="skeleton h-9 w-9 rounded-full" />
                   <div className="flex-1 space-y-1.5">
@@ -1510,7 +1546,9 @@ const formatDateLabel = (value?: string | null) => {
           </div>
         )}
 
-        {!loading && feedItems.slice(0, visibleCount).map((item, index) => {
+        {!loading && feedItems.length > 0 && (
+          <div className="divide-y divide-black dark:divide-gray-500">
+        {feedItems.slice(0, visibleCount).map((item, index) => {
           if (item.type === 'post') {
             const dateLabel = new Date(item.post.created_at).toLocaleDateString();
             const liked = likedPosts.has(item.post.id);
@@ -1518,7 +1556,7 @@ const formatDateLabel = (value?: string | null) => {
             const isCommentsOpen = commentsOpen.has(item.post.id);
             const comments = commentsByPost[item.post.id] || [];
             return (
-              <article key={`post-${item.post.id}-${index}`} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm min-h-[260px] flex flex-col">
+              <article key={`post-${item.post.id}-${index}`} className={`rounded-xl ${HOME_FEED_CARD_BORDER} bg-white dark:bg-gray-800 p-5 shadow-sm`}>
                 <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-gray-400">
                   <div className="flex items-center gap-2 min-w-0">
                     <Avatar
@@ -1574,6 +1612,29 @@ const formatDateLabel = (value?: string | null) => {
                   postId={item.post.id}
                   postTitle={item.post.title}
                 />
+                <div className="mt-2 flex items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-2">
+                  <input
+                    value={commentInputs[item.post.id] || ''}
+                    onChange={(e) =>
+                      setCommentInputs((prev) => ({ ...prev, [item.post.id]: e.target.value }))
+                    }
+                    onFocus={() => {
+                      if (!currentUser.id) requireLogin();
+                    }}
+                    placeholder={currentUser.id ? 'Write a comment...' : 'Log in to write a comment'}
+                    disabled={!currentUser.id}
+                    className="flex-1 rounded-full border border-sky-300 px-4 py-2 text-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-400 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-sky-300 dark:focus:ring-sky-400/45 dark:placeholder-gray-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => submitComment(item.post.id)}
+                    disabled={!currentUser.id || !commentInputs[item.post.id]?.trim()}
+                    aria-label="Post comment"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-sky-200 disabled:text-sky-100/90 dark:bg-sky-600 dark:hover:bg-sky-500 dark:disabled:bg-slate-600 dark:disabled:text-slate-400"
+                  >
+                    <SendHorizontal className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+                  </button>
+                </div>
 
                 {currentUser.id && item.post.user_id === currentUser.id && (
                   <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-3 text-sm">
@@ -1605,7 +1666,7 @@ const formatDateLabel = (value?: string | null) => {
                           <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
                         )}
                         {comments.map((comment) => (
-                          <div key={comment.id} className="rounded-lg bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm flex gap-2">
+                          <div key={comment.id} className="rounded-lg border border-amber-400/80 dark:border-amber-500/45 bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm flex gap-2">
                             <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                               <Avatar
                                 src={comment.profiles?.profile_pic_url ? `${comment.profiles.profile_pic_url}?t=${Date.now()}` : null}
@@ -1623,39 +1684,30 @@ const formatDateLabel = (value?: string | null) => {
                                   <button
                                     type="button"
                                     onClick={() => handleCommentLike(item.post.id, comment.id)}
-                                    className={`text-xs font-medium transition ${
+                                    aria-label={comment.user_liked ? 'Unlike comment' : 'Like comment'}
+                                    aria-pressed={!!comment.user_liked}
+                                    className={`inline-flex items-center gap-1 text-xs font-medium transition ${
                                       comment.user_liked ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-gray-500 hover:text-rose-500 dark:hover:text-rose-400'
                                     }`}
                                   >
-                                    👍 {comment.user_liked ? 'Liked' : 'Like'}
+                                    <span aria-hidden>👍</span>
+                                    <span className="tabular-nums text-slate-500 dark:text-gray-400">
+                                      {comment.likes ?? comment.likes_comment ?? 0}
+                                    </span>
                                   </button>
                                 )}
-                                <span className="text-xs text-slate-400 dark:text-gray-500">
-                                  {comment.likes ?? comment.likes_comment ?? 0} likes
-                                </span>
+                                {!currentUser.id && (
+                                  <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-gray-500">
+                                    <span aria-hidden>👍</span>
+                                    <span className="tabular-nums">{comment.likes ?? comment.likes_comment ?? 0}</span>
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
                         ))}
                       </div>
                     )}
-                    <div className="mt-3 flex items-center gap-2">
-                      <input
-                        value={commentInputs[item.post.id] || ''}
-                        onChange={(e) =>
-                          setCommentInputs((prev) => ({ ...prev, [item.post.id]: e.target.value }))
-                        }
-                        placeholder="Write a comment..."
-                        className="flex-1 rounded-full border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 dark:placeholder-gray-400"
-                      />
-                      <button
-                        onClick={() => submitComment(item.post.id)}
-                        disabled={!commentInputs[item.post.id]?.trim()}
-                        className="rounded-full bg-rose-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
-                      >
-                        Post
-                      </button>
-                    </div>
                   </div>
                 )}
               </article>
@@ -1675,14 +1727,14 @@ const formatDateLabel = (value?: string | null) => {
 
           if (item.type === 'organization') {
             return (
-              <article key={`org-${item.organization.id}-${index}`} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm min-h-[260px] flex flex-col">
+              <article key={`org-${item.organization.id}-${index}`} className={`rounded-xl ${HOME_FEED_CARD_BORDER} bg-white dark:bg-gray-800 p-5 shadow-sm`}>
                 <div className="flex items-center gap-3">
                   <img
                     src={item.organization.logo_url || item.organization.banner_url || 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=600&auto=format&fit=crop'}
                     alt={item.organization.full_name}
                     loading="lazy"
                     decoding="async"
-                    className="h-14 w-14 rounded-lg object-cover"
+                    className={`h-14 w-14 rounded-lg object-cover ${LOGO_GOLD_BORDER}`}
                   />
                   <div>
                     <Link href={`/organization/${item.organization.username}`} className="text-sm font-semibold text-slate-800 dark:text-gray-100 hover:underline">
@@ -1700,53 +1752,13 @@ const formatDateLabel = (value?: string | null) => {
           }
           if (item.type === 'ad') return null;
 
-          if (item.type === 'item') {
+          if (item.type === 'marketplaceCategorySlider') {
             return (
-              <article key={`item-${item.item.id}-${index}`} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm">
-                <Link href={`/marketplace/${item.item.slug || item.item.id}`}>
-                  <div className="relative w-full bg-gray-100 dark:bg-gray-700">
-                    <img
-                      src={getFirstImage(item.item.imageUrls) || '/placeholder.jpg'}
-                      alt={item.item.title}
-                      loading="lazy"
-                      decoding="async"
-                      className="block w-full h-auto max-h-[85vh] object-contain"
-                    />
-                    {item.item.business_id && (
-                      item.item.business_verified ? (
-                        <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-emerald-500/90 backdrop-blur-sm px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm">
-                          <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.403 12.652a3 3 0 010-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-5.11-1.36a.75.75 0 10-1.085-1.035l-2.165 2.27-.584-.614a.75.75 0 10-1.085 1.035l1.126 1.182a.75.75 0 001.085 0l2.708-2.839z" clipRule="evenodd" /></svg>
-                          Verified
-                        </span>
-                      ) : (
-                        <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-indigo-500/90 backdrop-blur-sm px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm">
-                          <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.581.814L10 13.197l-4.419 3.617A1 1 0 014 16V4z" clipRule="evenodd" /></svg>
-                          Business
-                        </span>
-                      )
-                    )}
-                  </div>
-                  <div className="mt-3 space-y-1.5">
-                    <h3 className="text-[15px] font-semibold text-slate-800 dark:text-gray-100 line-clamp-2 tracking-tight leading-snug">{item.item.title}</h3>
-                    <p className="text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{formatPrice(item.item.price)}</p>
-                    {item.item.description && (
-                      <p className="text-sm text-slate-600 dark:text-gray-400 line-clamp-2 leading-relaxed">{item.item.description}</p>
-                    )}
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {item.item.category && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200">
-                          {item.item.category}
-                        </span>
-                      )}
-                      {item.item.location && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-lg bg-slate-200 text-slate-700 dark:bg-slate-600/50 dark:text-slate-200">
-                          {item.item.location}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              </article>
+              <MarketplaceCategorySliderCard
+                key={`mc-${item.categoryLabel}-${index}`}
+                categoryLabel={item.categoryLabel}
+                items={item.items}
+              />
             );
           }
 
@@ -1754,17 +1766,22 @@ const formatDateLabel = (value?: string | null) => {
             return <BusinessSliderCard key={`slider-biz-${index}`} items={featuredBusinesses} />;
           }
 
-          return <MarketplaceSliderCard key={`slider-market-${index}`} items={trendingItems} />;
+          return null;
         })}
+          </div>
+        )}
 
         {!loading && !feedItems.length && (
-          <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 text-sm text-slate-500 dark:text-gray-400">
+          <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             No posts yet. Check back soon.
           </div>
         )}
 
         {!loading && feedItems.length > visibleCount && (
-          <div ref={bottomRef} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 text-xs text-slate-500 dark:text-gray-400 text-center">
+          <div
+            ref={bottomRef}
+            className="rounded-xl border border-slate-200 border-t border-t-black bg-white p-4 text-center text-xs text-slate-500 dark:border-t-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+          >
             Loading more...
           </div>
         )}

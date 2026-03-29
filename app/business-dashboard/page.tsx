@@ -654,7 +654,7 @@ function BusinessDashboardContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 px-4 pt-16 pb-12">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 px-4 pt-14 pb-12">
         <div className="max-w-5xl mx-auto">
           <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-6 space-y-6">
             <div className="flex items-start gap-4">
@@ -730,7 +730,7 @@ function BusinessDashboardContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 px-4 pt-16 pb-12">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 px-4 pt-14 pb-12">
       <DashboardBurgerMenu open={burgerMenuOpen} onOpen={() => setBurgerMenuOpen(true)} onClose={() => setBurgerMenuOpen(false)} items={burgerItems} />
       <div className="max-w-5xl mx-auto">
         <div className="rounded-3xl border-2 border-rose-300 bg-white shadow-lg shadow-slate-100/60">

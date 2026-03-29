@@ -44,6 +44,7 @@ const translations: Record<string, Record<string, string>> = {
     "Personal": "personal",
     "Post to Community": "Post to Community",
     "Home": "Home",
+    "Feed": "Feed",
     "dashboard": "Dashboard",
     "faq": "FAQ / Help",
     "contact": "Contact Us",
