@@ -582,7 +582,7 @@ export default function BusinessesPage() {
                 href={`/business/${biz.slug}`}
                 className="group flex h-full flex-col overflow-hidden rounded-[7px] bg-slate-900 text-sm sm:rounded-[11px] sm:text-base dark:bg-gray-950"
               >
-                <div className="relative aspect-[4/3] overflow-hidden bg-rose-50 dark:bg-gray-700">
+                <div className="relative aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-gray-700">
                   <img
                     src={biz.logo_url || `https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop`}
                     alt={biz.business_name}
@@ -608,7 +608,7 @@ export default function BusinessesPage() {
                   )}
                 </div>
 
-                <div className="flex flex-grow flex-col bg-gradient-to-b from-[#5c1024] to-[#2d0610] p-2.5 sm:p-3.5 dark:from-gray-900 dark:to-black">
+                <div className="flex flex-grow flex-col bg-gradient-to-b from-[#0c1f3c] via-[#151c28] to-[#4a1212] p-2.5 sm:p-3.5 dark:from-[#061018] dark:via-[#0c1520] dark:to-[#2a0c0c]">
                   <div className="mb-1.5 flex flex-wrap gap-1 sm:mb-2">
                     {displayCategory ? (
                       <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium sm:px-2.5 sm:py-1 ${catColor}`}>
@@ -622,7 +622,7 @@ export default function BusinessesPage() {
                     )}
                   </div>
 
-                  <h3 className="mb-1 line-clamp-2 text-sm font-semibold leading-tight text-white transition-colors group-hover:text-rose-200 dark:group-hover:text-rose-200 sm:mb-1.5 sm:text-base">
+                  <h3 className="mb-1 line-clamp-2 text-sm font-semibold leading-tight text-white transition-colors group-hover:text-sky-200 dark:group-hover:text-sky-200 sm:mb-1.5 sm:text-base">
                     {biz.business_name}
                   </h3>
 
@@ -632,7 +632,7 @@ export default function BusinessesPage() {
                     </p>
                   )}
 
-                  <div className="mt-auto inline-block max-w-full rounded border border-white/20 bg-white/10 px-1.5 py-0.5 backdrop-blur-sm dark:border-rose-800 dark:bg-rose-900/60">
+                  <div className="mt-auto inline-block max-w-full rounded border border-white/20 bg-white/10 px-1.5 py-0.5 backdrop-blur-sm dark:border-red-950/80 dark:bg-red-950/45">
                     <p className="max-w-[100px] truncate line-clamp-1 text-[10px] font-bold text-white">
                       {locationText === 'Location not available' ? t(effectiveLang, 'Location not available') : locationText}
                     </p>

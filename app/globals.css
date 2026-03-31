@@ -349,8 +349,8 @@ html.dark .dashboard-following-orgs .following-orgs-empty * {
 .hanar-listing-frame {
   padding: 1.5px;
   border-radius: 0.5rem;
-  background: linear-gradient(to right, #4a0a14, #e1306c, #4a0a14);
-  box-shadow: inset 0 1px 0 rgba(255, 182, 198, 0.3);
+  background: linear-gradient(to right, #0c1f3c, #6b1515, #0c1f3c);
+  box-shadow: inset 0 1px 0 rgba(130, 170, 230, 0.28);
 }
 @media (min-width: 640px) {
   .hanar-listing-frame {
@@ -358,8 +358,8 @@ html.dark .dashboard-following-orgs .following-orgs-empty * {
   }
 }
 .dark .hanar-listing-frame {
-  background: linear-gradient(to right, #2d0610, #c41e56, #2d0610);
-  box-shadow: inset 0 1px 0 rgba(255, 120, 160, 0.16);
+  background: linear-gradient(to right, #061018, #7f1d1d, #061018);
+  box-shadow: inset 0 1px 0 rgba(180, 80, 80, 0.2);
 }
 
 .hanar-card-surface-muted {

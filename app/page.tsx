@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from 'react';
 import Link from 'next/link';
 import { useKeenSlider } from 'keen-slider/react';
 import Footer from '@/components/Footer';
@@ -21,6 +21,10 @@ type SliderBusiness = {
   plan?: string | null;
 };
 type AdBanner = { id: string; image: string; link: string; alt: string };
+
+/** Dark blue gradient rule between feed / skeleton rows */
+const HOME_FEED_BETWEEN_ROW =
+  'h-px w-full shrink-0 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 dark:from-slate-950 dark:via-blue-800 dark:to-slate-950';
 
 type CommunityPost = {
   id: string;
@@ -235,18 +239,18 @@ const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
   }, [slider]);
 
   return (
-    <section className="hanar-card-surface rounded-xl shadow-sm p-4">
+    <section className="rounded-none bg-white shadow-sm p-4 dark:bg-gray-800">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-slate-700">Featured Businesses</h2>
         <Link href="/businesses" className="text-xs text-rose-600 hover:underline">View all</Link>
       </div>
-      <div ref={sliderRef} className="keen-slider overflow-hidden rounded-lg">
+      <div ref={sliderRef} className="keen-slider overflow-hidden rounded-none">
         {items.map((biz) => (
           <Link
             key={biz.id}
             href={`/business/${biz.slug}`}
             data-keen-slider-clickable
-            className="keen-slider__slide block rounded-lg hanar-card-surface-lg no-underline overflow-hidden"
+            className="keen-slider__slide block rounded-none bg-white no-underline overflow-hidden shadow-sm dark:bg-gray-800"
           >
             <div className="relative">
               <img
@@ -254,7 +258,7 @@ const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
                 alt={biz.name}
                 loading="lazy"
                 decoding="async"
-                className="h-24 w-full rounded-t-lg object-cover ring-1 ring-inset ring-[#e1306c]/45 dark:ring-[#e85085]/40"
+                className="aspect-square h-auto w-full object-cover"
               />
               {(biz.plan || '').toLowerCase() === 'premium' && (
                 <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-amber-500/90 backdrop-blur-sm px-1 py-[1px] text-[8px] font-bold text-white shadow-sm">
@@ -303,20 +307,20 @@ const MarketplaceCategorySliderCard = ({
   }, [slider]);
 
   return (
-    <section className="hanar-card-surface rounded-xl shadow-sm p-4">
+    <section className="rounded-none bg-white shadow-sm p-4 dark:bg-gray-800">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="min-w-0 truncate text-sm font-semibold text-slate-700 dark:text-gray-200">{categoryLabel}</h2>
         <Link href="/marketplace" className="shrink-0 text-xs text-rose-600 hover:underline dark:text-rose-400">
           Browse
         </Link>
       </div>
-      <div ref={sliderRef} className="keen-slider overflow-hidden rounded-lg">
+      <div ref={sliderRef} className="keen-slider overflow-hidden rounded-none">
         {slides.map((item) => (
           <Link
             key={item.id}
             href={`/marketplace/${item.slug || item.id}`}
             data-keen-slider-clickable
-            className="keen-slider__slide block rounded-lg hanar-card-surface-lg no-underline overflow-hidden"
+            className="keen-slider__slide block rounded-none bg-white no-underline overflow-hidden shadow-sm dark:bg-gray-800"
           >
             <div className="relative">
               <img
@@ -324,7 +328,7 @@ const MarketplaceCategorySliderCard = ({
                 alt={item.title}
                 loading="lazy"
                 decoding="async"
-                className="h-24 w-full rounded-t-lg object-cover ring-1 ring-inset ring-[#e1306c]/45 dark:ring-[#e85085]/40"
+                className="aspect-square h-auto w-full object-cover"
               />
               {item.business_id &&
                 (item.business_verified ? (
@@ -388,7 +392,7 @@ function AdCardWithTrack({ banner }: { banner: AdBanner }) {
   return (
     <section
       ref={ref}
-      className="hanar-card-surface rounded-xl overflow-hidden shadow-sm"
+      className="rounded-none overflow-hidden bg-white shadow-sm dark:bg-gray-800"
     >
       <Link href={banner.link} {...(banner.link.startsWith('/') || (typeof window !== 'undefined' && banner.link.includes(window.location.hostname)) ? {} : { target: '_blank', rel: 'noopener noreferrer' })} className="block w-full">
         <div className="relative w-full aspect-[1200/630] bg-slate-100 dark:bg-gray-700">
@@ -439,7 +443,7 @@ function FeedBusinessCardWithTrack({
   return (
     <article
       ref={ref}
-      className="hanar-feed-business-card hanar-card-surface overflow-hidden rounded-xl p-0 shadow-sm dark:shadow-lg dark:shadow-black/20"
+      className="hanar-feed-business-card overflow-hidden rounded-none bg-white p-0 shadow-sm dark:bg-gray-800 dark:shadow-lg dark:shadow-black/20"
     >
       <div className="flex items-stretch">
         <div className="flex shrink-0 items-center bg-slate-900 p-4 dark:bg-gray-950">
@@ -449,7 +453,7 @@ function FeedBusinessCardWithTrack({
               alt={business.business_name}
               loading="lazy"
               decoding="async"
-              className="h-14 w-14 rounded-lg border border-[#c41e56]/85 object-cover dark:border-[#e85085]/65"
+              className="h-14 w-14 rounded-none border border-[#c41e56]/85 object-cover dark:border-[#e85085]/65"
             />
           </Link>
         </div>
@@ -1536,32 +1540,35 @@ const formatDateLabel = (value?: string | null) => {
         )}
 
         {loading && (
-          <div className="divide-y divide-black dark:divide-gray-500">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="hanar-card-surface rounded-xl p-5 shadow-sm space-y-3">
+          <div>
+            {[1, 2, 3, 4].map((i, sIdx) => (
+              <Fragment key={i}>
+                {sIdx > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
+                <div className="rounded-none border-0 bg-white p-5 shadow-sm ring-0 space-y-3 dark:bg-gray-800">
                 <div className="flex items-center gap-3">
-                  <div className="skeleton h-9 w-9 rounded-full" />
+                  <div className="skeleton h-9 w-9 shrink-0 rounded-none" />
                   <div className="flex-1 space-y-1.5">
-                    <div className="skeleton h-3 w-28 rounded" />
-                    <div className="skeleton h-2.5 w-16 rounded" />
+                    <div className="skeleton h-3 w-28 rounded-none" />
+                    <div className="skeleton h-2.5 w-16 rounded-none" />
                   </div>
                 </div>
-                <div className="skeleton h-3.5 w-3/4 rounded" />
-                <div className="skeleton h-3 w-full rounded" />
-                <div className="skeleton h-3 w-5/6 rounded" />
-                {i % 2 === 0 && <div className="skeleton h-44 w-full rounded-lg" />}
+                <div className="skeleton h-3.5 w-3/4 rounded-none" />
+                <div className="skeleton h-3 w-full rounded-none" />
+                <div className="skeleton h-3 w-5/6 rounded-none" />
+                {i % 2 === 0 && <div className="skeleton aspect-square w-full rounded-none" />}
                 <div className="flex gap-6 pt-1">
-                  <div className="skeleton h-3 w-12 rounded" />
-                  <div className="skeleton h-3 w-16 rounded" />
-                  <div className="skeleton h-3 w-10 rounded" />
+                  <div className="skeleton h-3 w-12 rounded-none" />
+                  <div className="skeleton h-3 w-16 rounded-none" />
+                  <div className="skeleton h-3 w-10 rounded-none" />
                 </div>
-              </div>
+                </div>
+              </Fragment>
             ))}
           </div>
         )}
 
         {!loading && feedItems.length > 0 && (
-          <div className="divide-y divide-black dark:divide-gray-500">
+          <div>
         {feedItems.slice(0, visibleCount).map((item, index) => {
           if (item.type === 'post') {
             const dateLabel = new Date(item.post.created_at).toLocaleDateString();
@@ -1570,13 +1577,15 @@ const formatDateLabel = (value?: string | null) => {
             const isCommentsOpen = commentsOpen.has(item.post.id);
             const comments = commentsByPost[item.post.id] || [];
             return (
-              <article key={`post-${item.post.id}-${index}`} className="hanar-card-surface rounded-xl p-5 shadow-sm">
+              <Fragment key={`post-${item.post.id}-${index}`}>
+                {index > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
+                <article className="rounded-none border-0 bg-white p-5 shadow-sm ring-0 dark:bg-gray-800">
                 <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-gray-400">
                   <div className="flex items-center gap-2 min-w-0">
                     <Avatar
                       src={item.post.logo_url || item.post.profile_pic_url}
                       alt=""
-                      className="h-8 w-8 flex-shrink-0 rounded-full"
+                      className="h-8 w-8 shrink-0 rounded-none object-cover"
                     />
                     {item.post.author_type === 'organization' && item.post.username ? (
                       <Link href={`/organization/${item.post.username}`} className="font-semibold text-blue-900 dark:text-blue-300 hover:underline truncate">
@@ -1601,17 +1610,17 @@ const formatDateLabel = (value?: string | null) => {
                   <p className="mt-2 text-sm text-slate-600 dark:text-gray-300 line-clamp-3">{item.post.body}</p>
                 </Link>
                 {item.post.video ? (
-                  <div className="mt-3 -mx-5">
-                    <FeedVideoPlayer src={item.post.video} />
+                  <div className="mt-3 w-[calc(100%+2.5rem)] max-w-none -mx-5">
+                    <FeedVideoPlayer src={item.post.video} square />
                   </div>
                 ) : item.post.image ? (
-                  <Link href={`/community/post/${item.post.id}`} className="block">
+                  <Link href={`/community/post/${item.post.id}`} className="relative mt-3 block aspect-square w-[calc(100%+2.5rem)] max-w-none -mx-5 overflow-hidden">
                     <img
                       src={item.post.image}
                       alt={item.post.title}
                       loading="lazy"
                       decoding="async"
-                      className="mt-3 h-56 w-full rounded-lg object-cover"
+                      className="absolute inset-0 h-full w-full object-cover"
                     />
                   </Link>
                 ) : null}
@@ -1680,7 +1689,7 @@ const formatDateLabel = (value?: string | null) => {
                           <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
                         )}
                         {comments.map((comment) => (
-                          <div key={comment.id} className="hanar-bubble px-3 py-2 text-sm flex gap-2">
+                          <div key={comment.id} className="rounded-none bg-slate-100 px-3 py-2 text-sm flex gap-2 dark:bg-gray-700/80">
                             <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                               <Avatar
                                 src={comment.profiles?.profile_pic_url ? `${comment.profiles.profile_pic_url}?t=${Date.now()}` : null}
@@ -1725,30 +1734,35 @@ const formatDateLabel = (value?: string | null) => {
                   </div>
                 )}
               </article>
+              </Fragment>
             );
           }
 
           if (item.type === 'business') {
             return (
-              <FeedBusinessCardWithTrack
-                key={`biz-${item.business.id}-${index}`}
-                business={item.business}
-                formatDateLabel={formatDateLabel}
-                getBusinessMessage={getBusinessMessage}
-              />
+              <Fragment key={`biz-${item.business.id}-${index}`}>
+                {index > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
+                <FeedBusinessCardWithTrack
+                  business={item.business}
+                  formatDateLabel={formatDateLabel}
+                  getBusinessMessage={getBusinessMessage}
+                />
+              </Fragment>
             );
           }
 
           if (item.type === 'organization') {
             return (
-              <article key={`org-${item.organization.id}-${index}`} className="hanar-card-surface rounded-xl p-5 shadow-sm">
+              <Fragment key={`org-${item.organization.id}-${index}`}>
+                {index > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
+                <article className="rounded-none border-0 bg-white p-5 shadow-sm ring-0 dark:bg-gray-800">
                 <div className="flex items-center gap-3">
                   <img
                     src={item.organization.logo_url || item.organization.banner_url || 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=600&auto=format&fit=crop'}
                     alt={item.organization.full_name}
                     loading="lazy"
                     decoding="async"
-                    className="h-14 w-14 rounded-lg object-cover border border-[#c41e56]/85 dark:border-[#e85085]/65"
+                    className="h-14 w-14 rounded-none object-cover border border-[#c41e56]/85 dark:border-[#e85085]/65"
                   />
                   <div>
                     <Link href={`/organization/${item.organization.username}`} className="text-sm font-semibold text-slate-800 dark:text-gray-100 hover:underline">
@@ -1758,26 +1772,39 @@ const formatDateLabel = (value?: string | null) => {
                   </div>
                 </div>
               </article>
+              </Fragment>
             );
           }
 
           if (item.type === 'ad' && item.banner?.image) {
-            return <AdCardWithTrack key={`ad-${item.banner.id}-${index}`} banner={item.banner} />;
+            return (
+              <Fragment key={`ad-${item.banner.id}-${index}`}>
+                {index > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
+                <AdCardWithTrack banner={item.banner} />
+              </Fragment>
+            );
           }
           if (item.type === 'ad') return null;
 
           if (item.type === 'marketplaceCategorySlider') {
             return (
-              <MarketplaceCategorySliderCard
-                key={`mc-${item.categoryLabel}-${index}`}
-                categoryLabel={item.categoryLabel}
-                items={item.items}
-              />
+              <Fragment key={`mc-${item.categoryLabel}-${index}`}>
+                {index > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
+                <MarketplaceCategorySliderCard
+                  categoryLabel={item.categoryLabel}
+                  items={item.items}
+                />
+              </Fragment>
             );
           }
 
           if (item.type === 'sliderBusinesses') {
-            return <BusinessSliderCard key={`slider-biz-${index}`} items={featuredBusinesses} />;
+            return (
+              <Fragment key={`slider-biz-${index}`}>
+                {index > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
+                <BusinessSliderCard items={featuredBusinesses} />
+              </Fragment>
+            );
           }
 
           return null;
@@ -1786,7 +1813,7 @@ const formatDateLabel = (value?: string | null) => {
         )}
 
         {!loading && !feedItems.length && (
-          <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div className="rounded-none border border-slate-200 bg-white p-6 text-sm text-slate-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             No posts yet. Check back soon.
           </div>
         )}
@@ -1794,7 +1821,7 @@ const formatDateLabel = (value?: string | null) => {
         {!loading && feedItems.length > visibleCount && (
           <div
             ref={bottomRef}
-            className="rounded-xl border border-slate-200 border-t border-t-black bg-white p-4 text-center text-xs text-slate-500 dark:border-t-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+            className="rounded-none border border-slate-200 border-t border-t-black bg-white p-4 text-center text-xs text-slate-500 dark:border-t-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
           >
             Loading more...
           </div>

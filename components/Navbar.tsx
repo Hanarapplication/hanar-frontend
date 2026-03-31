@@ -18,12 +18,21 @@ const HEADER_SEARCH_FRAME =
 const HEADER_SEARCH_INPUT =
   'w-full h-9 pl-9 pr-3 rounded-full bg-transparent text-slate-900 placeholder-slate-400 dark:text-slate-900 text-sm shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#e1306c]/45 dark:focus-visible:ring-[#f472b6]/40 focus-visible:ring-inset';
 
-/** Icon treatment on gradient bar — frosted chips like bottom nav bubbles */
-const HEADER_ICON_BTN_BASE =
-  'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-gradient-to-r from-[#4a0a14] via-[#e1306c] to-[#4a0a14] text-white shadow-sm transition-[background-color,transform,opacity] duration-200 hover:from-[#5a1020] hover:via-[#f03d78] hover:to-[#5a1020] active:scale-[0.97] dark:border-white/15 dark:from-[#2d0610] dark:via-[#c41e56] dark:to-[#2d0610] dark:hover:from-[#3a0a14] dark:hover:via-[#d62d66] dark:hover:to-[#3a0a14]';
+/** SVG fill gradient — true red (Tailwind red-700 → red-600), avoids near-black stops */
+const NAV_HEADER_ICON_GRADIENT_ID = 'hanarNavHeaderIconGradient';
+
+/** Messages / notifications / menu */
+const HEADER_ACTION_ICON_CLASS = `text-xl [&_path]:fill-[url(#${NAV_HEADER_ICON_GRADIENT_ID})]`;
+
+/** Gradient frame around messages / bell / menu (matches bottom nav tones); white inner chip */
+const HEADER_ICON_FRAME =
+  'group inline-flex shrink-0 rounded-xl bg-gradient-to-r from-[#4a0a14] via-[#e1306c] to-[#4a0a14] p-[2px] shadow-sm transition-[opacity,transform] duration-200 hover:opacity-90 active:scale-[0.97] dark:from-[#2d0610] dark:via-[#c41e56] dark:to-[#2d0610]';
+
+const HEADER_ICON_INNER =
+  'flex h-9 w-9 items-center justify-center rounded-[10px] bg-white dark:bg-white';
 
 const HEADER_ICON_FOCUS =
-  'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/55 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-blue-500/55 dark:focus-visible:ring-offset-white';
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/55 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-red-500/45 dark:focus-visible:ring-offset-white';
 
 type SearchResultItem = {
   type: 'user' | 'business' | 'organization';
@@ -207,15 +216,26 @@ export default function Navbar() {
 
   return (
     <>
+      <svg width={0} height={0} className="pointer-events-none absolute overflow-hidden opacity-0" aria-hidden>
+        <defs>
+          <linearGradient id={NAV_HEADER_ICON_GRADIENT_ID} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#b91c1c" />
+            <stop offset="50%" stopColor="#dc2626" />
+            <stop offset="100%" stopColor="#b91c1c" />
+          </linearGradient>
+        </defs>
+      </svg>
       <nav className="sticky top-0 z-50 flex h-[3.75rem] items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 shadow-sm transition-all isolate dark:border-slate-200 dark:bg-white sm:h-16">
         {/* Messages + search */}
         <div className="flex flex-1 max-w-md mx-1.5 sm:mx-3 items-center gap-2 sm:gap-2.5 min-w-0">
           <Link
             href="/messages"
-            className={`${HEADER_ICON_BTN_BASE} ${HEADER_ICON_FOCUS}`}
+            className={`${HEADER_ICON_FRAME} ${HEADER_ICON_FOCUS}`}
             aria-label="Messages"
           >
-            <FaComments className="text-xl" />
+            <span className={HEADER_ICON_INNER}>
+              <FaComments className={HEADER_ACTION_ICON_CLASS} />
+            </span>
           </Link>
           <div className="flex-1 min-w-0 relative" ref={dropdownRef}>
             <div className={`relative ${HEADER_SEARCH_FRAME}`}>
@@ -293,9 +313,11 @@ export default function Navbar() {
           {/* Notifications */}
           <Link
             href="/notifications"
-            className={`relative ${HEADER_ICON_BTN_BASE} ${HEADER_ICON_FOCUS}`}
+            className={`relative ${HEADER_ICON_FRAME} ${HEADER_ICON_FOCUS}`}
           >
-            <FaBell className="text-xl" />
+            <span className={HEADER_ICON_INNER}>
+              <FaBell className={HEADER_ACTION_ICON_CLASS} />
+            </span>
             {unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-blue-500 px-0.5 py-0 text-[10px] font-semibold leading-none text-white shadow-sm ring-2 ring-white dark:ring-white">
                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -307,10 +329,12 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setMenuOpen(!menuOpen)}
-            className={`${HEADER_ICON_BTN_BASE} ${HEADER_ICON_FOCUS}`}
+            className={`${HEADER_ICON_FRAME} ${HEADER_ICON_FOCUS}`}
             aria-label="Toggle Menu"
           >
-            <FaBars className="text-xl" />
+            <span className={HEADER_ICON_INNER}>
+              <FaBars className={HEADER_ACTION_ICON_CLASS} />
+            </span>
           </button>
         </div>
       </nav>

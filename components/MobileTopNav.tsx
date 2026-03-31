@@ -51,7 +51,7 @@ export default function MobileTopNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-r from-[#4a0a14] via-[#e1306c] to-[#4a0a14] dark:from-[#2d0610] dark:via-[#c41e56] dark:to-[#2d0610] border-t border-white/20 dark:border-white/10 shadow-[inset_0_1px_0_rgba(255,182,198,0.45)] dark:shadow-[inset_0_1px_0_rgba(255,120,160,0.2)] pb-[max(0.35rem,env(safe-area-inset-bottom))] transition-colors duration-200"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-r from-[#0c1f3c] via-[#b91c1c] to-[#0c1f3c] dark:from-[#061018] dark:via-[#991b1b] dark:to-[#061018] border-t border-white/20 dark:border-white/10 shadow-[inset_0_1px_0_rgba(140,170,230,0.35)] dark:shadow-[inset_0_1px_0_rgba(180,70,80,0.22)] pb-[max(0.35rem,env(safe-area-inset-bottom))] transition-colors duration-200"
       aria-label="Primary"
     >
       <div className="flex justify-around items-end gap-0.5 px-1 pt-1.5 pb-0 sm:px-2">
@@ -69,7 +69,7 @@ export default function MobileTopNav() {
               key={item.href}
               href={item.href}
               aria-label={item.href === '/' ? t(effectiveLang, 'Feed') : undefined}
-              className="relative flex min-w-0 flex-1 max-w-[5.25rem] flex-col items-center gap-0 rounded-lg py-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-[#e1306c] dark:focus-visible:ring-white/65 dark:focus-visible:ring-offset-[#c41e56]"
+              className="relative flex min-w-0 flex-1 max-w-[5.25rem] flex-col items-center gap-0 rounded-lg py-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-[#b91c1c] dark:focus-visible:ring-white/65 dark:focus-visible:ring-offset-[#991b1b]"
             >
               <span className={bubble}>{item.icon}</span>
               {item.label ? (

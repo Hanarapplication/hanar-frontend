@@ -29,6 +29,10 @@ import {
 import { cn } from '@/lib/utils'; // This import remains as per your original code
 import ReportButton from '@/components/ReportButton';
 
+/** Contact strip: FA icons use explicit white fill on dark blue gradient bar */
+const CONTACT_STRIP_CHIP =
+  'flex items-center justify-center h-10 px-4 rounded-xl bg-white/10 text-white ring-1 ring-white/20 transition-colors duration-200 hover:bg-white/20 active:scale-[0.98] [&_path]:fill-white';
+
 // Types
 interface BusinessType {
     id: string;
@@ -220,7 +224,7 @@ const DetailedViewModal = ({ item, type, onClose }: DetailedViewModalProps) => {
                                         key={index} // Using index here is fine for thumbnails if order doesn't change during modal life
                                         onClick={() => setCurrentImageIndex(index)}
                                         className={`w-16 h-16 flex-shrink-0 rounded-md overflow-hidden border-2 ${
-                                            currentImageIndex === index ? 'border-rose-500' : 'border-transparent'
+                                            currentImageIndex === index ? 'border-[#b91c1c]' : 'border-transparent'
                                         }`}
                                     >
                                         <img
@@ -1054,11 +1058,25 @@ const BusinessProfilePage = () => {
             animate="visible"
             className="relative px-0 pt-0 pb-4 min-h-screen font-inter bg-gray-100 dark:bg-gray-900 overflow-x-clip lg:max-w-5xl lg:mx-auto"
         >
-            {/* Hanar logo - back to businesses */}
-            <div className="sticky top-0 z-30 mb-0 py-3 px-4 bg-rose-600 dark:bg-rose-800 backdrop-blur border-b border-rose-500 dark:border-rose-700">
-                <Link href="/businesses" className="inline-block" aria-label="Back to Hanar">
-                    <img src="/hanar.logo.png" alt="Hanar" className="h-8 w-auto object-contain" />
-                </Link>
+            <svg width={0} height={0} className="pointer-events-none absolute overflow-hidden opacity-0" aria-hidden>
+                <defs>
+                    <linearGradient id="businessSocialBlueGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#0c1f3c" />
+                        <stop offset="50%" stopColor="#1f4f8f" />
+                        <stop offset="100%" stopColor="#0c1f3c" />
+                    </linearGradient>
+                </defs>
+            </svg>
+            {/* Hanar logo + business name */}
+            <div className="sticky top-0 z-30 mb-0 px-4 py-3 bg-gradient-to-r from-[#0c1f3c] via-[#b91c1c] to-[#0c1f3c] dark:from-[#061018] dark:via-[#991b1b] dark:to-[#061018] border-b border-white/15 dark:border-white/10 shadow-[inset_0_1px_0_rgba(130,170,230,0.22)] dark:shadow-[inset_0_1px_0_rgba(180,70,80,0.16)] backdrop-blur-sm">
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <Link href="/businesses" className="inline-block rounded-lg bg-white/10 px-2 py-1 ring-1 ring-white/20 transition hover:bg-white/15 shrink-0" aria-label="Back to Hanar">
+                        <img src="/hanar.logo.png" alt="Hanar" className="h-8 w-auto object-contain" />
+                    </Link>
+                    <span className="min-w-0 truncate text-sm sm:text-base font-semibold text-white">
+                        {business.business_name}
+                    </span>
+                </div>
             </div>
             {/* Modals for Menu, Cars, Retail (Added new) */}
             {showMenuModal && (
@@ -1082,13 +1100,13 @@ const BusinessProfilePage = () => {
                                                     </div>
                                                     <div className="flex items-center gap-3">
                                                         {item.price && (
-                                                            <span className="text-sm font-semibold text-rose-700 dark:text-rose-300">
+                                                            <span className="text-sm font-semibold text-[#8b2020] dark:text-red-300">
                                                                 ${item.price}
                                                             </span>
                                                         )}
                                                         <button
                                                             onClick={() => setSelectedItemForDetails({ type: 'menu', item: item })}
-                                                            className="px-3 py-1.5 text-sm bg-rose-600 text-white rounded-md hover:bg-rose-700 transition-colors"
+                                                            className="px-3 py-1.5 text-sm bg-[#6b1515] text-white rounded-md hover:bg-[#5a1212] transition-colors dark:bg-[#7f1d1d] dark:hover:bg-[#6b1515]"
                                                         >
                                                             Details
                                                         </button>
@@ -1139,11 +1157,11 @@ const BusinessProfilePage = () => {
                                                 <p className="flex items-center gap-1"><Gauge size={14} /> Mileage: {item.mileage}</p>
                                                 <p className="flex items-center gap-1"><HeartHandshake size={14} /> Condition: {item.condition}</p>
                                             </div>
-                                            <p className="text-rose-600 dark:text-rose-400 font-bold mt-2">${item.price}</p>
+                                            <p className="text-[#b91c1c] dark:text-red-400 font-bold mt-2">${item.price}</p>
                                             <div className="mt-auto pt-3 flex gap-2">
                                                 <button
                                                     onClick={() => setSelectedItemForDetails({ type: 'car', item: item })}
-                                                    className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
+                                                    className="flex-1 px-4 py-2.5 bg-[#6b1515] text-white rounded-lg hover:bg-[#5a1212] transition-colors flex items-center justify-center gap-2 font-medium shadow-sm dark:bg-[#7f1d1d] dark:hover:bg-[#6b1515]"
                                                 >
                                                     <Eye size={18} />
                                                     View Details
@@ -1196,12 +1214,12 @@ const BusinessProfilePage = () => {
                                     <div className="p-4 flex flex-col flex-grow">
                                         <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{item.name}</h3>
                                         <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{item.description}</p>
-                                        <p className="text-rose-600 dark:text-rose-400 font-bold mt-1">{item.price}</p>
+                                        <p className="text-[#b91c1c] dark:text-red-400 font-bold mt-1">{item.price}</p>
                                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Category: {item.category}</p>
                                         <div className="mt-auto pt-3 flex gap-2">
                                             <button
                                                 onClick={() => setSelectedItemForDetails({ type: 'retail', item: item })}
-                                                className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
+                                                className="flex-1 px-4 py-2.5 bg-[#6b1515] text-white rounded-lg hover:bg-[#5a1212] transition-colors flex items-center justify-center gap-2 font-medium shadow-sm dark:bg-[#7f1d1d] dark:hover:bg-[#6b1515]"
                                             >
                                                 <Eye size={18} />
                                                 View Details
@@ -1262,7 +1280,7 @@ const BusinessProfilePage = () => {
                                         <div key={index} className={cn(
                                             "w-3 h-3 rounded-full transition-colors duration-300 cursor-pointer",
                                             selectedIndex === index
-                                                ? "bg-rose-500 dark:bg-rose-400"
+                                                ? "bg-[#b91c1c] dark:bg-red-500"
                                                 : "bg-gray-300 dark:bg-gray-600"
                                         )} onClick={() => setSelectedIndex(index)} />
                                     ))}
@@ -1270,25 +1288,25 @@ const BusinessProfilePage = () => {
                             </>)}
                         </div>
                     ) : null}
-                    {/* Action bar - directly under gallery, modern style */}
-                    <div className="flex flex-wrap items-center justify-center gap-2 px-4 py-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-t border-slate-200/80 dark:border-slate-700/80">
+                    {/* Action bar - dark blue gradient strip, white icons */}
+                    <div className="flex flex-wrap items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#0c1f3c] via-[#153a5c] to-[#0c1f3c] dark:from-[#061018] dark:via-[#0d2844] dark:to-[#061018] border-t border-white/15 shadow-[inset_0_1px_0_rgba(130,170,230,0.2)] dark:shadow-[inset_0_1px_0_rgba(100,140,200,0.12)]">
                         {business.phone && (
-                            <a href={`tel:${business.phone}`} aria-label="Call" className="flex items-center justify-center h-10 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-green-500 hover:text-white dark:hover:bg-green-600 transition-colors duration-200 font-medium text-sm">
+                            <a href={`tel:${business.phone}`} aria-label="Call" className={CONTACT_STRIP_CHIP}>
                                 <FaPhone size={18} className="shrink-0" />
                             </a>
                         )}
                         {business.whatsapp && (
-                            <a href={`https://wa.me/${business.whatsapp}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className="flex items-center justify-center h-10 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-colors duration-200 font-medium text-sm">
+                            <a href={`https://wa.me/${business.whatsapp}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className={CONTACT_STRIP_CHIP}>
                                 <FaWhatsapp size={20} className="shrink-0" />
                             </a>
                         )}
                         {business.email && (
-                            <a href={`mailto:${business.email}`} aria-label="Email" className="flex items-center justify-center h-10 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-600 hover:text-white dark:hover:bg-slate-500 transition-colors duration-200 font-medium text-sm">
+                            <a href={`mailto:${business.email}`} aria-label="Email" className={CONTACT_STRIP_CHIP}>
                                 <FaEnvelope size={18} className="shrink-0" />
                             </a>
                         )}
                         {business.website && (
-                            <a href={business.website} target="_blank" rel="noopener noreferrer" aria-label="Website" className="flex items-center justify-center h-10 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-rose-500 hover:text-white dark:hover:bg-rose-600 transition-colors duration-200 font-medium text-sm">
+                            <a href={business.website} target="_blank" rel="noopener noreferrer" aria-label="Website" className={CONTACT_STRIP_CHIP}>
                                 <FaGlobe size={18} className="shrink-0" />
                             </a>
                         )}
@@ -1296,7 +1314,7 @@ const BusinessProfilePage = () => {
                             type="button"
                             onClick={handleShare}
                             aria-label="Share"
-                            className="flex items-center justify-center h-10 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-indigo-500 hover:text-white dark:hover:bg-indigo-600 transition-colors duration-200 font-medium text-sm"
+                            className={cn(CONTACT_STRIP_CHIP, 'border-0 cursor-pointer')}
                         >
                             <FaShareAlt size={18} className="shrink-0" />
                         </button>
@@ -1306,7 +1324,7 @@ const BusinessProfilePage = () => {
                                 entityId={business.id}
                                 entityTitle={business.business_name}
                                 variant="icon"
-                                className="flex items-center justify-center h-10 w-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors duration-200"
+                                className="flex items-center justify-center h-10 w-10 rounded-xl bg-white/10 !text-white ring-1 ring-white/20 transition !rounded-xl hover:bg-white/20 hover:!bg-red-500/40 hover:!text-red-100 [&_svg]:stroke-white"
                             />
                         )}
                     </div>
@@ -1368,10 +1386,10 @@ const BusinessProfilePage = () => {
                                 )}
                                 {hasSocials && (
                                     <span className="inline-flex items-center gap-8 rounded-lg bg-gray-100 dark:bg-gray-700 px-5 py-2">
-                                        {business.instagram && (<a href={business.instagram} target="_blank" rel="noopener noreferrer" className="text-[#E4405F] hover:opacity-80" aria-label="Instagram"><FaInstagram size={18} /></a>)}
-                                        {business.facebook && (<a href={business.facebook} target="_blank" rel="noopener noreferrer" className="text-[#1877F2] hover:opacity-80" aria-label="Facebook"><FaFacebook size={18} /></a>)}
-                                        {business.tiktok && (<a href={business.tiktok} target="_blank" rel="noopener noreferrer" className="text-gray-900 dark:text-gray-100 hover:opacity-80" aria-label="TikTok"><FaTiktok size={18} /></a>)}
-                                        {business.twitter && (<a href={business.twitter} target="_blank" rel="noopener noreferrer" className="text-gray-900 dark:text-gray-100 hover:opacity-80" aria-label="X"><FaXTwitter size={18} /></a>)}
+                                        {business.instagram && (<a href={business.instagram} target="_blank" rel="noopener noreferrer" className="transition-opacity hover:opacity-80 [&_path]:fill-[url(#businessSocialBlueGradient)]" aria-label="Instagram"><FaInstagram size={18} /></a>)}
+                                        {business.facebook && (<a href={business.facebook} target="_blank" rel="noopener noreferrer" className="transition-opacity hover:opacity-80 [&_path]:fill-[url(#businessSocialBlueGradient)]" aria-label="Facebook"><FaFacebook size={18} /></a>)}
+                                        {business.tiktok && (<a href={business.tiktok} target="_blank" rel="noopener noreferrer" className="transition-opacity hover:opacity-80 [&_path]:fill-[url(#businessSocialBlueGradient)]" aria-label="TikTok"><FaTiktok size={18} /></a>)}
+                                        {business.twitter && (<a href={business.twitter} target="_blank" rel="noopener noreferrer" className="transition-opacity hover:opacity-80 [&_path]:fill-[url(#businessSocialBlueGradient)]" aria-label="X"><FaXTwitter size={18} /></a>)}
                                     </span>
                                 )}
                             </div>
@@ -1417,7 +1435,7 @@ const BusinessProfilePage = () => {
                             <div className="px-0 sm:px-3 pt-3 pb-2 flex justify-center">
                                 <button
                                     onClick={() => { const mapUrl = getMapUrl(business.address); window.open(mapUrl, '_blank'); }}
-                                    className="w-full sm:w-auto bg-rose-500 hover:bg-rose-700 text-white font-bold py-2 px-3 rounded-none sm:rounded text-sm flex items-center justify-center gap-2"
+                                    className="w-full sm:w-auto bg-gradient-to-r from-[#0c1f3c] to-[#6b1515] hover:from-[#0a192f] hover:to-[#5a1212] dark:from-[#061018] dark:to-[#7f1d1d] dark:hover:from-[#040d18] dark:hover:to-[#6b1515] text-white font-bold py-2 px-3 rounded-none sm:rounded text-sm flex items-center justify-center gap-2"
                                 ><FaDirections size={16} /><span>Get Directions{business.address?.street || business.address?.city || business.address?.state || business.address?.zip ? ` · ${[business.address?.street, business.address?.city, business.address?.state, business.address?.zip].filter(Boolean).join(', ')}` : ''}</span></button>
                             </div>
                             <div className="w-full relative rounded-none sm:rounded-b-xl overflow-hidden">
@@ -1463,13 +1481,13 @@ const BusinessProfilePage = () => {
                                                             </div>
                                                             <div className="flex items-center gap-3">
                                                                 {item.price && (
-                                                                    <span className="text-sm font-semibold text-rose-700 dark:text-rose-300">
+                                                                    <span className="text-sm font-semibold text-[#8b2020] dark:text-red-300">
                                                                         ${item.price}
                                                                     </span>
                                                                 )}
                                                                 <button
                                                                     onClick={() => setSelectedItemForDetails({ type: 'menu', item: item })}
-                                                                    className="px-3 py-1.5 text-sm bg-rose-600 text-white rounded-md hover:bg-rose-700 transition-colors"
+                                                                    className="px-3 py-1.5 text-sm bg-[#6b1515] text-white rounded-md hover:bg-[#5a1212] transition-colors dark:bg-[#7f1d1d] dark:hover:bg-[#6b1515]"
                                                                 >
                                                                     Details
                                                                 </button>
@@ -1513,7 +1531,7 @@ const BusinessProfilePage = () => {
                                             )}
                                             <div className="p-4 flex flex-col flex-grow">
                                                 <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{car.title}</h3>
-                                                <p className="text-rose-600 dark:text-rose-400 font-bold mt-1">${car.price}</p>
+                                                <p className="text-[#b91c1c] dark:text-red-400 font-bold mt-1">${car.price}</p>
                                                 <div className="text-sm text-gray-600 dark:text-gray-300 mt-2 space-y-1">
                                                     <p className="flex items-center gap-1"><Calendar size={14} /> Year: {car.year}</p>
                                                     <p className="flex items-center gap-1"><Gauge size={14} /> Mileage: {car.mileage}</p>
@@ -1522,7 +1540,7 @@ const BusinessProfilePage = () => {
                                                 <div className="mt-auto pt-3 flex gap-2">
                                                     <button
                                                         onClick={() => setSelectedItemForDetails({ type: 'car', item: car })}
-                                                        className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
+                                                        className="flex-1 px-4 py-2.5 bg-[#6b1515] text-white rounded-lg hover:bg-[#5a1212] transition-colors flex items-center justify-center gap-2 font-medium shadow-sm dark:bg-[#7f1d1d] dark:hover:bg-[#6b1515]"
                                                     >
                                                         <Eye size={18} />
                                                         View Details
@@ -1565,13 +1583,13 @@ const BusinessProfilePage = () => {
                                             )}
                                             <div className="p-4 flex flex-col flex-grow">
                                                 <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{item.name}</h3>
-                                                <p className="text-rose-600 dark:text-rose-400 font-bold mt-1">{item.price}</p>
+                                                <p className="text-[#b91c1c] dark:text-red-400 font-bold mt-1">{item.price}</p>
                                                 <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{item.description}</p>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Category: {item.category}</p>
                                                 <div className="mt-auto pt-3 flex gap-2">
                                                     <button
                                                         onClick={() => setSelectedItemForDetails({ type: 'retail', item: item })}
-                                                        className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
+                                                        className="flex-1 px-4 py-2.5 bg-[#6b1515] text-white rounded-lg hover:bg-[#5a1212] transition-colors flex items-center justify-center gap-2 font-medium shadow-sm dark:bg-[#7f1d1d] dark:hover:bg-[#6b1515]"
                                                     >
                                                         <Eye size={18} />
                                                         View Details
@@ -1614,13 +1632,13 @@ const BusinessProfilePage = () => {
                                             )}
                                             <div className="p-4 flex flex-col flex-grow">
                                                 <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{item.title}</h3>
-                                                <p className="text-rose-600 dark:text-rose-400 font-bold mt-1">{item.price ? `$${item.price}` : ''}</p>
+                                                <p className="text-[#b91c1c] dark:text-red-400 font-bold mt-1">{item.price ? `$${item.price}` : ''}</p>
                                                 {item.address && <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-1">{item.address}</p>}
                                                 <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mt-1">{item.description}</p>
                                                 <div className="mt-auto pt-3 flex gap-2">
                                                     <button
                                                         onClick={() => setSelectedItemForDetails({ type: 'real_estate', item })}
-                                                        className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors flex items-center justify-center gap-2 font-medium shadow-sm"
+                                                        className="flex-1 px-4 py-2.5 bg-[#6b1515] text-white rounded-lg hover:bg-[#5a1212] transition-colors flex items-center justify-center gap-2 font-medium shadow-sm dark:bg-[#7f1d1d] dark:hover:bg-[#6b1515]"
                                                     >
                                                         <Eye size={18} />
                                                         View Details

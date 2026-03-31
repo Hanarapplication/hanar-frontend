@@ -68,11 +68,11 @@ export default function HomeFeedPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-6 px-4 sm:px-6 lg:px-8">
-      <div className="space-y-6 max-w-2xl mx-auto">
-
+      <div className="max-w-2xl mx-auto">
+        <div>
         {feed.slice(0, visibleCount).map((post, idx) => (
-          <div key={idx} className="rounded-xl bg-gradient-to-r from-blue-950 via-blue-700 to-blue-950 p-[2px] shadow-md dark:shadow-lg dark:shadow-black/30">
-            <div className="hanar-card-surface-muted rounded-[10px] bg-white p-4 dark:bg-white">
+          <div key={idx} className="py-6 first:pt-0">
+            <div className="rounded-xl bg-white border-0 ring-0 p-4 shadow-md dark:bg-white dark:shadow-lg dark:shadow-black/30">
 
             {post.type === 'business' && (
               <Link href="/businesses" className="block">
@@ -131,6 +131,7 @@ export default function HomeFeedPage() {
             </div>
           </div>
         ))}
+        </div>
 
         <div ref={loaderRef} className="flex justify-center py-8">
           <span className="text-gray-500 dark:text-gray-400 text-sm">Loading more posts...</span>

@@ -6,6 +6,8 @@ import { Volume2, VolumeX, Play, Pause, Maximize2, Minimize2 } from 'lucide-reac
 interface FeedVideoPlayerProps {
   src: string;
   className?: string;
+  /** When true, player is always 1:1 (feed grid style). */
+  square?: boolean;
 }
 
 /**
@@ -17,6 +19,7 @@ interface FeedVideoPlayerProps {
 export default function FeedVideoPlayer({
   src,
   className = '',
+  square = false,
 }: FeedVideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -70,6 +73,8 @@ export default function FeedVideoPlayer({
     const onLoaded = () => {
       setDuration(video.duration);
 
+      if (square) return;
+
       // Read native dimensions and compute aspect ratio (width / height)
       const w = video.videoWidth;
       const h = video.videoHeight;
@@ -95,7 +100,7 @@ export default function FeedVideoPlayer({
       video.removeEventListener('loadedmetadata', onLoaded);
       video.removeEventListener('ended', onEnded);
     };
-  }, []);
+  }, [square]);
 
   // Auto-hide controls
   const scheduleHide = useCallback(() => {
@@ -201,7 +206,7 @@ export default function FeedVideoPlayer({
 
   // Before we know the aspect ratio, use 16:9 as a placeholder to avoid layout shift
   const containerStyle: React.CSSProperties = {
-    aspectRatio: aspectRatio ? `${aspectRatio}` : '16 / 9',
+    aspectRatio: square ? '1 / 1' : aspectRatio ? `${aspectRatio}` : '16 / 9',
   };
 
   return (

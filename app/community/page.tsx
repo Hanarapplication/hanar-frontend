@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import { HeartIcon, ChatBubbleLeftIcon, MagnifyingGlassIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid';
 import { Trash2, Megaphone, SendHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -18,6 +18,10 @@ import { t } from '@/utils/translations';
 
 const COMMUNITY_SEARCH_FRAME =
   'border border-blue-900/80 dark:border-blue-700/80 focus:ring-2 focus:ring-blue-800/35 dark:focus:ring-blue-500/35 focus:border-blue-800';
+
+/** Dark blue gradient rule between community post rows */
+const COMMUNITY_FEED_BETWEEN_ROW =
+  'h-px w-full shrink-0 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 dark:from-slate-950 dark:via-blue-800 dark:to-slate-950';
 
 const COMMUNITY_CACHE_PREFIX = 'hanar_community_cache_';
 const COMMUNITY_FEED_LANG_KEY = 'hanar_community_feed_lang';
@@ -694,7 +698,7 @@ export default function CommunityFeedPage() {
       </div>
 
       {communityBanner?.image && (
-        <div className="mb-6 hanar-card-surface overflow-hidden shadow-sm">
+        <div className="mb-6 overflow-hidden rounded-none bg-white shadow-sm dark:bg-gray-800">
           <Link href={communityBanner.link || '#'} target="_blank" rel="noopener noreferrer" className="block w-full">
             <div className="relative w-full aspect-[1200/630] bg-slate-100 dark:bg-gray-700">
               <img
@@ -709,28 +713,31 @@ export default function CommunityFeedPage() {
         </div>
       )}
 
-      <div className="divide-y divide-black dark:divide-gray-500">
+      <div>
         {visiblePosts.length === 0 && loading && (
           <>
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="hanar-card-surface p-5 space-y-3">
+            {[1, 2, 3].map((i, sIdx) => (
+              <Fragment key={i}>
+                {sIdx > 0 && <div className={COMMUNITY_FEED_BETWEEN_ROW} aria-hidden />}
+                <div className="rounded-none bg-white p-5 space-y-3 dark:bg-gray-800">
                 <div className="flex items-center gap-3">
-                  <div className="skeleton h-10 w-10 rounded-full" />
+                  <div className="skeleton h-10 w-10 shrink-0 rounded-none" />
                   <div className="flex-1 space-y-1.5">
-                    <div className="skeleton h-3 w-24 rounded" />
-                    <div className="skeleton h-2.5 w-16 rounded" />
+                    <div className="skeleton h-3 w-24 rounded-none" />
+                    <div className="skeleton h-2.5 w-16 rounded-none" />
                   </div>
                 </div>
-                <div className="skeleton h-4 w-2/3 rounded" />
-                <div className="skeleton h-3 w-full rounded" />
-                <div className="skeleton h-3 w-5/6 rounded" />
-                {i % 2 === 1 && <div className="skeleton h-48 w-full rounded-lg" />}
+                <div className="skeleton h-4 w-2/3 rounded-none" />
+                <div className="skeleton h-3 w-full rounded-none" />
+                <div className="skeleton h-3 w-5/6 rounded-none" />
+                {i % 2 === 1 && <div className="skeleton aspect-square w-full rounded-none" />}
                 <div className="flex gap-6 pt-2">
-                  <div className="skeleton h-3 w-14 rounded" />
-                  <div className="skeleton h-3 w-18 rounded" />
-                  <div className="skeleton h-3 w-12 rounded" />
+                  <div className="skeleton h-3 w-14 rounded-none" />
+                  <div className="skeleton h-3 w-18 rounded-none" />
+                  <div className="skeleton h-3 w-12 rounded-none" />
                 </div>
-              </div>
+                </div>
+              </Fragment>
             ))}
           </>
         )}
@@ -741,16 +748,17 @@ export default function CommunityFeedPage() {
           const comments = commentsByPost[post.id] || [];
 
           return (
+            <Fragment key={`${post.id}-${index}`}>
+              {index > 0 && <div className={COMMUNITY_FEED_BETWEEN_ROW} aria-hidden />}
             <article
-              key={`${post.id}-${index}`}
-              className="hanar-card-surface p-6 shadow-sm"
+              className="rounded-none bg-white border-0 ring-0 p-6 shadow-sm dark:bg-gray-800"
             >
               {/* Author row */}
               <div className="flex items-center gap-3 mb-3 text-sm text-gray-500 dark:text-gray-400">
                 <Avatar
                   src={post.logo_url || post.profile_pic_url}
                   alt=""
-                  className="h-9 w-9 flex-shrink-0 rounded-full"
+                  className="h-9 w-9 shrink-0 rounded-none object-cover"
                 />
                 {post.author_type === 'organization' && post.username ? (
                   <Link href={`/organization/${post.username}`} className="font-semibold text-blue-900 dark:text-blue-300 hover:underline">
@@ -789,17 +797,17 @@ export default function CommunityFeedPage() {
 
               {/* Media: video (inline player) or image (thumbnail) */}
               {post.video ? (
-                <div className="mt-3 -mx-6">
-                  <FeedVideoPlayer src={post.video} />
+                <div className="mt-3 -mx-6 w-[calc(100%+3rem)] max-w-none">
+                  <FeedVideoPlayer src={post.video} square />
                 </div>
               ) : post.image ? (
-                <Link href={`/community/post/${post.id}`} className="block mt-3 -mx-6">
+                <Link href={`/community/post/${post.id}`} className="relative mt-3 block aspect-square w-[calc(100%+3rem)] max-w-none -mx-6 overflow-hidden">
                   <img
                     src={post.image}
                     alt="Post"
                     loading="lazy"
                     decoding="async"
-                    className="block w-full h-auto max-h-[85vh] object-contain"
+                    className="absolute inset-0 h-full w-full object-cover"
                   />
                 </Link>
               ) : null}
@@ -869,7 +877,7 @@ export default function CommunityFeedPage() {
                         <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
                       )}
                       {comments.map((comment) => (
-                        <div key={comment.id} className="hanar-bubble px-3 py-2 text-sm">
+                        <div key={comment.id} className="rounded-none bg-slate-100 px-3 py-2 text-sm dark:bg-gray-700/80">
                           <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
                             {comment.author || comment.username || 'User'}
                           </p>
@@ -881,6 +889,7 @@ export default function CommunityFeedPage() {
                 </div>
               )}
             </article>
+            </Fragment>
           );
         })}
       </div>
