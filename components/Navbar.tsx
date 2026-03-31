@@ -11,8 +11,19 @@ import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
 
-const HEADER_SEARCH_BORDER =
-  'border border-amber-400 dark:border-amber-500/90 focus:ring-2 focus:ring-amber-300/80 dark:focus:ring-amber-400/60 focus:border-amber-500 dark:focus:border-amber-400';
+/** Gradient “ring” around the search field (same palette as icons / bottom nav) */
+const HEADER_SEARCH_FRAME =
+  'rounded-full p-[1.5px] bg-gradient-to-r from-[#4a0a14] via-[#e1306c] to-[#4a0a14] dark:from-[#2d0610] dark:via-[#c41e56] dark:to-[#2d0610] shadow-[inset_0_1px_0_rgba(255,182,198,0.45)] dark:shadow-[inset_0_1px_0_rgba(255,120,160,0.2)] ring-1 ring-white/20 dark:ring-white/10';
+
+const HEADER_SEARCH_INPUT =
+  'w-full h-9 pl-9 pr-3 rounded-full bg-transparent text-slate-900 placeholder-slate-400 dark:text-slate-900 text-sm shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#e1306c]/45 dark:focus-visible:ring-[#f472b6]/40 focus-visible:ring-inset';
+
+/** Icon treatment on gradient bar — frosted chips like bottom nav bubbles */
+const HEADER_ICON_BTN_BASE =
+  'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-gradient-to-r from-[#4a0a14] via-[#e1306c] to-[#4a0a14] text-white shadow-sm transition-[background-color,transform,opacity] duration-200 hover:from-[#5a1020] hover:via-[#f03d78] hover:to-[#5a1020] active:scale-[0.97] dark:border-white/15 dark:from-[#2d0610] dark:via-[#c41e56] dark:to-[#2d0610] dark:hover:from-[#3a0a14] dark:hover:via-[#d62d66] dark:hover:to-[#3a0a14]';
+
+const HEADER_ICON_FOCUS =
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/55 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-blue-500/55 dark:focus-visible:ring-offset-white';
 
 type SearchResultItem = {
   type: 'user' | 'business' | 'organization';
@@ -70,15 +81,15 @@ export default function Navbar() {
     };
   }, [searchQuery]);
 
-  // Click outside to close dropdown
+  // Close search on outside tap/click — pointerdown works for mouse, touch, and pen (mousedown alone misses many mobile browsers)
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handlePointerDownOutside = (e: PointerEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setSearchOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('pointerdown', handlePointerDownOutside, true);
+    return () => document.removeEventListener('pointerdown', handlePointerDownOutside, true);
   }, []);
 
   const handleSearchSelect = useCallback(
@@ -196,28 +207,33 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="bg-white dark:bg-slate-900 h-[3.75rem] sm:h-16 flex items-center justify-between gap-2 px-3 sticky top-0 z-50 transition-all relative border-b border-slate-200 dark:border-slate-800">
+      <nav className="sticky top-0 z-50 flex h-[3.75rem] items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 shadow-sm transition-all isolate dark:border-slate-200 dark:bg-white sm:h-16">
         {/* Messages + search */}
         <div className="flex flex-1 max-w-md mx-1.5 sm:mx-3 items-center gap-2 sm:gap-2.5 min-w-0">
           <Link
             href="/messages"
-            className="shrink-0 rounded-full p-1.5 text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/55 dark:focus-visible:ring-rose-500/45"
+            className={`${HEADER_ICON_BTN_BASE} ${HEADER_ICON_FOCUS}`}
             aria-label="Messages"
           >
             <FaComments className="text-xl" />
           </Link>
           <div className="flex-1 min-w-0 relative" ref={dropdownRef}>
-            <div className="relative">
-              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-sm pointer-events-none" />
-              <input
-                type="search"
-                placeholder={t(effectiveLang, 'Search')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setSearchOpen(true)}
-                className={`w-full h-9 pl-9 pr-3 rounded-full bg-white dark:bg-gray-100 text-slate-900 placeholder-slate-400 text-sm shadow-sm focus:outline-none ${HEADER_SEARCH_BORDER}`}
-                aria-label="Search"
-              />
+            <div className={`relative ${HEADER_SEARCH_FRAME}`}>
+              <div className="relative rounded-full bg-white dark:bg-gray-100">
+                <FaSearch
+                  className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm pointer-events-none text-[#c41e56] dark:text-[#e85085]"
+                  aria-hidden
+                />
+                <input
+                  type="search"
+                  placeholder={t(effectiveLang, 'Search')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setSearchOpen(true)}
+                  className={HEADER_SEARCH_INPUT}
+                  aria-label="Search"
+                />
+              </div>
             </div>
             {searchOpen && (searchQuery.trim().length >= 1 || searchResults.length > 0) && (
               <div className="absolute top-full left-0 mt-1.5 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-[100] max-h-[70vh] overflow-y-auto w-[min(100vw-2rem,440px)] min-w-[280px]">
@@ -235,8 +251,9 @@ export default function Navbar() {
                       <li key={`${item.type}-${item.href}-${idx}`}>
                         <button
                           type="button"
+                          onPointerDown={(e) => e.preventDefault()}
                           onClick={() => handleSearchSelect(item.href)}
-                          className="w-full flex items-center gap-4 px-4 py-3.5 text-left hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-colors"
+                          className="w-full flex items-center gap-4 px-4 py-3.5 text-left hover:bg-slate-100 dark:hover:bg-slate-700/70 transition-colors cursor-pointer touch-manipulation"
                         >
                           <span className="w-14 h-14 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center shrink-0 overflow-hidden">
                             {item.imageUrl ? (
@@ -276,27 +293,24 @@ export default function Navbar() {
           {/* Notifications */}
           <Link
             href="/notifications"
-            className="relative inline-flex p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/55 dark:focus-visible:ring-rose-500/45 rounded-md"
+            className={`relative ${HEADER_ICON_BTN_BASE} ${HEADER_ICON_FOCUS}`}
           >
-            <div className="relative group">
-              <FaBell
-                className="text-xl text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 transition-colors duration-200 cursor-pointer"
-              />
-              {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-blue-500 text-white text-[10px] font-semibold px-0.5 py-0 rounded-full shadow-sm leading-none min-w-[1rem] h-4 inline-flex items-center justify-center">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
-              )}
-            </div>
+            <FaBell className="text-xl" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-blue-500 px-0.5 py-0 text-[10px] font-semibold leading-none text-white shadow-sm ring-2 ring-white dark:ring-white">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </Link>
 
           {/* Mobile Menu Toggle */}
           <button
+            type="button"
             onClick={() => setMenuOpen(!menuOpen)}
-            className="text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 transition-colors duration-200 text-2xl p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/55 dark:focus-visible:ring-rose-500/45 rounded-md"
+            className={`${HEADER_ICON_BTN_BASE} ${HEADER_ICON_FOCUS}`}
             aria-label="Toggle Menu"
           >
-            <FaBars />
+            <FaBars className="text-xl" />
           </button>
         </div>
       </nav>

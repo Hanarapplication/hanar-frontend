@@ -432,15 +432,15 @@ export default function CommunityPostPage() {
           <div className="flex items-center justify-between text-xs text-slate-500">
             <div className="flex flex-wrap items-center gap-2">
               {post.author_type === 'organization' && post.username ? (
-                <Link href={`/organization/${post.username}`} className="text-indigo-600 hover:underline">
+                <Link href={`/organization/${post.username}`} className="text-blue-900 dark:text-blue-300 hover:underline">
                   {post.author || 'Organization'}
                 </Link>
               ) : post.author_type === 'business' && post.username ? (
-                <Link href={`/business/${post.username}`} className="text-indigo-600 hover:underline">
+                <Link href={`/business/${post.username}`} className="text-blue-900 dark:text-blue-300 hover:underline">
                   {post.author || 'Business'}
                 </Link>
               ) : post.username ? (
-                <Link href={`/profile/${post.username}`} className="text-indigo-600 hover:underline">
+                <Link href={`/profile/${post.username}`} className="text-blue-900 dark:text-blue-300 hover:underline">
                   {post.author || 'User'}
                 </Link>
               ) : (
@@ -519,7 +519,7 @@ export default function CommunityPostPage() {
               {visibleComments.map((c) => (
                 <div
                   key={c.id}
-                  className="rounded-lg border border-amber-400/90 bg-slate-50 px-5 py-3 dark:border-amber-500/50 dark:bg-gray-700/80"
+                  className="hanar-bubble px-5 py-3"
                 >
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <div className="h-7 w-7 flex-shrink-0 overflow-hidden rounded-full">
@@ -530,7 +530,7 @@ export default function CommunityPostPage() {
                       />
                     </div>
                     {c.username ? (
-                      <Link href={`/profile/${c.username}`} className="text-xs text-indigo-600 hover:underline dark:text-indigo-400">
+                      <Link href={`/profile/${c.username}`} className="text-xs text-blue-900 hover:underline dark:text-blue-300">
                         {c.author || c.username || 'User'}
                       </Link>
                     ) : (

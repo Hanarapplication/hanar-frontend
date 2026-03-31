@@ -16,10 +16,8 @@ import PullToRefresh from '@/components/PullToRefresh';
 import { Avatar } from '@/components/Avatar';
 import { t } from '@/utils/translations';
 
-/** Gold outline — matches home feed cards and header search */
-const COMMUNITY_GOLD_FRAME = 'border border-amber-400 dark:border-amber-500/90';
-const COMMUNITY_SEARCH_GOLD =
-  `${COMMUNITY_GOLD_FRAME} focus:ring-2 focus:ring-amber-300/80 dark:focus:ring-amber-400/60 focus:border-amber-500`;
+const COMMUNITY_SEARCH_FRAME =
+  'border border-blue-900/80 dark:border-blue-700/80 focus:ring-2 focus:ring-blue-800/35 dark:focus:ring-blue-500/35 focus:border-blue-800';
 
 const COMMUNITY_CACHE_PREFIX = 'hanar_community_cache_';
 const COMMUNITY_FEED_LANG_KEY = 'hanar_community_feed_lang';
@@ -639,16 +637,16 @@ export default function CommunityFeedPage() {
       <div className="flex flex-wrap items-center gap-2 mb-6 px-4">
         <button
           onClick={() => setSortMode('latest')}
-          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            sortMode === 'latest' ? 'bg-rose-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            sortMode === 'latest' ? 'bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           {t(effectiveLang, 'For you')}
         </button>
         <button
           onClick={() => setSortMode('popular')}
-          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            sortMode === 'popular' ? 'bg-rose-600 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            sortMode === 'popular' ? 'bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           {t(effectiveLang, 'Most Popular')}
@@ -675,7 +673,7 @@ export default function CommunityFeedPage() {
             placeholder={t(effectiveLang, 'Search posts...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className={`w-full pl-10 pr-4 py-2 rounded-lg dark:bg-gray-800 dark:text-gray-100 focus:outline-none ${COMMUNITY_SEARCH_GOLD}`}
+            className={`w-full pl-10 pr-4 py-2 rounded-lg bg-white dark:bg-gray-800 dark:text-gray-100 focus:outline-none ${COMMUNITY_SEARCH_FRAME}`}
           />
           <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500" />
           {search && (
@@ -687,7 +685,7 @@ export default function CommunityFeedPage() {
         {!isBusinessUser && (
           <Link
             href="/community/post"
-            className="flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 text-white font-bold rounded-lg hover:from-blue-900 hover:via-blue-700 hover:to-blue-900 transition-all"
           >
             <PlusIcon className="h-5 w-5" />
             <span>{t(effectiveLang, 'New Post')}</span>
@@ -696,7 +694,7 @@ export default function CommunityFeedPage() {
       </div>
 
       {communityBanner?.image && (
-        <div className={`mb-6 ${COMMUNITY_GOLD_FRAME} bg-white dark:bg-gray-800 overflow-hidden shadow-sm`}>
+        <div className="mb-6 hanar-card-surface overflow-hidden shadow-sm">
           <Link href={communityBanner.link || '#'} target="_blank" rel="noopener noreferrer" className="block w-full">
             <div className="relative w-full aspect-[1200/630] bg-slate-100 dark:bg-gray-700">
               <img
@@ -715,7 +713,7 @@ export default function CommunityFeedPage() {
         {visiblePosts.length === 0 && loading && (
           <>
             {[1, 2, 3].map((i) => (
-              <div key={i} className={`bg-white dark:bg-gray-800 ${COMMUNITY_GOLD_FRAME} p-5 space-y-3`}>
+              <div key={i} className="hanar-card-surface p-5 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="skeleton h-10 w-10 rounded-full" />
                   <div className="flex-1 space-y-1.5">
@@ -745,7 +743,7 @@ export default function CommunityFeedPage() {
           return (
             <article
               key={`${post.id}-${index}`}
-              className={`bg-white dark:bg-gray-800 ${COMMUNITY_GOLD_FRAME} p-6 shadow-sm`}
+              className="hanar-card-surface p-6 shadow-sm"
             >
               {/* Author row */}
               <div className="flex items-center gap-3 mb-3 text-sm text-gray-500 dark:text-gray-400">
@@ -755,19 +753,19 @@ export default function CommunityFeedPage() {
                   className="h-9 w-9 flex-shrink-0 rounded-full"
                 />
                 {post.author_type === 'organization' && post.username ? (
-                  <Link href={`/organization/${post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                  <Link href={`/organization/${post.username}`} className="font-semibold text-blue-900 dark:text-blue-300 hover:underline">
                     {post.author || 'Organization'}
                   </Link>
                 ) : post.author_type === 'business' && post.username ? (
-                  <Link href={`/business/${post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                  <Link href={`/business/${post.username}`} className="font-semibold text-blue-900 dark:text-blue-300 hover:underline">
                     {post.author || 'Business'}
                   </Link>
                 ) : post.username ? (
-                  <Link href={`/profile/${post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                  <Link href={`/profile/${post.username}`} className="font-semibold text-blue-900 dark:text-blue-300 hover:underline">
                     {post.author || 'User'}
                   </Link>
                 ) : (
-                  <span className="font-semibold">{post.author}</span>
+                  <span className="font-semibold text-blue-900 dark:text-blue-300">{post.author}</span>
                 )}
                 {post.author_type === 'organization' && (
                   <span className="rounded-full bg-indigo-50 dark:bg-indigo-900/50 px-2 py-0.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-300">
@@ -871,7 +869,7 @@ export default function CommunityFeedPage() {
                         <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
                       )}
                       {comments.map((comment) => (
-                        <div key={comment.id} className="rounded-lg border border-amber-400/80 dark:border-amber-500/45 bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm">
+                        <div key={comment.id} className="hanar-bubble px-3 py-2 text-sm">
                           <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
                             {comment.author || comment.username || 'User'}
                           </p>

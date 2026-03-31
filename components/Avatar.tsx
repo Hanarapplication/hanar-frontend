@@ -4,11 +4,13 @@ import { useState } from 'react';
 
 export const HANAR_AVATAR_URL = '/hanar.logo.png';
 
-/** Thin gold inset ring — default on `<Avatar />` (omit with `unframed`). */
-export const AVATAR_GOLD_RING = 'ring-1 ring-inset ring-amber-400/90 dark:ring-amber-500/55';
+/** Thin Instagram-tone inset ring — default on `<Avatar />` (omit with `unframed`). */
+export const AVATAR_GOLD_RING =
+  'ring-1 ring-inset ring-[#c41e56]/82 dark:ring-[#e85085]/55';
 
-/** 1px gold border for square logos / listing thumbs. */
-export const LOGO_GOLD_BORDER = 'border border-amber-400/90 dark:border-amber-500/70';
+/** Accent border for square logos / listing thumbs (matches header & cards). */
+export const LOGO_GOLD_BORDER =
+  'border border-[#c41e56]/88 dark:border-[#e85085]/68';
 
 type AvatarProps = {
   src?: string | null;

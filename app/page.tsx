@@ -10,12 +10,16 @@ import { supabase } from '@/lib/supabaseClient';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
-import { Avatar, LOGO_GOLD_BORDER } from '@/components/Avatar';
+import { Avatar } from '@/components/Avatar';
 
-/** Gold outline on home feed content cards (posts, listings, sliders, ads). */
-const HOME_FEED_CARD_BORDER = 'border border-amber-400 dark:border-amber-500/90';
-
-type SliderBusiness = { id: string; name: string; category: string; image: string; plan?: string | null };
+type SliderBusiness = {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  image: string;
+  plan?: string | null;
+};
 type AdBanner = { id: string; image: string; link: string; alt: string };
 
 type CommunityPost = {
@@ -231,21 +235,26 @@ const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
   }, [slider]);
 
   return (
-    <section className={`rounded-xl ${HOME_FEED_CARD_BORDER} bg-white dark:bg-gray-800 shadow-sm p-4`}>
+    <section className="hanar-card-surface rounded-xl shadow-sm p-4">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-slate-700">Featured Businesses</h2>
         <Link href="/businesses" className="text-xs text-rose-600 hover:underline">View all</Link>
       </div>
       <div ref={sliderRef} className="keen-slider overflow-hidden rounded-lg">
         {items.map((biz) => (
-          <div key={biz.id} className={`keen-slider__slide rounded-lg border bg-white ${LOGO_GOLD_BORDER}`}>
+          <Link
+            key={biz.id}
+            href={`/business/${biz.slug}`}
+            data-keen-slider-clickable
+            className="keen-slider__slide block rounded-lg hanar-card-surface-lg no-underline overflow-hidden"
+          >
             <div className="relative">
               <img
                 src={biz.image}
                 alt={biz.name}
                 loading="lazy"
                 decoding="async"
-                className="h-24 w-full rounded-t-lg object-cover ring-1 ring-inset ring-amber-400/70 dark:ring-amber-500/45"
+                className="h-24 w-full rounded-t-lg object-cover ring-1 ring-inset ring-[#e1306c]/45 dark:ring-[#e85085]/40"
               />
               {(biz.plan || '').toLowerCase() === 'premium' && (
                 <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-amber-500/90 backdrop-blur-sm px-1 py-[1px] text-[8px] font-bold text-white shadow-sm">
@@ -258,7 +267,7 @@ const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
               <p className="text-xs font-semibold text-slate-800 truncate">{biz.name}</p>
               <p className="text-[11px] text-slate-500">{biz.category}</p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </section>
@@ -294,7 +303,7 @@ const MarketplaceCategorySliderCard = ({
   }, [slider]);
 
   return (
-    <section className={`rounded-xl ${HOME_FEED_CARD_BORDER} bg-white dark:bg-gray-800 shadow-sm p-4`}>
+    <section className="hanar-card-surface rounded-xl shadow-sm p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="min-w-0 truncate text-sm font-semibold text-slate-700 dark:text-gray-200">{categoryLabel}</h2>
         <Link href="/marketplace" className="shrink-0 text-xs text-rose-600 hover:underline dark:text-rose-400">
@@ -306,7 +315,8 @@ const MarketplaceCategorySliderCard = ({
           <Link
             key={item.id}
             href={`/marketplace/${item.slug || item.id}`}
-            className={`keen-slider__slide block rounded-lg border bg-white no-underline dark:bg-gray-800 ${LOGO_GOLD_BORDER}`}
+            data-keen-slider-clickable
+            className="keen-slider__slide block rounded-lg hanar-card-surface-lg no-underline overflow-hidden"
           >
             <div className="relative">
               <img
@@ -314,7 +324,7 @@ const MarketplaceCategorySliderCard = ({
                 alt={item.title}
                 loading="lazy"
                 decoding="async"
-                className="h-24 w-full rounded-t-lg object-cover ring-1 ring-inset ring-amber-400/70 dark:ring-amber-500/45"
+                className="h-24 w-full rounded-t-lg object-cover ring-1 ring-inset ring-[#e1306c]/45 dark:ring-[#e85085]/40"
               />
               {item.business_id &&
                 (item.business_verified ? (
@@ -378,7 +388,7 @@ function AdCardWithTrack({ banner }: { banner: AdBanner }) {
   return (
     <section
       ref={ref}
-      className={`rounded-xl ${HOME_FEED_CARD_BORDER} bg-white dark:bg-gray-800 overflow-hidden shadow-sm`}
+      className="hanar-card-surface rounded-xl overflow-hidden shadow-sm"
     >
       <Link href={banner.link} {...(banner.link.startsWith('/') || (typeof window !== 'undefined' && banner.link.includes(window.location.hostname)) ? {} : { target: '_blank', rel: 'noopener noreferrer' })} className="block w-full">
         <div className="relative w-full aspect-[1200/630] bg-slate-100 dark:bg-gray-700">
@@ -429,21 +439,26 @@ function FeedBusinessCardWithTrack({
   return (
     <article
       ref={ref}
-      className={`hanar-feed-business-card rounded-xl ${HOME_FEED_CARD_BORDER} bg-emerald-50/60 dark:bg-gray-800 p-5 shadow-sm dark:shadow-lg dark:shadow-black/20`}
+      className="hanar-feed-business-card hanar-card-surface overflow-hidden rounded-xl p-0 shadow-sm dark:shadow-lg dark:shadow-black/20"
     >
-      <div className="flex items-center gap-3">
-        <Link href={`/business/${business.slug}`} className="shrink-0">
-          <img
-            src={business.logo_url || 'https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=600&auto=format&fit=crop'}
-            alt={business.business_name}
-            loading="lazy"
-            decoding="async"
-            className={`h-14 w-14 rounded-lg object-cover ${LOGO_GOLD_BORDER}`}
-          />
-        </Link>
-        <div>
-          <div className="flex items-center gap-1.5">
-            <Link href={`/business/${business.slug}`} className="text-sm font-semibold text-slate-800 dark:text-gray-100 hover:underline">
+      <div className="flex items-stretch">
+        <div className="flex shrink-0 items-center bg-slate-900 p-4 dark:bg-gray-950">
+          <Link href={`/business/${business.slug}`} className="shrink-0">
+            <img
+              src={business.logo_url || 'https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=600&auto=format&fit=crop'}
+              alt={business.business_name}
+              loading="lazy"
+              decoding="async"
+              className="h-14 w-14 rounded-lg border border-[#c41e56]/85 object-cover dark:border-[#e85085]/65"
+            />
+          </Link>
+        </div>
+        <div className="min-w-0 flex-1 bg-gradient-to-b from-[#5c1024] to-[#2d0610] px-4 py-4 dark:from-gray-900 dark:to-black">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Link
+              href={`/business/${business.slug}`}
+              className="text-sm font-semibold text-white transition-colors hover:text-rose-200 hover:underline"
+            >
               {business.business_name}
             </Link>
             {(business.plan || '').toLowerCase() === 'premium' && (
@@ -453,14 +468,12 @@ function FeedBusinessCardWithTrack({
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 dark:text-gray-400">{business.subcategory || business.category || 'Business'}</p>
-          <p className="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+          <p className="text-xs text-white/80 italic">{business.subcategory || business.category || 'Business'}</p>
+          <p className="mt-1 text-xs font-semibold text-emerald-300 dark:text-emerald-300">
             {getBusinessMessage(business)}
           </p>
           {business.created_at && (
-            <p className="mt-1 text-[11px] text-slate-400 dark:text-gray-500">
-              Joined {formatDateLabel(business.created_at)}
-            </p>
+            <p className="mt-1 text-[11px] text-white/55">Joined {formatDateLabel(business.created_at)}</p>
           )}
         </div>
       </div>
@@ -1115,6 +1128,7 @@ const formatDateLabel = (value?: string | null) => {
     () =>
       nearbyBusinesses.slice(0, 8).map((biz) => ({
         id: biz.id,
+        slug: biz.slug,
         name: biz.business_name,
         category: biz.subcategory || biz.category || '',
         image: biz.logo_url || '/placeholder.jpg',
@@ -1524,7 +1538,7 @@ const formatDateLabel = (value?: string | null) => {
         {loading && (
           <div className="divide-y divide-black dark:divide-gray-500">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className={`rounded-xl ${HOME_FEED_CARD_BORDER} bg-white dark:bg-gray-800 p-5 shadow-sm space-y-3`}>
+              <div key={i} className="hanar-card-surface rounded-xl p-5 shadow-sm space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="skeleton h-9 w-9 rounded-full" />
                   <div className="flex-1 space-y-1.5">
@@ -1556,7 +1570,7 @@ const formatDateLabel = (value?: string | null) => {
             const isCommentsOpen = commentsOpen.has(item.post.id);
             const comments = commentsByPost[item.post.id] || [];
             return (
-              <article key={`post-${item.post.id}-${index}`} className={`rounded-xl ${HOME_FEED_CARD_BORDER} bg-white dark:bg-gray-800 p-5 shadow-sm`}>
+              <article key={`post-${item.post.id}-${index}`} className="hanar-card-surface rounded-xl p-5 shadow-sm">
                 <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-gray-400">
                   <div className="flex items-center gap-2 min-w-0">
                     <Avatar
@@ -1565,19 +1579,19 @@ const formatDateLabel = (value?: string | null) => {
                       className="h-8 w-8 flex-shrink-0 rounded-full"
                     />
                     {item.post.author_type === 'organization' && item.post.username ? (
-                      <Link href={`/organization/${item.post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline truncate">
+                      <Link href={`/organization/${item.post.username}`} className="font-semibold text-blue-900 dark:text-blue-300 hover:underline truncate">
                         {item.post.author || 'Organization'}
                       </Link>
                     ) : item.post.author_type === 'business' && item.post.username ? (
-                      <Link href={`/business/${item.post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline truncate">
+                      <Link href={`/business/${item.post.username}`} className="font-semibold text-blue-900 dark:text-blue-300 hover:underline truncate">
                         {item.post.author || 'Business'}
                       </Link>
                     ) : item.post.username ? (
-                      <Link href={`/profile/${item.post.username}`} className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline truncate">
+                      <Link href={`/profile/${item.post.username}`} className="font-semibold text-blue-900 dark:text-blue-300 hover:underline truncate">
                         {item.post.author || 'User'}
                       </Link>
                     ) : (
-                      <span className="font-semibold truncate">{item.post.author || 'Community'}</span>
+                      <span className="font-semibold truncate text-blue-900 dark:text-blue-300">{item.post.author || 'Community'}</span>
                     )}
                   </div>
                   <span className="flex-shrink-0">{dateLabel}</span>
@@ -1666,7 +1680,7 @@ const formatDateLabel = (value?: string | null) => {
                           <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
                         )}
                         {comments.map((comment) => (
-                          <div key={comment.id} className="rounded-lg border border-amber-400/80 dark:border-amber-500/45 bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm flex gap-2">
+                          <div key={comment.id} className="hanar-bubble px-3 py-2 text-sm flex gap-2">
                             <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                               <Avatar
                                 src={comment.profiles?.profile_pic_url ? `${comment.profiles.profile_pic_url}?t=${Date.now()}` : null}
@@ -1727,14 +1741,14 @@ const formatDateLabel = (value?: string | null) => {
 
           if (item.type === 'organization') {
             return (
-              <article key={`org-${item.organization.id}-${index}`} className={`rounded-xl ${HOME_FEED_CARD_BORDER} bg-white dark:bg-gray-800 p-5 shadow-sm`}>
+              <article key={`org-${item.organization.id}-${index}`} className="hanar-card-surface rounded-xl p-5 shadow-sm">
                 <div className="flex items-center gap-3">
                   <img
                     src={item.organization.logo_url || item.organization.banner_url || 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=600&auto=format&fit=crop'}
                     alt={item.organization.full_name}
                     loading="lazy"
                     decoding="async"
-                    className={`h-14 w-14 rounded-lg object-cover ${LOGO_GOLD_BORDER}`}
+                    className="h-14 w-14 rounded-lg object-cover border border-[#c41e56]/85 dark:border-[#e85085]/65"
                   />
                   <div>
                     <Link href={`/organization/${item.organization.username}`} className="text-sm font-semibold text-slate-800 dark:text-gray-100 hover:underline">

@@ -38,6 +38,16 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Faster, more reliable taps on mobile (Safari/Firefox); avoids double-tap zoom delay on controls */
+button,
+a,
+[role='button'],
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea {
+  touch-action: manipulation;
+}
+
 .dark body {
   background-color: #111827 !important;
   color: #f3f4f6 !important;
@@ -57,18 +67,6 @@ body {
 .dark .bg-indigo-50 { background-color: #312e81 !important; }
 .dark .bg-rose-50 { background-color: #3d1f28 !important; }
 .dark .bg-rose-100 { background-color: #5c2330 !important; }
-
-/* Home feed cards: force dark background so business cards stay dark */
-.dark .home-feed-card {
-  background-color: #1f2937 !important;
-  border-color: #374151 !important;
-}
-
-/* Hanar Feed (main page) business cards: force dark in dark mode */
-.dark .hanar-feed-business-card {
-  background-color: #1f2937 !important;
-  border-color: #374151 !important;
-}
 
 /* Dashboard: Following organizations – light mode colors */
 .following-orgs-light { color: #4f46e5; }
@@ -288,5 +286,93 @@ html.dark .dashboard-following-orgs .following-orgs-empty * {
 .modal-content-floating {
   max-height: 85vh;
   overflow-y: auto;
+}
+
+/* ── Hanar Instagram-style card rims (gradient border via dual background) ── */
+.hanar-card-surface {
+  border: 1.5px solid transparent;
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(to right, #4a0a14, #e1306c, #4a0a14) border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 182, 198, 0.35);
+}
+.dark .hanar-card-surface {
+  background:
+    linear-gradient(rgb(31 41 55), rgb(31 41 55)) padding-box,
+    linear-gradient(to right, #2d0610, #c41e56, #2d0610) border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 120, 160, 0.18);
+}
+
+.hanar-card-surface-mint {
+  border: 1.5px solid transparent;
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(rgb(236 253 245 / 0.6), rgb(236 253 245 / 0.6)) padding-box,
+    linear-gradient(to right, #4a0a14, #e1306c, #4a0a14) border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 182, 198, 0.35);
+}
+.dark .hanar-card-surface-mint {
+  background:
+    linear-gradient(rgb(31 41 55), rgb(31 41 55)) padding-box,
+    linear-gradient(to right, #2d0610, #c41e56, #2d0610) border-box;
+}
+
+.hanar-card-surface-lg {
+  border: 1.5px solid transparent;
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(to right, #4a0a14, #e1306c, #4a0a14) border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 182, 198, 0.35);
+}
+.dark .hanar-card-surface-lg {
+  background:
+    linear-gradient(rgb(31 41 55), rgb(31 41 55)) padding-box,
+    linear-gradient(to right, #2d0610, #c41e56, #2d0610) border-box;
+}
+
+.hanar-bubble {
+  border: 1.5px solid transparent;
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(rgb(248 250 252), rgb(248 250 252)) padding-box,
+    linear-gradient(to right, #4a0a14, #e1306c, #4a0a14) border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 182, 198, 0.25);
+}
+.dark .hanar-bubble {
+  background:
+    linear-gradient(rgb(55 65 81 / 0.8), rgb(55 65 81 / 0.8)) padding-box,
+    linear-gradient(to right, #2d0610, #c41e56, #2d0610) border-box;
+}
+
+.hanar-listing-frame {
+  padding: 1.5px;
+  border-radius: 0.5rem;
+  background: linear-gradient(to right, #4a0a14, #e1306c, #4a0a14);
+  box-shadow: inset 0 1px 0 rgba(255, 182, 198, 0.3);
+}
+@media (min-width: 640px) {
+  .hanar-listing-frame {
+    border-radius: 0.75rem;
+  }
+}
+.dark .hanar-listing-frame {
+  background: linear-gradient(to right, #2d0610, #c41e56, #2d0610);
+  box-shadow: inset 0 1px 0 rgba(255, 120, 160, 0.16);
+}
+
+.hanar-card-surface-muted {
+  border: 1.5px solid transparent;
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(rgb(249 250 251), rgb(249 250 251)) padding-box,
+    linear-gradient(to right, #4a0a14, #e1306c, #4a0a14) border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 182, 198, 0.3);
+}
+.dark .hanar-card-surface-muted {
+  background:
+    linear-gradient(rgb(31 41 55), rgb(31 41 55)) padding-box,
+    linear-gradient(to right, #2d0610, #c41e56, #2d0610) border-box;
 }
 

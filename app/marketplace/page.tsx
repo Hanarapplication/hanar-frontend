@@ -889,87 +889,91 @@ export default function MarketplacePage() {
   }, []);
 
   const ItemCard = ({ item }: { item: MarketplaceItem }) => (
-    <Link
-      key={item.id}
-      href={`/marketplace/${item.slug}`}
-      onClick={() => {
-        recordMarketplaceItemView({
-          source: item.source,
-          id: item.id,
-          title: item.title || '',
-          category: item.category || '',
-        });
-      }}
-      className="group relative bg-gradient-to-b from-rose-50/60 to-rose-50/30 dark:from-gray-800 dark:to-gray-800 rounded-lg sm:rounded-xl overflow-hidden shadow-sm hover:shadow-md dark:shadow-gray-900/50 transition-all duration-300 border border-rose-200 dark:border-gray-600 hover:border-rose-400 dark:hover:border-gray-500 hover:-translate-y-0.5 flex flex-col h-full text-sm sm:text-base"
-    >
-      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
-        <img
-          src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
-          alt={item.title}
-          loading="lazy"
-          decoding="async"
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(item); }}
-          className="absolute top-2 right-2 p-1.5 sm:p-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full shadow hover:bg-white dark:hover:bg-gray-700 transition active:scale-95"
+    <div className="h-full rounded-lg bg-gradient-to-r from-[#a68920] via-[#e6cf6a] to-[#a68920] p-[2px] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md dark:from-[#4a4014] dark:via-[#c4a82c] dark:to-[#4a4014] dark:shadow-gray-900/50 sm:rounded-xl">
+      <div className="h-full overflow-hidden rounded-[6px] bg-gradient-to-r from-[#b08f24] via-[#e7d487] to-[#b08f24] sm:rounded-[10px] dark:from-[#6b5818] dark:via-[#c7ac46] dark:to-[#6b5818]">
+        <Link
+          href={`/marketplace/${item.slug}`}
+          onClick={() => {
+            recordMarketplaceItemView({
+              source: item.source,
+              id: item.id,
+              title: item.title || '',
+              category: item.category || '',
+            });
+          }}
+          className="group relative flex h-full flex-col overflow-hidden rounded-[5px] bg-gradient-to-r from-[#b08f24] via-[#e7d487] to-[#b08f24] text-sm sm:rounded-[9px] sm:text-base dark:from-[#6b5818] dark:via-[#c7ac46] dark:to-[#6b5818]"
         >
-          {favoriteKeys.has(getFavoriteKey(item)) ? (
-            <FaHeart className="h-4 w-4 sm:h-5 sm:w-5 text-rose-500 dark:text-rose-400" />
-          ) : (
-            <FaRegHeart className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500 dark:text-gray-400" />
-          )}
-        </button>
-        {item.business_id && (
-          item.business_verified ? (
-            <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-emerald-500/90 backdrop-blur-sm px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm">
-              <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.403 12.652a3 3 0 010-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-5.11-1.36a.75.75 0 10-1.085-1.035l-2.165 2.27-.584-.614a.75.75 0 10-1.085 1.035l1.126 1.182a.75.75 0 001.085 0l2.708-2.839z" clipRule="evenodd" /></svg>
-              Verified
-            </span>
-          ) : (
-            <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-indigo-500/90 backdrop-blur-sm px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm">
-              <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.581.814L10 13.197l-4.419 3.617A1 1 0 014 16V4z" clipRule="evenodd" /></svg>
-              Business
-            </span>
-          )
-        )}
-      </div>
+          <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
+            <img
+              src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
+              alt={item.title}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+            <div className="absolute left-2 top-2 w-fit rounded-md border border-emerald-300/55 bg-gradient-to-r from-emerald-900 via-emerald-700 to-emerald-900 px-2 py-0.5 shadow-sm backdrop-blur-sm sm:px-2.5 sm:py-1 dark:from-emerald-950 dark:via-emerald-800 dark:to-emerald-950">
+              <p className="text-base font-bold tabular-nums text-white sm:text-lg">
+                {getPriceValue(item.price) === null ? item.price : `$${getPriceValue(item.price)}`}
+              </p>
+            </div>
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(item); }}
+              className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 shadow backdrop-blur-sm transition hover:bg-white active:scale-95 sm:p-2 dark:bg-gray-800/90 dark:hover:bg-gray-700"
+            >
+              {favoriteKeys.has(getFavoriteKey(item)) ? (
+                <FaHeart className="h-4 w-4 text-rose-500 sm:h-5 sm:w-5 dark:text-rose-400" />
+              ) : (
+                <FaRegHeart className="h-4 w-4 text-gray-500 sm:h-5 sm:w-5 dark:text-gray-400" />
+              )}
+            </button>
+            {item.business_id && (
+              item.business_verified ? (
+                <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-emerald-500/90 px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm backdrop-blur-sm">
+                  <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.403 12.652a3 3 0 010-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-5.11-1.36a.75.75 0 10-1.085-1.035l-2.165 2.27-.584-.614a.75.75 0 10-1.085 1.035l1.126 1.182a.75.75 0 001.085 0l2.708-2.839z" clipRule="evenodd" /></svg>
+                  Verified
+                </span>
+              ) : (
+                <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-indigo-500/90 px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm backdrop-blur-sm">
+                  <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.581.814L10 13.197l-4.419 3.617A1 1 0 014 16V4z" clipRule="evenodd" /></svg>
+                  Business
+                </span>
+              )
+            )}
+          </div>
 
-      <div className="p-3 sm:p-4 flex flex-col flex-grow">
-        <h3 className="font-semibold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-snug line-clamp-2 text-[15px] sm:text-base tracking-tight mb-1.5">
-          {item.title}
-        </h3>
-        <p className="text-lg font-bold tabular-nums text-emerald-600 dark:text-emerald-400 mb-2">
-          {getPriceValue(item.price) === null ? item.price : `$${getPriceValue(item.price)}`}
-        </p>
-        {item.description && (
-          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed line-clamp-2 mb-2">
-            {item.description}
-          </p>
-        )}
-        <div className="mt-auto flex flex-wrap items-center gap-2">
-          {item.category && (
-            <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200 truncate max-w-[120px]">
-              {item.category}
-            </span>
-          )}
-          {item.condition && (
-            <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-full ${
-              item.condition === 'New'
-                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200'
-                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200'
-            }`}>
-              {item.condition}
-            </span>
-          )}
-          {item.location && (
-            <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-lg bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-200 truncate max-w-[120px]">
-              {getCityStateFromLocation(item.location) || item.location}
-            </span>
-          )}
-        </div>
+          <div className="flex flex-grow flex-col bg-gradient-to-r from-[#b08f24] via-[#e4ce79] to-[#b08f24] p-3 sm:p-4 dark:from-[#6b5818] dark:via-[#c2a640] dark:to-[#6b5818]">
+            <div className="mb-1.5 w-fit max-w-full rounded-md border border-emerald-300/55 bg-gradient-to-r from-emerald-900 via-emerald-700 to-emerald-900 px-2 py-0.5 shadow-sm sm:px-2.5 sm:py-1 dark:from-emerald-950 dark:via-emerald-800 dark:to-emerald-950">
+              <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight text-white transition-colors group-hover:text-emerald-100 sm:text-base">
+                {item.title}
+              </h3>
+            </div>
+            {item.description && (
+              <p className="mb-2 line-clamp-2 text-sm font-normal leading-relaxed text-[#4a3a08] dark:text-[#2b2204]">
+                {item.description}
+              </p>
+            )}
+            <div className="mt-auto flex flex-wrap items-center gap-2">
+              {item.condition && (
+                <span
+                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                    item.condition === 'New'
+                      ? 'border-blue-300/55 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 text-white'
+                      : 'border-blue-300/55 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 text-white'
+                  }`}
+                >
+                  {item.condition}
+                </span>
+              )}
+              {item.location && (
+                <span className="inline-flex max-w-[120px] items-center truncate rounded-lg border border-blue-300/55 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 px-2 py-0.5 text-[11px] font-medium text-white">
+                  {getCityStateFromLocation(item.location) || item.location}
+                </span>
+              )}
+            </div>
+          </div>
+        </Link>
       </div>
-    </Link>
+    </div>
   );
 
   return (
@@ -978,55 +982,57 @@ export default function MarketplacePage() {
     <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-0 sm:pt-1">
       {/* Search with location inside - modern style */}
       <div className="sticky top-0 z-10 -mx-3 sm:-mx-5 px-3 sm:px-5 pt-0 pb-3 mb-6">
-        <div className="relative max-w-2xl mx-auto flex items-stretch gap-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-lg shadow-gray-200/50 dark:shadow-black/20 overflow-hidden transition-shadow hover:shadow-xl hover:shadow-gray-200/60 dark:hover:shadow-black/30">
-          <div className="relative flex-1 min-w-0">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </span>
-            <input
-              type="text"
-              placeholder="Search items, phones, cities..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              onBlur={handleSearchBlur}
-              className="w-full pl-12 pr-4 py-4 bg-transparent text-base text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none border-0"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:text-gray-300 dark:hover:bg-gray-700/50 transition-all"
-                aria-label="Clear search"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        <div className="mx-auto max-w-2xl rounded-2xl bg-gradient-to-r from-[#4a0a14] via-[#e1306c] to-[#4a0a14] p-[1.5px] shadow-[inset_0_1px_0_rgba(255,182,198,0.4),0_10px_30px_-10px_rgba(74,10,20,0.35)] ring-1 ring-white/20 transition-shadow dark:from-[#2d0610] dark:via-[#c41e56] dark:to-[#2d0610] dark:shadow-[inset_0_1px_0_rgba(255,120,160,0.18),0_12px_36px_-12px_rgba(0,0,0,0.45)] dark:ring-white/10 hover:shadow-[inset_0_1px_0_rgba(255,182,198,0.45),0_14px_40px_-12px_rgba(74,10,20,0.4)] dark:hover:shadow-[inset_0_1px_0_rgba(255,120,160,0.22),0_16px_44px_-12px_rgba(0,0,0,0.5)]">
+          <div className="flex items-stretch gap-0 overflow-hidden rounded-[14px] bg-white sm:rounded-[15px] dark:bg-white">
+            <div className="relative min-w-0 flex-1">
+              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#c41e56] dark:text-[#e85085]">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-              </button>
-            )}
+              </span>
+              <input
+                type="text"
+                placeholder="Search items, phones, cities..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                onBlur={handleSearchBlur}
+                className="w-full border-0 bg-transparent py-4 pl-12 pr-4 text-base text-gray-900 placeholder-gray-400 focus:outline-none dark:text-gray-900 dark:placeholder-gray-500"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-100 dark:hover:text-gray-700"
+                  aria-label="Clear search"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            <div className="w-px flex-shrink-0 bg-gray-200 dark:bg-gray-200" />
+            <button
+              type="button"
+              onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
+              className="flex h-full min-h-[56px] items-center gap-2 px-4 text-left transition-colors hover:bg-emerald-50/90 dark:hover:bg-gray-100 sm:px-5"
+            >
+              <FaMapMarkerAlt className="h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-600" />
+              <span className="max-w-[110px] truncate text-sm font-medium text-gray-800 dark:text-gray-900 sm:max-w-[140px]">
+                {locationLabel || 'Location'}
+              </span>
+              {locationLabel && locationScope.mode === 'country' && (
+                <span className="flex-shrink-0 text-xs text-gray-500 dark:text-gray-600">Country</span>
+              )}
+              {locationLabel && locationScope.mode === 'state' && (
+                <span className="flex-shrink-0 text-xs text-gray-500 dark:text-gray-600">State</span>
+              )}
+              {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && userCoords && (
+                <span className="flex-shrink-0 text-xs text-gray-500 dark:text-gray-600">{radius} mi</span>
+              )}
+            </button>
           </div>
-          <div className="w-px bg-gray-200/80 dark:bg-gray-600/80 flex-shrink-0" />
-          <button
-            type="button"
-            onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
-            className="flex items-center gap-2 px-4 sm:px-5 h-full min-h-[56px] text-left hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-colors"
-          >
-            <FaMapMarkerAlt className="w-4 h-4 text-emerald-500 dark:text-emerald-400 flex-shrink-0" />
-            <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[110px] sm:max-w-[140px]">
-              {locationLabel || 'Location'}
-            </span>
-            {locationLabel && locationScope.mode === 'country' && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">Country</span>
-            )}
-            {locationLabel && locationScope.mode === 'state' && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">State</span>
-            )}
-            {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && userCoords && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{radius} mi</span>
-            )}
-          </button>
         </div>
       </div>
 
@@ -1102,12 +1108,17 @@ export default function MarketplacePage() {
       {items.length === 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="rounded-lg sm:rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-              <div className="skeleton aspect-[4/3] w-full rounded-none" />
-              <div className="p-2.5 sm:p-3.5 space-y-2">
-                <div className="skeleton h-3.5 w-1/3 rounded-full" />
-                <div className="skeleton h-3.5 w-3/4 rounded" />
-                <div className="skeleton h-3 w-1/2 rounded" />
+            <div
+              key={i}
+              className="rounded-lg bg-gradient-to-r from-[#a68920] via-[#e6cf6a] to-[#a68920] p-[2px] dark:from-[#4a4014] dark:via-[#c4a82c] dark:to-[#4a4014] sm:rounded-xl"
+            >
+              <div className="overflow-hidden rounded-[6px] bg-gradient-to-r from-[#b08f24] via-[#e7d487] to-[#b08f24] sm:rounded-[10px] dark:from-[#6b5818] dark:via-[#c7ac46] dark:to-[#6b5818]">
+                <div className="skeleton aspect-[4/3] w-full rounded-none" />
+                <div className="space-y-2 bg-gradient-to-b from-[#5c1024] to-[#2d0610] p-2.5 sm:p-3.5 dark:from-gray-900 dark:to-black">
+                  <div className="skeleton h-3.5 w-1/3 rounded-full" />
+                  <div className="skeleton h-3.5 w-3/4 rounded" />
+                  <div className="skeleton h-3 w-1/2 rounded" />
+                </div>
               </div>
             </div>
           ))}

@@ -461,35 +461,37 @@ export default function BusinessesPage() {
       <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-2 sm:pt-3">
         {/* Search with location inside - modern style */}
         <div className="sticky top-0 z-10 -mx-3 sm:-mx-5 px-3 sm:px-5 pt-0 pb-4 mb-5 sm:mb-6">
-          <div className="max-w-3xl mx-auto flex items-stretch gap-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-gray-200/80 dark:border-gray-700/80 rounded-2xl shadow-lg shadow-gray-200/50 dark:shadow-black/20 overflow-hidden transition-shadow hover:shadow-xl hover:shadow-gray-200/60 dark:hover:shadow-black/30">
-            <div className="relative flex-1 min-w-0">
-              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 h-5 w-5 pointer-events-none" />
-              <input
-                placeholder={t(effectiveLang, 'Find a restaurant, salon, gym...')}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-transparent text-base text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none border-0"
-              />
-              {searching && (
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500 dark:text-gray-400">
-                  {t(effectiveLang, 'Searching…')}
+          <div className="mx-auto max-w-3xl rounded-2xl bg-gradient-to-r from-[#4a0a14] via-[#e1306c] to-[#4a0a14] p-[1.5px] shadow-[inset_0_1px_0_rgba(255,182,198,0.4),0_10px_30px_-10px_rgba(74,10,20,0.35)] ring-1 ring-white/20 transition-shadow dark:from-[#2d0610] dark:via-[#c41e56] dark:to-[#2d0610] dark:shadow-[inset_0_1px_0_rgba(255,120,160,0.18),0_12px_36px_-12px_rgba(0,0,0,0.45)] dark:ring-white/10 hover:shadow-[inset_0_1px_0_rgba(255,182,198,0.45),0_14px_40px_-12px_rgba(74,10,20,0.4)] dark:hover:shadow-[inset_0_1px_0_rgba(255,120,160,0.22),0_16px_44px_-12px_rgba(0,0,0,0.5)]">
+            <div className="flex items-stretch gap-0 overflow-hidden rounded-[14px] bg-white sm:rounded-[15px] dark:bg-white">
+              <div className="relative min-w-0 flex-1">
+                <FaSearch className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#c41e56] dark:text-[#e85085]" />
+                <input
+                  placeholder={t(effectiveLang, 'Find a restaurant, salon, gym...')}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="w-full border-0 bg-transparent py-4 pl-12 pr-4 text-base text-gray-900 placeholder-gray-400 focus:outline-none dark:text-gray-900 dark:placeholder-gray-500"
+                />
+                {searching && (
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500 dark:text-gray-600">
+                    {t(effectiveLang, 'Searching…')}
+                  </span>
+                )}
+              </div>
+              <div className="w-px flex-shrink-0 bg-gray-200 dark:bg-gray-200" />
+              <button
+                type="button"
+                onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
+                className="flex h-full min-h-[56px] items-center gap-2 px-4 text-left transition-colors hover:bg-rose-50/80 dark:hover:bg-gray-100 sm:px-5"
+              >
+                <FaMapMarkerAlt className="w-4 h-4 flex-shrink-0 text-rose-500 dark:text-rose-600" />
+                <span className="max-w-[110px] truncate text-sm font-medium text-gray-800 dark:text-gray-900 sm:max-w-[140px]">
+                  {locationLabel || t(effectiveLang, 'Location')}
                 </span>
-              )}
+                {locationLabel && (
+                  <span className="flex-shrink-0 text-xs text-gray-500 dark:text-gray-600">{radius} mi</span>
+                )}
+              </button>
             </div>
-            <div className="w-px bg-gray-200/80 dark:bg-gray-600/80 flex-shrink-0" />
-            <button
-              type="button"
-              onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
-              className="flex items-center gap-2 px-4 sm:px-5 h-full min-h-[56px] text-left hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-colors"
-            >
-              <FaMapMarkerAlt className="w-4 h-4 text-rose-500 dark:text-rose-400 flex-shrink-0" />
-              <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[110px] sm:max-w-[140px]">
-                {locationLabel || t(effectiveLang, 'Location')}
-              </span>
-              {locationLabel && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">{radius} mi</span>
-              )}
-            </button>
           </div>
         </div>
 
@@ -572,10 +574,13 @@ export default function BusinessesPage() {
             const bizCoords = businessLatLon(biz);
 
             return (
-              <Link
+              <div
                 key={biz.id}
+                className="hanar-listing-frame h-full transition-all duration-300 shadow-sm hover:shadow-md dark:shadow-gray-900/50 hover:-translate-y-0.5"
+              >
+              <Link
                 href={`/business/${biz.slug}`}
-                className="group bg-gradient-to-b from-rose-50/60 to-rose-50/30 dark:from-gray-800 dark:to-gray-800 rounded-lg sm:rounded-xl overflow-hidden shadow-sm hover:shadow-md dark:shadow-gray-900/50 transition-all duration-300 border border-rose-200 dark:border-gray-600 hover:border-rose-400 dark:hover:border-gray-500 hover:-translate-y-0.5 flex flex-col h-full text-sm sm:text-base"
+                className="group flex h-full flex-col overflow-hidden rounded-[7px] bg-slate-900 text-sm sm:rounded-[11px] sm:text-base dark:bg-gray-950"
               >
                 <div className="relative aspect-[4/3] overflow-hidden bg-rose-50 dark:bg-gray-700">
                   <img
@@ -603,43 +608,44 @@ export default function BusinessesPage() {
                   )}
                 </div>
 
-                <div className="p-2.5 sm:p-3.5 flex flex-col flex-grow">
-                  <div className="flex flex-wrap gap-1 mb-1.5 sm:mb-2">
+                <div className="flex flex-grow flex-col bg-gradient-to-b from-[#5c1024] to-[#2d0610] p-2.5 sm:p-3.5 dark:from-gray-900 dark:to-black">
+                  <div className="mb-1.5 flex flex-wrap gap-1 sm:mb-2">
                     {displayCategory ? (
-                      <span className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 text-xs font-medium rounded-full w-fit ${catColor}`}>
+                      <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium sm:px-2.5 sm:py-1 ${catColor}`}>
                         {displayCategory}
                       </span>
                     ) : null}
                     {speaksUserLang(biz) && (
-                      <span className="inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 text-xs font-medium rounded-full w-fit bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-700">
+                      <span className="inline-flex w-fit items-center rounded-full border border-emerald-400/50 bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-100 sm:px-2.5 sm:py-1 dark:border-emerald-600/50 dark:bg-emerald-900/40 dark:text-emerald-200">
                         {t(effectiveLang, 'Speaks your language')}
                       </span>
                     )}
                   </div>
 
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-rose-700 dark:group-hover:text-rose-300 transition-colors leading-tight line-clamp-2 mb-1 sm:mb-1.5 text-sm sm:text-base">
+                  <h3 className="mb-1 line-clamp-2 text-sm font-semibold leading-tight text-white transition-colors group-hover:text-rose-200 dark:group-hover:text-rose-200 sm:mb-1.5 sm:text-base">
                     {biz.business_name}
                   </h3>
 
                   {biz.description && (
-                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 italic leading-relaxed line-clamp-2 mb-1.5 sm:mb-2">
+                    <p className="mb-1.5 line-clamp-2 text-xs italic leading-relaxed text-white/80 sm:mb-2 sm:text-sm">
                       {biz.description}
                     </p>
                   )}
 
-                  <div className="mt-auto inline-block max-w-full rounded border border-rose-700 dark:border-rose-800 bg-rose-700 dark:bg-rose-800 px-1.5 py-0.5">
-                    <p className="text-[10px] font-bold text-white line-clamp-1 truncate max-w-[100px]">
+                  <div className="mt-auto inline-block max-w-full rounded border border-white/20 bg-white/10 px-1.5 py-0.5 backdrop-blur-sm dark:border-rose-800 dark:bg-rose-900/60">
+                    <p className="max-w-[100px] truncate line-clamp-1 text-[10px] font-bold text-white">
                       {locationText === 'Location not available' ? t(effectiveLang, 'Location not available') : locationText}
                     </p>
                   </div>
 
                   {userCoords && bizCoords && (
-                    <div className="mt-2 inline-flex items-center px-2 py-0.5 bg-rose-100/70 dark:bg-rose-900/50 text-rose-800 dark:text-rose-200 text-xs font-medium rounded-full">
+                    <div className="mt-2 inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium text-white/90">
                       ≈ {getDistanceMiles(userCoords.lat, userCoords.lon, bizCoords.lat, bizCoords.lon).toFixed(1)} mi
                     </div>
                   )}
                 </div>
               </Link>
+              </div>
             );
           })}
         </div>

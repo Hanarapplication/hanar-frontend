@@ -71,7 +71,8 @@ export default function HomeFeedPage() {
       <div className="space-y-6 max-w-2xl mx-auto">
 
         {feed.slice(0, visibleCount).map((post, idx) => (
-          <div key={idx} className="home-feed-card bg-gray-50 rounded-lg shadow-md dark:shadow-lg dark:shadow-black/30 border border-transparent dark:border-gray-700 p-4">
+          <div key={idx} className="rounded-xl bg-gradient-to-r from-blue-950 via-blue-700 to-blue-950 p-[2px] shadow-md dark:shadow-lg dark:shadow-black/30">
+            <div className="hanar-card-surface-muted rounded-[10px] bg-white p-4 dark:bg-white">
 
             {post.type === 'business' && (
               <Link href="/businesses" className="block">
@@ -127,6 +128,7 @@ export default function HomeFeedPage() {
               </a>
             )}
 
+            </div>
           </div>
         ))}
 

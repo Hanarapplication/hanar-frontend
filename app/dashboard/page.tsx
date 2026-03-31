@@ -698,7 +698,7 @@ function DashboardContent() {
         <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg shadow-slate-100/60 dark:shadow-black/20 p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             <label className="relative block shrink-0 cursor-pointer group">
-              <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-amber-400/90 bg-slate-100 ring-2 ring-transparent transition group-hover:ring-indigo-200 dark:border-amber-500/60 dark:bg-gray-700 dark:group-hover:ring-indigo-500">
+              <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-[#c41e56]/90 bg-slate-100 ring-2 ring-transparent transition group-hover:ring-indigo-200 dark:border-[#e85085]/65 dark:bg-gray-700 dark:group-hover:ring-indigo-500">
                 <Avatar
                   src={profile?.profile_pic_url}
                   alt="Profile"

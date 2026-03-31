@@ -730,7 +730,7 @@ export default function ItemDetailClient() {
                   href={individualSeller.username ? `/profile/${individualSeller.username}` : '#'}
                   className={`flex items-center gap-3 ${individualSeller.username ? 'hover:opacity-90' : ''}`}
                 >
-                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-amber-400/90 bg-slate-100 transition hover:opacity-90 dark:border-amber-500/60">
+                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-[#c41e56]/90 bg-slate-100 transition hover:opacity-90 dark:border-[#e85085]/65">
                     <Avatar
                       src={individualSeller.profile_pic_url}
                       alt={individualSeller.username ? `@${individualSeller.username}` : 'Seller'}
@@ -739,7 +739,7 @@ export default function ItemDetailClient() {
                     />
                   </div>
                   <div>
-                    <span className="font-semibold text-indigo-600 hover:underline">
+                    <span className="font-semibold text-blue-900 dark:text-blue-300 hover:underline">
                       {individualSeller.username ? `@${individualSeller.username}` : 'Individual seller'}
                     </span>
                   </div>

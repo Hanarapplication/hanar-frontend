@@ -775,7 +775,7 @@ export default function OrganizationProfilePage() {
                                   <div key={comment.id} className="rounded-md bg-white p-3 text-sm text-slate-700">
                                     <div className="flex items-center justify-between text-xs text-slate-500">
                                       {comment.username && href ? (
-                                        <Link href={href} className="text-indigo-600 hover:underline">
+                                        <Link href={href} className="text-blue-900 dark:text-blue-300 hover:underline">
                                           {comment.author || comment.username || 'User'}
                                         </Link>
                                       ) : (

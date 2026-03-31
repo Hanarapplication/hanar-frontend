@@ -795,7 +795,7 @@ export default function ProfilePage() {
       <div className="mx-auto max-w-2xl border-x border-slate-200 dark:border-gray-800 bg-white dark:bg-gray-900 min-h-screen">
         <div className="px-4 pt-6 pb-6 flex gap-4 sm:gap-6 items-start">
           {/* Avatar */}
-          <div className="h-24 w-24 sm:h-28 sm:w-28 shrink-0 overflow-hidden rounded-full border-2 border-amber-400/90 bg-slate-200 shadow-lg dark:border-amber-500/60 dark:bg-gray-700">
+          <div className="h-24 w-24 sm:h-28 sm:w-28 shrink-0 overflow-hidden rounded-full border-2 border-[#c41e56]/90 bg-slate-200 shadow-lg dark:border-[#e85085]/65 dark:bg-gray-700">
             <Avatar
               src={profilePicUrl}
               alt={`@${profile.username}`}
@@ -1024,7 +1024,7 @@ export default function ProfilePage() {
                               <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
                             )}
                             {(commentsByPost[post.id] || []).map((c) => (
-                              <div key={c.id} className="rounded-lg border border-amber-400/80 dark:border-amber-500/45 bg-slate-50 dark:bg-gray-700/80 px-3 py-2 text-sm flex gap-2">
+                              <div key={c.id} className="hanar-bubble px-3 py-2 text-sm flex gap-2">
                                 <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                                   <Avatar
                                     src={c.profiles?.profile_pic_url ? `${c.profiles.profile_pic_url}?t=${Date.now()}` : null}
@@ -1034,7 +1034,7 @@ export default function ProfilePage() {
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
-                                    <Link href={getHandleHref(c.username, c.author_type)} className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                                    <Link href={getHandleHref(c.username, c.author_type)} className="text-blue-900 dark:text-blue-300 hover:underline">
                                       {c.author || c.username || 'User'}
                                     </Link>
                                   </p>
