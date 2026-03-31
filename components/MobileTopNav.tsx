@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { FaStore, FaComments, FaShoppingCart } from 'react-icons/fa';
+import { FaStore, FaUsers, FaShoppingCart } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
@@ -34,7 +34,7 @@ export default function MobileTopNav() {
     },
     {
       href: '/community',
-      icon: <FaComments className={navFaIconClass} />,
+      icon: <FaUsers className={navFaIconClass} />,
       label: t(effectiveLang, 'Community'),
     },
     {
@@ -51,17 +51,17 @@ export default function MobileTopNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-r from-[#0c1f3c] via-[#b91c1c] to-[#0c1f3c] dark:from-[#061018] dark:via-[#991b1b] dark:to-[#061018] border-t border-white/20 dark:border-white/10 shadow-[inset_0_1px_0_rgba(140,170,230,0.35)] dark:shadow-[inset_0_1px_0_rgba(180,70,80,0.22)] pb-[max(0.35rem,env(safe-area-inset-bottom))] transition-colors duration-200"
+      className="fixed bottom-0 left-0 right-0 z-40 overflow-visible rounded-none border-x-0 border-b-0 border border-white/32 bg-[radial-gradient(160%_120%_at_50%_-15%,rgba(255,255,255,0.46)_0%,rgba(255,255,255,0.18)_24%,rgba(255,255,255,0.02)_44%,rgba(255,255,255,0)_64%),linear-gradient(90deg,rgba(8,18,42,0.98)_0%,rgba(33,76,176,0.98)_50%,rgba(8,18,42,0.98)_100%)] shadow-[0_8px_24px_rgba(2,6,23,0.4),inset_0_1px_0_rgba(250,253,255,0.72),inset_0_-1px_0_rgba(3,20,52,0.5)] backdrop-blur-xl pb-[max(0.32rem,env(safe-area-inset-bottom))] transition-colors duration-200 dark:border-white/16 dark:bg-[radial-gradient(160%_120%_at_50%_-15%,rgba(225,238,255,0.3)_0%,rgba(225,238,255,0.1)_24%,rgba(225,238,255,0.02)_44%,rgba(225,238,255,0)_64%),linear-gradient(90deg,rgba(6,12,30,0.98)_0%,rgba(24,60,145,0.98)_50%,rgba(6,12,30,0.98)_100%)]"
       aria-label="Primary"
     >
-      <div className="flex justify-around items-end gap-0.5 px-1 pt-1.5 pb-0 sm:px-2">
+      <div className="flex justify-around items-end gap-0.5 px-1.5 pt-1.5 pb-0 sm:px-2">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const bubble = [
-            'flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl transition-all duration-200 ease-out',
+            'flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl transition-all duration-200 ease-out',
             isActive
-              ? 'bg-black/20 text-white shadow-sm dark:bg-black/30'
-              : 'text-white/85 hover:text-white hover:bg-black/10 active:scale-[0.97] dark:text-white/80 dark:hover:bg-black/20',
+              ? 'bg-gradient-to-br from-[#2b0710] via-[#7f1d1d] to-[#4a0a14] text-white shadow-[inset_0_1px_0_rgba(255,210,220,0.2),0_6px_14px_rgba(90,12,24,0.32)]'
+              : 'text-white/90 hover:text-white hover:bg-white/10 active:scale-[0.97] dark:text-white/85 dark:hover:bg-white/10',
           ].join(' ');
 
           return (
@@ -69,15 +69,15 @@ export default function MobileTopNav() {
               key={item.href}
               href={item.href}
               aria-label={item.href === '/' ? t(effectiveLang, 'Feed') : undefined}
-              className="relative flex min-w-0 flex-1 max-w-[5.25rem] flex-col items-center gap-0 rounded-lg py-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-[#b91c1c] dark:focus-visible:ring-white/65 dark:focus-visible:ring-offset-[#991b1b]"
+              className="relative flex min-w-0 flex-1 max-w-[5rem] flex-col items-center gap-0.5 rounded-xl py-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b3a7a] dark:focus-visible:ring-white/70 dark:focus-visible:ring-offset-[#082b68]"
             >
               <span className={bubble}>{item.icon}</span>
               {item.label ? (
                 <span
-                  className={`w-full truncate text-center text-[9px] sm:text-[10px] leading-none tracking-wide -mt-px ${
+                  className={`w-full truncate text-center text-[9px] sm:text-[10px] leading-none tracking-wide ${
                     isActive
                       ? 'font-semibold text-white'
-                      : 'font-medium text-white/80 hover:text-white'
+                      : 'font-medium text-white/85 hover:text-white'
                   }`}
                 >
                   {item.label}
