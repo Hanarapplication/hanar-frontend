@@ -24,6 +24,12 @@ type SeedMarketplacePayload = {
   title?: string;
   price?: number | string;
   location?: string;
+  locationCountry?: string;
+  locationState?: string;
+  locationCity?: string;
+  locationZip?: string;
+  locationLat?: number | null;
+  locationLng?: number | null;
   category?: string;
   condition?: string;
   description?: string;
@@ -85,6 +91,10 @@ export async function POST(req: Request) {
     const body = (await req.json().catch(() => ({}))) as SeedMarketplacePayload;
     const title = (body.title || '').trim();
     const location = (body.location || '').trim();
+    const locationCountry = (body.locationCountry || '').trim();
+    const locationState = (body.locationState || '').trim();
+    const locationCity = (body.locationCity || '').trim();
+    const locationZip = (body.locationZip || '').trim();
     const category = (body.category || '').trim();
     const condition = (body.condition || '').trim() || 'New';
     const description = (body.description || '').trim();
@@ -144,6 +154,12 @@ export async function POST(req: Request) {
       title,
       price: numericPrice,
       location,
+      location_country: locationCountry || null,
+      location_state: locationState || null,
+      location_city: locationCity || null,
+      location_zip: locationZip || null,
+      location_lat: typeof body.locationLat === 'number' ? body.locationLat : null,
+      location_lng: typeof body.locationLng === 'number' ? body.locationLng : null,
       category,
       condition,
       description: description || null,
