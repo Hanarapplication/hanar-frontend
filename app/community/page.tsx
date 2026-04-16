@@ -1,8 +1,3 @@
-import { redirect } from 'next/navigation';
-
-export default function CommunityPage() {
-  redirect('/');
-}
 'use client';
 
 import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
@@ -886,3 +881,5 @@ function CommunityFeedPage() {
     </PullToRefresh>
   );
 }
+
+export default CommunityFeedPage;
