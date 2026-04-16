@@ -679,7 +679,7 @@ export default function BusinessesPage() {
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
-      <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-2 sm:pt-3">
+      <div className="mx-auto max-w-[66rem] px-3 pt-2">
         {/* Amazon-like search and location bar */}
         <div className="sticky top-0 z-10 -mx-3 mb-5 border-b border-sky-200/90 bg-gradient-to-b from-sky-100/95 to-white px-3 pb-3 pt-2 shadow-sm shadow-sky-900/10 sm:-mx-5 sm:mb-6 sm:px-5 dark:border-slate-700 dark:from-slate-900/80 dark:to-gray-800 dark:shadow-none">
           <div className="mx-auto max-w-3xl">

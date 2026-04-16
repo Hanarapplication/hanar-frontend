@@ -49,7 +49,7 @@ export default function MobileTopNav() {
 
   return (
     <nav
-      className="fixed left-0 right-0 top-14 z-40 bg-gradient-to-r from-sky-100 to-rose-100 dark:from-slate-900/60 dark:to-rose-950/40 sm:hidden"
+      className="fixed left-0 right-0 top-14 z-40 bg-gradient-to-r from-sky-100 to-rose-100 shadow-sm dark:from-slate-900/60 dark:to-rose-950/40 sm:top-16"
       aria-label="Primary"
     >
       <div className="flex items-stretch justify-between px-1">

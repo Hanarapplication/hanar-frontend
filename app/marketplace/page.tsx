@@ -945,6 +945,12 @@ export default function MarketplacePage() {
   const onlineAffiliateItems = filteredItems
     .filter((item) => Boolean(item.external_buy_url))
     .slice(0, 8);
+  const onlineAffiliateFallbackItems = items
+    .filter((item) => Boolean(item.external_buy_url))
+    .slice(0, 8);
+  const onlineSectionItems = onlineAffiliateItems.length > 0
+    ? onlineAffiliateItems
+    : onlineAffiliateFallbackItems;
 
   const categoryCounts = items.reduce((acc, item) => {
     const key = normalizeMarketplaceCategory(item.category, 'General');
@@ -1003,7 +1009,7 @@ export default function MarketplacePage() {
             category: item.category || '',
           });
         }}
-        className="group relative flex h-full flex-col text-xs sm:text-sm"
+        className="group relative flex h-full flex-col text-xs"
       >
         <div className="relative aspect-[5/3] overflow-hidden bg-[#f7f8f8]">
           <img
@@ -1011,16 +1017,16 @@ export default function MarketplacePage() {
             alt={item.title}
             loading="lazy"
             decoding="async"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:object-contain"
           />
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(item); }}
-            className="absolute right-1.5 top-1.5 rounded-full border border-[#d5d9d9] bg-white p-1 shadow-sm transition hover:bg-[#f7fafa] active:scale-95 sm:p-1.5"
+            className="absolute right-1.5 top-1.5 rounded-full border border-[#d5d9d9] bg-white p-1 shadow-sm transition hover:bg-[#f7fafa] active:scale-95"
           >
             {favoriteKeys.has(getFavoriteKey(item)) ? (
-              <FaHeart className="h-3.5 w-3.5 text-[#cc0c39] sm:h-4 sm:w-4" />
+              <FaHeart className="h-3.5 w-3.5 text-[#cc0c39]" />
             ) : (
-              <FaRegHeart className="h-3.5 w-3.5 text-[#565959] sm:h-4 sm:w-4" />
+              <FaRegHeart className="h-3.5 w-3.5 text-[#565959]" />
             )}
           </button>
           {item.external_buy_url && (
@@ -1030,11 +1036,11 @@ export default function MarketplacePage() {
           )}
         </div>
 
-        <div className="flex flex-grow flex-col p-2 sm:p-2.5">
-          <h3 className="line-clamp-2 text-[12px] font-medium leading-snug text-[#0f1111] transition-colors group-hover:text-[#c7511f] sm:text-[13px]">
+        <div className="flex flex-grow flex-col p-2">
+          <h3 className="line-clamp-2 text-[12px] font-medium leading-snug text-[#0f1111] transition-colors group-hover:text-[#c7511f]">
             {item.title}
           </h3>
-          <p className="mt-1 text-[13px] font-bold leading-none text-[#0f1111] sm:text-[14px]">
+          <p className="mt-1 text-[13px] font-bold leading-none text-[#0f1111]">
             {getPriceValue(item.price) === null ? item.price : `$${getPriceValue(item.price)}`}
           </p>
           {item.condition && (
@@ -1062,57 +1068,12 @@ export default function MarketplacePage() {
     </div>
   );
 
-  const AmazonStyleShelf = ({
-    title,
-    itemsForShelf,
-    ctaLabel = 'See more',
-    onCta,
-  }: {
-    title: string;
-    itemsForShelf: MarketplaceItem[];
-    ctaLabel?: string;
-    onCta?: () => void;
-  }) => {
-    const tiles = itemsForShelf.slice(0, 4);
-    if (tiles.length === 0) return null;
-    return (
-      <section className="rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <h3 className="line-clamp-1 text-[15px] font-bold text-[#0f1111]">{title}</h3>
-          <button
-            type="button"
-            onClick={onCta}
-            className="text-[11px] font-medium text-[#007185] hover:text-[#c7511f]"
-          >
-            {ctaLabel}
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {tiles.map((item) => (
-            <Link key={`shelf-${title}-${item.source}-${item.id}`} href={`/marketplace/${item.slug}`} className="group block">
-              <div className="overflow-hidden rounded-md border border-slate-100 bg-slate-50">
-                <img
-                  src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
-                  alt={item.title}
-                  loading="lazy"
-                  decoding="async"
-                  className="h-20 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-              </div>
-              <p className="mt-1 line-clamp-1 text-[10px] text-[#0f1111]">{item.title}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
-    );
-  };
-
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
-    <div className="min-h-screen bg-[#eaeded] pb-10 sm:pb-12 dark:bg-[#111827]">
-    <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-0 sm:pt-1">
+    <div className="min-h-screen bg-[#eaeded] pb-10 dark:bg-[#111827]">
+    <div className="mx-auto max-w-[66rem] px-3 pt-0">
       {/* Search and location bar (sky/rose — same family as home Ask strip) */}
-      <div className="sticky top-0 z-10 -mx-3 mb-6 border-b border-sky-200/90 bg-gradient-to-b from-sky-100/95 to-white px-3 pb-3 pt-2 shadow-sm shadow-sky-900/10 sm:-mx-5 sm:px-5 dark:border-slate-700 dark:from-slate-900/80 dark:to-gray-800 dark:shadow-none">
+      <div className="sticky top-0 z-10 -mx-3 mb-6 border-b border-sky-200/90 bg-gradient-to-b from-sky-100/95 to-white px-3 pb-3 pt-2 shadow-sm shadow-sky-900/10 dark:border-slate-700 dark:from-slate-900/80 dark:to-gray-800 dark:shadow-none">
         <div className="mx-auto max-w-3xl">
           <button
             type="button"
@@ -1129,7 +1090,7 @@ export default function MarketplacePage() {
           </button>
 
           <div className="flex overflow-hidden rounded-md border border-sky-200 bg-gradient-to-r from-sky-100 to-rose-100 shadow-sm shadow-sky-900/10 dark:border-slate-600 dark:from-slate-900/60 dark:to-rose-950/40 dark:shadow-none">
-              <div className="hidden items-center border-r border-sky-200/90 bg-sky-50/90 px-3 text-[11px] font-medium text-sky-900 dark:border-sky-700 dark:bg-slate-800/80 dark:text-slate-200 sm:flex">
+              <div className="hidden items-center border-r border-sky-200/90 bg-sky-50/90 px-3 text-[11px] font-medium text-sky-900 dark:border-sky-700 dark:bg-slate-800/80 dark:text-slate-200">
                 All categories
             </div>
             <div className="relative min-w-0 flex-1">
@@ -1176,10 +1137,10 @@ export default function MarketplacePage() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/35 backdrop-blur-[2px] p-2 pt-12 sm:pt-14"
+          className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/35 backdrop-blur-[2px] p-2 pt-12"
           onClick={() => setLocationModalOpen(false)}
         >
-          <div className="w-full max-w-[20rem] rounded-xl border border-slate-200/90 bg-white/95 p-3 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:border-gray-700/80 dark:bg-gray-900/95 sm:max-w-[21rem] sm:p-3.5" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-[20rem] rounded-xl border border-slate-200/90 bg-white/95 p-3 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:border-gray-700/80 dark:bg-gray-900/95" onClick={(e) => e.stopPropagation()}>
             <div className="mb-2.5 flex items-center justify-between">
               <h3 className="text-base font-semibold text-slate-900 dark:text-white">Search in this area</h3>
               <button
@@ -1255,7 +1216,7 @@ export default function MarketplacePage() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/35 p-3 pt-16 backdrop-blur-[2px] sm:pt-20"
+          className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/35 p-3 pt-16 backdrop-blur-[2px]"
           onClick={() => setCategoriesModalOpen(false)}
         >
           <div
@@ -1309,13 +1270,24 @@ export default function MarketplacePage() {
 
       {items.length > 0 && (
         <>
-          <section className="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-            <AmazonStyleShelf
-              title="Continue shopping deals"
-              itemsForShelf={dealShowcaseItems.length > 0 ? dealShowcaseItems : filteredItems.slice(3, 9)}
-              ctaLabel="See deal picks"
-              onCta={() => setSort('priceLow')}
-            />
+          <section className="mb-3 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="text-[16px] font-bold text-[#0f1111]">Continue shopping deals</h2>
+              <button
+                type="button"
+                onClick={() => setSort('priceLow')}
+                className="text-[11px] font-medium text-[#007185] hover:text-[#c7511f]"
+              >
+                See deal picks
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {(dealShowcaseItems.length > 0 ? dealShowcaseItems : filteredItems.slice(3, 9))
+                .slice(0, 4)
+                .map((item) => (
+                  <ItemCard key={`continue-deal-${item.source}-${item.id}`} item={item} />
+                ))}
+            </div>
           </section>
 
           {topCategories.length > 0 && (
@@ -1368,54 +1340,23 @@ export default function MarketplacePage() {
                 <h2 className="text-[16px] font-bold text-[#0f1111]">More items to consider</h2>
                 <span className="text-[11px] font-semibold text-[#007185]">See more</span>
               </div>
-              <div className="grid grid-cols-4 gap-2 md:grid-cols-6">
-                {dealShowcaseItems.slice(0, 6).map((item) => (
-                  <Link key={`consider-${item.source}-${item.id}`} href={`/marketplace/${item.slug}`} className="group block">
-                    <div className="overflow-hidden rounded-md border border-slate-100 bg-slate-50">
-                      <img
-                        src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
-                        alt={item.title}
-                        loading="lazy"
-                        decoding="async"
-                        className="h-20 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    </div>
-                  </Link>
+              <div className="grid grid-cols-3 gap-2">
+                {dealShowcaseItems.slice(0, 4).map((item) => (
+                  <ItemCard key={`consider-${item.source}-${item.id}`} item={item} />
                 ))}
               </div>
             </section>
           )}
 
-          {onlineAffiliateItems.length > 0 && (
+          {onlineSectionItems.length > 0 && (
             <section className="mb-6 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="text-[16px] font-bold text-[#0f1111]">Available online</h2>
                 <span className="text-[11px] text-[#565959]">Affiliate links</span>
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                {onlineAffiliateItems.slice(0, 8).map((item) => (
-                  <div key={`online-${item.source}-${item.id}`} className="rounded-md border border-[#d5d9d9] p-2">
-                    <Link href={`/marketplace/${item.slug}`} className="group block">
-                      <div className="overflow-hidden rounded-md bg-slate-100">
-                        <img
-                          src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
-                          alt={item.title}
-                          loading="lazy"
-                          decoding="async"
-                          className="h-20 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      </div>
-                      <p className="mt-1 line-clamp-1 text-[11px] text-[#0f1111]">{item.title}</p>
-                    </Link>
-                    <a
-                      href={item.external_buy_url || '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-flex w-full items-center justify-center rounded-md bg-[#ffd814] px-2 py-1.5 text-[11px] font-semibold text-[#0f1111] hover:bg-[#f7ca00]"
-                    >
-                      Buy online
-                    </a>
-                  </div>
+              <div className="grid grid-cols-3 gap-2">
+                {onlineSectionItems.slice(0, 4).map((item) => (
+                  <ItemCard key={`online-${item.source}-${item.id}`} item={item} />
                 ))}
               </div>
             </section>
@@ -1427,19 +1368,9 @@ export default function MarketplacePage() {
                 <h2 className="text-[16px] font-bold text-[#0f1111]">Trending now</h2>
                 <span className="text-[11px] text-[#007185]">See more</span>
               </div>
-              <div className="grid grid-cols-4 gap-2 md:grid-cols-6">
-                {trendingItems.slice(0, 6).map((item) => (
-                  <Link key={`trend-strip-${item.source}-${item.id}`} href={`/marketplace/${item.slug}`} className="group block">
-                    <div className="overflow-hidden rounded-md border border-slate-100 bg-slate-50">
-                      <img
-                        src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
-                        alt={item.title}
-                        loading="lazy"
-                        decoding="async"
-                        className="h-20 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    </div>
-                  </Link>
+              <div className="grid grid-cols-3 gap-2">
+                {trendingItems.slice(0, 4).map((item) => (
+                  <ItemCard key={`trend-strip-${item.source}-${item.id}`} item={item} />
                 ))}
               </div>
             </section>
@@ -1453,7 +1384,7 @@ export default function MarketplacePage() {
                   Limited deal
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 sm:gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 {dealShowcaseItems.slice(0, 4).map((item) => (
                   <ItemCard key={`deal-${item.source}-${item.id}`} item={item} />
                 ))}
@@ -1465,15 +1396,15 @@ export default function MarketplacePage() {
 
       {/* Items */}
       {items.length === 0 && (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3">
+        <div className="grid grid-cols-3 gap-2">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
-              className="rounded-lg bg-gradient-to-r from-[#a68920] via-[#e6cf6a] to-[#a68920] p-[2px] dark:from-[#4a4014] dark:via-[#c4a82c] dark:to-[#4a4014] sm:rounded-xl"
+              className="rounded-lg bg-gradient-to-r from-[#a68920] via-[#e6cf6a] to-[#a68920] p-[2px] dark:from-[#4a4014] dark:via-[#c4a82c] dark:to-[#4a4014]"
             >
-              <div className="overflow-hidden rounded-[6px] bg-gradient-to-r from-[#b08f24] via-[#e7d487] to-[#b08f24] sm:rounded-[10px] dark:from-[#6b5818] dark:via-[#c7ac46] dark:to-[#6b5818]">
+              <div className="overflow-hidden rounded-[6px] bg-gradient-to-r from-[#b08f24] via-[#e7d487] to-[#b08f24] dark:from-[#6b5818] dark:via-[#c7ac46] dark:to-[#6b5818]">
                 <div className="skeleton aspect-[5/3] w-full rounded-none" />
-                <div className="space-y-2 bg-gradient-to-b from-[#5c1024] to-[#2d0610] p-2.5 sm:p-3.5 dark:from-gray-900 dark:to-black">
+                <div className="space-y-2 bg-gradient-to-b from-[#5c1024] to-[#2d0610] p-2.5 dark:from-gray-900 dark:to-black">
                   <div className="skeleton h-3.5 w-1/3 rounded-full" />
                   <div className="skeleton h-3.5 w-3/4 rounded" />
                   <div className="skeleton h-3 w-1/2 rounded" />
@@ -1494,7 +1425,7 @@ export default function MarketplacePage() {
           <span className="text-xs text-slate-500 dark:text-slate-400">{filteredItems.length} results</span>
         </div>
       )}
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3">
+      <div className="grid grid-cols-3 gap-2">
         {filteredItems.slice(0, visibleCount).map((item) => (
           <ItemCard key={`${item.source}-${item.id}`} item={item} />
         ))}
@@ -1505,7 +1436,7 @@ export default function MarketplacePage() {
         <p className="text-center text-gray-500 mt-6">No results found. Try changing your search or filters.</p>
       )}
       {filteredItems.length > visibleCount && (
-        <div className="text-center mt-8 sm:mt-10">
+        <div className="text-center mt-8">
           <button onClick={() => setVisibleCount(visibleCount + 6)} className="bg-rose-500 text-white px-6 py-2 rounded-md hover:bg-rose-600 transition text-sm">
             Show More
           </button>

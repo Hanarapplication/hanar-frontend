@@ -1747,7 +1747,7 @@ const formatDateLabel = (value?: string | null) => {
     <>
     <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="min-h-screen bg-slate-100 dark:bg-gray-900">
-      <div className="w-full pb-6 pt-0">
+      <div className="mx-auto max-w-[66rem] pb-6 pt-0">
         {heroFeedBanner && (
           <div className="border-b border-black dark:border-gray-500">
             <AdCardWithTrack banner={heroFeedBanner} />
