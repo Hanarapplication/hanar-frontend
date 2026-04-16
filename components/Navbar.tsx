@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { FaBell, FaBars, FaComments, FaSearch } from 'react-icons/fa';
 import { usePathname } from 'next/navigation';
+import { Bell, Menu, MessageCircle, Search } from 'lucide-react';
 import MobileMenu from './MobileMenu';
 import { supabase } from '@/lib/supabaseClient';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
+import { hanarTheme } from '@/lib/hanarTheme';
 
 /** Gradient “ring” around the search field (same palette as icons / bottom nav) */
 const HEADER_SEARCH_FRAME =
@@ -17,12 +18,6 @@ const HEADER_SEARCH_FRAME =
 
 const HEADER_SEARCH_INPUT =
   'w-full h-9 pl-9 pr-3 rounded-full bg-transparent text-slate-900 placeholder-slate-400 dark:text-slate-900 text-sm shadow-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#e1306c]/45 dark:focus-visible:ring-[#f472b6]/40 focus-visible:ring-inset';
-
-/** SVG fill gradient — true red (Tailwind red-700 → red-600), avoids near-black stops */
-const NAV_HEADER_ICON_GRADIENT_ID = 'hanarNavHeaderIconGradient';
-
-/** Messages / notifications / menu */
-const HEADER_ACTION_ICON_CLASS = `text-xl [&_path]:fill-[url(#${NAV_HEADER_ICON_GRADIENT_ID})]`;
 
 /** Gradient frame around messages / bell / menu (matches bottom nav tones); white inner chip */
 const HEADER_ICON_FRAME =
@@ -216,16 +211,45 @@ export default function Navbar() {
 
   return (
     <>
-      <svg width={0} height={0} className="pointer-events-none absolute overflow-hidden opacity-0" aria-hidden>
-        <defs>
-          <linearGradient id={NAV_HEADER_ICON_GRADIENT_ID} x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#b91c1c" />
-            <stop offset="50%" stopColor="#dc2626" />
-            <stop offset="100%" stopColor="#b91c1c" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <nav className="sticky top-0 z-50 flex h-[3.75rem] items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 shadow-sm transition-all isolate dark:border-slate-200 dark:bg-white sm:h-16">
+      <nav className="sticky top-0 z-50 flex h-14 items-center justify-between bg-gradient-to-r from-sky-100 to-rose-100 px-3 dark:from-slate-900/60 dark:to-rose-950/40 sm:hidden">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100 active:scale-[0.97]"
+            aria-label="Toggle Menu"
+          >
+            <Menu className={`h-6 w-6 ${hanarTheme.iconNav}`} strokeWidth={2} aria-hidden />
+          </button>
+          <Link href="/" className="text-[2rem] font-serif font-bold lowercase leading-none tracking-[0.015em]">
+            <span className={hanarTheme.brandGradientText}>hanar</span>
+          </Link>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <Link
+            href="/notifications"
+            className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100"
+            aria-label="Notifications"
+          >
+            <Bell className={`h-[1.2rem] w-[1.2rem] ${hanarTheme.iconNav}`} strokeWidth={2} aria-hidden />
+            {unreadCount > 0 && (
+              <span className="absolute right-0 top-0 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-semibold leading-none text-white">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </Link>
+          <Link
+            href="/messages"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100"
+            aria-label="Messages"
+          >
+            <MessageCircle className={`h-[1.22rem] w-[1.22rem] ${hanarTheme.iconNav}`} strokeWidth={2} aria-hidden />
+          </Link>
+        </div>
+      </nav>
+
+      <nav className="sticky top-0 z-50 hidden h-[3.75rem] items-center justify-between gap-2 bg-gradient-to-r from-sky-100 to-rose-100 px-3 shadow-sm transition-all isolate dark:from-slate-900/60 dark:to-rose-950/40 sm:flex sm:h-16">
         {/* Messages + search */}
         <div className="flex flex-1 max-w-md mx-1.5 sm:mx-3 items-center gap-2 sm:gap-2.5 min-w-0">
           <Link
@@ -234,14 +258,15 @@ export default function Navbar() {
             aria-label="Messages"
           >
             <span className={HEADER_ICON_INNER}>
-              <FaComments className={HEADER_ACTION_ICON_CLASS} />
+              <MessageCircle className={`h-5 w-5 ${hanarTheme.iconHeaderChip}`} strokeWidth={2} aria-hidden />
             </span>
           </Link>
           <div className="flex-1 min-w-0 relative" ref={dropdownRef}>
             <div className={`relative ${HEADER_SEARCH_FRAME}`}>
               <div className="relative rounded-full bg-white dark:bg-gray-100">
-                <FaSearch
-                  className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm pointer-events-none text-[#c41e56] dark:text-[#e85085]"
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#c41e56] dark:text-[#e85085]"
+                  strokeWidth={2}
                   aria-hidden
                 />
                 <input
@@ -316,7 +341,7 @@ export default function Navbar() {
             className={`relative ${HEADER_ICON_FRAME} ${HEADER_ICON_FOCUS}`}
           >
             <span className={HEADER_ICON_INNER}>
-              <FaBell className={HEADER_ACTION_ICON_CLASS} />
+              <Bell className={`h-5 w-5 ${hanarTheme.iconHeaderChip}`} strokeWidth={2} aria-hidden />
             </span>
             {unreadCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-blue-500 px-0.5 py-0 text-[10px] font-semibold leading-none text-white shadow-sm ring-2 ring-white dark:ring-white">
@@ -333,7 +358,7 @@ export default function Navbar() {
             aria-label="Toggle Menu"
           >
             <span className={HEADER_ICON_INNER}>
-              <FaBars className={HEADER_ACTION_ICON_CLASS} />
+              <Menu className={`h-5 w-5 ${hanarTheme.iconHeaderChip}`} strokeWidth={2} aria-hidden />
             </span>
           </button>
         </div>

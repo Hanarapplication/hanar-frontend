@@ -180,7 +180,7 @@ const categories: { key: string; label: string; icon: React.ReactNode; items: Fa
       },
       {
         q: 'Who can post in the community?',
-        a: 'Individuals and Organizations can create community posts. Business accounts can comment on and like posts but cannot create new community posts.',
+        a: 'Individuals, organizations, and verified business owners can create community posts. Business posts appear under your business name and link to your business page.',
       },
       {
         q: 'How do I share a community post?',

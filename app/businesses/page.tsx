@@ -138,10 +138,13 @@ export default function BusinessesPage() {
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [radius, setRadius] = useState(() => readSavedSearchRadiusMiles(40));
   const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [categoriesModalOpen, setCategoriesModalOpen] = useState(false);
   const [tempRadius, setTempRadius] = useState(() => readSavedSearchRadiusMiles(40));
   const [locationSearchValue, setLocationSearchValue] = useState('');
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(6);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const servicesCarouselRef = useRef<HTMLDivElement>(null);
   const searchCacheRef = useRef<Map<string, Set<string>>>(new Map());
   const hasFetchedRef = useRef(false);
 
@@ -201,16 +204,26 @@ export default function BusinessesPage() {
   const handleLocationSelect = (result: AddressResult) => {
     if (result.lat != null && result.lng != null) {
       const coords = { lat: result.lat, lon: result.lng };
-      const label = [result.city, result.state].filter(Boolean).join(', ') || result.formatted_address || 'Selected location';
+      const label =
+        [result.city, result.state, result.country].filter(Boolean).join(', ') ||
+        result.formatted_address ||
+        'Selected location';
       setUserCoords(coords);
       setLocationLabel(label);
-      setLocationSearchValue('');
+      setLocationSearchValue(label);
       try {
         localStorage.setItem('userCoords', JSON.stringify(coords));
         if (label) localStorage.setItem('userLocationLabel', label);
       } catch {}
       window.dispatchEvent(new CustomEvent('location:updated', {
-        detail: { ...coords, label, city: result.city, state: result.state, zip: result.zip },
+        detail: {
+          ...coords,
+          label,
+          city: result.city,
+          state: result.state,
+          country: result.country,
+          zip: result.zip,
+        },
       }));
     }
   };
@@ -228,14 +241,45 @@ export default function BusinessesPage() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-        setUserCoords(coords);
-        setLocationLabel('Your location');
-        try {
-          localStorage.setItem('userCoords', JSON.stringify(coords));
-          localStorage.setItem('userLocationLabel', 'Your location');
-        } catch {}
-        window.dispatchEvent(new CustomEvent('location:updated', { detail: coords }));
+        void (async () => {
+          const coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+          let city: string | undefined;
+          let state: string | undefined;
+          let country: string | undefined;
+          let label = 'Your location';
+          try {
+            const res = await fetch(
+              `/api/geocode/reverse?lat=${encodeURIComponent(coords.lat)}&lon=${encodeURIComponent(coords.lon)}`
+            );
+            const data = await res.json().catch(() => ({}));
+            const address = data?.address || {};
+            city =
+              address.city ||
+              address.town ||
+              address.village ||
+              address.hamlet ||
+              '';
+            state = address.state || address.county || '';
+            country = address.country || '';
+            const composed = [city, state, country].filter(Boolean).join(', ');
+            label = composed || data?.display_name || label;
+          } catch {
+            // keep fallback label
+          }
+
+          setUserCoords(coords);
+          setLocationLabel(label);
+          setLocationSearchValue(label);
+          try {
+            localStorage.setItem('userCoords', JSON.stringify(coords));
+            if (label) localStorage.setItem('userLocationLabel', label);
+          } catch {}
+          window.dispatchEvent(
+            new CustomEvent('location:updated', {
+              detail: { ...coords, label, city, state, country, radiusMiles: radius },
+            })
+          );
+        })();
       },
       () => toast.error('Could not get your location.')
     );
@@ -255,11 +299,29 @@ export default function BusinessesPage() {
       } catch { /* ignore */ }
     }
     const handleLocationUpdated = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { lat?: number; lon?: number; label?: string; radiusMiles?: number } | undefined;
+      const detail = (e as CustomEvent).detail as {
+        lat?: number;
+        lon?: number;
+        label?: string;
+        city?: string;
+        state?: string;
+        country?: string;
+        radiusMiles?: number;
+      } | undefined;
       if (detail?.lat != null && detail?.lon != null) {
         setUserCoords({ lat: detail.lat, lon: detail.lon });
-        if (detail.label) setLocationLabel(detail.label);
-        else setLocationLabel((prev) => prev ?? 'Your location');
+        if (detail.label) {
+          setLocationLabel(detail.label);
+          setLocationSearchValue(detail.label);
+        } else {
+          const composed = [detail.city, detail.state, detail.country].filter(Boolean).join(', ');
+          if (composed) {
+            setLocationLabel(composed);
+            setLocationSearchValue(composed);
+          } else {
+            setLocationLabel((prev) => prev ?? 'Your location');
+          }
+        }
       }
       if (detail?.radiusMiles != null) {
         setRadius(detail.radiusMiles);
@@ -385,6 +447,31 @@ export default function BusinessesPage() {
   };
 
   const normalizedQuery = query.toLowerCase();
+  const normalizeCategoryToken = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const businessCategoryLabel = (b: Business) => formatBusinessCategory(b.subcategory || b.category) || '';
+  const matchesSelectedCategory = (b: Business, key: string | null) => {
+    if (!key) return true;
+    const category = normalizeCategoryToken(businessCategoryLabel(b));
+    if (!category) return false;
+    switch (key) {
+      case 'restaurants':
+        return category.includes('restaurant') || category.includes('cafe') || category.includes('coffee');
+      case 'dealerships':
+        return category.includes('dealership');
+      case 'auto_services':
+        return category.includes('auto') || category.includes('repair') || category.includes('mechanic');
+      case 'home_services':
+        return category.includes('home') || category.includes('clean') || category.includes('plumb') || category.includes('mover');
+      case 'transportation':
+        return category.includes('transport') || category.includes('mover') || category.includes('delivery');
+      case 'retail':
+        return category.includes('retail') || category.includes('shop') || category.includes('store');
+      case 'beauty':
+        return category.includes('beauty') || category.includes('salon') || category.includes('hair');
+      default:
+        return category === normalizeCategoryToken(key) || category.includes(normalizeCategoryToken(key));
+    }
+  };
   const speaksUserLang = (b: Business) => {
     const langs = b.spoken_languages;
     if (!langs || !Array.isArray(langs) || langs.length === 0) return false;
@@ -392,8 +479,9 @@ export default function BusinessesPage() {
   };
   const isPremium = (b: Business) => (b.plan || '').toLowerCase() === 'premium';
   const cityFromLabel = (locationLabel || '').split(',')[0]?.trim().toLowerCase() || '';
-  const filtered = businesses
+  const filteredByCategoryAndQuery = businesses
     .filter((b) => {
+      if (!matchesSelectedCategory(b, selectedCategoryFilter)) return false;
       if (normalizedQuery) {
         const matchesText =
           b.business_name.toLowerCase().includes(normalizedQuery) ||
@@ -403,6 +491,11 @@ export default function BusinessesPage() {
           getCityState(b.address).toLowerCase().includes(normalizedQuery);
         if (!matchesText && !relatedBusinessIds.has(b.id)) return false;
       }
+      return true;
+    });
+
+  const filtered = filteredByCategoryAndQuery
+    .filter((b) => {
       if (userCoords) {
         const ll = businessLatLon(b);
         if (ll) {
@@ -438,13 +531,141 @@ export default function BusinessesPage() {
       return a.business_name.localeCompare(b.business_name);
     });
 
+  const areaFilterActive = Boolean(userCoords) || (cityFromLabel.length > 0 && cityFromLabel !== 'your location');
+  const nearbyFallbackBusinesses = areaFilterActive && filtered.length === 0
+    ? filteredByCategoryAndQuery
+        .map((b) => {
+          const ll = businessLatLon(b);
+          const distance =
+            userCoords && ll ? getDistanceMiles(userCoords.lat, userCoords.lon, ll.lat, ll.lon) : null;
+          return { business: b, distance };
+        })
+        .filter(({ business, distance }) => {
+          if (userCoords && distance != null) return distance > radius;
+          if (cityFromLabel && cityFromLabel !== 'your location') {
+            const loc = `${getCityState(business.address)} ${typeof business.address === 'string' ? business.address : ''}`.toLowerCase();
+            return !new RegExp(`\\b${cityFromLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(loc);
+          }
+          return true;
+        })
+        .sort((a, b) => {
+          if (a.distance != null && b.distance != null) return a.distance - b.distance;
+          if (a.distance != null && b.distance == null) return -1;
+          if (a.distance == null && b.distance != null) return 1;
+          return a.business.business_name.localeCompare(b.business.business_name);
+        })
+        .slice(0, 8)
+        .map(({ business }) => business)
+    : [];
+
   const visible = filtered.slice(0, visibleCount);
+  const servicesShowcase = filtered.slice(0, 8);
+
+  useEffect(() => {
+    const carousel = servicesCarouselRef.current;
+    if (!carousel || servicesShowcase.length < 2) return;
+
+    const timer = window.setInterval(() => {
+      const firstCard = carousel.querySelector<HTMLElement>('[data-service-card="true"]');
+      const cardWidth = firstCard?.offsetWidth ?? 168;
+      const gapPx = 12;
+      const step = cardWidth + gapPx;
+      const maxScrollLeft = carousel.scrollWidth - carousel.clientWidth;
+
+      if (carousel.scrollLeft + step >= maxScrollLeft - 2) {
+        carousel.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        carousel.scrollBy({ left: step, behavior: 'smooth' });
+      }
+    }, 2800);
+
+    return () => window.clearInterval(timer);
+  }, [servicesShowcase.length]);
+  const quickFilters: Array<{ label: string; icon: string; key: string; more?: boolean }> = [
+    { label: 'Restaurants', icon: '🍽️', key: 'restaurants' },
+    { label: 'Dealerships', icon: '🚘', key: 'dealerships' },
+    { label: 'Auto Services', icon: '🔧', key: 'auto_services' },
+    { label: 'Home Services', icon: '🏠', key: 'home_services' },
+    { label: 'Transportation', icon: '🚚', key: 'transportation' },
+    { label: 'Retail', icon: '🛍️', key: 'retail' },
+    { label: 'Health & Beauty', icon: '💇', key: 'beauty' },
+    { label: 'More', icon: '⋯', key: 'more', more: true },
+  ];
+  const allBusinessCategories = Array.from(
+    new Set(
+      businesses
+        .map((b) => businessCategoryLabel(b))
+        .map((v) => v.trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
+  const quickFilterReserved = new Set(
+    quickFilters.filter((f) => !f.more).map((f) => normalizeCategoryToken(f.label))
+  );
+  const moreCategories = allBusinessCategories.filter((name) => {
+    const token = normalizeCategoryToken(name);
+    if (!token) return false;
+    if (quickFilterReserved.has(token)) return false;
+    if (token.includes('restaurant') || token.includes('dealership')) return false;
+    return true;
+  });
 
   const handlePullRefresh = useCallback(async () => {
     try { sessionStorage.removeItem(BUSINESSES_CACHE_KEY); } catch {}
     setVisibleCount(6);
     await fetchBusinesses();
   }, []);
+
+  const renderBusinessRow = (biz: Business) => {
+    const displayCategory = formatBusinessCategory(biz.subcategory || biz.category);
+    const locationText = getCityState(biz.address);
+    const bizCoords = businessLatLon(biz);
+    return (
+      <Link
+        key={biz.id}
+        href={`/business/${biz.slug}`}
+        className="group flex gap-3 px-3 py-3 transition hover:bg-slate-50"
+      >
+        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+          <img
+            src={biz.logo_url || `https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop`}
+            alt={biz.business_name}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="line-clamp-1 text-2xl font-semibold text-slate-900 group-hover:text-[#d32323]">
+              {biz.business_name}
+            </h3>
+            <button
+              onClick={(e) => toggleFavorite(e, biz.id)}
+              className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-rose-500"
+              aria-label="Toggle favorite"
+            >
+              {favorites.includes(biz.id) ? <FaHeart className="h-4 w-4 text-rose-500" /> : <FaRegHeart className="h-4 w-4" />}
+            </button>
+          </div>
+          <p className="mt-0.5 text-sm font-medium text-[#d32323]">
+            {'★'.repeat(isPremium(biz) ? 5 : 4)}
+            <span className="ml-1 text-slate-500">{isPremium(biz) ? 'Premium' : 'New'}</span>
+          </p>
+          <p className="mt-1 line-clamp-1 text-lg text-slate-600">
+            {[displayCategory, locationText === 'Location not available' ? t(effectiveLang, 'Location not available') : locationText]
+              .filter(Boolean)
+              .join(' • ')}
+          </p>
+          {userCoords && bizCoords && (
+            <p className="mt-0.5 text-xs text-slate-500">
+              {getDistanceMiles(userCoords.lat, userCoords.lon, bizCoords.lat, bizCoords.lon).toFixed(1)} mi away
+            </p>
+          )}
+        </div>
+      </Link>
+    );
+  };
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -459,37 +680,47 @@ export default function BusinessesPage() {
     <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
       <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-2 sm:pt-3">
-        {/* Search with location inside - modern style */}
-        <div className="sticky top-0 z-10 -mx-3 sm:-mx-5 px-3 sm:px-5 pt-0 pb-4 mb-5 sm:mb-6">
-          <div className="mx-auto max-w-3xl rounded-2xl bg-gradient-to-r from-[#4a0a14] via-[#e1306c] to-[#4a0a14] p-[1.5px] shadow-[inset_0_1px_0_rgba(255,182,198,0.4),0_10px_30px_-10px_rgba(74,10,20,0.35)] ring-1 ring-white/20 transition-shadow dark:from-[#2d0610] dark:via-[#c41e56] dark:to-[#2d0610] dark:shadow-[inset_0_1px_0_rgba(255,120,160,0.18),0_12px_36px_-12px_rgba(0,0,0,0.45)] dark:ring-white/10 hover:shadow-[inset_0_1px_0_rgba(255,182,198,0.45),0_14px_40px_-12px_rgba(74,10,20,0.4)] dark:hover:shadow-[inset_0_1px_0_rgba(255,120,160,0.22),0_16px_44px_-12px_rgba(0,0,0,0.5)]">
-            <div className="flex items-stretch gap-0 overflow-hidden rounded-[14px] bg-white sm:rounded-[15px] dark:bg-white">
+        {/* Amazon-like search and location bar */}
+        <div className="sticky top-0 z-10 -mx-3 mb-5 border-b border-sky-200/90 bg-gradient-to-b from-sky-100/95 to-white px-3 pb-3 pt-2 shadow-sm shadow-sky-900/10 sm:-mx-5 sm:mb-6 sm:px-5 dark:border-slate-700 dark:from-slate-900/80 dark:to-gray-800 dark:shadow-none">
+          <div className="mx-auto max-w-3xl">
+            <button
+              type="button"
+              onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
+              className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-sky-300/75 bg-gradient-to-r from-sky-300 via-sky-200 to-rose-300 px-3 py-1.5 text-[11px] font-medium text-sky-900 shadow-sm shadow-sky-900/10 transition hover:border-sky-400 hover:shadow-md dark:border-rose-900/35 dark:from-sky-950/60 dark:via-slate-900/50 dark:to-rose-950/50 dark:text-sky-100"
+            >
+              <FaMapMarkerAlt className="h-3.5 w-3.5 text-sky-700 dark:text-rose-300" />
+              <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose location')}</span>
+              {locationLabel && (
+                <span className="text-[10px] text-sky-800/80 dark:text-slate-400">{radius} mi</span>
+              )}
+            </button>
+
+            <div className="flex overflow-hidden rounded-md border border-sky-300/75 bg-gradient-to-r from-sky-200 to-rose-200 shadow-sm shadow-sky-900/10 dark:border-slate-600 dark:from-slate-900/60 dark:to-rose-950/40 dark:shadow-none">
+              <div className="hidden items-center border-r border-sky-200/90 bg-sky-50/90 px-3 text-[11px] font-medium text-sky-900 dark:border-sky-700 dark:bg-slate-800/80 dark:text-slate-200 sm:flex">
+                All
+              </div>
               <div className="relative min-w-0 flex-1">
-                <FaSearch className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#c41e56] dark:text-[#e85085]" />
                 <input
                   placeholder={t(effectiveLang, 'Find a restaurant, salon, gym...')}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="w-full border-0 bg-transparent py-4 pl-12 pr-4 text-base text-gray-900 placeholder-gray-400 focus:outline-none dark:text-gray-900 dark:placeholder-gray-500"
+                className="w-full border-0 bg-white py-2.5 pl-3 pr-14 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none dark:bg-slate-900/90 dark:text-slate-100 dark:placeholder:text-slate-400"
                 />
                 {searching && (
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-500 dark:text-gray-600">
+                  <span className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 dark:text-slate-400">
                     {t(effectiveLang, 'Searching…')}
                   </span>
                 )}
               </div>
-              <div className="w-px flex-shrink-0 bg-gray-200 dark:bg-gray-200" />
               <button
                 type="button"
-                onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
-                className="flex h-full min-h-[56px] items-center gap-2 px-4 text-left transition-colors hover:bg-rose-50/80 dark:hover:bg-gray-100 sm:px-5"
+                onClick={() => {
+                  if (query.trim()) setVisibleCount(6);
+                }}
+                className="inline-flex items-center justify-center bg-gradient-to-r from-sky-700 to-rose-700 px-4 text-white transition hover:from-sky-800 hover:to-rose-800 dark:from-sky-600 dark:to-rose-600 dark:hover:from-sky-700 dark:hover:to-rose-700"
+                aria-label={t(effectiveLang, 'Search')}
               >
-                <FaMapMarkerAlt className="w-4 h-4 flex-shrink-0 text-rose-500 dark:text-rose-600" />
-                <span className="max-w-[110px] truncate text-sm font-medium text-gray-800 dark:text-gray-900 sm:max-w-[140px]">
-                  {locationLabel || t(effectiveLang, 'Location')}
-                </span>
-                {locationLabel && (
-                  <span className="flex-shrink-0 text-xs text-gray-500 dark:text-gray-600">{radius} mi</span>
-                )}
+                <FaSearch className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -500,14 +731,27 @@ export default function BusinessesPage() {
           <div
             role="dialog"
             aria-modal="true"
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/35 backdrop-blur-[2px] p-3 pt-20 sm:pt-24"
             onClick={() => setLocationModalOpen(false)}
           >
-            <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-slate-200 dark:border-gray-700 p-5 sm:p-6" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">{t(effectiveLang, 'Search in this area')}</h3>
-              <div className="space-y-4">
+            <div className="w-full max-w-sm rounded-2xl border border-slate-200/90 bg-white/95 p-4 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:border-gray-700/80 dark:bg-gray-900/95 sm:p-4.5" onClick={(e) => e.stopPropagation()}>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-white">{t(effectiveLang, 'Search in this area')}</h3>
+                <button
+                  type="button"
+                  onClick={() => setLocationModalOpen(false)}
+                  className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                  aria-label={t(effectiveLang, 'Close')}
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-2">{t(effectiveLang, 'City or address')}</label>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Country, city or address')}</label>
                   <AddressAutocomplete
                     value={locationSearchValue}
                     onSelect={handleLocationSelect}
@@ -515,19 +759,21 @@ export default function BusinessesPage() {
                     placeholder="Search city, ZIP, or address..."
                     mode="locality"
                     className="w-full"
-                    inputClassName="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 focus:ring-2 focus:ring-rose-500/40 focus:border-rose-400 text-sm"
+                    inputClassName="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:bg-white focus:ring-2 focus:ring-rose-500/30 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={handleUseMyLocation}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-800 hover:bg-rose-50 dark:hover:bg-rose-900/30 text-slate-700 dark:text-gray-300 font-medium text-sm transition-colors"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-rose-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-rose-900/30"
                 >
                   <FaMapMarkerAlt className="w-4 h-4 text-rose-500" />
                   {t(effectiveLang, 'Use my current location')}
                 </button>
                 <div>
-                  <label className="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-2">{t(effectiveLang, 'Radius')}: {tempRadius} {t(effectiveLang, 'miles')}</label>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">
+                    {t(effectiveLang, 'Radius')}: {tempRadius} {t(effectiveLang, 'miles')}
+                  </label>
                   <input
                     type="range"
                     min="10"
@@ -535,15 +781,15 @@ export default function BusinessesPage() {
                     step="5"
                     value={tempRadius}
                     onChange={(e) => setTempRadius(Number(e.target.value))}
-                    className="w-full h-2 rounded-lg appearance-none bg-slate-200 dark:bg-gray-600 accent-rose-500"
+                    className="h-2 w-full appearance-none rounded-lg bg-slate-200 accent-rose-500 dark:bg-gray-600"
                   />
                 </div>
               </div>
-              <div className="mt-5 flex gap-3">
+              <div className="mt-4 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setLocationModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 text-slate-700 dark:text-gray-300 font-medium text-sm hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors"
+                  className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
                 >
                   {t(effectiveLang, 'Cancel')}
                 </button>
@@ -555,7 +801,7 @@ export default function BusinessesPage() {
                     setLocationModalOpen(false);
                     setVisibleCount(6);
                   }}
-                  className="flex-1 py-2.5 rounded-xl bg-rose-600 dark:bg-rose-500 text-white font-medium text-sm hover:bg-rose-700 dark:hover:bg-rose-600 transition-colors"
+                  className="flex-1 rounded-lg bg-rose-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600"
                 >
                   {t(effectiveLang, 'Apply')}
                 </button>
@@ -565,99 +811,151 @@ export default function BusinessesPage() {
           document.body
         )}
 
-        {/* Cards – 2 per row on mobile, description always visible */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
-          {visible.map((biz) => {
-            const displayCategory = formatBusinessCategory(biz.subcategory || biz.category);
-            const catColor = categoryColors[displayCategory] || categoryColors.default;
-            const locationText = getCityState(biz.address);
-            const bizCoords = businessLatLon(biz);
+        {categoriesModalOpen && typeof document !== 'undefined' && createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/35 p-3 pt-20 backdrop-blur-[2px] sm:pt-24"
+            onClick={() => setCategoriesModalOpen(false)}
+          >
+            <div
+              className="w-full max-w-sm rounded-xl border border-[#d5d9d9] bg-white p-3 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-2.5 flex items-center justify-between">
+                <h3 className="text-[15px] font-bold text-[#0f1111]">More categories</h3>
+                <button
+                  type="button"
+                  onClick={() => setCategoriesModalOpen(false)}
+                  className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="Close categories"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="max-h-[52vh] overflow-y-auto pr-1">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategoryFilter(null);
+                      setCategoriesModalOpen(false);
+                      setVisibleCount(6);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#e7f4f5] px-3 py-1 text-[11px] font-semibold text-[#007185] transition hover:border-[#c7caca] hover:bg-[#dff0f2]"
+                  >
+                    <span aria-hidden>🌐</span>
+                    <span>All categories</span>
+                  </button>
+                  {moreCategories.map((category) => (
+                    <button
+                      key={`more-cat-${category}`}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategoryFilter(category);
+                        setCategoriesModalOpen(false);
+                        setVisibleCount(6);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#f0f2f2] px-3 py-1 text-[11px] font-semibold text-[#0f1111] transition hover:border-[#c7caca] hover:bg-[#e7e9ec]"
+                    >
+                      <span>{category}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
-            return (
-              <div
-                key={biz.id}
-                className="hanar-listing-frame h-full transition-all duration-300 shadow-sm hover:shadow-md dark:shadow-gray-900/50 hover:-translate-y-0.5"
+        {/* Yelp-style quick actions */}
+        <section className="mb-6 rounded-none border-y border-slate-200 bg-white px-3 py-4">
+          <div className="grid grid-cols-4 gap-y-3 sm:grid-cols-6">
+            {quickFilters.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => {
+                  if (item.more) {
+                    setCategoriesModalOpen(true);
+                  } else {
+                    setSelectedCategoryFilter(item.key);
+                    setQuery('');
+                    setCategoriesModalOpen(false);
+                  }
+                  setVisibleCount(6);
+                }}
+                className="flex flex-col items-center justify-center gap-0.5 text-center"
               >
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-base">
+                  {item.icon}
+                </span>
+                <span className={`text-[10px] font-medium leading-tight ${selectedCategoryFilter === item.key ? 'text-[#d32323]' : 'text-slate-700'}`}>
+                  {item.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Services & Professionals */}
+        <section className="mb-6 rounded-none border-y border-slate-200 bg-white px-3 py-4">
+          <h2 className="mb-3 text-3xl font-semibold text-slate-900 tracking-tight">
+            Services &amp; Professionals
+          </h2>
+          <div
+            ref={servicesCarouselRef}
+            className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {servicesShowcase.map((biz) => (
               <Link
+                key={`service-${biz.id}`}
                 href={`/business/${biz.slug}`}
-                className="group flex h-full flex-col overflow-hidden rounded-[7px] bg-slate-900 text-sm sm:rounded-[11px] sm:text-base dark:bg-gray-950"
+                className="group min-w-[10.5rem] max-w-[10.5rem] snap-start"
+                data-service-card="true"
               >
-                <div className="relative aspect-[4/3] overflow-hidden bg-slate-100 dark:bg-gray-700">
+                <div className="overflow-hidden rounded-xl bg-slate-100">
                   <img
                     src={biz.logo_url || `https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop`}
                     alt={biz.business_name}
                     loading="lazy"
                     decoding="async"
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="h-28 w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
-                  <button
-                    onClick={(e) => toggleFavorite(e, biz.id)}
-                    className="absolute top-2 right-2 p-1.5 sm:p-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-full shadow hover:bg-white dark:hover:bg-gray-700 transition active:scale-95"
-                  >
-                    {favorites.includes(biz.id) ? (
-                      <FaHeart className="h-4 w-4 sm:h-5 sm:w-5 text-rose-500 dark:text-rose-400" />
-                    ) : (
-                      <FaRegHeart className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500 dark:text-gray-400" />
-                    )}
-                  </button>
-                  {isPremium(biz) && (
-                    <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-amber-500/90 backdrop-blur-sm px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm">
-                      <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.39c-.833.068-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.494c.714.437 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.583-.536-1.65l-4.752-.391-1.831-4.401z" clipRule="evenodd" /></svg>
-                      Premium
-                    </span>
-                  )}
                 </div>
-
-                <div className="flex flex-grow flex-col bg-gradient-to-b from-[#0c1f3c] via-[#151c28] to-[#4a1212] p-2.5 sm:p-3.5 dark:from-[#061018] dark:via-[#0c1520] dark:to-[#2a0c0c]">
-                  <div className="mb-1.5 flex flex-wrap gap-1 sm:mb-2">
-                    {displayCategory ? (
-                      <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-medium sm:px-2.5 sm:py-1 ${catColor}`}>
-                        {displayCategory}
-                      </span>
-                    ) : null}
-                    {speaksUserLang(biz) && (
-                      <span className="inline-flex w-fit items-center rounded-full border border-emerald-400/50 bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-100 sm:px-2.5 sm:py-1 dark:border-emerald-600/50 dark:bg-emerald-900/40 dark:text-emerald-200">
-                        {t(effectiveLang, 'Speaks your language')}
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="mb-1 line-clamp-2 text-sm font-semibold leading-tight text-white transition-colors group-hover:text-sky-200 dark:group-hover:text-sky-200 sm:mb-1.5 sm:text-base">
-                    {biz.business_name}
-                  </h3>
-
-                  {biz.description && (
-                    <p className="mb-1.5 line-clamp-2 text-xs italic leading-relaxed text-white/80 sm:mb-2 sm:text-sm">
-                      {biz.description}
-                    </p>
-                  )}
-
-                  <div className="mt-auto inline-block max-w-full rounded border border-white/20 bg-white/10 px-1.5 py-0.5 backdrop-blur-sm dark:border-red-950/80 dark:bg-red-950/45">
-                    <p className="max-w-[100px] truncate line-clamp-1 text-[10px] font-bold text-white">
-                      {locationText === 'Location not available' ? t(effectiveLang, 'Location not available') : locationText}
-                    </p>
-                  </div>
-
-                  {userCoords && bizCoords && (
-                    <div className="mt-2 inline-flex items-center rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium text-white/90">
-                      ≈ {getDistanceMiles(userCoords.lat, userCoords.lon, bizCoords.lat, bizCoords.lon).toFixed(1)} mi
-                    </div>
-                  )}
-                </div>
+                <p className="mt-2 line-clamp-1 text-lg font-semibold text-slate-900">{formatBusinessCategory(biz.subcategory || biz.category) || 'Business'}</p>
               </Link>
-              </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Yelp-style nearby list */}
+        <section className="rounded-none border-y border-slate-200 bg-white">
+          <div className="px-3 py-4">
+            <h2 className="text-3xl font-semibold tracking-tight text-slate-900">Hot New Businesses Nearby</h2>
+          </div>
+          {areaFilterActive && filtered.length === 0 && (
+            <div className="mx-3 mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+              No businesses found in your selected area. Here are similar businesses in nearby cities.
+            </div>
+          )}
+          <div className="divide-y divide-slate-200">
+            {(filtered.length > 0 ? visible : nearbyFallbackBusinesses).map((biz) => renderBusinessRow(biz))}
+          </div>
+        </section>
 
         <div ref={bottomRef} className="mt-8 sm:mt-10 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-          {visible.length < filtered.length ? (
+          {filtered.length > 0 && visible.length < filtered.length ? (
             <span className="inline-flex items-center gap-2">
               <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-gray-300 dark:border-gray-600 border-t-rose-500 dark:border-t-rose-400"></div>
               {t(effectiveLang, 'Loading more...')}
             </span>
           ) : (
-            filtered.length === 0 ? t(effectiveLang, 'No matches found') : t(effectiveLang, 'End of list')
+            filtered.length === 0
+              ? (nearbyFallbackBusinesses.length > 0 ? t(effectiveLang, 'Showing nearby results') : t(effectiveLang, 'No matches found'))
+              : t(effectiveLang, 'End of list')
           )}
         </div>
       </div>

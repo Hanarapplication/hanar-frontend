@@ -1,3 +1,8 @@
+import { redirect } from 'next/navigation';
+
+export default function CommunityPage() {
+  redirect('/');
+}
 'use client';
 
 import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
@@ -83,7 +88,7 @@ type AudienceFeedCache = {
 
 const SEARCH_DEBOUNCE_MS = 380;
 
-export default function CommunityFeedPage() {
+function CommunityFeedPage() {
   const [search, setSearch] = useState('');
   /** Passed to API / pagination so we do not refetch on every keystroke */
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -118,7 +123,6 @@ export default function CommunityFeedPage() {
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const { effectiveLang } = useLanguage();
-  const [isBusinessUser, setIsBusinessUser] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null; displayName: string | null }>({ id: '', username: null, displayName: null });
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
@@ -191,13 +195,12 @@ export default function CommunityFeedPage() {
       const seg = aud.segmentResponse ?? {};
       const ageGroup = seg.age_group as string | undefined;
       const gender = seg.gender as string | undefined;
-      const prefLang = seg.preferred_language as string | undefined;
       const spoken = seg.spoken_languages as unknown;
       const state = seg.state as string | undefined;
       const params = new URLSearchParams();
       if (ageGroup) params.set('age_group', ageGroup);
       if (gender) params.set('gender', gender);
-      if (prefLang) params.append('lang', prefLang);
+      if (effectiveLang) params.append('lang', effectiveLang);
       if (Array.isArray(spoken)) (spoken as string[]).forEach((l: string) => params.append('lang', l));
       if (state) params.set('state', state);
       if (lat != null && lon != null) {
@@ -217,7 +220,7 @@ export default function CommunityFeedPage() {
       }
     } catch {}
     return null;
-  }, [getAudienceForFeed]);
+  }, [getAudienceForFeed, effectiveLang]);
 
   const sortPosts = (posts: Post[]): Post[] => {
     if (sortMode === 'popular') {
@@ -244,7 +247,7 @@ export default function CommunityFeedPage() {
           lang: feedLang,
           sortMode,
           userId: currentUser.id || undefined,
-          primaryLang: audience.preferred_language,
+          primaryLang: null,
           spokenLanguages: audience.spoken_languages,
           deviceLang: deviceLang || undefined,
         }),
@@ -316,26 +319,6 @@ export default function CommunityFeedPage() {
     };
   }, [loading, hasMore, visiblePosts.length]);
 
-  useEffect(() => {
-    const checkBusinessAccount = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setIsBusinessUser(false);
-        return;
-      }
-
-      const { data } = await supabase
-        .from('businesses')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      setIsBusinessUser(!!data);
-    };
-
-    checkBusinessAccount();
-  }, []);
-
   const fetchLikedPosts = useCallback(async (userId: string) => {
     try {
       const res = await fetch(`/api/community/post/liked?userId=${encodeURIComponent(userId)}`, { credentials: 'include' });
@@ -392,7 +375,7 @@ export default function CommunityFeedPage() {
 
   const requireLogin = () => {
     if (!currentUser.id) {
-      window.location.href = '/login?redirect=/community';
+      window.location.href = '/login?redirect=/';
       return false;
     }
     return true;
@@ -608,7 +591,7 @@ export default function CommunityFeedPage() {
           lang: feedLang,
           sortMode,
           userId: currentUser.id || undefined,
-          primaryLang: audience.preferred_language,
+          primaryLang: null,
           spokenLanguages: audience.spoken_languages,
           deviceLang: deviceLang || undefined,
         }),
@@ -686,15 +669,13 @@ export default function CommunityFeedPage() {
             </button>
           )}
         </div>
-        {!isBusinessUser && (
-          <Link
-            href="/community/post"
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 text-white font-bold rounded-lg hover:from-blue-900 hover:via-blue-700 hover:to-blue-900 transition-all"
-          >
-            <PlusIcon className="h-5 w-5" />
-            <span>{t(effectiveLang, 'New Post')}</span>
-          </Link>
-        )}
+        <Link
+          href="/community/post"
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 text-white font-bold rounded-lg hover:from-blue-900 hover:via-blue-700 hover:to-blue-900 transition-all"
+        >
+          <PlusIcon className="h-5 w-5" />
+          <span>{t(effectiveLang, 'New Post')}</span>
+        </Link>
       </div>
 
       {communityBanner?.image && (

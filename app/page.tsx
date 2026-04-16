@@ -1,16 +1,20 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment, Suspense } from 'react';
 import Link from 'next/link';
 import { useKeenSlider } from 'keen-slider/react';
 import Footer from '@/components/Footer';
-import { Trash2, Megaphone, SendHorizontal } from 'lucide-react';
+import { Trash2, Megaphone, SendHorizontal, X, Search, SlidersHorizontal, ThumbsUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
 import { Avatar } from '@/components/Avatar';
+import CreateCommunityPostClient from '@/app/community/post/CreateCommunityPostClient';
+import { useLanguage } from '@/context/LanguageContext';
+import { supportedLanguages } from '@/utils/languages';
+import { t } from '@/utils/translations';
 
 type SliderBusiness = {
   id: string;
@@ -22,9 +26,9 @@ type SliderBusiness = {
 };
 type AdBanner = { id: string; image: string; link: string; alt: string };
 
-/** Dark blue gradient rule between feed / skeleton rows */
+/** Neutral rule between feed / skeleton rows */
 const HOME_FEED_BETWEEN_ROW =
-  'h-px w-full shrink-0 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 dark:from-slate-950 dark:via-blue-800 dark:to-slate-950';
+  'h-px w-full shrink-0 bg-slate-200 dark:bg-gray-700';
 
 type CommunityPost = {
   id: string;
@@ -175,6 +179,42 @@ const normalizeImages = (value: unknown, bucket: string): string[] => {
   return [];
 };
 
+const normalizeSearchText = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const editDistanceAtMost = (a: string, b: string, limit = 2): number => {
+  if (a === b) return 0;
+  const aLen = a.length;
+  const bLen = b.length;
+  if (Math.abs(aLen - bLen) > limit) return limit + 1;
+  const prev = new Array(bLen + 1);
+  const curr = new Array(bLen + 1);
+  for (let j = 0; j <= bLen; j++) prev[j] = j;
+  for (let i = 1; i <= aLen; i++) {
+    curr[0] = i;
+    let rowMin = curr[0];
+    for (let j = 1; j <= bLen; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+      if (curr[j] < rowMin) rowMin = curr[j];
+    }
+    if (rowMin > limit) return limit + 1;
+    for (let j = 0; j <= bLen; j++) prev[j] = curr[j];
+  }
+  return prev[bLen];
+};
+
+const fuzzyTokenMatch = (term: string, token: string) => {
+  if (!term || !token) return false;
+  if (token.includes(term) || term.includes(token)) return true;
+  const maxDistance = term.length <= 4 ? 1 : 2;
+  return editDistanceAtMost(term, token, maxDistance) <= maxDistance;
+};
+
 const sortByCreatedAtDesc = (a?: string | null, b?: string | null) =>
   new Date(b || 0).getTime() - new Date(a || 0).getTime();
 
@@ -217,6 +257,32 @@ function shuffleHomeFeedWithFreshSprinkle(pool: { item: FeedItem; date: number }
     out.splice(pos, 0, entry.item);
   }
   return out;
+}
+
+/** After every N post cards, insert one shuffled non-post card so language order from the API is preserved. */
+const HOME_LANG_ORDER_POSTS_PER_MISC = 5;
+
+function mergePostsInApiOrderWithShuffledMisc(
+  posts: CommunityPost[],
+  miscDated: { item: FeedItem; date: number }[]
+): FeedItem[] {
+  const postItems: FeedItem[] = posts.map((post) => ({ type: 'post' as const, post }));
+  if (miscDated.length === 0) return postItems;
+  const miscShuffled = shuffleHomeFeedWithFreshSprinkle(miscDated);
+  const merged: FeedItem[] = [];
+  let pi = 0;
+  let mi = 0;
+  while (pi < postItems.length || mi < miscShuffled.length) {
+    if (pi >= postItems.length) {
+      while (mi < miscShuffled.length) merged.push(miscShuffled[mi++]);
+      break;
+    }
+    for (let i = 0; i < HOME_LANG_ORDER_POSTS_PER_MISC && pi < postItems.length; i++) {
+      merged.push(postItems[pi++]);
+    }
+    if (mi < miscShuffled.length) merged.push(miscShuffled[mi++]);
+  }
+  return merged;
 }
 
 const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
@@ -443,25 +509,25 @@ function FeedBusinessCardWithTrack({
   return (
     <article
       ref={ref}
-      className="hanar-feed-business-card overflow-hidden rounded-none bg-white p-0 shadow-sm dark:bg-gray-800 dark:shadow-lg dark:shadow-black/20"
+      className="hanar-feed-business-card overflow-hidden rounded-none border border-slate-200 bg-white p-0 shadow-sm dark:border-slate-700 dark:bg-white"
     >
       <div className="flex items-stretch">
-        <div className="flex shrink-0 items-center bg-slate-900 p-4 dark:bg-gray-950">
+        <div className="flex shrink-0 items-center border-r border-slate-100 bg-white p-4 dark:border-slate-200">
           <Link href={`/business/${business.slug}`} className="shrink-0">
             <img
               src={business.logo_url || 'https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=600&auto=format&fit=crop'}
               alt={business.business_name}
               loading="lazy"
               decoding="async"
-              className="h-14 w-14 rounded-none border border-[#c41e56]/85 object-cover dark:border-[#e85085]/65"
+              className="h-14 w-14 rounded-none border border-slate-200 object-cover dark:border-slate-300"
             />
           </Link>
         </div>
-        <div className="min-w-0 flex-1 bg-gradient-to-b from-[#5c1024] to-[#2d0610] px-4 py-4 dark:from-gray-900 dark:to-black">
+        <div className="min-w-0 flex-1 bg-white px-4 py-4">
           <div className="flex flex-wrap items-center gap-1.5">
             <Link
               href={`/business/${business.slug}`}
-              className="text-sm font-semibold text-white transition-colors hover:text-rose-200 hover:underline"
+              className="text-sm font-semibold text-slate-900 transition-colors hover:text-blue-800 hover:underline dark:text-slate-900"
             >
               {business.business_name}
             </Link>
@@ -472,12 +538,12 @@ function FeedBusinessCardWithTrack({
               </span>
             )}
           </div>
-          <p className="text-xs text-white/80 italic">{business.subcategory || business.category || 'Business'}</p>
-          <p className="mt-1 text-xs font-semibold text-emerald-300 dark:text-emerald-300">
+          <p className="text-xs italic text-slate-600 dark:text-slate-600">{business.subcategory || business.category || 'Business'}</p>
+          <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-700">
             {getBusinessMessage(business)}
           </p>
           {business.created_at && (
-            <p className="mt-1 text-[11px] text-white/55">Joined {formatDateLabel(business.created_at)}</p>
+            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-500">Joined {formatDateLabel(business.created_at)}</p>
           )}
         </div>
       </div>
@@ -488,8 +554,16 @@ function FeedBusinessCardWithTrack({
 const FEED_CACHE_KEY = 'hanar_feed_cache';
 const FEED_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+/** Same key as community feed so language preference stays in sync. */
+const HOME_POST_FEED_LANG_KEY = 'hanar_community_feed_lang';
+
+type HomeFeedTab = 'for_you' | 'popular' | 'news';
+
 type FeedCache = {
   ts: number;
+  /** Post language filter (home / community dropdown). */
+  postFeedLang: string;
+  homeFeedTab: HomeFeedTab;
   communityPosts: CommunityPost[];
   businesses: Business[];
   organizations: Organization[];
@@ -497,12 +571,14 @@ type FeedCache = {
   feedBanners: AdBanner[];
 };
 
-function readFeedCache(): FeedCache | null {
+function readFeedCache(expectedPostFeedLang: string, expectedTab: HomeFeedTab): FeedCache | null {
   try {
     const raw = sessionStorage.getItem(FEED_CACHE_KEY);
     if (!raw) return null;
-    const cache: FeedCache = JSON.parse(raw);
+    const cache = JSON.parse(raw) as FeedCache;
     if (Date.now() - cache.ts > FEED_CACHE_TTL) return null;
+    if (cache.postFeedLang !== expectedPostFeedLang) return null;
+    if (!cache.homeFeedTab || cache.homeFeedTab !== expectedTab) return null;
     return cache;
   } catch {
     return null;
@@ -518,6 +594,46 @@ function writeFeedCache(data: Omit<FeedCache, 'ts'>) {
 }
 
 export default function Home() {
+  const { effectiveLang } = useLanguage();
+
+  const [homeFeedTab, setHomeFeedTab] = useState<HomeFeedTab>('for_you');
+  const [postFeedLang, setPostFeedLangState] = useState('');
+  const [postFeedLangReady, setPostFeedLangReady] = useState(false);
+  const postFeedLangRef = useRef('');
+  const homeFeedTabRef = useRef<HomeFeedTab>('for_you');
+  postFeedLangRef.current = postFeedLang;
+  homeFeedTabRef.current = homeFeedTab;
+
+  const normalizePostFeedLang = useCallback((value: string) => {
+    const v = String(value || '').trim().toLowerCase();
+    if (!v || v === 'all' || v === 'auto') return '';
+    return supportedLanguages.some((l) => l.code === v) ? v : '';
+  }, []);
+
+  const setPostFeedLang = useCallback(
+    (value: string) => {
+      const next = normalizePostFeedLang(value);
+      setPostFeedLangState(next);
+      try {
+        localStorage.setItem(HOME_POST_FEED_LANG_KEY, next);
+      } catch {
+        /* ignore */
+      }
+    },
+    [normalizePostFeedLang]
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const stored = localStorage.getItem(HOME_POST_FEED_LANG_KEY);
+      if (stored !== null) setPostFeedLangState(normalizePostFeedLang(stored));
+    } catch {
+      /* ignore */
+    }
+    setPostFeedLangReady(true);
+  }, [normalizePostFeedLang]);
+
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -525,8 +641,12 @@ export default function Home() {
   const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(12);
+  const [feedSearchQuery, setFeedSearchQuery] = useState('');
+  const [feedSearchOpen, setFeedSearchOpen] = useState(false);
+  const [feedFiltersOpen, setFeedFiltersOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null; displayName: string | null }>({ id: '', username: null, displayName: null });
+  const [composerExpanded, setComposerExpanded] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [commentsByPost, setCommentsByPost] = useState<Record<string, Comment[]>>({});
@@ -537,7 +657,6 @@ export default function Home() {
   const [hasNewContent, setHasNewContent] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const latestPostDateRef = useRef<string | null>(null);
-  const hasFetchedRef = useRef(false);
 
   const fetchLikedPosts = useCallback(async (userId: string) => {
     try {
@@ -642,6 +761,9 @@ export default function Home() {
   }, []);
 
   const loadHomeFeed = async () => {
+    const feedLangRaw = postFeedLangRef.current.trim().toLowerCase();
+    const feedLangForRequest = feedLangRaw && supportedLanguages.some((l) => l.code === feedLangRaw) ? feedLangRaw : '';
+    const tab = homeFeedTabRef.current;
     const [audienceJson, businessRes, orgRes, retailRes, dealershipRes, realEstateRes, individualRes] = await Promise.all([
       fetch('/api/user/audience-segment')
         .then((r) => r.json().catch(() => ({})))
@@ -771,9 +893,12 @@ export default function Home() {
           explore: true,
           limit: 48,
           candidateLimit: 320,
-          primaryLang: audienceJson?.preferred_language ?? null,
+          primaryLang: null,
           spokenLanguages: Array.isArray(audienceJson?.spoken_languages) ? audienceJson.spoken_languages : [],
           deviceLang: deviceLang || null,
+          feedLang: feedLangForRequest || null,
+          feedSort: tab === 'popular' ? 'popular' : 'for_you',
+          tag: tab === 'news' ? 'news' : null,
         }),
       });
       const rankedPayload = await rankedRes.json().catch(() => ({}));
@@ -918,7 +1043,7 @@ export default function Home() {
       const params = new URLSearchParams();
       if (segment.age_group) params.set('age_group', segment.age_group);
       if (segment.gender) params.set('gender', segment.gender);
-      if (segment.preferred_language) params.append('lang', segment.preferred_language);
+      if (effectiveLang) params.append('lang', effectiveLang);
       if (Array.isArray(segment.spoken_languages)) segment.spoken_languages.forEach((l: string) => params.append('lang', l));
       if (segment.state) params.set('state', segment.state);
       if (lat != null && lon != null) {
@@ -943,7 +1068,12 @@ export default function Home() {
     return [];
   };
 
-  const applyFeedData = (data: { rawPosts: CommunityPost[]; businesses: Business[]; organizations: Organization[]; marketplaceItems: MarketplaceItem[] }, banners: AdBanner[]) => {
+  const applyFeedData = (
+    data: { rawPosts: CommunityPost[]; businesses: Business[]; organizations: Organization[]; marketplaceItems: MarketplaceItem[] },
+    banners: AdBanner[],
+    cachePostFeedLang: string,
+    cacheHomeFeedTab: HomeFeedTab
+  ) => {
     setCommunityPosts(data.rawPosts);
     setBusinesses(data.businesses);
     setOrganizations(data.organizations);
@@ -957,6 +1087,8 @@ export default function Home() {
       latestPostDateRef.current = newest.iso;
     }
     writeFeedCache({
+      postFeedLang: cachePostFeedLang,
+      homeFeedTab: cacheHomeFeedTab,
       communityPosts: data.rawPosts,
       businesses: data.businesses,
       organizations: data.organizations,
@@ -966,11 +1098,13 @@ export default function Home() {
   };
 
   const refreshFeed = async () => {
+    const cacheLang = postFeedLangRef.current;
+    const cacheTab = homeFeedTabRef.current;
     setRefreshing(true);
     setHasNewContent(false);
     try {
       const [data, banners] = await Promise.all([loadHomeFeed(), loadBanners()]);
-      applyFeedData(data, banners);
+      applyFeedData(data, banners, cacheLang, cacheTab);
       setVisibleCount(12);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
@@ -978,15 +1112,15 @@ export default function Home() {
     }
   };
 
-  // Initial load: use cache if available, otherwise fetch fresh
+  // Load feed when post language (dropdown) or tab changes; cache keyed by both.
   useEffect(() => {
-    if (hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
+    if (!postFeedLangReady) return;
+    let cancelled = false;
 
     const init = async () => {
-      const cache = readFeedCache();
+      setVisibleCount(12);
+      const cache = readFeedCache(postFeedLang, homeFeedTab);
       if (cache) {
-        // Restore from cache immediately (no loading spinner)
         setCommunityPosts(cache.communityPosts);
         setBusinesses(cache.businesses);
         setOrganizations(cache.organizations);
@@ -1003,17 +1137,24 @@ export default function Home() {
           latestPostDateRef.current = newest.iso;
         }
         setLoading(false);
-      } else {
-        // First visit — fetch fresh
-        setLoading(true);
+        return;
+      }
+
+      setLoading(true);
+      try {
         const [data, banners] = await Promise.all([loadHomeFeed(), loadBanners()]);
-        applyFeedData(data, banners);
-        setLoading(false);
+        if (cancelled) return;
+        applyFeedData(data, banners, postFeedLang, homeFeedTab);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     };
 
-    init();
-  }, []);
+    void init();
+    return () => {
+      cancelled = true;
+    };
+  }, [postFeedLang, homeFeedTab, postFeedLangReady]);
 
   // When user location becomes available, refetch banners so city-targeted ones (20 mi radius) appear
   useEffect(() => {
@@ -1169,6 +1310,15 @@ const formatDateLabel = (value?: string | null) => {
     }
     return true;
   };
+
+  useEffect(() => {
+    if (!composerExpanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setComposerExpanded(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [composerExpanded]);
 
   const handleLikePost = async (postId: string) => {
     if (!requireLogin()) return;
@@ -1419,34 +1569,73 @@ const formatDateLabel = (value?: string | null) => {
 
   // Mixed feed: random order with some newest cards sprinkled in; sliders + ads layered after.
   const feedItems = useMemo<FeedItem[]>(() => {
-    const datedPool: { item: FeedItem; date: number }[] = [];
+    const mixDiscovery = homeFeedTab !== 'news';
+    const postLangKey = postFeedLang.trim().toLowerCase();
+    const preservePostLanguageOrder =
+      Boolean(postLangKey) && supportedLanguages.some((l) => l.code === postLangKey && l.code !== 'auto');
 
-    for (const post of communityPosts) {
-      const created = new Date(post.created_at || 0).getTime();
-      datedPool.push({ item: { type: 'post', post }, date: created });
-    }
-    for (const business of nearbyBusinesses) {
-      datedPool.push({ item: { type: 'business', business }, date: new Date(business.created_at || 0).getTime() });
-    }
-    for (const organization of organizations) {
-      datedPool.push({ item: { type: 'organization', organization }, date: new Date(organization.created_at || 0).getTime() });
-    }
-    for (const bucket of marketplaceCategoryFeedBuckets) {
-      if (!bucket.items.length) continue;
-      datedPool.push({
-        item: {
-          type: 'marketplaceCategorySlider',
-          categoryLabel: bucket.categoryLabel,
-          items: bucket.items,
-        },
-        date: bucket.date,
-      });
+    let ordered: FeedItem[] = [];
+
+    if (preservePostLanguageOrder && mixDiscovery) {
+      const miscDated: { item: FeedItem; date: number }[] = [];
+      for (const business of nearbyBusinesses) {
+        miscDated.push({
+          item: { type: 'business', business },
+          date: new Date(business.created_at || 0).getTime(),
+        });
+      }
+      for (const organization of organizations) {
+        miscDated.push({
+          item: { type: 'organization', organization },
+          date: new Date(organization.created_at || 0).getTime(),
+        });
+      }
+      for (const bucket of marketplaceCategoryFeedBuckets) {
+        if (!bucket.items.length) continue;
+        miscDated.push({
+          item: {
+            type: 'marketplaceCategorySlider',
+            categoryLabel: bucket.categoryLabel,
+            items: bucket.items,
+          },
+          date: bucket.date,
+        });
+      }
+      ordered =
+        communityPosts.length > 0 || miscDated.length > 0
+          ? mergePostsInApiOrderWithShuffledMisc(communityPosts, miscDated)
+          : [];
+    } else if (preservePostLanguageOrder && !mixDiscovery) {
+      ordered = communityPosts.map((post) => ({ type: 'post' as const, post }));
+    } else {
+      const datedPool: { item: FeedItem; date: number }[] = [];
+      for (const post of communityPosts) {
+        const created = new Date(post.created_at || 0).getTime();
+        datedPool.push({ item: { type: 'post', post }, date: created });
+      }
+      if (mixDiscovery) {
+        for (const business of nearbyBusinesses) {
+          datedPool.push({ item: { type: 'business', business }, date: new Date(business.created_at || 0).getTime() });
+        }
+        for (const organization of organizations) {
+          datedPool.push({ item: { type: 'organization', organization }, date: new Date(organization.created_at || 0).getTime() });
+        }
+        for (const bucket of marketplaceCategoryFeedBuckets) {
+          if (!bucket.items.length) continue;
+          datedPool.push({
+            item: {
+              type: 'marketplaceCategorySlider',
+              categoryLabel: bucket.categoryLabel,
+              items: bucket.items,
+            },
+            date: bucket.date,
+          });
+        }
+      }
+      ordered = datedPool.length > 0 ? shuffleHomeFeedWithFreshSprinkle(datedPool) : [];
     }
 
-    let ordered =
-      datedPool.length > 0 ? shuffleHomeFeedWithFreshSprinkle(datedPool) : [];
-
-    if (!ordered.length && !loading) {
+    if (!ordered.length && !loading && mixDiscovery) {
       for (const business of nearbyBusinesses) {
         ordered.push({ type: 'business', business });
       }
@@ -1460,15 +1649,15 @@ const formatDateLabel = (value?: string | null) => {
       }
     }
 
-    // Insert featured-business slider at a stable position
-    const hasBizSlider = featuredBusinesses.length > 0;
-    if (hasBizSlider && ordered.length > 2) {
-      ordered.splice(Math.min(2, ordered.length), 0, { type: 'sliderBusinesses' });
+    // Insert featured-business slider after initial post-heavy zone
+    const hasBizSlider = mixDiscovery && featuredBusinesses.length > 0;
+    if (hasBizSlider && ordered.length > 6) {
+      ordered.splice(Math.min(6, ordered.length), 0, { type: 'sliderBusinesses' });
     } else if (hasBizSlider) {
       ordered.push({ type: 'sliderBusinesses' });
     }
 
-    // Intersperse ad banners every 4th item (hero slot uses the first banner)
+    // Intersperse ad banners less frequently (hero slot uses first banner)
     const validBanners = feedBanners.filter((b) => !!b.image);
     const inlineBanners = validBanners.length > 1 ? validBanners.slice(1) : [];
     if (inlineBanners.length === 0) return ordered;
@@ -1476,7 +1665,7 @@ const formatDateLabel = (value?: string | null) => {
     let bannerIdx = 0;
     const result: FeedItem[] = [];
     for (let i = 0; i < ordered.length; i++) {
-      if (i > 0 && i % 4 === 3 && bannerIdx < inlineBanners.length * 2) {
+      if (i > 0 && i % 8 === 7 && bannerIdx < inlineBanners.length * 2) {
         result.push({ type: 'ad', banner: inlineBanners[bannerIdx % inlineBanners.length] });
         bannerIdx++;
       }
@@ -1492,7 +1681,38 @@ const formatDateLabel = (value?: string | null) => {
     nearbyMarketplaceItems,
     organizations,
     marketplaceCategoryFeedBuckets,
+    homeFeedTab,
+    postFeedLang,
   ]);
+
+  const filteredFeedItems = useMemo(() => {
+    const normalizedQuery = normalizeSearchText(feedSearchQuery);
+    if (!normalizedQuery) return feedItems;
+    const terms = normalizedQuery.split(' ').filter(Boolean);
+    if (!terms.length) return feedItems;
+
+    const matchesTerms = (text: string) => {
+      const normalizedText = normalizeSearchText(text);
+      if (!normalizedText) return false;
+      if (normalizedText.includes(normalizedQuery)) return true;
+      const tokens = normalizedText.split(' ').filter(Boolean);
+      return terms.every((term) => tokens.some((token) => fuzzyTokenMatch(term, token)));
+    };
+
+    return feedItems.filter(
+      (item) =>
+        item.type === 'post' &&
+        matchesTerms(`${item.post.title} ${item.post.body} ${item.post.author || ''}`)
+    );
+  }, [feedItems, feedSearchQuery]);
+
+  useEffect(() => {
+    setVisibleCount(12);
+  }, [feedSearchQuery]);
+
+  useEffect(() => {
+    if (feedSearchQuery.trim()) setFeedSearchOpen(true);
+  }, [feedSearchQuery]);
 
   useEffect(() => {
     const target = bottomRef.current;
@@ -1507,13 +1727,24 @@ const formatDateLabel = (value?: string | null) => {
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [feedItems.length, visibleCount]);
+  }, [filteredFeedItems.length, visibleCount]);
 
   const handlePullRefresh = useCallback(async () => {
     await refreshFeed();
   }, [refreshFeed]);
 
+  const homeFeedLangSelectOptions = useMemo(
+    () => [
+      { value: '', label: t(effectiveLang, 'All languages'), emoji: '🌐' },
+      ...supportedLanguages
+        .filter((l) => l.code !== 'auto')
+        .map((l) => ({ value: l.code, label: t(effectiveLang, l.name), emoji: l.emoji })),
+    ],
+    [effectiveLang]
+  );
+
   return (
+    <>
     <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="min-h-screen bg-slate-100 dark:bg-gray-900">
       <div className="w-full pb-6 pt-0">
@@ -1522,6 +1753,171 @@ const formatDateLabel = (value?: string | null) => {
             <AdCardWithTrack banner={heroFeedBanner} />
           </div>
         )}
+
+        <div className="border-b border-sky-200/90 bg-gradient-to-b from-sky-100/95 to-rose-100/70 shadow-sm shadow-sky-900/10 dark:border-slate-700 dark:from-slate-900/80 dark:to-rose-950/40 dark:shadow-none">
+          {!composerExpanded ? (
+            <div className="px-0 py-2 sm:py-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!requireLogin()) return;
+                  setComposerExpanded(true);
+                }}
+                className="group relative flex w-full min-h-[2.75rem] items-center gap-2.5 rounded-none border-b border-x-0 border-sky-300/75 bg-gradient-to-r from-sky-200 via-sky-100 to-rose-200 py-2.5 pl-3.5 pr-3.5 text-left shadow-sm shadow-sky-900/10 transition-all duration-200 hover:border-sky-400 hover:from-sky-200 hover:via-sky-100 hover:to-rose-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/55 dark:border-rose-900/35 dark:from-sky-950/60 dark:via-slate-900/50 dark:to-rose-950/50 dark:hover:border-sky-700/55"
+                aria-label="Ask — write a post"
+              >
+                <span className="shrink-0 select-none rounded-full bg-gradient-to-r from-sky-600 to-rose-600 px-2.5 py-1 text-sm font-semibold tracking-wide text-white shadow-sm transition group-hover:from-sky-700 group-hover:to-rose-700">
+                  Ask
+                </span>
+                <div className="pointer-events-none min-w-0 flex-1 rounded-xl border border-sky-200/95 bg-white/95 px-3 py-2 shadow-inner shadow-sky-900/[0.06] dark:border-sky-700/60 dark:bg-white/10">
+                  <span className="block truncate text-sm text-slate-500 dark:text-slate-300">Ask the community...</span>
+                </div>
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-hidden" role="region" aria-labelledby="home-compose-post-title">
+              <div className="flex items-center justify-between gap-2 border-b border-sky-200 bg-gradient-to-r from-sky-100 to-rose-100 px-3 py-1.5 dark:border-slate-600 dark:from-slate-900/60 dark:to-rose-950/40">
+                <span
+                  id="home-compose-post-title"
+                  className="bg-gradient-to-r from-sky-900 to-rose-800 bg-clip-text text-sm font-bold tracking-wide text-transparent dark:from-sky-300 dark:to-rose-300"
+                >
+                  Ask
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setComposerExpanded(false)}
+                  className="rounded-full p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                  aria-label="Close composer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="max-h-[min(85dvh,880px)] overflow-y-auto overscroll-contain bg-white px-1 pb-2 sm:px-2 sm:pb-2 dark:bg-white">
+                <Suspense
+                  fallback={
+                    <div className="flex justify-center py-12 text-sm text-slate-500 dark:text-gray-400">
+                      Loading...
+                    </div>
+                  }
+                >
+                  <CreateCommunityPostClient
+                    embed="inline"
+                    onCloseRequest={() => setComposerExpanded(false)}
+                    onPublished={() => {
+                      void refreshFeed();
+                      setComposerExpanded(false);
+                    }}
+                  />
+                </Suspense>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-b border-black dark:border-gray-500 bg-white px-3 py-2.5 shadow-sm dark:bg-gray-800 sm:px-4">
+          <Link
+            href="/"
+            className="shrink-0 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition-all hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+          >
+            {t(effectiveLang, 'Community')}
+          </Link>
+          <button
+            type="button"
+            onClick={() => setHomeFeedTab('for_you')}
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+              homeFeedTab === 'for_you'
+                ? 'bg-blue-100 text-blue-800'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+            }`}
+          >
+            {t(effectiveLang, 'For you')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setHomeFeedTab('popular')}
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+              homeFeedTab === 'popular'
+                ? 'bg-blue-100 text-blue-800'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+            }`}
+          >
+            {t(effectiveLang, 'Most Popular')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setHomeFeedTab('news')}
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+              homeFeedTab === 'news'
+                ? 'bg-blue-100 text-blue-800'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+            }`}
+          >
+            {t(effectiveLang, 'News')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFeedSearchOpen((v) => !v)}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+              feedSearchOpen ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            aria-expanded={feedSearchOpen}
+            aria-controls="home-feed-search"
+          >
+            <Search className="h-3.5 w-3.5" />
+            Search
+          </button>
+          <button
+            type="button"
+            onClick={() => setFeedFiltersOpen((v) => !v)}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+              feedFiltersOpen ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            aria-expanded={feedFiltersOpen}
+            aria-controls="home-feed-language-filter"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Filter
+          </button>
+          {feedFiltersOpen && (
+            <select
+              id="home-feed-language-filter"
+              value={postFeedLang}
+              onChange={(e) => setPostFeedLang(e.target.value)}
+              className="h-8 min-w-[8.5rem] shrink-0 cursor-pointer appearance-none rounded-lg border border-gray-200 bg-[length:12px] bg-[right_0.35rem_center] bg-no-repeat py-1 pl-2 pr-6 text-xs font-medium text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-rose-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+              }}
+              title={
+                postFeedLang ? t(effectiveLang, 'Posts in this language first') : t(effectiveLang, 'All languages')
+              }
+              aria-label={t(effectiveLang, 'All languages')}
+            >
+              {homeFeedLangSelectOptions.map((opt) => (
+                <option key={opt.value || 'all'} value={opt.value}>
+                  {opt.emoji ? `${opt.emoji} ${opt.label}` : opt.label}
+                </option>
+              ))}
+            </select>
+          )}
+          {feedSearchOpen && (
+          <div id="home-feed-search" className="w-full pt-1">
+            <label className="relative block">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4a0a14]"
+                aria-hidden
+              />
+              <input
+                type="search"
+                value={feedSearchQuery}
+                onChange={(e) => setFeedSearchQuery(e.target.value)}
+                placeholder="Search words, phrases, or similar terms..."
+                className="h-10 w-full rounded-full border-2 border-[#4a0a14]/55 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 placeholder:text-slate-500 shadow-sm shadow-[#4a0a14]/15 focus:border-[#0b2a66] focus:outline-none focus:ring-2 focus:ring-[#0b2a66]/25"
+                aria-label="Search feed"
+              />
+            </label>
+          </div>
+          )}
+        </div>
 
         {/* New content banner */}
         {hasNewContent && !refreshing && (
@@ -1544,7 +1940,7 @@ const formatDateLabel = (value?: string | null) => {
             {[1, 2, 3, 4].map((i, sIdx) => (
               <Fragment key={i}>
                 {sIdx > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
-                <div className="rounded-none border-0 bg-white p-5 shadow-sm ring-0 space-y-3 dark:bg-gray-800">
+                <div className="rounded-none border-0 bg-white p-4 shadow-sm ring-0 space-y-3.5 dark:bg-gray-800 sm:p-5">
                 <div className="flex items-center gap-3">
                   <div className="skeleton h-9 w-9 shrink-0 rounded-none" />
                   <div className="flex-1 space-y-1.5">
@@ -1567,9 +1963,9 @@ const formatDateLabel = (value?: string | null) => {
           </div>
         )}
 
-        {!loading && feedItems.length > 0 && (
+        {!loading && filteredFeedItems.length > 0 && (
           <div>
-        {feedItems.slice(0, visibleCount).map((item, index) => {
+        {filteredFeedItems.slice(0, visibleCount).map((item, index) => {
           if (item.type === 'post') {
             const dateLabel = new Date(item.post.created_at).toLocaleDateString();
             const liked = likedPosts.has(item.post.id);
@@ -1579,7 +1975,7 @@ const formatDateLabel = (value?: string | null) => {
             return (
               <Fragment key={`post-${item.post.id}-${index}`}>
                 {index > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
-                <article className="rounded-none border-0 bg-white p-5 shadow-sm ring-0 dark:bg-gray-800">
+                <article className="rounded-none border-0 bg-white p-4 shadow-sm ring-0 dark:bg-gray-800 sm:p-5">
                 <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-gray-400">
                   <div className="flex items-center gap-2 min-w-0">
                     <Avatar
@@ -1606,8 +2002,8 @@ const formatDateLabel = (value?: string | null) => {
                   <span className="flex-shrink-0">{dateLabel}</span>
                 </div>
                 <Link href={`/community/post/${item.post.id}`}>
-                  <h2 className="mt-2 text-lg font-semibold text-slate-800 dark:text-gray-100">{item.post.title}</h2>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-gray-300 line-clamp-3">{item.post.body}</p>
+                  <h2 className="mt-2 text-[1.02rem] font-semibold leading-6 text-slate-800 dark:text-gray-100">{item.post.title}</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-gray-300 line-clamp-3">{item.post.body}</p>
                 </Link>
                 {item.post.video ? (
                   <div className="mt-3 w-[calc(100%+2.5rem)] max-w-none -mx-5">
@@ -1701,7 +2097,7 @@ const formatDateLabel = (value?: string | null) => {
                               <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
                                 {comment.author || comment.username || 'User'}
                               </p>
-                              <p className="text-sm text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
+                              <p className="text-sm leading-6 text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
                               <div className="flex items-center gap-2 mt-1">
                                 {currentUser.id && (
                                   <button
@@ -1713,7 +2109,7 @@ const formatDateLabel = (value?: string | null) => {
                                       comment.user_liked ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-gray-500 hover:text-rose-500 dark:hover:text-rose-400'
                                     }`}
                                   >
-                                    <span aria-hidden>👍</span>
+                                    <ThumbsUp className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
                                     <span className="tabular-nums text-slate-500 dark:text-gray-400">
                                       {comment.likes ?? comment.likes_comment ?? 0}
                                     </span>
@@ -1721,7 +2117,7 @@ const formatDateLabel = (value?: string | null) => {
                                 )}
                                 {!currentUser.id && (
                                   <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-gray-500">
-                                    <span aria-hidden>👍</span>
+                                    <ThumbsUp className="h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={2} aria-hidden />
                                     <span className="tabular-nums">{comment.likes ?? comment.likes_comment ?? 0}</span>
                                   </span>
                                 )}
@@ -1755,7 +2151,7 @@ const formatDateLabel = (value?: string | null) => {
             return (
               <Fragment key={`org-${item.organization.id}-${index}`}>
                 {index > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
-                <article className="rounded-none border-0 bg-white p-5 shadow-sm ring-0 dark:bg-gray-800">
+                <article className="rounded-none border-0 bg-white p-4 shadow-sm ring-0 dark:bg-gray-800 sm:p-5">
                 <div className="flex items-center gap-3">
                   <img
                     src={item.organization.logo_url || item.organization.banner_url || 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=600&auto=format&fit=crop'}
@@ -1768,7 +2164,7 @@ const formatDateLabel = (value?: string | null) => {
                     <Link href={`/organization/${item.organization.username}`} className="text-sm font-semibold text-slate-800 dark:text-gray-100 hover:underline">
                       {item.organization.full_name}
                     </Link>
-                    <p className="text-xs text-slate-500 dark:text-gray-400 line-clamp-2">{item.organization.mission || 'Organization update'}</p>
+                    <p className="text-xs leading-5 text-slate-500 dark:text-gray-400 line-clamp-2">{item.organization.mission || 'Organization update'}</p>
                   </div>
                 </div>
               </article>
@@ -1812,13 +2208,13 @@ const formatDateLabel = (value?: string | null) => {
           </div>
         )}
 
-        {!loading && !feedItems.length && (
+        {!loading && !filteredFeedItems.length && (
           <div className="rounded-none border border-slate-200 bg-white p-6 text-sm text-slate-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-            No posts yet. Check back soon.
+            {feedSearchQuery.trim() ? 'No results for your search yet.' : 'No posts yet. Check back soon.'}
           </div>
         )}
 
-        {!loading && feedItems.length > visibleCount && (
+        {!loading && filteredFeedItems.length > visibleCount && (
           <div
             ref={bottomRef}
             className="rounded-none border border-slate-200 border-t border-t-black bg-white p-4 text-center text-xs text-slate-500 dark:border-t-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
@@ -1830,5 +2226,6 @@ const formatDateLabel = (value?: string | null) => {
       <Footer />
     </div>
     </PullToRefresh>
+    </>
   );
 }

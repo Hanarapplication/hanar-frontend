@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
-const FEED_ROUTES = ['/', '/community', '/marketplace', '/businesses'];
+const FEED_ROUTES = ['/', '/marketplace', '/businesses'];
 
 const isDashboardRoute = (path: string) =>
   path === '/dashboard' ||
@@ -12,7 +12,7 @@ const isDashboardRoute = (path: string) =>
 
 /**
  * Detects horizontal swipe gestures and navigates between the
- * four main feed pages (Home, Community, Marketplace, Businesses).
+ * main feed pages (Home, Marketplace, Businesses).
  * Disabled on dashboard pages to avoid accidental navigation.
  */
 export function useSwipeNavigation() {

@@ -17,7 +17,7 @@ export default function FloatingActionButton() {
     { label: 'Home', icon: <FaHome />, color: 'bg-gray-700', link: '/' },
     { label: 'Businesses', icon: <FaStore />, color: 'bg-gray-700', link: '/businesses' },
     { label: 'Marketplace', icon: <FaShoppingCart />, color: 'bg-gray-700', link: '/marketplace' },
-    { label: 'Community', icon: <FaComments />, color: 'bg-gray-700', link: '/community' },
+    { label: 'Community', icon: <FaComments />, color: 'bg-gray-700', link: '/' },
   ];
 
   const handleNav = (url: string) => {

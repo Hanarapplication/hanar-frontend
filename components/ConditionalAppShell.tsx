@@ -42,7 +42,7 @@ export default function ConditionalAppShell({
       <ClientRedirectTracker />
       <main
         key={animKey}
-        className="animate-page-enter pb-[calc(3.85rem+env(safe-area-inset-bottom,0px))]"
+        className="animate-page-enter pt-12 sm:pt-0"
       >
         {children}
       </main>

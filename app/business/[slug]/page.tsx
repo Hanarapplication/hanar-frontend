@@ -23,7 +23,7 @@ import {
     Store as StoreIcon,
     ClipboardList as ClipboardListIcon,
     Home, MapPin,
-    X, DollarSign, Eye, ChevronLeft, ChevronRight, ChevronDown, Tag // Added Tag for retail item category in modal
+    X, DollarSign, Eye, ChevronLeft, ChevronRight, ChevronDown, Tag, QrCode, Copy, Check // Added Tag for retail item category in modal
 } from 'lucide-react'; // These imports remain as per your original code
 
 import { cn } from '@/lib/utils'; // This import remains as per your original code
@@ -444,6 +444,8 @@ const BusinessProfilePage = () => {
     const [showCarsModal, setShowCarsModal] = useState(false);
     const [showRetailModal, setShowRetailModal] = useState(false);
     const [showHours, setShowHours] = useState(false);
+    const [showQrModal, setShowQrModal] = useState(false);
+    const [qrCopied, setQrCopied] = useState(false);
 
     const ITEMS_PER_BATCH = 6;
     const [visibleMenuCount, setVisibleMenuCount] = useState(ITEMS_PER_BATCH);
@@ -462,6 +464,20 @@ const BusinessProfilePage = () => {
         type: 'menu' | 'car' | 'retail' | 'real_estate';
         item: MenuItem | CarListing | RetailItem | RealEstateListing;
     } | null>(null);
+
+    const webBusinessUrl = useMemo(() => {
+        if (!slug) return '';
+        if (typeof window !== 'undefined') return `${window.location.origin}/business/${slug}`;
+        return `https://hanar.net/business/${slug}`;
+    }, [slug]);
+    const qrTargetUrl = useMemo(() => {
+        if (!webBusinessUrl) return '';
+        return `${webBusinessUrl}${webBusinessUrl.includes('?') ? '&' : '?'}open_app=1`;
+    }, [webBusinessUrl]);
+    const qrImageUrl = useMemo(() => {
+        if (!qrTargetUrl) return '';
+        return `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrTargetUrl)}`;
+    }, [qrTargetUrl]);
 
     useEffect(() => {
         setVisibleMenuCount(ITEMS_PER_BATCH);
@@ -1069,15 +1085,88 @@ const BusinessProfilePage = () => {
             </svg>
             {/* Hanar logo + business name */}
             <div className="sticky top-0 z-30 mb-0 px-4 py-3 bg-gradient-to-r from-[#0c1f3c] via-[#b91c1c] to-[#0c1f3c] dark:from-[#061018] dark:via-[#991b1b] dark:to-[#061018] border-b border-white/15 dark:border-white/10 shadow-[inset_0_1px_0_rgba(130,170,230,0.22)] dark:shadow-[inset_0_1px_0_rgba(180,70,80,0.16)] backdrop-blur-sm">
-                <div className="flex items-center gap-2.5 min-w-0">
-                    <Link href="/businesses" className="inline-block rounded-lg bg-white/10 px-2 py-1 ring-1 ring-white/20 transition hover:bg-white/15 shrink-0" aria-label="Back to Hanar">
-                        <img src="/hanar.logo.png" alt="Hanar" className="h-8 w-auto object-contain" />
-                    </Link>
-                    <span className="min-w-0 truncate text-sm sm:text-base font-semibold text-white">
-                        {business.business_name}
-                    </span>
+                <div className="flex items-center justify-between gap-3 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <Link href="/businesses" className="inline-block rounded-lg bg-white/10 px-2 py-1 ring-1 ring-white/20 transition hover:bg-white/15 shrink-0" aria-label="Back to Hanar">
+                            <img src="/hanar.logo.png" alt="Hanar" className="h-8 w-auto object-contain" />
+                        </Link>
+                        <span className="min-w-0 truncate text-sm sm:text-base font-semibold text-white">
+                            {business.business_name}
+                        </span>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowQrModal(true)}
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white ring-1 ring-white/25 transition hover:bg-white/20"
+                        aria-label="Show business QR code"
+                    >
+                        <QrCode size={18} />
+                    </button>
                 </div>
             </div>
+            {showQrModal && (
+                <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+                    onClick={() => setShowQrModal(false)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Business QR code"
+                >
+                    <div
+                        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-gray-900"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="mb-3 flex items-center justify-between">
+                            <h3 className="text-base font-semibold text-slate-900 dark:text-white">Scan to open this business</h3>
+                            <button
+                                type="button"
+                                onClick={() => setShowQrModal(false)}
+                                className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                                aria-label="Close QR"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div className="mx-auto w-full max-w-[16rem] rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-gray-800">
+                            {qrImageUrl ? (
+                                <img src={qrImageUrl} alt="Business QR code" className="h-full w-full object-contain" />
+                            ) : (
+                                <div className="flex h-64 items-center justify-center text-sm text-slate-500 dark:text-slate-400">
+                                    QR unavailable
+                                </div>
+                            )}
+                        </div>
+                        <p className="mt-3 text-xs text-slate-600 dark:text-slate-300">
+                            Scanning opens this business page link in browser. If your device has the app with app links enabled, it should open in-app.
+                        </p>
+                        <div className="mt-3 flex gap-2">
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!qrTargetUrl) return;
+                                    try {
+                                        await navigator.clipboard.writeText(qrTargetUrl);
+                                        setQrCopied(true);
+                                        window.setTimeout(() => setQrCopied(false), 1500);
+                                    } catch {}
+                                }}
+                                className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-gray-800"
+                            >
+                                {qrCopied ? <Check size={15} /> : <Copy size={15} />}
+                                {qrCopied ? 'Copied' : 'Copy link'}
+                            </button>
+                            <a
+                                href={qrTargetUrl || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex flex-1 items-center justify-center rounded-lg bg-gradient-to-r from-[#0c1f3c] to-[#6b1515] px-3 py-2 text-sm font-semibold text-white transition hover:from-[#0a192f] hover:to-[#5a1212]"
+                            >
+                                Open link
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* Modals for Menu, Cars, Retail (Added new) */}
             {showMenuModal && (
                 <Modal title="Our Menu" onClose={() => setShowMenuModal(false)}>
@@ -1150,8 +1239,8 @@ const BusinessProfilePage = () => {
                                                 />
                                             </div>
                                         )}
-                                        <div className="p-4 flex flex-col flex-grow">
-                                            <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{item.title}</h3>
+                                        <div className="p-2.5 flex flex-col flex-grow">
+                                            <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{item.title}</h3>
                                             <div className="text-sm text-gray-600 dark:text-gray-300 mt-2 space-y-1">
                                                 <p className="flex items-center gap-1"><Calendar size={14} /> Year: {item.year}</p>
                                                 <p className="flex items-center gap-1"><Gauge size={14} /> Mileage: {item.mileage}</p>
@@ -1198,7 +1287,7 @@ const BusinessProfilePage = () => {
             {showRetailModal && (
                 <Modal title="Retail Items" onClose={() => setShowRetailModal(false)}>
                     {retailItems.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-2 gap-3">
                             {retailItems.map((item) => (
                                 <div key={item.id} className="bg-gray-100 dark:bg-gray-800 shadow-sm overflow-hidden flex flex-col">
                                     {item.images?.[0] && (
@@ -1211,8 +1300,8 @@ const BusinessProfilePage = () => {
                                             />
                                         </div>
                                     )}
-                                    <div className="p-4 flex flex-col flex-grow">
-                                        <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{item.name}</h3>
+                                    <div className="p-2.5 flex flex-col flex-grow">
+                                        <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">{item.name}</h3>
                                         <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{item.description}</p>
                                         <p className="text-[#b91c1c] dark:text-red-400 font-bold mt-1">{item.price}</p>
                                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Category: {item.category}</p>
@@ -1515,14 +1604,14 @@ const BusinessProfilePage = () => {
                                         <Car size={20} /> Car Listings
                                     </span>
                                 </h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 gap-3">
                                     {carListings.slice(0, visibleCarCount).map((car) => (
                                         <div
                                             key={car.id}
-                                            className="shadow-md sm:shadow-sm overflow-hidden relative flex flex-col bg-slate-100 dark:bg-gray-700 border border-slate-300 dark:border-slate-600"
+                                            className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-slate-600 dark:bg-gray-800"
                                         >
                                             {car.images && car.images.length > 0 && car.images[0] && (
-                                                <div className="w-full h-36 sm:h-48 relative flex-shrink-0 mb-3">
+                                                <div className="w-full h-24 sm:h-28 relative flex-shrink-0 mb-2">
                                                     <img
                                                         src={car.images[0]}
                                                         alt={car.title}
@@ -1531,34 +1620,27 @@ const BusinessProfilePage = () => {
                                                     />
                                                 </div>
                                             )}
-                                            <div className="p-4 flex flex-col flex-grow">
-                                                <div className="space-y-2">
-                                                    <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 dark:bg-blue-900/25 dark:border-blue-700/40">
-                                                        <h3 className="font-semibold text-base text-blue-900 dark:text-blue-100">{car.title}</h3>
-                                                    </div>
-                                                    <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 dark:bg-red-900/25 dark:border-red-700/40">
-                                                        <p className="font-bold text-red-700 dark:text-red-300">${car.price}</p>
-                                                    </div>
-                                                    <div className="grid grid-cols-1 gap-1.5 text-sm">
-                                                        <div className="flex items-center gap-1.5 rounded-md bg-slate-100 border border-slate-200 px-2.5 py-1.5 text-slate-700 dark:bg-slate-800/70 dark:border-slate-600 dark:text-slate-200"><Calendar size={14} /> Year: {car.year}</div>
-                                                        <div className="flex items-center gap-1.5 rounded-md bg-slate-100 border border-slate-200 px-2.5 py-1.5 text-slate-700 dark:bg-slate-800/70 dark:border-slate-600 dark:text-slate-200"><Gauge size={14} /> Mileage: {car.mileage}</div>
-                                                        <div className="flex items-center gap-1.5 rounded-md bg-slate-100 border border-slate-200 px-2.5 py-1.5 text-slate-700 dark:bg-slate-800/70 dark:border-slate-600 dark:text-slate-200"><HeartHandshake size={14} /> Condition: {car.condition}</div>
-                                                    </div>
+                                            <div className="p-2.5 flex flex-col flex-grow">
+                                                <h3 className="line-clamp-1 font-semibold text-sm text-slate-900 dark:text-slate-100">{car.title}</h3>
+                                                <p className="mt-1 text-sm font-bold text-red-600 dark:text-red-300">${car.price}</p>
+                                                <div className="mt-1.5 flex flex-wrap gap-1">
+                                                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-600 dark:border-slate-600 dark:bg-slate-700/60 dark:text-slate-200"><Calendar size={11} /> {car.year}</span>
+                                                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-600 dark:border-slate-600 dark:bg-slate-700/60 dark:text-slate-200"><Gauge size={11} /> {car.mileage}</span>
+                                                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-600 dark:border-slate-600 dark:bg-slate-700/60 dark:text-slate-200"><HeartHandshake size={11} /> {car.condition}</span>
                                                 </div>
-                                                <div className="mt-auto pt-3 flex gap-2">
+                                                <div className="mt-auto pt-2 flex gap-1.5">
                                                     <button
                                                         onClick={() => setSelectedItemForDetails({ type: 'car', item: car })}
-                                                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-[#0c1f3c] to-[#6b1515] text-white rounded-lg hover:from-[#0a192f] hover:to-[#5a1212] transition-colors flex items-center justify-center gap-2 font-medium shadow-sm dark:from-[#061018] dark:to-[#7f1d1d] dark:hover:from-[#040d18] dark:hover:to-[#6b1515]"
+                                                        className="flex-1 rounded-md bg-gradient-to-r from-[#0c1f3c] to-[#6b1515] px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:from-[#0a192f] hover:to-[#5a1212]"
                                                     >
-                                                        <Eye size={18} />
-                                                        View Details
+                                                        <Eye size={14} />
+                                                        Details
                                                     </button>
                                                     <button
                                                         onClick={() => handleItemShare(car.title)}
-                                                        className="px-3 py-2.5 bg-gradient-to-r from-[#1d4ed8] to-[#3b82f6] text-white rounded-lg hover:from-[#1e40af] hover:to-[#2563eb] transition-colors flex items-center justify-center gap-2 font-medium shadow-sm border border-[#60a5fa] dark:from-[#1e3a8a] dark:to-[#1d4ed8] dark:hover:from-[#1e3a8a] dark:hover:to-[#1e40af]"
+                                                        className="inline-flex items-center justify-center rounded-md border border-[#60a5fa] bg-gradient-to-r from-[#1d4ed8] to-[#3b82f6] px-2 py-1.5 text-white transition-colors hover:from-[#1e40af] hover:to-[#2563eb] dark:from-[#1e3a8a] dark:to-[#1d4ed8]"
                                                     >
-                                                        <FaShareAlt size={16} />
-                                                        Share
+                                                        <FaShareAlt size={13} />
                                                     </button>
                                                 </div>
                                             </div>
@@ -1573,14 +1655,14 @@ const BusinessProfilePage = () => {
                                 <h2 className="text-xl font-semibold text-[#333] dark:text-gray-100 mb-4 flex items-center gap-2">
                                     <StoreIcon size={20} /> Retail Items
                                 </h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 gap-3">
                                     {retailItems.slice(0, visibleRetailCount).map((item) => (
                                         <div
                                             key={item.id}
-                                            className="shadow-md sm:shadow-sm overflow-hidden relative flex flex-col bg-white dark:bg-gray-700 border border-slate-300 dark:border-slate-600"
+                                            className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-slate-600 dark:bg-gray-800"
                                         >
                                             {item.images?.[0] && (
-                                                <div className="w-full h-36 sm:h-48 relative flex-shrink-0 mb-3">
+                                                <div className="w-full h-24 sm:h-28 relative flex-shrink-0 mb-2">
                                                     <img
                                                         src={item.images[0]}
                                                         alt={item.name}
@@ -1589,35 +1671,28 @@ const BusinessProfilePage = () => {
                                                     />
                                                 </div>
                                             )}
-                                            <div className="p-4 flex flex-col flex-grow">
-                                                <div className="space-y-2">
-                                                    <div className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 dark:bg-blue-900/25 dark:border-blue-700/40">
-                                                        <h3 className="font-semibold text-base text-blue-900 dark:text-blue-100">{item.name}</h3>
-                                                    </div>
-                                                    <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 dark:bg-red-900/25 dark:border-red-700/40">
-                                                        <p className="font-bold text-red-700 dark:text-red-300">{item.price}</p>
-                                                    </div>
-                                                    <div className="rounded-md bg-slate-100 border border-slate-200 px-2.5 py-1.5 text-xs text-slate-700 dark:bg-slate-800/70 dark:border-slate-600 dark:text-slate-200">
-                                                        Category: {item.category}
-                                                    </div>
-                                                    <p className="rounded-md bg-gray-50 border border-gray-200 px-2.5 py-2 text-sm text-gray-700 line-clamp-2 dark:bg-gray-800/70 dark:border-gray-600 dark:text-gray-300">
-                                                        {item.description}
-                                                    </p>
+                                            <div className="p-2.5 flex flex-col flex-grow">
+                                                <h3 className="line-clamp-1 font-semibold text-sm text-slate-900 dark:text-slate-100">{item.name}</h3>
+                                                <p className="mt-1 text-sm font-bold text-red-600 dark:text-red-300">{item.price}</p>
+                                                <div className="mt-1.5 inline-flex w-fit rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-600 dark:border-slate-600 dark:bg-slate-700/60 dark:text-slate-200">
+                                                    {item.category}
                                                 </div>
-                                                <div className="mt-auto pt-3 flex gap-2">
+                                                <p className="mt-1.5 line-clamp-1 text-[11px] text-slate-600 dark:text-slate-300">
+                                                    {item.description}
+                                                </p>
+                                                <div className="mt-auto pt-2 flex gap-1.5">
                                                     <button
                                                         onClick={() => setSelectedItemForDetails({ type: 'retail', item: item })}
-                                                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-[#0c1f3c] to-[#6b1515] text-white rounded-lg hover:from-[#0a192f] hover:to-[#5a1212] transition-colors flex items-center justify-center gap-2 font-medium shadow-sm dark:from-[#061018] dark:to-[#7f1d1d] dark:hover:from-[#040d18] dark:hover:to-[#6b1515]"
+                                                        className="flex-1 rounded-md bg-gradient-to-r from-[#0c1f3c] to-[#6b1515] px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:from-[#0a192f] hover:to-[#5a1212]"
                                                     >
-                                                        <Eye size={18} />
-                                                        View Details
+                                                        <Eye size={14} />
+                                                        Details
                                                     </button>
                                                     <button
                                                         onClick={() => handleItemShare(item.name)}
-                                                        className="px-3 py-2.5 bg-gradient-to-r from-[#1d4ed8] to-[#3b82f6] text-white rounded-lg hover:from-[#1e40af] hover:to-[#2563eb] transition-colors flex items-center justify-center gap-2 font-medium shadow-sm border border-[#60a5fa] dark:from-[#1e3a8a] dark:to-[#1d4ed8] dark:hover:from-[#1e3a8a] dark:hover:to-[#1e40af]"
+                                                        className="inline-flex items-center justify-center rounded-md border border-[#60a5fa] bg-gradient-to-r from-[#1d4ed8] to-[#3b82f6] px-2 py-1.5 text-white transition-colors hover:from-[#1e40af] hover:to-[#2563eb] dark:from-[#1e3a8a] dark:to-[#1d4ed8]"
                                                     >
-                                                        <FaShareAlt size={16} />
-                                                        Share
+                                                        <FaShareAlt size={13} />
                                                     </button>
                                                 </div>
                                             </div>
@@ -1632,14 +1707,14 @@ const BusinessProfilePage = () => {
                                 <h2 className="text-xl font-semibold text-[#333] dark:text-gray-100 mb-4 flex items-center gap-2">
                                     <Home size={20} /> Real Estate
                                 </h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 gap-3">
                                     {realEstateListings.slice(0, visibleRealEstateCount).map((item) => (
                                         <div
                                             key={item.id}
-                                            className="shadow-md sm:shadow-sm overflow-hidden relative flex flex-col bg-white dark:bg-gray-700 border border-slate-300 dark:border-slate-600"
+                                            className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-slate-600 dark:bg-gray-800"
                                         >
                                             {item.images?.[0] && (
-                                                <div className="w-full h-36 sm:h-48 relative flex-shrink-0 mb-3">
+                                                <div className="w-full h-24 sm:h-28 relative flex-shrink-0 mb-2">
                                                     <img
                                                         src={item.images[0]}
                                                         alt={item.title}
@@ -1648,25 +1723,24 @@ const BusinessProfilePage = () => {
                                                     />
                                                 </div>
                                             )}
-                                            <div className="p-4 flex flex-col flex-grow">
-                                                <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">{item.title}</h3>
-                                                <p className="text-[#b91c1c] dark:text-red-400 font-bold mt-1">{item.price ? `$${item.price}` : ''}</p>
-                                                {item.address && <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-1">{item.address}</p>}
-                                                <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mt-1">{item.description}</p>
-                                                <div className="mt-auto pt-3 flex gap-2">
+                                            <div className="p-2.5 flex flex-col flex-grow">
+                                                <h3 className="line-clamp-1 font-semibold text-sm text-slate-900 dark:text-slate-100">{item.title}</h3>
+                                                <p className="mt-1 font-bold text-red-600 dark:text-red-300">{item.price ? `$${item.price}` : ''}</p>
+                                                {item.address && <p className="mt-1 line-clamp-1 text-[11px] text-slate-600 dark:text-slate-300">{item.address}</p>}
+                                                <p className="mt-1 line-clamp-1 text-[11px] text-slate-600 dark:text-slate-300">{item.description}</p>
+                                                <div className="mt-auto pt-2 flex gap-1.5">
                                                     <button
                                                         onClick={() => setSelectedItemForDetails({ type: 'real_estate', item })}
-                                                        className="flex-1 px-4 py-2.5 bg-gradient-to-r from-[#0c1f3c] to-[#6b1515] text-white rounded-lg hover:from-[#0a192f] hover:to-[#5a1212] transition-colors flex items-center justify-center gap-2 font-medium shadow-sm dark:from-[#061018] dark:to-[#7f1d1d] dark:hover:from-[#040d18] dark:hover:to-[#6b1515]"
+                                                        className="flex-1 rounded-md bg-gradient-to-r from-[#0c1f3c] to-[#6b1515] px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:from-[#0a192f] hover:to-[#5a1212]"
                                                     >
-                                                        <Eye size={18} />
-                                                        View Details
+                                                        <Eye size={14} />
+                                                        Details
                                                     </button>
                                                     <button
                                                         onClick={() => handleItemShare(item.title)}
-                                                        className="px-3 py-2.5 bg-gradient-to-r from-[#1d4ed8] to-[#3b82f6] text-white rounded-lg hover:from-[#1e40af] hover:to-[#2563eb] transition-colors flex items-center justify-center gap-2 font-medium shadow-sm border border-[#60a5fa] dark:from-[#1e3a8a] dark:to-[#1d4ed8] dark:hover:from-[#1e3a8a] dark:hover:to-[#1e40af]"
+                                                        className="inline-flex items-center justify-center rounded-md border border-[#60a5fa] bg-gradient-to-r from-[#1d4ed8] to-[#3b82f6] px-2 py-1.5 text-white transition-colors hover:from-[#1e40af] hover:to-[#2563eb] dark:from-[#1e3a8a] dark:to-[#1d4ed8]"
                                                     >
-                                                        <FaShareAlt size={16} />
-                                                        Share
+                                                        <FaShareAlt size={13} />
                                                     </button>
                                                 </div>
                                             </div>

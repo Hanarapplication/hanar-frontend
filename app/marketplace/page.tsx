@@ -47,6 +47,8 @@ type MarketplaceItem = {
   location_country?: string | null;
   location_state?: string | null;
   location_city?: string | null;
+  /** Optional external buy link (affiliate / online stores). */
+  external_buy_url?: string | null;
 };
 
 type FavoriteItem = {
@@ -112,6 +114,15 @@ const getPriceValue = (value: string | number) => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
+const normalizeMarketplaceCategory = (value: unknown, fallback = 'General') => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return fallback;
+  const key = raw.toLowerCase();
+  if (key === 'dealership' || key === 'dealerships' || key === 'car dealership') return 'Cars';
+  if (key === 'real_estate') return 'Real Estate';
+  return raw;
+};
+
 const shuffleInChunks = <T,>(items: T[], chunkSize = 6) => {
   const result: T[] = [];
   for (let i = 0; i < items.length; i += chunkSize) {
@@ -172,6 +183,7 @@ export default function MarketplacePage() {
   const [visibleCount, setVisibleCount] = useState(6);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [categoriesModalOpen, setCategoriesModalOpen] = useState(false);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [locationSearchValue, setLocationSearchValue] = useState('');
   const [tempRadius, setTempRadius] = useState(() => readSavedSearchRadiusMiles(40));
@@ -238,7 +250,7 @@ export default function MarketplacePage() {
       result.formatted_address ||
       'Selected location';
     setLocationLabel(label);
-    setLocationSearchValue('');
+    setLocationSearchValue(label);
     try {
       if (label) localStorage.setItem('userLocationLabel', label);
     } catch {}
@@ -281,12 +293,48 @@ export default function MarketplacePage() {
   };
 
   const handleUseMyLocation = () => {
+    const applyGeoLabel = async (coords: { lat: number; lon: number }) => {
+      let city: string | undefined;
+      let state: string | undefined;
+      let country: string | undefined;
+      let label = 'Your location';
+      try {
+        const res = await fetch(
+          `/api/geocode/reverse?lat=${encodeURIComponent(coords.lat)}&lon=${encodeURIComponent(coords.lon)}`
+        );
+        const data = await res.json().catch(() => ({}));
+        const address = data?.address || {};
+        city =
+          address.city ||
+          address.town ||
+          address.village ||
+          address.hamlet ||
+          '';
+        state = address.state || address.county || '';
+        country = address.country || '';
+        const composed = [city, state, country].filter(Boolean).join(', ');
+        label = composed || data?.display_name || label;
+      } catch {
+        // keep fallback label
+      }
+      setLocationLabel(label);
+      setLocationSearchValue(label);
+      try {
+        if (label) localStorage.setItem('userLocationLabel', label);
+      } catch {}
+      window.dispatchEvent(
+        new CustomEvent('location:updated', {
+          detail: { ...coords, label, city, state, country, radiusMiles: radius },
+        })
+      );
+    };
+
     const stored = localStorage.getItem('userCoords');
     if (stored) {
       try {
         const { lat, lon } = JSON.parse(stored);
-        setUserCoords({ lat, lon });
-        setLocationLabel('Your location');
+        const coords = { lat, lon };
+        setUserCoords(coords);
         try {
           const rawScope = localStorage.getItem(USER_LOCATION_SCOPE_KEY);
           if (rawScope) setLocationScope(JSON.parse(rawScope) as MarketplaceLocationScope);
@@ -298,6 +346,7 @@ export default function MarketplacePage() {
         } catch {
           setLocationScope({ mode: 'city_radius', country: '', state: '', city: '' });
         }
+        void applyGeoLabel(coords);
         return;
       } catch { /* ignore */ }
     }
@@ -312,8 +361,7 @@ export default function MarketplacePage() {
         } catch {}
         setUserCoords(coords);
         localStorage.setItem('userCoords', JSON.stringify(coords));
-        setLocationLabel('Your location');
-        window.dispatchEvent(new CustomEvent('location:updated', { detail: { ...coords, label: 'Your location' } }));
+        void applyGeoLabel(coords);
       },
       () => alert('Could not get your location.')
     );
@@ -469,7 +517,7 @@ export default function MarketplacePage() {
     title: row.title || row.name || row.item_name || 'Retail item',
     price: row.price ?? row.amount ?? row.cost ?? '',
     location: row.location || row.city || row.address || '',
-    category: row.category || row.type || 'Retail',
+    category: normalizeMarketplaceCategory(row.category || row.type, 'Retail'),
     condition: row.condition || row.item_condition || '',
     description: row.description || row.details || null,
     imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'retail-items'),
@@ -479,6 +527,7 @@ export default function MarketplacePage() {
     slug: row.slug || row.item_slug || row.listing_slug || `retail-${row.id}`,
     source: 'retail',
     business_id: row.business_id || null,
+    external_buy_url: row.external_buy_url || null,
   });
 
   const normalizeDealershipItem = (row: any): MarketplaceItem => ({
@@ -486,7 +535,7 @@ export default function MarketplacePage() {
     title: row.title || row.name || row.vehicle_name || row.model || 'Dealership listing',
     price: row.price ?? row.amount ?? row.cost ?? '',
     location: row.location || row.city || row.address || '',
-    category: row.category || row.type || 'Dealership',
+    category: normalizeMarketplaceCategory(row.category || row.type, 'Cars'),
     condition: row.condition || row.item_condition || '',
     description: row.description || row.details || row.notes || null,
     imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'car-listings'),
@@ -496,6 +545,7 @@ export default function MarketplacePage() {
     slug: row.slug || row.item_slug || row.listing_slug || `dealership-${row.id}`,
     source: 'dealership',
     business_id: row.business_id || null,
+    external_buy_url: row.external_buy_url || null,
   });
 
   const normalizeIndividualItem = (row: any): MarketplaceItem => {
@@ -506,7 +556,7 @@ export default function MarketplacePage() {
       title: row.title || 'Listing',
       price: row.price ?? '',
       location: row.location || '',
-      category: row.category || 'General',
+      category: normalizeMarketplaceCategory(row.category, 'General'),
       condition: row.condition || '',
       description: row.description || null,
       imageUrls: urls,
@@ -520,6 +570,7 @@ export default function MarketplacePage() {
       location_country: row.location_country ?? null,
       location_state: row.location_state ?? null,
       location_city: row.location_city ?? null,
+      external_buy_url: row.external_buy_url ?? null,
     };
   };
 
@@ -536,7 +587,7 @@ export default function MarketplacePage() {
       title: (row.title as string) || 'Real estate listing',
       price,
       description: (row.description as string) || '',
-      category: (row.property_type as string) || 'Real Estate',
+      category: normalizeMarketplaceCategory((row.property_type as string), 'Real Estate'),
       condition: '',
       location: (row.address as string) || '',
       imageUrls,
@@ -546,6 +597,7 @@ export default function MarketplacePage() {
       business_id: (row.business_id as string) || null,
       source: 'real_estate',
       slug: `real-estate-${row.id}`,
+      external_buy_url: (row.external_buy_url as string) || null,
     };
   };
 
@@ -882,128 +934,219 @@ export default function MarketplacePage() {
   });
   filteredItems = withRelevance.map(({ item }) => item);
 
+  const trendingItems = filteredItems.slice(0, 8);
+  const dealsItems = filteredItems
+    .filter((item) => {
+      const price = getPriceValue(item.price);
+      return price !== null && price <= 250;
+    })
+    .slice(0, 8);
+  const dealShowcaseItems = dealsItems.length > 0 ? dealsItems : filteredItems.slice(0, 8);
+  const onlineAffiliateItems = filteredItems
+    .filter((item) => Boolean(item.external_buy_url))
+    .slice(0, 8);
+
+  const categoryCounts = items.reduce((acc, item) => {
+    const key = normalizeMarketplaceCategory(item.category, 'General');
+    if (!key) return acc;
+    acc.set(key, (acc.get(key) || 0) + 1);
+    return acc;
+  }, new Map<string, number>());
+  const allCategories = Array.from(categoryCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([name]) => name);
+  const topCategories = allCategories.slice(0, 11);
+
+  const categoryEmoji: Record<string, string> = {
+    electronics: '💻',
+    phones: '📱',
+    fashion: '👕',
+    clothes: '👕',
+    shoes: '👟',
+    cars: '🚗',
+    dealership: '🚘',
+    furniture: '🛋️',
+    realestate: '🏡',
+    'real estate': '🏡',
+    beauty: '💄',
+    groceries: '🛒',
+    tools: '🧰',
+  };
+
   const handlePullRefresh = useCallback(async () => {
     try { sessionStorage.removeItem(MARKETPLACE_CACHE_KEY); } catch {}
     setVisibleCount(6);
     await loadMarketplaceItems();
   }, []);
 
-  const ItemCard = ({ item }: { item: MarketplaceItem }) => (
-    <div className="h-full rounded-lg bg-gradient-to-r from-[#a68920] via-[#e6cf6a] to-[#a68920] p-[2px] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md dark:from-[#4a4014] dark:via-[#c4a82c] dark:to-[#4a4014] dark:shadow-gray-900/50 sm:rounded-xl">
-      <div className="h-full overflow-hidden rounded-[6px] bg-gradient-to-r from-[#b08f24] via-[#e7d487] to-[#b08f24] sm:rounded-[10px] dark:from-[#6b5818] dark:via-[#c7ac46] dark:to-[#6b5818]">
-        <Link
-          href={`/marketplace/${item.slug}`}
-          onClick={() => {
-            recordMarketplaceItemView({
-              source: item.source,
-              id: item.id,
-              title: item.title || '',
-              category: item.category || '',
-            });
-          }}
-          className="group relative flex h-full flex-col overflow-hidden rounded-[5px] bg-gradient-to-r from-[#b08f24] via-[#e7d487] to-[#b08f24] text-sm sm:rounded-[9px] sm:text-base dark:from-[#6b5818] dark:via-[#c7ac46] dark:to-[#6b5818]"
-        >
-          <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
-            <img
-              src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
-              alt={item.title}
-              loading="lazy"
-              decoding="async"
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
-            <div className="absolute left-2 top-2 w-fit rounded-md border border-emerald-300/55 bg-gradient-to-r from-emerald-900 via-emerald-700 to-emerald-900 px-2 py-0.5 shadow-sm backdrop-blur-sm sm:px-2.5 sm:py-1 dark:from-emerald-950 dark:via-emerald-800 dark:to-emerald-950">
-              <p className="text-base font-bold tabular-nums text-white sm:text-lg">
-                {getPriceValue(item.price) === null ? item.price : `$${getPriceValue(item.price)}`}
-              </p>
-            </div>
-            <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(item); }}
-              className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 shadow backdrop-blur-sm transition hover:bg-white active:scale-95 sm:p-2 dark:bg-gray-800/90 dark:hover:bg-gray-700"
-            >
-              {favoriteKeys.has(getFavoriteKey(item)) ? (
-                <FaHeart className="h-4 w-4 text-rose-500 sm:h-5 sm:w-5 dark:text-rose-400" />
-              ) : (
-                <FaRegHeart className="h-4 w-4 text-gray-500 sm:h-5 sm:w-5 dark:text-gray-400" />
-              )}
-            </button>
-            {item.business_id && (
-              item.business_verified ? (
-                <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-emerald-500/90 px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm backdrop-blur-sm">
-                  <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.403 12.652a3 3 0 010-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-5.11-1.36a.75.75 0 10-1.085-1.035l-2.165 2.27-.584-.614a.75.75 0 10-1.085 1.035l1.126 1.182a.75.75 0 001.085 0l2.708-2.839z" clipRule="evenodd" /></svg>
-                  Verified
-                </span>
-              ) : (
-                <span className="absolute bottom-1.5 left-1.5 inline-flex items-center gap-0.5 rounded-md bg-indigo-500/90 px-1.5 py-[2px] text-[9px] font-bold text-white shadow-sm backdrop-blur-sm">
-                  <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 01-1.581.814L10 13.197l-4.419 3.617A1 1 0 014 16V4z" clipRule="evenodd" /></svg>
-                  Business
-                </span>
-              )
-            )}
-          </div>
+  const handleCategoryClick = (category: string) => {
+    setSearchTerm(category);
+    setVisibleCount(10);
+    setCategoriesModalOpen(false);
+  };
 
-          <div className="flex flex-grow flex-col bg-gradient-to-r from-[#b08f24] via-[#e4ce79] to-[#b08f24] p-3 sm:p-4 dark:from-[#6b5818] dark:via-[#c2a640] dark:to-[#6b5818]">
-            <div className="mb-1.5 w-fit max-w-full rounded-md border border-emerald-300/55 bg-gradient-to-r from-emerald-900 via-emerald-700 to-emerald-900 px-2 py-0.5 shadow-sm sm:px-2.5 sm:py-1 dark:from-emerald-950 dark:via-emerald-800 dark:to-emerald-950">
-              <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight text-white transition-colors group-hover:text-emerald-100 sm:text-base">
-                {item.title}
-              </h3>
-            </div>
-            {item.description && (
-              <p className="mb-2 line-clamp-2 text-sm font-normal leading-relaxed text-[#4a3a08] dark:text-[#2b2204]">
-                {item.description}
-              </p>
+  const handleAllCategoriesClick = () => {
+    setSearchTerm('');
+    setVisibleCount(6);
+    setCategoriesModalOpen(false);
+  };
+
+  const ItemCard = ({ item }: { item: MarketplaceItem }) => (
+    <div className="h-full overflow-hidden rounded-lg border border-[#d5d9d9] bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <Link
+        href={`/marketplace/${item.slug}`}
+        onClick={() => {
+          recordMarketplaceItemView({
+            source: item.source,
+            id: item.id,
+            title: item.title || '',
+            category: item.category || '',
+          });
+        }}
+        className="group relative flex h-full flex-col text-xs sm:text-sm"
+      >
+        <div className="relative aspect-[5/3] overflow-hidden bg-[#f7f8f8]">
+          <img
+            src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
+            alt={item.title}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(item); }}
+            className="absolute right-1.5 top-1.5 rounded-full border border-[#d5d9d9] bg-white p-1 shadow-sm transition hover:bg-[#f7fafa] active:scale-95 sm:p-1.5"
+          >
+            {favoriteKeys.has(getFavoriteKey(item)) ? (
+              <FaHeart className="h-3.5 w-3.5 text-[#cc0c39] sm:h-4 sm:w-4" />
+            ) : (
+              <FaRegHeart className="h-3.5 w-3.5 text-[#565959] sm:h-4 sm:w-4" />
             )}
-            <div className="mt-auto flex flex-wrap items-center gap-2">
-              {item.condition && (
-                <span
-                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                    item.condition === 'New'
-                      ? 'border-blue-300/55 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 text-white'
-                      : 'border-blue-300/55 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 text-white'
-                  }`}
-                >
-                  {item.condition}
-                </span>
-              )}
-              {item.location && (
-                <span className="inline-flex max-w-[120px] items-center truncate rounded-lg border border-blue-300/55 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 px-2 py-0.5 text-[11px] font-medium text-white">
-                  {getCityStateFromLocation(item.location) || item.location}
-                </span>
-              )}
-            </div>
-          </div>
-        </Link>
-      </div>
+          </button>
+          {item.external_buy_url && (
+            <span className="absolute left-1.5 top-1.5 inline-flex items-center rounded-md bg-[#cc0c39] px-1.5 py-[2px] text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
+              Deal
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-grow flex-col p-2 sm:p-2.5">
+          <h3 className="line-clamp-2 text-[12px] font-medium leading-snug text-[#0f1111] transition-colors group-hover:text-[#c7511f] sm:text-[13px]">
+            {item.title}
+          </h3>
+          <p className="mt-1 text-[13px] font-bold leading-none text-[#0f1111] sm:text-[14px]">
+            {getPriceValue(item.price) === null ? item.price : `$${getPriceValue(item.price)}`}
+          </p>
+          {item.condition && (
+            <span className="mt-1 inline-flex w-fit items-center rounded-md bg-[#f0f2f2] px-1.5 py-0.5 text-[10px] font-semibold text-[#0f1111]">
+              {item.condition}
+            </span>
+          )}
+          {item.location && (
+            <p className="mt-1 line-clamp-1 text-[10px] text-[#565959]">
+              {getCityStateFromLocation(item.location) || item.location}
+            </p>
+          )}
+          {item.business_id && (
+            <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-md border border-[#d5d9d9] bg-white px-1.5 py-0.5 text-[9px] font-semibold text-[#007185]">
+              {item.business_verified ? 'Verified seller' : 'Business seller'}
+            </span>
+          )}
+          {item.external_buy_url && (
+            <span className="mt-1 inline-flex w-fit items-center rounded-md bg-[#ffd814] px-2 py-0.5 text-[10px] font-semibold text-[#0f1111]">
+              Buy online
+            </span>
+          )}
+        </div>
+      </Link>
     </div>
   );
 
+  const AmazonStyleShelf = ({
+    title,
+    itemsForShelf,
+    ctaLabel = 'See more',
+    onCta,
+  }: {
+    title: string;
+    itemsForShelf: MarketplaceItem[];
+    ctaLabel?: string;
+    onCta?: () => void;
+  }) => {
+    const tiles = itemsForShelf.slice(0, 4);
+    if (tiles.length === 0) return null;
+    return (
+      <section className="rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h3 className="line-clamp-1 text-[15px] font-bold text-[#0f1111]">{title}</h3>
+          <button
+            type="button"
+            onClick={onCta}
+            className="text-[11px] font-medium text-[#007185] hover:text-[#c7511f]"
+          >
+            {ctaLabel}
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {tiles.map((item) => (
+            <Link key={`shelf-${title}-${item.source}-${item.id}`} href={`/marketplace/${item.slug}`} className="group block">
+              <div className="overflow-hidden rounded-md border border-slate-100 bg-slate-50">
+                <img
+                  src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
+                  alt={item.title}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-20 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              </div>
+              <p className="mt-1 line-clamp-1 text-[10px] text-[#0f1111]">{item.title}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+    );
+  };
+
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
-    <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
+    <div className="min-h-screen bg-[#eaeded] pb-10 sm:pb-12 dark:bg-[#111827]">
     <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-8 pt-0 sm:pt-1">
-      {/* Search with location inside - modern style */}
-      <div className="sticky top-0 z-10 -mx-3 sm:-mx-5 px-3 sm:px-5 pt-0 pb-3 mb-6">
-        <div className="mx-auto max-w-2xl rounded-2xl bg-gradient-to-r from-[#4a0a14] via-[#e1306c] to-[#4a0a14] p-[1.5px] shadow-[inset_0_1px_0_rgba(255,182,198,0.4),0_10px_30px_-10px_rgba(74,10,20,0.35)] ring-1 ring-white/20 transition-shadow dark:from-[#2d0610] dark:via-[#c41e56] dark:to-[#2d0610] dark:shadow-[inset_0_1px_0_rgba(255,120,160,0.18),0_12px_36px_-12px_rgba(0,0,0,0.45)] dark:ring-white/10 hover:shadow-[inset_0_1px_0_rgba(255,182,198,0.45),0_14px_40px_-12px_rgba(74,10,20,0.4)] dark:hover:shadow-[inset_0_1px_0_rgba(255,120,160,0.22),0_16px_44px_-12px_rgba(0,0,0,0.5)]">
-          <div className="flex items-stretch gap-0 overflow-hidden rounded-[14px] bg-white sm:rounded-[15px] dark:bg-white">
+      {/* Search and location bar (sky/rose — same family as home Ask strip) */}
+      <div className="sticky top-0 z-10 -mx-3 mb-6 border-b border-sky-200/90 bg-gradient-to-b from-sky-100/95 to-white px-3 pb-3 pt-2 shadow-sm shadow-sky-900/10 sm:-mx-5 sm:px-5 dark:border-slate-700 dark:from-slate-900/80 dark:to-gray-800 dark:shadow-none">
+        <div className="mx-auto max-w-3xl">
+          <button
+            type="button"
+            onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
+            className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-sky-300/75 bg-gradient-to-r from-sky-200 via-sky-100 to-rose-200 px-3 py-1.5 text-[11px] font-medium text-sky-900 shadow-sm shadow-sky-900/10 transition hover:border-sky-400 hover:shadow-md dark:border-rose-900/35 dark:from-sky-950/60 dark:via-slate-900/50 dark:to-rose-950/50 dark:text-sky-100"
+          >
+            <FaMapMarkerAlt className="h-3.5 w-3.5 text-sky-700 dark:text-rose-300" />
+            <span className="max-w-[11rem] truncate">{locationLabel || 'Choose delivery location'}</span>
+            {locationLabel && locationScope.mode === 'country' && <span className="text-[10px] text-sky-800/80 dark:text-slate-400">Country</span>}
+            {locationLabel && locationScope.mode === 'state' && <span className="text-[10px] text-sky-800/80 dark:text-slate-400">State</span>}
+            {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && userCoords && (
+              <span className="text-[10px] text-sky-800/80 dark:text-slate-400">{radius} mi</span>
+            )}
+          </button>
+
+          <div className="flex overflow-hidden rounded-md border border-sky-200 bg-gradient-to-r from-sky-100 to-rose-100 shadow-sm shadow-sky-900/10 dark:border-slate-600 dark:from-slate-900/60 dark:to-rose-950/40 dark:shadow-none">
+              <div className="hidden items-center border-r border-sky-200/90 bg-sky-50/90 px-3 text-[11px] font-medium text-sky-900 dark:border-sky-700 dark:bg-slate-800/80 dark:text-slate-200 sm:flex">
+                All categories
+            </div>
             <div className="relative min-w-0 flex-1">
-              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#c41e56] dark:text-[#e85085]">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </span>
               <input
                 type="text"
-                placeholder="Search items, phones, cities..."
+                placeholder="Search Hanar Marketplace"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 onBlur={handleSearchBlur}
-                className="w-full border-0 bg-transparent py-4 pl-12 pr-4 text-base text-gray-900 placeholder-gray-400 focus:outline-none dark:text-gray-900 dark:placeholder-gray-500"
+                className="w-full border-0 bg-white py-2.5 pl-3 pr-10 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none dark:bg-slate-900/90 dark:text-slate-100 dark:placeholder:text-slate-400"
               />
               {searchTerm && (
                 <button
                   type="button"
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-100 dark:hover:text-gray-700"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-slate-400 transition hover:bg-sky-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                   aria-label="Clear search"
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1012,25 +1155,17 @@ export default function MarketplacePage() {
                 </button>
               )}
             </div>
-            <div className="w-px flex-shrink-0 bg-gray-200 dark:bg-gray-200" />
             <button
               type="button"
-              onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
-              className="flex h-full min-h-[56px] items-center gap-2 px-4 text-left transition-colors hover:bg-emerald-50/90 dark:hover:bg-gray-100 sm:px-5"
+              onClick={() => {
+                if (searchTerm.trim()) void addToRecentSearches(searchTerm);
+              }}
+              className="inline-flex items-center justify-center bg-gradient-to-r from-sky-600 to-rose-600 px-4 text-white transition hover:from-sky-700 hover:to-rose-700 dark:from-sky-500 dark:to-rose-500 dark:hover:from-sky-600 dark:hover:to-rose-600"
+              aria-label="Search marketplace"
             >
-              <FaMapMarkerAlt className="h-4 w-4 flex-shrink-0 text-emerald-600 dark:text-emerald-600" />
-              <span className="max-w-[110px] truncate text-sm font-medium text-gray-800 dark:text-gray-900 sm:max-w-[140px]">
-                {locationLabel || 'Location'}
-              </span>
-              {locationLabel && locationScope.mode === 'country' && (
-                <span className="flex-shrink-0 text-xs text-gray-500 dark:text-gray-600">Country</span>
-              )}
-              {locationLabel && locationScope.mode === 'state' && (
-                <span className="flex-shrink-0 text-xs text-gray-500 dark:text-gray-600">State</span>
-              )}
-              {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && userCoords && (
-                <span className="flex-shrink-0 text-xs text-gray-500 dark:text-gray-600">{radius} mi</span>
-              )}
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
             </button>
           </div>
         </div>
@@ -1041,17 +1176,29 @@ export default function MarketplacePage() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/35 backdrop-blur-[2px] p-2 pt-12 sm:pt-14"
           onClick={() => setLocationModalOpen(false)}
         >
-          <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-slate-200 dark:border-gray-700 p-5 sm:p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Search in this area</h3>
-            <p className="text-xs text-slate-500 dark:text-gray-400 mb-4">
+          <div className="w-full max-w-[20rem] rounded-xl border border-slate-200/90 bg-white/95 p-3 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:border-gray-700/80 dark:bg-gray-900/95 sm:max-w-[21rem] sm:p-3.5" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-2.5 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Search in this area</h3>
+              <button
+                type="button"
+                onClick={() => setLocationModalOpen(false)}
+                className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                aria-label="Close"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="mb-2.5 text-[11px] text-slate-500 dark:text-gray-400">
               Type a country (e.g. United States), a state or region, or a city. Country and state show all matching listings; city uses the radius below.
             </p>
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-2">Country, state, or city</label>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Country, state, or city</label>
                 <AddressAutocomplete
                   value={locationSearchValue}
                   onSelect={handleLocationSelect}
@@ -1059,19 +1206,19 @@ export default function MarketplacePage() {
                   placeholder="Search city, ZIP, or address..."
                   mode="locality"
                   className="w-full"
-                  inputClassName="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-400 text-sm"
+                  inputClassName="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/30 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 />
               </div>
               <button
                 type="button"
                 onClick={handleUseMyLocation}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-slate-700 dark:text-gray-300 font-medium text-sm transition-colors"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-emerald-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-emerald-900/30"
               >
                 <FaMapMarkerAlt className="w-4 h-4 text-emerald-600" />
                 Use my current location
               </button>
               <div>
-                <label className="block text-sm font-medium text-slate-600 dark:text-gray-400 mb-2">Radius: {tempRadius} miles</label>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Radius: {tempRadius} miles</label>
                 <input
                   type="range"
                   min="10"
@@ -1079,22 +1226,22 @@ export default function MarketplacePage() {
                   step="5"
                   value={tempRadius}
                   onChange={(e) => setTempRadius(Number(e.target.value))}
-                  className="w-full h-2 rounded-lg appearance-none bg-slate-200 dark:bg-gray-600 accent-emerald-500"
+                  className="h-2 w-full appearance-none rounded-lg bg-slate-200 accent-emerald-500 dark:bg-gray-600"
                 />
               </div>
             </div>
-            <div className="mt-5 flex gap-3">
+            <div className="mt-4 flex gap-2">
               <button
                 type="button"
                 onClick={() => setLocationModalOpen(false)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-gray-600 text-slate-700 dark:text-gray-300 font-medium text-sm hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors"
+                className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleApplyLocation}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm transition-colors"
+                className="flex-1 rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
               >
                 Apply
               </button>
@@ -1104,16 +1251,228 @@ export default function MarketplacePage() {
         document.body
       )}
 
+      {categoriesModalOpen && typeof document !== 'undefined' && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/35 p-3 pt-16 backdrop-blur-[2px] sm:pt-20"
+          onClick={() => setCategoriesModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-xl border border-[#d5d9d9] bg-white p-3 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2.5 flex items-center justify-between">
+              <h3 className="text-[15px] font-bold text-[#0f1111]">All categories</h3>
+              <button
+                type="button"
+                onClick={() => setCategoriesModalOpen(false)}
+                className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Close categories"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="max-h-[52vh] overflow-y-auto pr-1">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleAllCategoriesClick}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#e7f4f5] px-3 py-1 text-[11px] font-semibold text-[#007185] transition hover:border-[#c7caca] hover:bg-[#dff0f2]"
+                >
+                  <span aria-hidden>🌐</span>
+                  <span>All categories</span>
+                </button>
+                {allCategories.map((category) => {
+                  const emojiKey = category.toLowerCase();
+                  const emoji = categoryEmoji[emojiKey] || '📦';
+                  return (
+                    <button
+                      key={`all-cat-${category}`}
+                      type="button"
+                      onClick={() => handleCategoryClick(category)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#f0f2f2] px-3 py-1 text-[11px] font-semibold text-[#0f1111] transition hover:border-[#c7caca] hover:bg-[#e7e9ec]"
+                    >
+                      <span aria-hidden>{emoji}</span>
+                      <span>{category}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {items.length > 0 && (
+        <>
+          <section className="mb-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <AmazonStyleShelf
+              title="Continue shopping deals"
+              itemsForShelf={dealShowcaseItems.length > 0 ? dealShowcaseItems : filteredItems.slice(3, 9)}
+              ctaLabel="See deal picks"
+              onCta={() => setSort('priceLow')}
+            />
+          </section>
+
+          {topCategories.length > 0 && (
+            <section className="mb-3 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="text-[16px] font-bold text-[#0f1111]">Categories for you</h2>
+                {allCategories.length > 11 ? (
+                  <button
+                    type="button"
+                    onClick={() => setCategoriesModalOpen(true)}
+                    className="text-[11px] font-semibold text-[#007185] hover:text-[#c7511f]"
+                  >
+                    See more
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-[#565959]">Tap to filter</span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleAllCategoriesClick}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#e7f4f5] px-3 py-1 text-[11px] font-semibold text-[#007185] transition hover:border-[#c7caca] hover:bg-[#dff0f2]"
+                >
+                  <span aria-hidden>🌐</span>
+                  <span>All categories</span>
+                </button>
+                {topCategories.map((category) => {
+                  const emojiKey = category.toLowerCase();
+                  const emoji = categoryEmoji[emojiKey] || '📦';
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => handleCategoryClick(category)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#f0f2f2] px-3 py-1 text-[11px] font-semibold text-[#0f1111] transition hover:border-[#c7caca] hover:bg-[#e7e9ec]"
+                    >
+                      <span aria-hidden>{emoji}</span>
+                      <span>{category}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {dealShowcaseItems.length > 0 && (
+            <section className="mb-3 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-[16px] font-bold text-[#0f1111]">More items to consider</h2>
+                <span className="text-[11px] font-semibold text-[#007185]">See more</span>
+              </div>
+              <div className="grid grid-cols-4 gap-2 md:grid-cols-6">
+                {dealShowcaseItems.slice(0, 6).map((item) => (
+                  <Link key={`consider-${item.source}-${item.id}`} href={`/marketplace/${item.slug}`} className="group block">
+                    <div className="overflow-hidden rounded-md border border-slate-100 bg-slate-50">
+                      <img
+                        src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
+                        alt={item.title}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-20 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {onlineAffiliateItems.length > 0 && (
+            <section className="mb-6 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-[16px] font-bold text-[#0f1111]">Available online</h2>
+                <span className="text-[11px] text-[#565959]">Affiliate links</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                {onlineAffiliateItems.slice(0, 8).map((item) => (
+                  <div key={`online-${item.source}-${item.id}`} className="rounded-md border border-[#d5d9d9] p-2">
+                    <Link href={`/marketplace/${item.slug}`} className="group block">
+                      <div className="overflow-hidden rounded-md bg-slate-100">
+                        <img
+                          src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
+                          alt={item.title}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-20 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      </div>
+                      <p className="mt-1 line-clamp-1 text-[11px] text-[#0f1111]">{item.title}</p>
+                    </Link>
+                    <a
+                      href={item.external_buy_url || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex w-full items-center justify-center rounded-md bg-[#ffd814] px-2 py-1.5 text-[11px] font-semibold text-[#0f1111] hover:bg-[#f7ca00]"
+                    >
+                      Buy online
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {trendingItems.length > 0 && (
+            <section className="mb-6 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-[16px] font-bold text-[#0f1111]">Trending now</h2>
+                <span className="text-[11px] text-[#007185]">See more</span>
+              </div>
+              <div className="grid grid-cols-4 gap-2 md:grid-cols-6">
+                {trendingItems.slice(0, 6).map((item) => (
+                  <Link key={`trend-strip-${item.source}-${item.id}`} href={`/marketplace/${item.slug}`} className="group block">
+                    <div className="overflow-hidden rounded-md border border-slate-100 bg-slate-50">
+                      <img
+                        src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
+                        alt={item.title}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-20 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {dealShowcaseItems.length > 0 && (
+            <section className="mb-6 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-[16px] font-bold text-[#0f1111]">Today&apos;s deals</h2>
+                <span className="inline-flex items-center rounded-full bg-[#cc0c39] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                  Limited deal
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 sm:gap-3">
+                {dealShowcaseItems.slice(0, 4).map((item) => (
+                  <ItemCard key={`deal-${item.source}-${item.id}`} item={item} />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
+
       {/* Items */}
       {items.length === 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
               className="rounded-lg bg-gradient-to-r from-[#a68920] via-[#e6cf6a] to-[#a68920] p-[2px] dark:from-[#4a4014] dark:via-[#c4a82c] dark:to-[#4a4014] sm:rounded-xl"
             >
               <div className="overflow-hidden rounded-[6px] bg-gradient-to-r from-[#b08f24] via-[#e7d487] to-[#b08f24] sm:rounded-[10px] dark:from-[#6b5818] dark:via-[#c7ac46] dark:to-[#6b5818]">
-                <div className="skeleton aspect-[4/3] w-full rounded-none" />
+                <div className="skeleton aspect-[5/3] w-full rounded-none" />
                 <div className="space-y-2 bg-gradient-to-b from-[#5c1024] to-[#2d0610] p-2.5 sm:p-3.5 dark:from-gray-900 dark:to-black">
                   <div className="skeleton h-3.5 w-1/3 rounded-full" />
                   <div className="skeleton h-3.5 w-3/4 rounded" />
@@ -1129,7 +1488,13 @@ export default function MarketplacePage() {
           Personalized from your recent searches and views
         </p>
       )}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5">
+      {items.length > 0 && (
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Recommended Listings</h2>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{filteredItems.length} results</span>
+        </div>
+      )}
+      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3">
         {filteredItems.slice(0, visibleCount).map((item) => (
           <ItemCard key={`${item.source}-${item.id}`} item={item} />
         ))}

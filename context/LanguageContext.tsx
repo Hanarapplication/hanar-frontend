@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { t as tFromTranslations } from '@/utils/translations';
-import { supabase } from '@/lib/supabaseClient';
 
 const SUPPORTED_CODES = new Set([
   'en', 'am', 'ar', 'az', 'bn', 'de', 'el', 'es', 'fa', 'fr', 'ha', 'he', 'hi', 'hy', 'id', 'it', 'ja', 'ka', 'ku', 'ms', 'ne', 'pa', 'pl', 'ps', 'pt', 'ro', 'ru', 'so', 'ta', 'th', 'tr', 'ug', 'uk', 'ur', 'uz', 'vi', 'zh', 'ko', 'sw',
@@ -38,26 +37,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
-    const syncFromDb = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || !mounted) return;
-      const { data } = await supabase
-        .from('registeredaccounts')
-        .select('preferred_language')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      const dbLang = (data as { preferred_language?: string | null } | null)?.preferred_language;
-      if (dbLang && typeof dbLang === 'string' && dbLang.trim()) {
-        setLangState(dbLang.trim());
-        localStorage.setItem('hanarLang', dbLang.trim());
-      }
-    };
-    syncFromDb();
-    return () => { mounted = false; };
-  }, []);
-
-  useEffect(() => {
     localStorage.setItem('hanarLang', lang);
     setEffectiveLang(resolveEffectiveLang(lang));
   }, [lang]);
@@ -66,16 +45,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     if (typeof document !== 'undefined') document.documentElement.lang = effectiveLang;
   }, [effectiveLang]);
 
+  /** UI / translations only — does not update post language or feed personalization (see home/community language controls). */
   const setLang = useCallback((newLang: string) => {
     setLangState(newLang);
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase
-        .from('registeredaccounts')
-        .update({ preferred_language: newLang })
-        .eq('user_id', user.id)
-        .then(() => {});
-    });
   }, []);
 
   return (

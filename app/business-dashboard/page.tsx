@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { Edit, Eye, Crown, BarChart3, Megaphone, ChevronDown, ChevronUp, X, Image, Bell, Trash2 } from 'lucide-react';
+import { Edit, Eye, Crown, BarChart3, Megaphone, ChevronDown, ChevronUp, X, Image, Bell, Trash2, Download } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { isAppIOS, withAppParam } from '@/utils/isAppIOS';
 
@@ -713,11 +713,36 @@ function BusinessDashboardContent() {
       ? 'text-white bg-rose-600 border-rose-600'
       : 'text-white bg-slate-500 border-slate-500';
   const canViewPublicProfile = true;
+  const handleDownloadBusinessQr = async () => {
+    if (!business?.slug) return;
+    try {
+      const targetUrl =
+        typeof window !== 'undefined'
+          ? `${window.location.origin}/business/${business.slug}?open_app=1`
+          : `https://hanar.net/business/${business.slug}?open_app=1`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1024x1024&data=${encodeURIComponent(targetUrl)}`;
+      const res = await fetch(qrUrl);
+      if (!res.ok) throw new Error('Failed to generate QR');
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `hanar-${business.slug}-qr.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+      toast.success('QR downloaded');
+    } catch {
+      toast.error('Could not download QR right now');
+    }
+  };
 
   const burgerItems = [
     { label: 'Edit Business', href: `/businesses/edit/${business.slug}`, icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
     { label: 'View full insights', href: '/business-dashboard/insights', icon: <BarChart3 className="h-5 w-5 shrink-0" />, color: 'bg-indigo-50 dark:bg-indigo-900/30' },
     { label: 'Promote your business', href: '/promote', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
+    { label: 'Download Business QR', onClick: handleDownloadBusinessQr, icon: <Download className="h-5 w-5 shrink-0" />, color: 'bg-sky-50 dark:bg-sky-900/30' },
     { label: 'Send Notification', onClick: () => { setSendNotificationExpanded(true); setTimeout(() => document.getElementById('send-notification')?.scrollIntoView({ behavior: 'smooth' }), 100); }, icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
     { label: 'My banners', onClick: () => { setPromotionBannersExpanded(true); setTimeout(() => document.getElementById('my-banners')?.scrollIntoView({ behavior: 'smooth' }), 100); }, icon: <Image className="h-5 w-5 shrink-0" />, color: 'bg-violet-50 dark:bg-violet-900/30' },
     { label: business.trial_end && business.plan === 'premium'

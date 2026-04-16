@@ -10,6 +10,7 @@ import { SendHorizontal } from 'lucide-react';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import { Avatar } from '@/components/Avatar';
+import { useLanguage } from '@/context/LanguageContext';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,6 +25,7 @@ export default function CommunityPostPage() {
   const rawParams = useParams();
   const id = Array.isArray(rawParams.id) ? rawParams.id[0] : rawParams.id;
   const router = useRouter();
+  const { effectiveLang } = useLanguage();
 
   const [post, setPost] = useState<any>(null);
   const [comments, setComments] = useState<any[]>([]);
@@ -67,7 +69,7 @@ export default function CommunityPostPage() {
         const params = new URLSearchParams();
         if (seg?.age_group) params.set('age_group', seg.age_group);
         if (seg?.gender) params.set('gender', seg.gender);
-        if (seg?.preferred_language) params.append('lang', seg.preferred_language);
+        if (effectiveLang) params.append('lang', effectiveLang);
         if (Array.isArray(seg?.spoken_languages)) seg.spoken_languages.forEach((l: string) => params.append('lang', l));
         if (lat != null && lon != null) {
           params.set('lat', String(lat));
@@ -84,7 +86,7 @@ export default function CommunityPostPage() {
         if (shuffled.length > 1) setBannerBottom(shuffled[1]);
       })
       .catch(() => {});
-  }, []);
+  }, [effectiveLang]);
 
   const bannerTopRef = useRef<HTMLDivElement>(null);
   const bannerTopTracked = useRef(false);
@@ -380,7 +382,7 @@ export default function CommunityPostPage() {
     }
 
     toast.success('Post deleted');
-    router.push('/community');
+    router.push('/');
   };
 
   const isPostAuthor = post?.user_id === userSession?.user?.id;
@@ -394,7 +396,7 @@ export default function CommunityPostPage() {
           <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-600">
             This post isn&apos;t available. You or the author may have blocked the other.
           </div>
-          <Link href="/community" className="mt-4 inline-block text-indigo-600 hover:underline text-sm">Back to community</Link>
+          <Link href="/" className="mt-4 inline-block text-indigo-600 hover:underline text-sm">Back to feed</Link>
         </div>
       </div>
     );
@@ -515,11 +517,11 @@ export default function CommunityPostPage() {
                 <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
               )}
               {visibleComments.length > 0 && (
-              <div className="-mx-5 flex flex-col gap-0">
+              <div className="-mx-5 flex flex-col divide-y divide-slate-300 bg-white gap-0 dark:divide-slate-600 dark:bg-white">
               {visibleComments.map((c) => (
                 <div
                   key={c.id}
-                  className="hanar-bubble px-5 py-3"
+                  className="bg-white px-5 py-3"
                 >
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <div className="h-7 w-7 flex-shrink-0 overflow-hidden rounded-full">

@@ -39,16 +39,16 @@ function MenuRow({
       className={[
         'group flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-all duration-200 active:scale-[0.99]',
         active
-          ? 'border-white/30 bg-white/15 shadow-sm'
-          : 'border-white/10 bg-black/20 hover:border-white/20 hover:bg-black/30',
+          ? 'border-blue-200 bg-blue-50 shadow-sm dark:border-blue-800/50 dark:bg-blue-900/20'
+          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600 dark:hover:bg-slate-800',
       ].join(' ')}
     >
       <span
         className={[
           'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-sm transition-colors',
           active
-            ? 'border-white/25 bg-[#e1306c] text-white shadow-md shadow-black/20'
-            : 'border-white/15 bg-black/30 text-white group-hover:bg-black/40',
+            ? 'border-blue-200 bg-blue-600 text-white shadow-sm dark:border-blue-700 dark:bg-blue-500'
+            : 'border-slate-200 bg-slate-100 text-slate-700 group-hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:group-hover:bg-slate-700',
         ].join(' ')}
       >
         {icon}
@@ -56,7 +56,7 @@ function MenuRow({
       <span
         className={[
           'min-w-0 flex-1 text-sm font-medium tracking-tight',
-          active ? 'text-white' : 'text-white/90',
+          active ? 'text-slate-900 dark:text-slate-100' : 'text-slate-700 dark:text-slate-200',
         ].join(' ')}
       >
         {label}
@@ -65,8 +65,8 @@ function MenuRow({
         className={[
           'mr-0.5 shrink-0 text-[10px] transition-transform duration-200',
           active
-            ? 'translate-x-0 text-white/90'
-            : 'text-white/45 group-hover:translate-x-0.5 group-hover:text-white/70',
+            ? 'translate-x-0 text-slate-500 dark:text-slate-300'
+            : 'text-slate-400 group-hover:translate-x-0.5 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300',
         ].join(' ')}
         aria-hidden
       />
@@ -201,13 +201,14 @@ export default function MobileMenu({
         aria-modal="true"
         aria-label={t(effectiveLang, 'menu')}
         className={[
-          'fixed inset-y-0 right-0 z-[70] flex w-[min(100vw-1rem,20rem)] max-w-full flex-col rounded-l-[1.75rem] border-l border-white/20 shadow-[-12px_0_48px_-12px_rgba(0,0,0,0.45)] sm:w-[22rem]',
+          'fixed inset-y-0 left-0 z-[70] flex w-[min(100vw-1rem,20rem)] max-w-full flex-col rounded-r-[1.75rem] border-r border-white/20 shadow-[12px_0_48px_-12px_rgba(0,0,0,0.45)] sm:w-[22rem]',
           'pb-[max(0.75rem,env(safe-area-inset-bottom))]',
           'transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
-          isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none',
+          'bg-white dark:bg-slate-900',
+          isOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none',
         ].join(' ')}
       >
-        <div className="shrink-0 border-b border-white/20 bg-gradient-to-r from-[#4a0a14] via-[#e1306c] to-[#4a0a14] px-4 pb-5 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-[inset_0_1px_0_rgba(255,182,198,0.45)] dark:from-[#2d0610] dark:via-[#c41e56] dark:to-[#2d0610] dark:shadow-[inset_0_1px_0_rgba(255,120,160,0.2)]">
+        <div className="shrink-0 border-b border-slate-200 bg-gradient-to-r from-[#2b0710] via-[#4a0a14] to-[#0b2a66] px-4 pb-5 pt-[max(0.75rem,env(safe-area-inset-top))] dark:border-slate-700">
           <div className="flex items-center justify-between gap-3 pt-2.5">
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">Hanar</p>
@@ -223,23 +224,23 @@ export default function MobileMenu({
           </div>
         </div>
 
-        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain bg-gradient-to-b from-[#2d0610] to-[#140508] px-4 py-4 dark:from-[#2d0610] dark:to-black">
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain bg-white px-4 py-4 dark:bg-slate-900">
           <Link
             href={dashboardHref}
             onClick={onDashboardClick}
             className={[
               'group flex items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-all duration-200 active:scale-[0.99]',
               isDashboardActive
-                ? 'border-white/30 bg-white/15 shadow-sm'
-                : 'border-white/10 bg-black/20 hover:border-white/20 hover:bg-black/30',
+                ? 'border-blue-200 bg-blue-50 shadow-sm dark:border-blue-800/50 dark:bg-blue-900/20'
+                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600 dark:hover:bg-slate-800',
             ].join(' ')}
           >
             <span
               className={[
                 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border text-sm transition-colors',
                 isDashboardActive
-                  ? 'border-white/25 bg-[#e1306c] text-white shadow-md shadow-black/20'
-                  : 'border-white/15 bg-black/30 text-white group-hover:bg-black/40',
+                  ? 'border-blue-200 bg-blue-600 text-white shadow-sm dark:border-blue-700 dark:bg-blue-500'
+                  : 'border-slate-200 bg-slate-100 text-slate-700 group-hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:group-hover:bg-slate-700',
               ].join(' ')}
             >
               <FaThLarge />
@@ -247,7 +248,7 @@ export default function MobileMenu({
             <span
               className={[
                 'min-w-0 flex-1 text-sm font-medium tracking-tight',
-                isDashboardActive ? 'text-white' : 'text-white/90',
+                isDashboardActive ? 'text-slate-900 dark:text-slate-100' : 'text-slate-700 dark:text-slate-200',
               ].join(' ')}
             >
               {t(effectiveLang, 'dashboard')}
@@ -256,14 +257,14 @@ export default function MobileMenu({
               className={[
                 'mr-0.5 shrink-0 text-[10px] transition-transform duration-200',
                 isDashboardActive
-                  ? 'text-white/90'
-                  : 'text-white/45 group-hover:translate-x-0.5 group-hover:text-white/70',
+                  ? 'text-slate-500 dark:text-slate-300'
+                  : 'text-slate-400 group-hover:translate-x-0.5 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300',
               ].join(' ')}
               aria-hidden
             />
           </Link>
 
-          <div className="my-3 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+          <div className="my-3 h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent dark:via-slate-700" />
 
           <MenuRow
             href="/faq"
@@ -287,17 +288,17 @@ export default function MobileMenu({
             onNavigate={close}
           />
 
-          <div className="mt-3 rounded-xl border border-white/15 bg-black/25 p-3">
-            <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/65">
-              <FaLanguage className="text-xs text-white/90" aria-hidden />
+          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+            <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+              <FaLanguage className="text-xs text-slate-700 dark:text-slate-200" aria-hidden />
               {t(effectiveLang, 'Language')}
             </label>
             <select
               value={lang}
               onChange={(e) => setLang(e.target.value)}
-              className="mt-2 w-full cursor-pointer appearance-none rounded-lg border border-white/20 bg-black/35 py-2 pl-3 pr-9 text-xs font-medium text-white shadow-sm transition focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-[#e1306c]/40"
+              className="mt-2 w-full cursor-pointer appearance-none rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-9 text-xs font-medium text-slate-800 shadow-sm transition focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/35 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
               style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffffb3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
                 backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'right 0.65rem center',
                 backgroundSize: '0.75rem',
@@ -312,7 +313,7 @@ export default function MobileMenu({
           </div>
         </nav>
 
-        <div className="shrink-0 border-t border-white/15 bg-gradient-to-b from-[#2d0610] to-[#140508] px-4 py-4 dark:from-[#2d0610] dark:to-black">
+        <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-4 dark:border-slate-700 dark:bg-slate-900">
           <button
             type="button"
             onClick={() => {
@@ -321,10 +322,10 @@ export default function MobileMenu({
               else router.push('/login');
             }}
             className={[
-              'flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#2d0610]',
+              'flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-900',
               loggedIn
-                ? 'border border-white/25 bg-black/25 text-white hover:bg-black/35 focus-visible:ring-white/50'
-                : 'bg-gradient-to-r from-[#4a0a14] via-[#e1306c] to-[#4a0a14] text-white shadow-lg shadow-black/30 hover:brightness-110 focus-visible:ring-white/60 dark:from-[#2d0610] dark:via-[#c41e56] dark:to-[#2d0610]',
+                ? 'border border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200 focus-visible:ring-slate-400/50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
+                : 'bg-gradient-to-r from-[#2b0710] via-[#4a0a14] to-[#0b2a66] text-white shadow-sm hover:brightness-110 focus-visible:ring-white/60',
             ].join(' ')}
           >
             {loggedIn ? (

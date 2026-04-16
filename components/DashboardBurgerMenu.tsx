@@ -24,13 +24,13 @@ type DashboardBurgerMenuProps = {
 const SWIPE_THRESHOLD = 50;
 
 const rowClass =
-  'group flex w-full items-center gap-2.5 rounded-xl border border-white/10 bg-black/20 px-3 py-2.5 transition-all duration-200 hover:border-white/20 hover:bg-black/30 active:scale-[0.99]';
+  'group flex w-full items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 active:scale-[0.99] dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600 dark:hover:bg-slate-800';
 
 const iconChipClass =
-  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-black/30 text-white transition-colors group-hover:bg-black/40 [&_svg]:h-[1.1rem] [&_svg]:w-[1.1rem]';
+  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700 transition-colors group-hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:group-hover:bg-slate-700 [&_svg]:h-[1.1rem] [&_svg]:w-[1.1rem]';
 
 const chevronClass =
-  'mr-0.5 h-3 w-3 shrink-0 text-white/45 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-white/70';
+  'mr-0.5 h-3 w-3 shrink-0 text-slate-400 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300';
 
 export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardBurgerMenuProps) {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
@@ -67,7 +67,7 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
               e.preventDefault();
             }
           }}
-          className="flex w-full items-center gap-3 bg-gradient-to-r from-[#4a0a14] via-[#e1306c] to-[#4a0a14] px-5 py-3.5 text-white shadow-[inset_0_1px_0_rgba(255,182,198,0.45)] transition hover:brightness-105 dark:from-[#2d0610] dark:via-[#c41e56] dark:to-[#2d0610] dark:shadow-[inset_0_1px_0_rgba(255,120,160,0.2)]"
+          className="flex w-full items-center gap-3 bg-gradient-to-r from-[#2b0710] via-[#4a0a14] to-[#0b2a66] px-5 py-3.5 text-white shadow-sm transition hover:brightness-105"
           aria-label="Open menu"
         >
           <Menu className="h-6 w-6 shrink-0" aria-hidden />
@@ -92,17 +92,17 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
         aria-modal="true"
         aria-label="Dashboard menu"
         className={[
-          'fixed inset-y-0 left-0 z-[80] flex h-full w-[min(100vw-1rem,20rem)] max-w-full flex-col rounded-r-[1.75rem] border-r border-white/20 shadow-[12px_0_48px_-12px_rgba(0,0,0,0.45)] sm:w-[22rem]',
+          'fixed left-0 top-14 z-[80] flex h-[calc(100vh-3.5rem)] w-[min(100vw-1rem,20rem)] max-w-full flex-col rounded-r-[1.75rem] border-r border-slate-200 bg-white shadow-[12px_0_48px_-12px_rgba(2,6,23,0.35)] dark:border-slate-700 dark:bg-slate-900 sm:top-16 sm:h-[calc(100vh-4rem)] sm:w-[22rem]',
           'pb-[max(0.75rem,env(safe-area-inset-bottom))]',
           'transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
           open ? 'translate-x-0' : '-translate-x-full pointer-events-none',
         ].join(' ')}
         aria-hidden={!open}
       >
-        <div className="shrink-0 border-b border-white/20 bg-gradient-to-r from-[#4a0a14] via-[#e1306c] to-[#4a0a14] px-4 pb-5 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-[inset_0_1px_0_rgba(255,182,198,0.45)] dark:from-[#2d0610] dark:via-[#c41e56] dark:to-[#2d0610] dark:shadow-[inset_0_1px_0_rgba(255,120,160,0.2)]">
+        <div className="shrink-0 border-b border-slate-200 bg-gradient-to-r from-[#2b0710] via-[#4a0a14] to-[#0b2a66] px-4 pb-5 pt-[max(0.75rem,env(safe-area-inset-top))] dark:border-slate-700">
           <div className="flex items-center justify-between gap-3 pt-2.5">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">Your dashboard</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/85">Your dashboard</p>
             </div>
             <button
               type="button"
@@ -115,16 +115,16 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
           </div>
         </div>
 
-        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain bg-gradient-to-b from-[#2d0610] to-[#140508] px-4 py-4 dark:from-[#2d0610] dark:to-black">
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain bg-white px-4 py-4 dark:bg-slate-900">
           <ul className="flex flex-col gap-1">
             {items.map((item, i) => {
               const content = (
                 <>
-                  {item.icon ? <span className={iconChipClass}>{item.icon}</span> : null}
+                  {item.icon ? <span className={`${iconChipClass} ${item.color || ''}`}>{item.icon}</span> : null}
                   <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
-                    <span className="text-sm font-medium tracking-tight text-white/90">{item.label}</span>
+                    <span className="text-sm font-medium tracking-tight text-slate-900 dark:text-slate-100">{item.label}</span>
                     {item.subtitle ? (
-                      <span className="text-xs font-normal text-white/55">{item.subtitle}</span>
+                      <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{item.subtitle}</span>
                     ) : null}
                   </span>
                   <ChevronRight className={chevronClass} aria-hidden />
@@ -140,7 +140,7 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
                         onClose();
                         item.onClick?.();
                       }}
-                      className={`${rowClass} text-white`}
+                      className={`${rowClass} text-slate-900 dark:text-slate-100`}
                     >
                       {content}
                     </Link>
@@ -151,7 +151,7 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
                         item.onClick?.();
                         onClose();
                       }}
-                      className={`${rowClass} text-left text-white`}
+                      className={`${rowClass} text-left text-slate-900 dark:text-slate-100`}
                     >
                       {content}
                     </button>
