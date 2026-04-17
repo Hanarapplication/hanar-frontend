@@ -998,7 +998,19 @@ export default function MarketplacePage() {
   };
 
   const ItemCard = ({ item }: { item: MarketplaceItem }) => (
-    <div className="h-full overflow-hidden rounded-lg border border-[#d5d9d9] bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <div className="relative h-full overflow-hidden rounded-lg border border-[#d5d9d9] bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+      <button
+        type="button"
+        onClick={() => toggleFavorite(item)}
+        className="absolute right-1.5 top-1.5 z-10 rounded-full border border-[#d5d9d9] bg-white p-1 shadow-sm transition hover:bg-[#f7fafa] active:scale-95"
+        aria-label={favoriteKeys.has(getFavoriteKey(item)) ? 'Remove from favorites' : 'Add to favorites'}
+      >
+        {favoriteKeys.has(getFavoriteKey(item)) ? (
+          <FaHeart className="h-3.5 w-3.5 text-[#cc0c39]" />
+        ) : (
+          <FaRegHeart className="h-3.5 w-3.5 text-[#565959]" />
+        )}
+      </button>
       <Link
         href={`/marketplace/${item.slug}`}
         onClick={() => {
@@ -1019,16 +1031,6 @@ export default function MarketplacePage() {
             decoding="async"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:object-contain"
           />
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(item); }}
-            className="absolute right-1.5 top-1.5 rounded-full border border-[#d5d9d9] bg-white p-1 shadow-sm transition hover:bg-[#f7fafa] active:scale-95"
-          >
-            {favoriteKeys.has(getFavoriteKey(item)) ? (
-              <FaHeart className="h-3.5 w-3.5 text-[#cc0c39]" />
-            ) : (
-              <FaRegHeart className="h-3.5 w-3.5 text-[#565959]" />
-            )}
-          </button>
           {item.external_buy_url && (
             <span className="absolute left-1.5 top-1.5 inline-flex items-center rounded-md bg-[#cc0c39] px-1.5 py-[2px] text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
               Deal
@@ -1437,7 +1439,7 @@ export default function MarketplacePage() {
       )}
       {filteredItems.length > visibleCount && (
         <div className="text-center mt-8">
-          <button onClick={() => setVisibleCount(visibleCount + 6)} className="bg-rose-500 text-white px-6 py-2 rounded-md hover:bg-rose-600 transition text-sm">
+          <button type="button" onClick={() => setVisibleCount(visibleCount + 6)} className="bg-rose-500 text-white px-6 py-2 rounded-md hover:bg-rose-600 transition text-sm">
             Show More
           </button>
         </div>
