@@ -20,11 +20,9 @@ export default function LocationPromptModal() {
   }, []);
 
   useEffect(() => {
-    const seen = localStorage.getItem('hasSeenLocationPrompt');
+    const hasSeenPrompt = localStorage.getItem('hasSeenLocationPrompt') === 'true';
     const coords = localStorage.getItem('userCoords');
-    if (!seen && !coords) {
-      setShowModal(true);
-    }
+    setShowModal(!hasSeenPrompt && !coords);
   }, []);
 
   const persistLocation = async (
@@ -197,8 +195,8 @@ export default function LocationPromptModal() {
   if (!showModal) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] bg-black/30 flex items-center justify-center p-4 transition-opacity animate-fade-in" role="dialog" aria-modal="true" aria-label="Location access">
-      <div className="bg-white w-full max-w-sm rounded-xl shadow-xl p-5 text-center transform transition-all scale-95 animate-scale-in">
+    <div className="fixed inset-0 z-[9999] pointer-events-none bg-black/30 flex items-center justify-center p-4 transition-opacity animate-fade-in" role="dialog" aria-modal="true" aria-label="Location access">
+      <div className="pointer-events-auto bg-white w-full max-w-sm rounded-xl shadow-xl p-5 text-center transform transition-all scale-95 animate-scale-in">
         {!showFallback ? (
           <>
             <h2 className="text-lg font-semibold mb-2">{t('allowTitle')}</h2>
