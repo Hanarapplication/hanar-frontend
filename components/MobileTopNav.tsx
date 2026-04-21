@@ -49,7 +49,7 @@ export default function MobileTopNav() {
 
   return (
     <nav
-      className="fixed left-0 right-0 top-14 z-40 bg-gradient-to-r from-sky-100 to-rose-100 shadow-sm dark:from-slate-900/60 dark:to-rose-950/40 sm:top-16"
+      className="fixed left-0 right-0 top-14 z-40 bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 shadow-sm dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700 sm:top-16"
       aria-label="Primary"
     >
       <div className="flex items-stretch justify-between px-1">
@@ -61,16 +61,16 @@ export default function MobileTopNav() {
               key={item.key}
               href={item.href}
               aria-label={item.label}
-              className={`relative flex h-12 min-w-0 flex-1 items-center justify-center rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/55 ${
+              className={`relative flex h-12 min-w-0 flex-1 items-center justify-center rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/45 ${
                 isActive
-                  ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+                  ? 'text-white'
+                  : 'text-white/70 hover:bg-white/10 hover:text-white'
               }`}
             >
               {item.icon}
               <span
                 className={`absolute bottom-0 left-2 right-2 h-[3px] rounded-full transition-opacity ${
-                  isActive ? 'bg-blue-600 opacity-100 dark:bg-blue-400' : 'opacity-0'
+                  isActive ? 'bg-white opacity-100' : 'opacity-0'
                 }`}
                 aria-hidden
               />

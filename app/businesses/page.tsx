@@ -679,24 +679,24 @@ export default function BusinessesPage() {
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
-      <div className="mx-auto max-w-[66rem] px-3 pt-2">
-        {/* Amazon-like search and location bar */}
-        <div className="sticky top-0 z-10 -mx-3 mb-5 border-b border-sky-200/90 bg-gradient-to-b from-sky-100/95 to-white px-3 pb-3 pt-2 shadow-sm shadow-sky-900/10 sm:-mx-5 sm:mb-6 sm:px-5 dark:border-slate-700 dark:from-slate-900/80 dark:to-gray-800 dark:shadow-none">
+      <div className="mx-auto max-w-[66rem] px-3 pt-0">
+        {/* Search and location bar (Hanar nav gradient — matches home Ask strip) */}
+        <div className="sticky top-0 z-10 -mx-3 mb-5 border-b border-white/20 bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 px-3 pb-3 pt-0 shadow-sm sm:-mx-5 sm:mb-6 sm:px-5 dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700">
           <div className="mx-auto max-w-3xl">
             <button
               type="button"
               onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
-              className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-sky-300/75 bg-gradient-to-r from-sky-300 via-sky-200 to-rose-300 px-3 py-1.5 text-[11px] font-medium text-sky-900 shadow-sm shadow-sky-900/10 transition hover:border-sky-400 hover:shadow-md dark:border-rose-900/35 dark:from-sky-950/60 dark:via-slate-900/50 dark:to-rose-950/50 dark:text-sky-100"
+              className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-white/25 bg-white/15 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-white/20"
             >
-              <FaMapMarkerAlt className="h-3.5 w-3.5 text-sky-700 dark:text-rose-300" />
+              <FaMapMarkerAlt className="h-3.5 w-3.5 text-white/90" />
               <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose location')}</span>
               {locationLabel && (
-                <span className="text-[10px] text-sky-800/80 dark:text-slate-400">{radius} mi</span>
+                <span className="text-[10px] text-white/75">{radius} mi</span>
               )}
             </button>
 
-            <div className="flex overflow-hidden rounded-md border border-sky-300/75 bg-gradient-to-r from-sky-200 to-rose-200 shadow-sm shadow-sky-900/10 dark:border-slate-600 dark:from-slate-900/60 dark:to-rose-950/40 dark:shadow-none">
-              <div className="hidden items-center border-r border-sky-200/90 bg-sky-50/90 px-3 text-[11px] font-medium text-sky-900 dark:border-sky-700 dark:bg-slate-800/80 dark:text-slate-200 sm:flex">
+            <div className="flex overflow-hidden rounded-md border border-white/35 bg-white/95 shadow-inner shadow-black/10 dark:bg-white/90">
+              <div className="hidden items-center border-r border-slate-200/90 bg-slate-50/95 px-3 text-[11px] font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200 sm:flex">
                 All
               </div>
               <div className="relative min-w-0 flex-1">
@@ -704,7 +704,7 @@ export default function BusinessesPage() {
                   placeholder={t(effectiveLang, 'Find a restaurant, salon, gym...')}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                className="w-full border-0 bg-white py-2.5 pl-3 pr-14 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none dark:bg-slate-900/90 dark:text-slate-100 dark:placeholder:text-slate-400"
+                className="w-full border-0 bg-transparent py-2.5 pl-3 pr-14 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none dark:text-slate-100 dark:placeholder:text-slate-400"
                 />
                 {searching && (
                   <span className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 dark:text-slate-400">
@@ -717,7 +717,7 @@ export default function BusinessesPage() {
                 onClick={() => {
                   if (query.trim()) setVisibleCount(6);
                 }}
-                className="inline-flex items-center justify-center bg-gradient-to-r from-sky-700 to-rose-700 px-4 text-white transition hover:from-sky-800 hover:to-rose-800 dark:from-sky-600 dark:to-rose-600 dark:hover:from-sky-700 dark:hover:to-rose-700"
+                className="inline-flex items-center justify-center bg-gradient-to-r from-blue-600 to-emerald-600 px-4 text-white transition hover:from-blue-500 hover:to-emerald-500 dark:from-blue-600 dark:to-emerald-600 dark:hover:from-blue-500 dark:hover:to-emerald-500"
                 aria-label={t(effectiveLang, 'Search')}
               >
                 <FaSearch className="h-4 w-4" />

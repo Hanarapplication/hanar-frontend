@@ -1754,7 +1754,7 @@ const formatDateLabel = (value?: string | null) => {
           </div>
         )}
 
-        <div className="border-b border-sky-200/90 bg-gradient-to-b from-sky-100/95 to-rose-100/70 shadow-sm shadow-sky-900/10 dark:border-slate-700 dark:from-slate-900/80 dark:to-rose-950/40 dark:shadow-none">
+        <div className="border-b border-white/20 bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 shadow-sm dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700">
           {!composerExpanded ? (
             <div className="px-0 py-2 sm:py-2.5">
               <button
@@ -1763,30 +1763,30 @@ const formatDateLabel = (value?: string | null) => {
                   if (!requireLogin()) return;
                   setComposerExpanded(true);
                 }}
-                className="group relative flex w-full min-h-[2.75rem] items-center gap-2.5 rounded-none border-b border-x-0 border-sky-300/75 bg-gradient-to-r from-sky-200 via-sky-100 to-rose-200 py-2.5 pl-3.5 pr-3.5 text-left shadow-sm shadow-sky-900/10 transition-all duration-200 hover:border-sky-400 hover:from-sky-200 hover:via-sky-100 hover:to-rose-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/55 dark:border-rose-900/35 dark:from-sky-950/60 dark:via-slate-900/50 dark:to-rose-950/50 dark:hover:border-sky-700/55"
+                className="group relative flex w-full min-h-[2.75rem] items-center gap-2.5 rounded-none border-b border-white/20 bg-white/10 py-2.5 pl-3.5 pr-3.5 text-left shadow-sm transition-all duration-200 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45"
                 aria-label="Ask — write a post"
               >
-                <span className="shrink-0 select-none rounded-full bg-gradient-to-r from-sky-600 to-rose-600 px-2.5 py-1 text-sm font-semibold tracking-wide text-white shadow-sm transition group-hover:from-sky-700 group-hover:to-rose-700">
+                <span className="shrink-0 select-none rounded-full bg-white/20 px-2.5 py-1 text-sm font-semibold tracking-wide text-white shadow-sm ring-1 ring-white/25 transition group-hover:bg-white/25">
                   Ask
                 </span>
-                <div className="pointer-events-none min-w-0 flex-1 rounded-xl border border-sky-200/95 bg-white/95 px-3 py-2 shadow-inner shadow-sky-900/[0.06] dark:border-sky-700/60 dark:bg-white/10">
-                  <span className="block truncate text-sm text-slate-500 dark:text-slate-300">Ask the community...</span>
+                <div className="pointer-events-none min-w-0 flex-1 rounded-xl border border-white/35 bg-white/95 px-3 py-2 shadow-inner shadow-black/10 dark:bg-white/90">
+                  <span className="block truncate text-sm text-slate-500 dark:text-slate-600">Ask the community...</span>
                 </div>
               </button>
             </div>
           ) : (
             <div className="overflow-hidden" role="region" aria-labelledby="home-compose-post-title">
-              <div className="flex items-center justify-between gap-2 border-b border-sky-200 bg-gradient-to-r from-sky-100 to-rose-100 px-3 py-1.5 dark:border-slate-600 dark:from-slate-900/60 dark:to-rose-950/40">
+              <div className="flex items-center justify-between gap-2 border-b border-white/20 bg-transparent px-3 py-1.5">
                 <span
                   id="home-compose-post-title"
-                  className="bg-gradient-to-r from-sky-900 to-rose-800 bg-clip-text text-sm font-bold tracking-wide text-transparent dark:from-sky-300 dark:to-rose-300"
+                  className="text-sm font-bold tracking-wide text-white"
                 >
                   Ask
                 </span>
                 <button
                   type="button"
                   onClick={() => setComposerExpanded(false)}
-                  className="rounded-full p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                  className="rounded-full p-1.5 text-white/90 transition hover:bg-white/15 hover:text-white"
                   aria-label="Close composer"
                 >
                   <X className="h-5 w-5" />

@@ -23,11 +23,12 @@ import {
     Store as StoreIcon,
     ClipboardList as ClipboardListIcon,
     Home, MapPin,
-    X, DollarSign, Eye, ChevronLeft, ChevronRight, ChevronDown, Tag, QrCode, Copy, Check // Added Tag for retail item category in modal
+    X, DollarSign, Eye, ChevronLeft, ChevronRight, ChevronDown, Tag, QrCode, Copy, Check, Megaphone // Added Tag for retail item category in modal
 } from 'lucide-react'; // These imports remain as per your original code
 
 import { cn } from '@/lib/utils'; // This import remains as per your original code
 import ReportButton from '@/components/ReportButton';
+import BusinessCommunityPostsModal, { type BusinessCommunityPostRow } from '@/components/BusinessCommunityPostsModal';
 
 /** Contact strip: FA icons use explicit white fill on dark blue gradient bar */
 const CONTACT_STRIP_CHIP =
@@ -446,6 +447,10 @@ const BusinessProfilePage = () => {
     const [showHours, setShowHours] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
     const [qrCopied, setQrCopied] = useState(false);
+    const [communityPosts, setCommunityPosts] = useState<BusinessCommunityPostRow[]>([]);
+    const [communityCommentCounts, setCommunityCommentCounts] = useState<Record<string, number>>({});
+    const [communityPostsLoading, setCommunityPostsLoading] = useState(false);
+    const [showCommunityModal, setShowCommunityModal] = useState(false);
 
     const ITEMS_PER_BATCH = 6;
     const [visibleMenuCount, setVisibleMenuCount] = useState(ITEMS_PER_BATCH);
@@ -520,6 +525,34 @@ const BusinessProfilePage = () => {
         observer.observe(loadMoreRef.current);
         return () => observer.disconnect();
     }, [hasMoreItems, menu.length, carListings.length, retailItems.length, realEstateListings.length]);
+
+    useEffect(() => {
+        if (!business?.slug) return;
+        let cancelled = false;
+        (async () => {
+            setCommunityPostsLoading(true);
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                const params = new URLSearchParams({ businessSlug: business.slug });
+                if (user?.id) params.set('viewerUserId', user.id);
+                const res = await fetch(`/api/community/posts?${params.toString()}`);
+                const json = await res.json();
+                if (cancelled || !res.ok) return;
+                setCommunityPosts(json.posts || []);
+                setCommunityCommentCounts(json.commentCounts || {});
+            } catch {
+                if (!cancelled) {
+                    setCommunityPosts([]);
+                    setCommunityCommentCounts({});
+                }
+            } finally {
+                if (!cancelled) setCommunityPostsLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [business?.slug]);
 
     // Delete functions (UNCHANGED)
     const deleteMenuItem = async (itemId: string) => {
@@ -1060,13 +1093,6 @@ const BusinessProfilePage = () => {
     const hoursEntries = normalizedHours ? Object.entries(normalizedHours) : [];
     const hasHours = hoursEntries.length > 0 || Boolean(fallbackHoursText);
     const hasSocials = Boolean(business.instagram || business.facebook || business.tiktok || business.twitter);
-    const hasContactInfo = Boolean(
-        business.phone ||
-        business.whatsapp ||
-        business.email ||
-        business.website ||
-        business.address?.street
-    );
 
     return (
         <motion.div
@@ -1094,16 +1120,53 @@ const BusinessProfilePage = () => {
                             {business.business_name}
                         </span>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setShowQrModal(true)}
-                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white ring-1 ring-white/25 transition hover:bg-white/20"
-                        aria-label="Show business QR code"
-                    >
-                        <QrCode size={18} />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-3">
+                        {!communityPostsLoading && communityPosts.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setShowCommunityModal(true)}
+                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white ring-1 ring-white/25 transition hover:bg-white/20"
+                                aria-label="Community announcements"
+                            >
+                                <Megaphone size={18} aria-hidden />
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={toggleFavorite}
+                            className={cn(
+                                'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/25 transition hover:bg-white/20',
+                                isFavorited ? 'text-rose-300' : 'text-white'
+                            )}
+                            aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                        >
+                            {isFavorited ? <FaHeart size={18} /> : <FaRegHeart size={18} />}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowQrModal(true)}
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white ring-1 ring-white/25 transition hover:bg-white/20"
+                            aria-label="Show business QR code"
+                        >
+                            <QrCode size={18} />
+                        </button>
+                    </div>
                 </div>
             </div>
+            {showCommunityModal && business && (
+                <BusinessCommunityPostsModal
+                    open={showCommunityModal}
+                    onClose={() => setShowCommunityModal(false)}
+                    businessSlug={business.slug}
+                    businessName={business.business_name}
+                    businessOwnerId={business.owner_id ?? null}
+                    posts={communityPosts}
+                    commentCounts={communityCommentCounts}
+                    onPostsChange={setCommunityPosts}
+                    onCommentCountsChange={setCommunityCommentCounts}
+                />
+            )}
+
             {showQrModal && (
                 <div
                     className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
@@ -1421,35 +1484,22 @@ const BusinessProfilePage = () => {
                 {/* Name + Description - scrolls away with page */}
                 <motion.div className="border-t border-b border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900">
                     <div className="p-4 sm:p-6 bg-white dark:bg-slate-900">
-                        <div className="relative flex justify-between items-start flex-col sm:flex-row">
-                            <div className="flex items-center gap-4 mb-0 sm:mb-0">
-                                {business.logo_url && (
-                                    <div className="w-24 sm:w-28 h-24 sm:h-28 flex-shrink-0 overflow-hidden shadow-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-gray-900">
-                                        <img
-                                            src={business.logo_url}
-                                            alt="Business Logo"
-                                            className="object-contain w-full h-full p-2"
-                                            onError={(e) => { e.currentTarget.src = 'https://placehold.co/120x120/cccccc/333333?text=Logo'; e.currentTarget.onerror = null; }}
-                                        />
-                                    </div>
-                                )}
-                                <div className="text-left flex-1">
-                                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">{business.business_name}</h1>
-                                    {displayCategory ? (
-                                      <p className="text-sm font-normal text-gray-500 dark:text-gray-400 italic">{displayCategory}</p>
-                                    ) : null}
+                        <div className="flex w-full items-center gap-4">
+                            {business.logo_url && (
+                                <div className="w-24 sm:w-28 h-24 sm:h-28 flex-shrink-0 overflow-hidden shadow-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-gray-900">
+                                    <img
+                                        src={business.logo_url}
+                                        alt="Business Logo"
+                                        className="object-contain w-full h-full p-2"
+                                        onError={(e) => { e.currentTarget.src = 'https://placehold.co/120x120/cccccc/333333?text=Logo'; e.currentTarget.onerror = null; }}
+                                    />
                                 </div>
-                            </div>
-                            <div className="absolute right-0 top-0 flex gap-2 items-center">
-                                <button onClick={toggleFavorite} className={cn(
-                                    "bg-white dark:bg-gray-700 rounded-full p-2 shadow-md z-10",
-                                    "transition-colors duration-300",
-                                    isFavorited
-                                        ? "text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50"
-                                        : "text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-red-500"
-                                )}>
-                                    {isFavorited ? <FaHeart size={18} /> : <FaRegHeart size={18} />}
-                                </button>
+                            )}
+                            <div className="min-w-0 flex-1 text-left">
+                                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">{business.business_name}</h1>
+                                {displayCategory ? (
+                                  <p className="text-sm font-normal text-gray-500 dark:text-gray-400 italic">{displayCategory}</p>
+                                ) : null}
                             </div>
                         </div>
                         <p className="mt-2 font-normal text-[#444] dark:text-gray-300 leading-relaxed whitespace-pre-line">
@@ -1516,25 +1566,35 @@ const BusinessProfilePage = () => {
                         )}
                     </div>
                 </motion.div>
-                {/* Contact / Location - stuck to description/hours card, map card same size as map */}
-                {hasContactInfo && (
-                <motion.div className="rounded-b-xl border-2 border-t-0 border-slate-300 dark:border-slate-600 p-0 bg-white dark:bg-slate-900/90 shadow-sm overflow-hidden">
-                    {business.address?.street && (
+                {/* Address / map — menu & listings follow below */}
+                {business.address?.street && (
+                    <motion.div className="rounded-b-xl border-2 border-t-0 border-slate-300 dark:border-slate-600 bg-white p-0 shadow-sm dark:bg-slate-900/90 overflow-hidden">
                         <div className="w-full">
-                            <div className="px-0 sm:px-3 pt-3 pb-2 flex justify-center">
+                            <div className="flex justify-center px-0 pb-2 pt-3 sm:px-3">
                                 <button
-                                    onClick={() => { const mapUrl = getMapUrl(business.address); window.open(mapUrl, '_blank'); }}
-                                    className="w-full sm:w-auto bg-gradient-to-r from-[#0c1f3c] to-[#6b1515] hover:from-[#0a192f] hover:to-[#5a1212] dark:from-[#061018] dark:to-[#7f1d1d] dark:hover:from-[#040d18] dark:hover:to-[#6b1515] text-white font-bold py-2 px-3 rounded-none sm:rounded text-sm flex items-center justify-center gap-2"
-                                ><FaDirections size={16} /><span>Get Directions{business.address?.street || business.address?.city || business.address?.state || business.address?.zip ? ` · ${[business.address?.street, business.address?.city, business.address?.state, business.address?.zip].filter(Boolean).join(', ')}` : ''}</span></button>
+                                    type="button"
+                                    onClick={() => {
+                                        const mapUrl = getMapUrl(business.address);
+                                        window.open(mapUrl, '_blank');
+                                    }}
+                                    className="flex w-full items-center justify-center gap-2 rounded-none bg-gradient-to-r from-[#0c1f3c] to-[#6b1515] px-3 py-2 text-sm font-bold text-white hover:from-[#0a192f] hover:to-[#5a1212] dark:from-[#061018] dark:to-[#7f1d1d] dark:hover:from-[#040d18] dark:hover:to-[#6b1515] sm:w-auto sm:rounded"
+                                >
+                                    <FaDirections size={16} />
+                                    <span>
+                                        Get Directions
+                                        {business.address?.street || business.address?.city || business.address?.state || business.address?.zip
+                                            ? ` · ${[business.address?.street, business.address?.city, business.address?.state, business.address?.zip].filter(Boolean).join(', ')}`
+                                            : ''}
+                                    </span>
+                                </button>
                             </div>
-                            <div className="w-full relative rounded-none sm:rounded-b-xl overflow-hidden">
+                            <div className="relative w-full overflow-hidden sm:rounded-b-xl">
                                 <BusinessMap address={business.address} />
                             </div>
                         </div>
-                    )}
-                </motion.div>
+                    </motion.div>
                 )}
-                {/* === ALL ITEMS SECTION AT THE BOTTOM === */}
+                {/* === Shop: menu & listings (under address map) === */}
                 {(menu.length > 0 || carListings.length > 0 || retailItems.length > 0 || realEstateListings.length > 0) && (
                     <motion.div className="mt-4 border-b border-slate-300 dark:border-slate-600 p-4 sm:p-6 space-y-10 bg-white dark:bg-gray-800">
                         {/* Menu */}

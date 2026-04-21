@@ -6,8 +6,6 @@ import { Bell, Menu, MessageCircle } from 'lucide-react';
 import MobileMenu from './MobileMenu';
 import { supabase } from '@/lib/supabaseClient';
 import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
-import { hanarTheme } from '@/lib/hanarTheme';
-
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -112,28 +110,28 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 flex h-14 items-center justify-between bg-gradient-to-r from-sky-100 to-rose-100 px-3 dark:from-slate-900/60 dark:to-rose-950/40 sm:hidden">
+      <nav className="sticky top-0 z-50 flex h-14 items-center justify-between bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 px-3 shadow-sm dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700 sm:hidden">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setMenuOpen(!menuOpen)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100 active:scale-[0.97]"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/90 transition hover:bg-white/15 active:scale-[0.97]"
             aria-label="Toggle Menu"
           >
-            <Menu className={`h-6 w-6 ${hanarTheme.iconNav}`} strokeWidth={2} aria-hidden />
+            <Menu className="h-6 w-6 text-white/90" strokeWidth={2} aria-hidden />
           </button>
-          <Link href="/" className="text-[2rem] font-serif font-bold lowercase leading-none tracking-[0.015em]">
-            <span className={hanarTheme.brandGradientText}>hanar</span>
+          <Link href="/" className="text-xl font-serif font-bold lowercase leading-none tracking-[0.015em] sm:text-2xl">
+            <span className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]">hanar</span>
           </Link>
         </div>
 
         <div className="flex items-center gap-1.5">
           <Link
             href="/notifications"
-            className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100"
+            className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-white/90 transition hover:bg-white/15"
             aria-label="Notifications"
           >
-            <Bell className={`h-[1.2rem] w-[1.2rem] ${hanarTheme.iconNav}`} strokeWidth={2} aria-hidden />
+            <Bell className="h-[1.2rem] w-[1.2rem] text-white/90" strokeWidth={2} aria-hidden />
             {unreadCount > 0 && (
               <span className="absolute right-0 top-0 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-semibold leading-none text-white">
                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -142,40 +140,40 @@ export default function Navbar() {
           </Link>
           <Link
             href="/messages"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/90 transition hover:bg-white/15"
             aria-label="Messages"
           >
-            <MessageCircle className={`h-[1.22rem] w-[1.22rem] ${hanarTheme.iconNav}`} strokeWidth={2} aria-hidden />
+            <MessageCircle className="h-[1.22rem] w-[1.22rem] text-white/90" strokeWidth={2} aria-hidden />
           </Link>
         </div>
       </nav>
 
-      <nav className="sticky top-0 z-50 hidden h-[3.75rem] items-center justify-between gap-2 bg-gradient-to-r from-sky-100 to-rose-100 px-3 shadow-sm transition-all isolate dark:from-slate-900/60 dark:to-rose-950/40 sm:flex sm:h-16">
+      <nav className="sticky top-0 z-50 hidden h-[3.75rem] items-center justify-between gap-2 bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 px-3 shadow-sm transition-all isolate dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700 sm:flex sm:h-16">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setMenuOpen(!menuOpen)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100 active:scale-[0.97]"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/90 transition hover:bg-white/15 active:scale-[0.97]"
             aria-label="Toggle Menu"
           >
-            <Menu className={`h-6 w-6 ${hanarTheme.iconNav}`} strokeWidth={2} aria-hidden />
+            <Menu className="h-6 w-6 text-white/90" strokeWidth={2} aria-hidden />
           </button>
           <Link
             href="/"
-            className="text-[2rem] font-serif font-bold lowercase leading-none tracking-[0.015em]"
+            className="text-xl font-serif font-bold lowercase leading-none tracking-[0.015em] sm:text-2xl"
             aria-label="Home"
           >
-            <span className={hanarTheme.brandGradientText}>hanar</span>
+            <span className="text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]">hanar</span>
           </Link>
         </div>
 
         <div className="flex items-center gap-1.5">
           <Link
             href="/notifications"
-            className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100 active:scale-[0.97]"
+            className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-white/90 transition hover:bg-white/15 active:scale-[0.97]"
             aria-label="Notifications"
           >
-            <Bell className={`h-[1.2rem] w-[1.2rem] ${hanarTheme.iconNav}`} strokeWidth={2} aria-hidden />
+            <Bell className="h-[1.2rem] w-[1.2rem] text-white/90" strokeWidth={2} aria-hidden />
             {unreadCount > 0 && (
               <span className="absolute right-0 top-0 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-semibold leading-none text-white">
                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -184,10 +182,10 @@ export default function Navbar() {
           </Link>
           <Link
             href="/messages"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100 active:scale-[0.97]"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/90 transition hover:bg-white/15 active:scale-[0.97]"
             aria-label="Messages"
           >
-            <MessageCircle className={`h-[1.22rem] w-[1.22rem] ${hanarTheme.iconNav}`} strokeWidth={2} aria-hidden />
+            <MessageCircle className="h-[1.22rem] w-[1.22rem] text-white/90" strokeWidth={2} aria-hidden />
           </Link>
         </div>
       </nav>

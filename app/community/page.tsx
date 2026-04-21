@@ -17,11 +17,15 @@ import { Avatar } from '@/components/Avatar';
 import { t } from '@/utils/translations';
 
 const COMMUNITY_SEARCH_FRAME =
-  'border border-blue-900/80 dark:border-blue-700/80 focus:ring-2 focus:ring-blue-800/35 dark:focus:ring-blue-500/35 focus:border-blue-800';
+  'border border-blue-800/65 dark:border-emerald-700/60 focus:ring-2 focus:ring-blue-500/35 dark:focus:ring-emerald-500/30 focus:border-blue-700';
 
-/** Dark blue gradient rule between community post rows */
+/** Hanar blue → green gradient rule between community post rows */
 const COMMUNITY_FEED_BETWEEN_ROW =
-  'h-px w-full shrink-0 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 dark:from-slate-950 dark:via-blue-800 dark:to-slate-950';
+  'h-px w-full shrink-0 bg-gradient-to-r from-blue-700 via-emerald-600 to-blue-800 dark:from-blue-950 dark:via-emerald-700 dark:to-blue-900';
+
+/** Outer frame for feed cards (matches app nav gradient) */
+const COMMUNITY_CARD_FRAME =
+  'bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 p-[2px] shadow-sm dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700';
 
 const COMMUNITY_CACHE_PREFIX = 'hanar_community_cache_';
 const COMMUNITY_FEED_LANG_KEY = 'hanar_community_feed_lang';
@@ -620,7 +624,7 @@ function CommunityFeedPage() {
         <button
           onClick={() => setSortMode('latest')}
           className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-            sortMode === 'latest' ? 'bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            sortMode === 'latest' ? 'bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 text-white shadow-sm dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           {t(effectiveLang, 'For you')}
@@ -628,7 +632,7 @@ function CommunityFeedPage() {
         <button
           onClick={() => setSortMode('popular')}
           className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-            sortMode === 'popular' ? 'bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 text-white shadow-sm' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            sortMode === 'popular' ? 'bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 text-white shadow-sm dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           {t(effectiveLang, 'Most Popular')}
@@ -636,7 +640,7 @@ function CommunityFeedPage() {
         <select
           value={feedLang}
           onChange={(e) => setFeedLang(e.target.value)}
-          className="shrink-0 h-8 min-w-[7rem] rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-medium pl-2 pr-6 py-1 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent appearance-none cursor-pointer bg-[length:12px] bg-[right_0.35rem_center] bg-no-repeat"
+          className="shrink-0 h-8 min-w-[7rem] rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-medium pl-2 pr-6 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 dark:focus:ring-emerald-500/40 appearance-none cursor-pointer bg-[length:12px] bg-[right_0.35rem_center] bg-no-repeat"
           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")` }}
           title={feedLang ? t(effectiveLang, 'Posts in this language first') : t(effectiveLang, 'All languages')}
         >
@@ -666,7 +670,7 @@ function CommunityFeedPage() {
         </div>
         <Link
           href="/community/post"
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-950 via-blue-800 to-blue-950 text-white font-bold rounded-lg hover:from-blue-900 hover:via-blue-700 hover:to-blue-900 transition-all"
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 text-white font-bold rounded-lg hover:from-blue-600 hover:via-blue-700 hover:to-emerald-500 transition-all dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700 dark:hover:from-blue-900 dark:hover:via-blue-800 dark:hover:to-emerald-600"
         >
           <PlusIcon className="h-5 w-5" />
           <span>{t(effectiveLang, 'New Post')}</span>
@@ -695,6 +699,7 @@ function CommunityFeedPage() {
             {[1, 2, 3].map((i, sIdx) => (
               <Fragment key={i}>
                 {sIdx > 0 && <div className={COMMUNITY_FEED_BETWEEN_ROW} aria-hidden />}
+                <div className={COMMUNITY_CARD_FRAME}>
                 <div className="rounded-none bg-white p-5 space-y-3 dark:bg-gray-800">
                 <div className="flex items-center gap-3">
                   <div className="skeleton h-10 w-10 shrink-0 rounded-none" />
@@ -713,6 +718,7 @@ function CommunityFeedPage() {
                   <div className="skeleton h-3 w-12 rounded-none" />
                 </div>
                 </div>
+                </div>
               </Fragment>
             ))}
           </>
@@ -726,8 +732,9 @@ function CommunityFeedPage() {
           return (
             <Fragment key={`${post.id}-${index}`}>
               {index > 0 && <div className={COMMUNITY_FEED_BETWEEN_ROW} aria-hidden />}
+            <div className={COMMUNITY_CARD_FRAME}>
             <article
-              className="rounded-none bg-white border-0 ring-0 p-6 shadow-sm dark:bg-gray-800"
+              className="rounded-none bg-white border-0 ring-0 p-6 dark:bg-gray-800"
             >
               {/* Author row */}
               <div className="flex items-center gap-3 mb-3 text-sm text-gray-500 dark:text-gray-400">
@@ -810,14 +817,14 @@ function CommunityFeedPage() {
                   }}
                   placeholder={currentUser.id ? 'Write a comment...' : 'Log in to write a comment'}
                   disabled={!currentUser.id}
-                  className="flex-1 rounded-full border border-sky-300 px-4 py-2 text-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-400 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-sky-300 dark:focus:ring-sky-400/45 dark:placeholder-gray-400"
+                  className="flex-1 rounded-full border border-blue-300 px-4 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25 disabled:cursor-not-allowed disabled:opacity-60 dark:border-blue-500/50 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-500/25 dark:placeholder-gray-400"
                 />
                 <button
                   type="button"
                   onClick={() => submitComment(post.id)}
                   disabled={!currentUser.id || !commentInputs[post.id]?.trim()}
                   aria-label="Post comment"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-sky-200 disabled:text-sky-100/90 dark:bg-sky-600 dark:hover:bg-sky-500 dark:disabled:bg-slate-600 dark:disabled:text-slate-400"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-emerald-600 text-white shadow-sm transition hover:from-blue-500 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:from-blue-500 dark:hover:to-emerald-500"
                 >
                   <SendHorizontal className="h-4 w-4" strokeWidth={2.25} aria-hidden />
                 </button>
@@ -865,6 +872,7 @@ function CommunityFeedPage() {
                 </div>
               )}
             </article>
+            </div>
             </Fragment>
           );
         })}
@@ -872,7 +880,7 @@ function CommunityFeedPage() {
 
       {loading && visiblePosts.length > 0 && (
         <div className="flex justify-center py-4">
-          <div className="h-6 w-6 rounded-full border-2 border-slate-300 dark:border-gray-600 border-t-rose-600 dark:border-t-rose-400 animate-spin" />
+          <div className="h-6 w-6 rounded-full border-2 border-slate-300 dark:border-gray-600 border-t-blue-600 dark:border-t-emerald-500 animate-spin" />
         </div>
       )}
       <div ref={bottomRef} className="h-10" />
