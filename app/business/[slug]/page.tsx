@@ -529,6 +529,8 @@ const BusinessProfilePage = () => {
     /** Portal target ready (avoids SSR/hydration issues; keeps drawer `fixed` to viewport). */
     const [slugSidebarPortalReady, setSlugSidebarPortalReady] = useState(false);
     const [retailShopSearchQuery, setRetailShopSearchQuery] = useState('');
+    /** Hide header/strip product search after scrolling down; show again near top of page. */
+    const [showRetailStickyProductSearch, setShowRetailStickyProductSearch] = useState(true);
     const [retailCategoryFilter, setRetailCategoryFilter] = useState<string | null>(null);
     const [dealershipPriceFilter, setDealershipPriceFilter] = useState<
         'all' | 'under_10000' | 'under_20000' | 'under_30000' | 'above_30000'
@@ -584,6 +586,7 @@ const BusinessProfilePage = () => {
     useEffect(() => {
         setSlugSidebarMenuOpen(false);
         setRetailShopSearchQuery('');
+        setShowRetailStickyProductSearch(true);
         setRetailCategoryFilter(null);
         setDealershipPriceFilter('all');
         setDealershipListingsPage(1);
@@ -1305,6 +1308,21 @@ const BusinessProfilePage = () => {
         if (clamped !== dealershipListingsPage) setDealershipListingsPage(clamped);
     }, [dealershipTotalPages, dealershipListingsPage]);
 
+    useEffect(() => {
+        if (!isRetailShopPage && !isRetailBaselPage) {
+            setShowRetailStickyProductSearch(true);
+            return;
+        }
+        const SCROLL_PX = 56;
+        const onScroll = () => {
+            const y = typeof window !== 'undefined' ? window.scrollY || document.documentElement.scrollTop : 0;
+            setShowRetailStickyProductSearch(y < SCROLL_PX);
+        };
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, [isRetailShopPage, isRetailBaselPage]);
+
     const getMapUrl = (address: BusinessType['address']) => {
         const { street, city, state, zip } = address;
         const fullAddress = `${street || ''}, ${city || ''}, ${state || ''} ${zip || ''}`;
@@ -1411,16 +1429,28 @@ const BusinessProfilePage = () => {
                                 {business.business_name}
                             </h1>
                         </div>
-                        <div className="hidden min-w-[10rem] max-w-md flex-1 items-center gap-2 rounded-full border border-zinc-200/90 bg-white px-3 py-2 shadow-sm sm:flex md:min-w-[14rem]">
-                            <input
-                                id="retail-header-search-desktop"
-                                type="search"
-                                value={retailShopSearchQuery}
-                                onChange={(e) => setRetailShopSearchQuery(e.target.value)}
-                                placeholder="Search products"
-                                className="min-w-0 flex-1 bg-white text-sm text-neutral-900 outline-none placeholder:text-zinc-400"
-                                aria-label="Search products"
-                            />
+                        <div
+                            className={cn(
+                                'hidden min-w-0 overflow-hidden sm:flex',
+                                'transition-[max-width,opacity] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
+                                showRetailStickyProductSearch
+                                    ? 'max-w-md flex-1 opacity-100 md:max-w-lg'
+                                    : 'max-w-0 flex-none opacity-0 pointer-events-none'
+                            )}
+                            aria-hidden={!showRetailStickyProductSearch}
+                        >
+                            <div className="flex min-w-0 w-full max-w-md flex-1 items-center gap-2 rounded-full border border-zinc-200/90 bg-white px-3 py-2 shadow-sm md:min-w-[14rem]">
+                                <input
+                                    id="retail-header-search-desktop"
+                                    type="search"
+                                    value={retailShopSearchQuery}
+                                    onChange={(e) => setRetailShopSearchQuery(e.target.value)}
+                                    placeholder="Search products"
+                                    className="min-w-0 flex-1 bg-white text-sm text-neutral-900 outline-none placeholder:text-zinc-400"
+                                    aria-label="Search products"
+                                    tabIndex={showRetailStickyProductSearch ? 0 : -1}
+                                />
+                            </div>
                         </div>
                         <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-2.5">
                             {!communityPostsLoading && communityPosts.length > 0 && (
@@ -1485,17 +1515,33 @@ const BusinessProfilePage = () => {
                             </button>
                         </div>
                     </div>
-                    <div className="border-t border-white/10 px-3 pb-2.5 pt-2 sm:hidden">
-                        <div className="flex items-center gap-2 rounded-full border border-zinc-200/90 bg-white px-3 py-2 shadow-sm">
-                            <input
-                                id="retail-header-search-mobile"
-                                type="search"
-                                value={retailShopSearchQuery}
-                                onChange={(e) => setRetailShopSearchQuery(e.target.value)}
-                                placeholder="Search products"
-                                className="min-w-0 flex-1 bg-white text-sm text-neutral-900 outline-none placeholder:text-zinc-400"
-                                aria-label="Search products"
-                            />
+                    <div
+                        className={cn(
+                            'grid overflow-hidden transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] sm:hidden',
+                            showRetailStickyProductSearch ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                        )}
+                        aria-hidden={!showRetailStickyProductSearch}
+                    >
+                        <div className="min-h-0">
+                            <div
+                                className={cn(
+                                    'border-t border-white/10 px-3 pb-2.5 pt-2 transition-opacity duration-300 ease-out',
+                                    showRetailStickyProductSearch ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                                )}
+                            >
+                                <div className="flex items-center gap-2 rounded-full border border-zinc-200/90 bg-white px-3 py-2 shadow-sm">
+                                    <input
+                                        id="retail-header-search-mobile"
+                                        type="search"
+                                        value={retailShopSearchQuery}
+                                        onChange={(e) => setRetailShopSearchQuery(e.target.value)}
+                                        placeholder="Search products"
+                                        className="min-w-0 flex-1 bg-white text-sm text-neutral-900 outline-none placeholder:text-zinc-400"
+                                        aria-label="Search products"
+                                        tabIndex={showRetailStickyProductSearch ? 0 : -1}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1586,53 +1632,69 @@ const BusinessProfilePage = () => {
                         </div>
                     </div>
                     <div
-                        className="border-t border-white/15 px-3 py-2.5 sm:px-4"
-                        style={{ backgroundColor: baselRetailSearchStripBg }}
+                        className={cn(
+                            'grid overflow-hidden transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
+                            showRetailStickyProductSearch ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                        )}
+                        aria-hidden={!showRetailStickyProductSearch}
                     >
-                        <div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                            {retailCategoryChips.length > 0 && (
-                                <>
-                                    <label className="sr-only" htmlFor="basel-category-select">
-                                        Category
-                                    </label>
-                                    <select
-                                        id="basel-category-select"
-                                        value={retailCategoryFilter ?? ''}
-                                        onChange={(e) => setRetailCategoryFilter(e.target.value || null)}
-                                        className="w-full shrink-0 rounded border bg-white px-2 py-2 text-xs text-neutral-800 sm:max-w-[11rem] sm:text-sm"
+                        <div className="min-h-0">
+                            <div
+                                className={cn(
+                                    'border-t border-white/15 px-3 py-2.5 transition-opacity duration-300 ease-out sm:px-4',
+                                    showRetailStickyProductSearch ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                                )}
+                                style={{ backgroundColor: baselRetailSearchStripBg }}
+                            >
+                                <div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                    {retailCategoryChips.length > 0 && (
+                                        <>
+                                            <label className="sr-only" htmlFor="basel-category-select">
+                                                Category
+                                            </label>
+                                            <select
+                                                id="basel-category-select"
+                                                value={retailCategoryFilter ?? ''}
+                                                onChange={(e) => setRetailCategoryFilter(e.target.value || null)}
+                                                className="w-full shrink-0 rounded border bg-white px-2 py-2 text-xs text-neutral-800 sm:max-w-[11rem] sm:text-sm"
+                                                style={{ borderColor: retailSearchAccentSolid }}
+                                                tabIndex={showRetailStickyProductSearch ? 0 : -1}
+                                            >
+                                                <option value="">All categories</option>
+                                                {retailCategoryChips.map((c) => (
+                                                    <option key={c.label} value={c.label}>
+                                                        {c.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </>
+                                    )}
+                                    <div
+                                        className="flex min-w-0 flex-1 items-center gap-2 rounded border bg-white px-3 py-2"
                                         style={{ borderColor: retailSearchAccentSolid }}
                                     >
-                                        <option value="">All categories</option>
-                                        {retailCategoryChips.map((c) => (
-                                            <option key={c.label} value={c.label}>
-                                                {c.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </>
-                            )}
-                            <div
-                                className="flex min-w-0 flex-1 items-center gap-2 rounded border bg-white px-3 py-2"
-                                style={{ borderColor: retailSearchAccentSolid }}
-                            >
-                                <Search className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
-                                <input
-                                    type="search"
-                                    value={retailShopSearchQuery}
-                                    onChange={(e) => setRetailShopSearchQuery(e.target.value)}
-                                    placeholder="Search products..."
-                                    className="min-w-0 flex-1 bg-white text-sm text-neutral-800 outline-none placeholder:text-zinc-400"
-                                    aria-label="Search products"
-                                />
+                                        <Search className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
+                                        <input
+                                            type="search"
+                                            value={retailShopSearchQuery}
+                                            onChange={(e) => setRetailShopSearchQuery(e.target.value)}
+                                            placeholder="Search products..."
+                                            className="min-w-0 flex-1 bg-white text-sm text-neutral-800 outline-none placeholder:text-zinc-400"
+                                            aria-label="Search products"
+                                            tabIndex={showRetailStickyProductSearch ? 0 : -1}
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => document.getElementById('basel-latest')?.scrollIntoView({ behavior: 'smooth' })}
+                                        className="inline-flex shrink-0 items-center justify-center rounded px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
+                                        style={retailSearchCtaStyle}
+                                        tabIndex={showRetailStickyProductSearch ? 0 : -1}
+                                    >
+                                        Search
+                                    </button>
+                                </div>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => document.getElementById('basel-latest')?.scrollIntoView({ behavior: 'smooth' })}
-                                className="inline-flex shrink-0 items-center justify-center rounded px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
-                                style={retailSearchCtaStyle}
-                            >
-                                Search
-                            </button>
                         </div>
                     </div>
                 </div>
