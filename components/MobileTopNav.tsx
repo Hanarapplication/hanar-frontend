@@ -10,7 +10,7 @@ import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 
 const navFaIconClass = 'text-[1.32rem]';
 
-export default function MobileTopNav() {
+export default function MobileTopNav({ hidden = false }: { hidden?: boolean }) {
   const pathname = usePathname();
   const { effectiveLang } = useLanguage();
 
@@ -49,7 +49,9 @@ export default function MobileTopNav() {
 
   return (
     <nav
-      className="fixed left-0 right-0 top-14 z-40 bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 shadow-sm dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700 sm:top-16"
+      className={`fixed left-0 right-0 top-14 z-40 bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 transition-all duration-200 dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700 sm:top-16 ${
+        hidden ? '-translate-y-[140%] opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+      }`}
       aria-label="Primary"
     >
       <div className="flex items-stretch justify-between px-1">

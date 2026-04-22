@@ -24,29 +24,66 @@ export default function ConditionalAppShell({
     segments[0] === 'business' &&
     segments[1] !== 'plan';
   const isAdminPage = pathname.startsWith('/admin');
+  const shouldHideNavOnScroll =
+    pathname === '/' || pathname === '/businesses' || pathname === '/marketplace';
 
   // Re-trigger enter animation on every route change
   const [animKey, setAnimKey] = useState(pathname);
+  const [isChromeHidden, setIsChromeHidden] = useState(false);
   useEffect(() => {
     setAnimKey(pathname);
   }, [pathname]);
 
+  useEffect(() => {
+    setIsChromeHidden(false);
+    if (!shouldHideNavOnScroll) return;
+
+    let lastY = window.scrollY;
+    let ticking = false;
+
+    const onScroll = () => {
+      const currentY = window.scrollY;
+      if (ticking) return;
+      ticking = true;
+
+      window.requestAnimationFrame(() => {
+        const delta = currentY - lastY;
+        if (currentY <= 8) {
+          setIsChromeHidden(false);
+        } else if (delta > 6) {
+          setIsChromeHidden(true);
+        } else if (delta < -6) {
+          setIsChromeHidden(false);
+        }
+        lastY = currentY;
+        ticking = false;
+      });
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [shouldHideNavOnScroll, pathname]);
+
   if (isBusinessSlugPage || isAdminPage) {
-    return <>{children}</>;
+    return (
+      <main key={animKey} className="animate-route-swap-soft">
+        {children}
+      </main>
+    );
   }
 
   return (
     <>
       <LocationPromptModal />
-      <Navbar />
+      <Navbar hidden={isChromeHidden} />
       <ClientRedirectTracker />
       <main
         key={animKey}
-        className="animate-page-enter pt-12 sm:pt-12"
+        className="animate-route-swap-soft pt-12 sm:pt-12"
       >
         {children}
       </main>
-      <MobileTopNav />
+      <MobileTopNav hidden={isChromeHidden} />
       <HanarAIWidget />
     </>
   );

@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthenticatedUserId } from '@/lib/authApi';
 import { usersAreMutuallyBlocked } from '@/lib/userBlocksServer';
+import { resolveNotificationActorLabel } from '@/lib/notificationActorLabel';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
 
     const { data: postRow } = await supabaseAdmin
       .from('community_posts')
-      .select('user_id')
+      .select('user_id, image, video, title')
       .eq('id', post_id)
       .maybeSingle();
     const authorId = (postRow as { user_id?: string } | null)?.user_id;
@@ -65,28 +66,19 @@ export async function POST(req: Request) {
 
     // Notify post author when someone likes their post (skip self-like notifications)
     if (authorId && authorId !== userId) {
-      let likerName = 'Someone';
-      try {
-        const { data: account } = await supabaseAdmin
-          .from('registeredaccounts')
-          .select('full_name, username')
-          .eq('user_id', userId)
-          .maybeSingle();
-        likerName =
-          (account as { full_name?: string | null } | null)?.full_name?.trim() ||
-          (account as { username?: string | null } | null)?.username?.trim() ||
-          'Someone';
-      } catch {
-        // keep fallback label
-      }
+      const actor = await resolveNotificationActorLabel(supabaseAdmin, userId);
+      const postMeta = (postRow || {}) as { image?: string | null; video?: string | null; title?: string | null };
+      const targetLabel = postMeta.video ? 'video post' : postMeta.image ? 'photo post' : 'post';
+      const postTitle = (postMeta.title || '').trim();
+      const bodyTail = postTitle ? `: "${postTitle.length > 70 ? `${postTitle.slice(0, 70)}...` : postTitle}"` : '';
 
       await supabaseAdmin.from('notifications').insert({
         user_id: authorId,
         type: 'post_liked',
-        title: 'Someone liked your post',
-        body: `${likerName} liked your post. Tap to view.`,
+        title: `${actor.mention} liked your ${targetLabel}`,
+        body: `${actor.mention} liked your ${targetLabel}${bodyTail}. Tap to view.`,
         url: `/community/post/${post_id}`,
-        data: { post_id, liked_by: userId, liker_name: likerName },
+        data: { post_id, liked_by: userId, liker_name: actor.display },
       });
     }
 

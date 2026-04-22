@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getMutuallyBlockedUserIds, usersAreMutuallyBlocked } from '@/lib/userBlocksServer';
+import { resolveNotificationActorLabel } from '@/lib/notificationActorLabel';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -131,15 +132,15 @@ export async function POST(req: Request) {
         .maybeSingle();
       const postAuthorId = (post as { user_id?: string } | null)?.user_id;
       if (postAuthorId && postAuthorId !== inserted.user_id) {
-        const commenterName = inserted.author || inserted.username || 'Someone';
+        const actor = await resolveNotificationActorLabel(supabaseAdmin, inserted.user_id);
         const bodySnippet = body.length > 80 ? `${body.slice(0, 80)}…` : body;
         await supabaseAdmin.from('notifications').insert({
           user_id: postAuthorId,
           type: 'comment_on_post',
-          title: 'Someone commented on your post',
-          body: `${commenterName} commented: ${bodySnippet}. Tap to view.`,
+          title: `${actor.mention} commented on your post`,
+          body: `${actor.mention}: ${bodySnippet}. Tap to view.`,
           url: `/community/post/${inserted.post_id}`,
-          data: { post_id: inserted.post_id, comment_id: inserted.id, commenter_name: commenterName },
+          data: { post_id: inserted.post_id, comment_id: inserted.id, commenter_name: actor.display },
         });
       }
     }

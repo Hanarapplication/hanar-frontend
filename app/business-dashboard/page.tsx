@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { Edit, Eye, Crown, BarChart3, Megaphone, ChevronDown, ChevronUp, X, Image, Bell, Trash2, Download } from 'lucide-react';
+import { Edit, Eye, Crown, BarChart3, Megaphone, ChevronDown, ChevronUp, X, Image, Bell, Trash2, Download, FileText, Palette } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { isAppIOS, withAppParam } from '@/utils/isAppIOS';
 
@@ -91,6 +91,16 @@ type PromotionRequestItem = {
   created_at: string;
 };
 
+type BusinessCommunityPost = {
+  id: string;
+  title: string;
+  body: string;
+  image?: string | null;
+  video?: string | null;
+  created_at: string;
+  likes_post?: number | null;
+};
+
 function getUiStatus(biz: {
   moderation_status: ModerationStatus;
   lifecycle_status: LifecycleStatus;
@@ -121,11 +131,72 @@ function formatExpiryDate(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function sanitizeHexColor(value: string | null | undefined, fallback: string): string {
+  const v = (value || '').trim();
+  const normalized = v.startsWith('#') ? v : v ? `#${v}` : '';
+  return /^#[0-9a-fA-F]{6}$/i.test(normalized) ? `#${normalized.slice(1).toLowerCase()}` : fallback;
+}
+
+const DEFAULT_SLUG_PRIMARY = '#0c1f3c';
+const DEFAULT_SLUG_SECONDARY = '#6b1515';
+const DEFAULT_RETAIL_SEARCH_ACCENT = '#0f766e';
+
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  const safe = sanitizeHexColor(hex, '#000000').slice(1);
+  const r = parseInt(safe.slice(0, 2), 16) / 255;
+  const g = parseInt(safe.slice(2, 4), 16) / 255;
+  const b = parseInt(safe.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  let h = 0;
+  const l = (max + min) / 2;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  if (d !== 0) {
+    switch (max) {
+      case r:
+        h = 60 * (((g - b) / d) % 6);
+        break;
+      case g:
+        h = 60 * ((b - r) / d + 2);
+        break;
+      default:
+        h = 60 * ((r - g) / d + 4);
+    }
+  }
+  if (h < 0) h += 360;
+  return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) };
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const sat = Math.max(0, Math.min(100, s)) / 100;
+  const light = Math.max(0, Math.min(100, l)) / 100;
+  const c = (1 - Math.abs(2 * light - 1)) * sat;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = light - c / 2;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  if (h >= 0 && h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const toHex = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function buildBrandBackground(primary: string, secondary: string, useGradient: boolean): string {
+  return useGradient ? `linear-gradient(90deg, ${primary}, ${secondary})` : primary;
+}
+
 function BusinessDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const appIOS = isAppIOS(searchParams?.toString() ?? null);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState('');
 
   const [business, setBusiness] = useState<{
     id: string;
@@ -144,6 +215,12 @@ function BusinessDashboardContent() {
     profile_template?: string | null;
     theme?: string | null;
     accent_color?: string | null;
+    slug_primary_color?: string | null;
+    slug_secondary_color?: string | null;
+    slug_use_gradient?: boolean | null;
+    slug_retail_search_accent_color?: string | null;
+    slug_view_detail_button_color?: string | null;
+    slug_sidebar_menu_button_color?: string | null;
   } | null>(null);
   const [favorites, setFavorites] = useState<FavoriteBusiness[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(true);
@@ -164,6 +241,21 @@ function BusinessDashboardContent() {
   const [promotionRequests, setPromotionRequests] = useState<PromotionRequestItem[]>([]);
   const [promotionRequestsLoading, setPromotionRequestsLoading] = useState(true);
   const [promotionBannersExpanded, setPromotionBannersExpanded] = useState(false);
+  const [pageColorsOpen, setPageColorsOpen] = useState(false);
+  const [savingPageColors, setSavingPageColors] = useState(false);
+  const [slugPrimaryColorInput, setSlugPrimaryColorInput] = useState(DEFAULT_SLUG_PRIMARY);
+  const [slugSecondaryColorInput, setSlugSecondaryColorInput] = useState(DEFAULT_SLUG_SECONDARY);
+  const [slugPrimaryHue, setSlugPrimaryHue] = useState(hexToHsl(DEFAULT_SLUG_PRIMARY).h);
+  const [slugSecondaryHue, setSlugSecondaryHue] = useState(hexToHsl(DEFAULT_SLUG_SECONDARY).h);
+  const [slugUseGradientInput, setSlugUseGradientInput] = useState(true);
+  const [retailSearchAccentInput, setRetailSearchAccentInput] = useState(DEFAULT_RETAIL_SEARCH_ACCENT);
+  const [viewDetailButtonColorInput, setViewDetailButtonColorInput] = useState('');
+  const [sidebarMenuButtonColorInput, setSidebarMenuButtonColorInput] = useState('');
+  const [myPostsExpanded, setMyPostsExpanded] = useState(false);
+  const [businessPosts, setBusinessPosts] = useState<BusinessCommunityPost[]>([]);
+  const [businessPostCommentCounts, setBusinessPostCommentCounts] = useState<Record<string, number>>({});
+  const [businessPostsLoading, setBusinessPostsLoading] = useState(false);
+  const [deletingBusinessPostId, setDeletingBusinessPostId] = useState<string | null>(null);
   const [bannerToRemoveId, setBannerToRemoveId] = useState<string | null>(null);
   const [removingBannerId, setRemovingBannerId] = useState<string | null>(null);
   const [notificationToDelete, setNotificationToDelete] = useState<NotificationHistoryItem | null>(null);
@@ -235,6 +327,7 @@ function BusinessDashboardContent() {
           router.replace('/login');
           return;
         }
+        if (mounted) setCurrentUserId(userId);
 
         // Verify user is a business account before loading business data
         const { data: regProfile } = await supabase
@@ -250,7 +343,9 @@ function BusinessDashboardContent() {
 
         const { data, error } = await supabase
           .from('businesses')
-          .select('id, business_name, slug, moderation_status, lifecycle_status, is_archived, plan, plan_selected_at, trial_end, plan_expires_at, logo_url, lat, lon, profile_template, theme, accent_color')
+          .select(
+            'id, business_name, slug, moderation_status, lifecycle_status, is_archived, plan, plan_selected_at, trial_end, plan_expires_at, logo_url, lat, lon, profile_template, theme, accent_color, slug_primary_color, slug_secondary_color, slug_use_gradient, slug_retail_search_accent_color, slug_view_detail_button_color, slug_sidebar_menu_button_color'
+          )
           .eq('owner_id', userId)
           .maybeSingle();
 
@@ -280,6 +375,14 @@ function BusinessDashboardContent() {
             profile_template: data.profile_template ? String(data.profile_template) : null,
             theme: data.theme ? String(data.theme) : null,
             accent_color: data.accent_color ? String(data.accent_color) : null,
+            slug_primary_color: data.slug_primary_color ? String(data.slug_primary_color) : null,
+            slug_secondary_color: data.slug_secondary_color ? String(data.slug_secondary_color) : null,
+            slug_use_gradient: typeof data.slug_use_gradient === 'boolean' ? data.slug_use_gradient : null,
+            slug_retail_search_accent_color: data.slug_retail_search_accent_color ? String(data.slug_retail_search_accent_color) : null,
+            slug_view_detail_button_color: data.slug_view_detail_button_color ? String(data.slug_view_detail_button_color) : null,
+            slug_sidebar_menu_button_color: data.slug_sidebar_menu_button_color
+              ? String(data.slug_sidebar_menu_button_color)
+              : null,
           });
         }
 
@@ -332,6 +435,36 @@ function BusinessDashboardContent() {
       setAreaBlastRadiusMiles(maxRadius);
     }
   }, [planSettings, areaBlastRadiusMiles]);
+
+  useEffect(() => {
+    if (!business) return;
+    setSlugPrimaryColorInput(sanitizeHexColor(business.slug_primary_color, DEFAULT_SLUG_PRIMARY));
+    setSlugSecondaryColorInput(sanitizeHexColor(business.slug_secondary_color, DEFAULT_SLUG_SECONDARY));
+    setSlugUseGradientInput(business.slug_use_gradient !== false);
+    setRetailSearchAccentInput(sanitizeHexColor(business.slug_retail_search_accent_color, DEFAULT_RETAIL_SEARCH_ACCENT));
+    setViewDetailButtonColorInput(
+      business.slug_view_detail_button_color ? sanitizeHexColor(business.slug_view_detail_button_color, DEFAULT_SLUG_PRIMARY) : ''
+    );
+    setSidebarMenuButtonColorInput(
+      business.slug_sidebar_menu_button_color ? sanitizeHexColor(business.slug_sidebar_menu_button_color, DEFAULT_SLUG_PRIMARY) : ''
+    );
+  }, [
+    business?.id,
+    business?.slug_primary_color,
+    business?.slug_secondary_color,
+    business?.slug_use_gradient,
+    business?.slug_retail_search_accent_color,
+    business?.slug_view_detail_button_color,
+    business?.slug_sidebar_menu_button_color,
+  ]);
+
+  useEffect(() => {
+    setSlugPrimaryHue(hexToHsl(sanitizeHexColor(slugPrimaryColorInput, DEFAULT_SLUG_PRIMARY)).h);
+  }, [slugPrimaryColorInput]);
+
+  useEffect(() => {
+    setSlugSecondaryHue(hexToHsl(sanitizeHexColor(slugSecondaryColorInput, DEFAULT_SLUG_SECONDARY)).h);
+  }, [slugSecondaryColorInput]);
 
   useEffect(() => {
     const loadFavorites = async () => {
@@ -500,6 +633,127 @@ function BusinessDashboardContent() {
     }
   };
 
+  const loadBusinessPosts = async () => {
+    if (!business?.slug) {
+      setBusinessPosts([]);
+      setBusinessPostCommentCounts({});
+      setBusinessPostsLoading(false);
+      return;
+    }
+    try {
+      setBusinessPostsLoading(true);
+      const params = new URLSearchParams({ businessSlug: business.slug });
+      if (currentUserId) params.set('viewerUserId', currentUserId);
+      const res = await fetch(`/api/community/posts?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to load posts');
+      setBusinessPosts((data.posts || []) as BusinessCommunityPost[]);
+      setBusinessPostCommentCounts((data.commentCounts || {}) as Record<string, number>);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to load posts');
+      setBusinessPosts([]);
+      setBusinessPostCommentCounts({});
+    } finally {
+      setBusinessPostsLoading(false);
+    }
+  };
+
+  const deleteBusinessPost = async (postId: string) => {
+    if (!postId || deletingBusinessPostId) return;
+    const confirmed = window.confirm('Delete this post? This cannot be undone.');
+    if (!confirmed) return;
+    setDeletingBusinessPostId(postId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/community/post/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ post_id: postId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to delete post');
+      setBusinessPosts((prev) => prev.filter((post) => post.id !== postId));
+      setBusinessPostCommentCounts((prev) => {
+        const next = { ...prev };
+        delete next[postId];
+        return next;
+      });
+      toast.success('Post deleted');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to delete post');
+    } finally {
+      setDeletingBusinessPostId(null);
+    }
+  };
+
+  const savePageColors = async () => {
+    if (!business?.id) return;
+    const primary = sanitizeHexColor(slugPrimaryColorInput, DEFAULT_SLUG_PRIMARY);
+    const secondary = sanitizeHexColor(slugSecondaryColorInput, DEFAULT_SLUG_SECONDARY);
+    const retailSearch = sanitizeHexColor(retailSearchAccentInput, DEFAULT_RETAIL_SEARCH_ACCENT);
+    const viewDetailTrim = viewDetailButtonColorInput.trim();
+    const sidebarTrim = sidebarMenuButtonColorInput.trim();
+    const viewDetailSaved = viewDetailTrim ? sanitizeHexColor(viewDetailTrim, primary) : null;
+    const sidebarSaved = sidebarTrim ? sanitizeHexColor(sidebarTrim, primary) : null;
+    try {
+      setSavingPageColors(true);
+      const { error } = await supabase
+        .from('businesses')
+        .update({
+          slug_primary_color: primary,
+          slug_secondary_color: secondary,
+          slug_use_gradient: slugUseGradientInput,
+          slug_retail_search_accent_color: retailSearch,
+          slug_view_detail_button_color: viewDetailSaved,
+          slug_sidebar_menu_button_color: sidebarSaved,
+        })
+        .eq('id', business.id);
+      if (error) throw error;
+      setBusiness((prev) =>
+        prev
+          ? {
+              ...prev,
+              slug_primary_color: primary,
+              slug_secondary_color: secondary,
+              slug_use_gradient: slugUseGradientInput,
+              slug_retail_search_accent_color: retailSearch,
+              slug_view_detail_button_color: viewDetailSaved,
+              slug_sidebar_menu_button_color: sidebarSaved,
+            }
+          : prev
+      );
+      toast.success('Business page colors updated');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save page colors');
+    } finally {
+      setSavingPageColors(false);
+    }
+  };
+
+  const handlePrimaryHueChange = (hue: number) => {
+    const { s, l } = hexToHsl(sanitizeHexColor(slugPrimaryColorInput, DEFAULT_SLUG_PRIMARY));
+    setSlugPrimaryHue(hue);
+    setSlugPrimaryColorInput(hslToHex(hue, Math.max(45, s), Math.max(30, l)));
+  };
+
+  const handleSecondaryHueChange = (hue: number) => {
+    const { s, l } = hexToHsl(sanitizeHexColor(slugSecondaryColorInput, DEFAULT_SLUG_SECONDARY));
+    setSlugSecondaryHue(hue);
+    setSlugSecondaryColorInput(hslToHex(hue, Math.max(45, s), Math.max(30, l)));
+  };
+
+  const resetPageColorsToDefault = () => {
+    setSlugPrimaryColorInput(DEFAULT_SLUG_PRIMARY);
+    setSlugSecondaryColorInput(DEFAULT_SLUG_SECONDARY);
+    setSlugUseGradientInput(true);
+    setRetailSearchAccentInput(DEFAULT_RETAIL_SEARCH_ACCENT);
+    setViewDetailButtonColorInput('');
+    setSidebarMenuButtonColorInput('');
+  };
+
   useEffect(() => {
     if (!business?.id) return;
     loadPromotionRequests();
@@ -511,6 +765,14 @@ function BusinessDashboardContent() {
       loadPromotionRequests();
     }
   }, [promotionBannersExpanded]);
+
+  useEffect(() => {
+    if (!business?.slug) return;
+    // Preload once so the "My Posts" count is accurate even before expanding,
+    // then refresh whenever the section is opened.
+    if (!myPostsExpanded && businessPosts.length > 0) return;
+    loadBusinessPosts();
+  }, [business?.slug, currentUserId, myPostsExpanded, businessPosts.length]);
 
   // After successful promotion payment redirect from Stripe: show toast, open My Banners, and refetch after delay so webhook-updated status appears
   useEffect(() => {
@@ -744,6 +1006,8 @@ function BusinessDashboardContent() {
     { label: 'Promote your business', href: '/promote', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
     { label: 'Download Business QR', onClick: handleDownloadBusinessQr, icon: <Download className="h-5 w-5 shrink-0" />, color: 'bg-sky-50 dark:bg-sky-900/30' },
     { label: 'Send Notification', onClick: () => { setSendNotificationExpanded(true); setTimeout(() => document.getElementById('send-notification')?.scrollIntoView({ behavior: 'smooth' }), 100); }, icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
+    { label: 'Business page colors', onClick: () => setPageColorsOpen(true), icon: <Palette className="h-5 w-5 shrink-0" />, color: 'bg-cyan-50 dark:bg-cyan-900/30' },
+    { label: 'My posts', onClick: () => { setMyPostsExpanded(true); setTimeout(() => document.getElementById('my-posts')?.scrollIntoView({ behavior: 'smooth' }), 100); }, icon: <FileText className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
     { label: 'My banners', onClick: () => { setPromotionBannersExpanded(true); setTimeout(() => document.getElementById('my-banners')?.scrollIntoView({ behavior: 'smooth' }), 100); }, icon: <Image className="h-5 w-5 shrink-0" />, color: 'bg-violet-50 dark:bg-violet-900/30' },
     { label: business.trial_end && business.plan === 'premium'
         ? `Premium Trial · ${getDaysRemaining(business.trial_end) > 0 ? `${getDaysRemaining(business.trial_end)} days left` : 'Ended'}`
@@ -753,6 +1017,18 @@ function BusinessDashboardContent() {
       href: appIOS ? withAppParam('/dashboard/account', true) : '/business/plan', icon: <Crown className="h-5 w-5 shrink-0" />, color: 'bg-amber-50 dark:bg-amber-900/30' },
     { label: 'Delete My Account', href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
   ];
+  const pagePreviewBackground = buildBrandBackground(
+    sanitizeHexColor(slugPrimaryColorInput, DEFAULT_SLUG_PRIMARY),
+    sanitizeHexColor(slugSecondaryColorInput, DEFAULT_SLUG_SECONDARY),
+    slugUseGradientInput
+  );
+  const retailSearchPreview = sanitizeHexColor(retailSearchAccentInput, DEFAULT_RETAIL_SEARCH_ACCENT);
+  const viewDetailPreviewBackground = viewDetailButtonColorInput.trim()
+    ? sanitizeHexColor(viewDetailButtonColorInput, DEFAULT_SLUG_PRIMARY)
+    : pagePreviewBackground;
+  const sidebarMenuPreviewBackground = sidebarMenuButtonColorInput.trim()
+    ? sanitizeHexColor(sidebarMenuButtonColorInput, DEFAULT_SLUG_PRIMARY)
+    : pagePreviewBackground;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 px-4 pt-14 pb-12">
@@ -851,27 +1127,30 @@ function BusinessDashboardContent() {
 
           <div className="border-t border-slate-100 px-6 py-6">
             <div className="space-y-6">
+                <div className="grid grid-cols-2 gap-3">
                 {planSettings && (
-                  <div id="send-notification" className="rounded-2xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+                  <div id="send-notification" className={`rounded-2xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm ${sendNotificationExpanded ? 'col-span-2' : ''}`}>
                     <button
                       type="button"
                       onClick={() => setSendNotificationExpanded((prev) => !prev)}
-                      className="w-full flex flex-wrap items-center justify-between gap-3 p-5 text-left hover:bg-slate-50 dark:hover:bg-gray-700/50 rounded-2xl transition"
+                      className="w-full flex items-center justify-between gap-2 p-3 text-left hover:bg-slate-50 dark:hover:bg-gray-700/50 rounded-2xl transition"
                     >
-                      <div>
-                        <h2 className="text-lg font-semibold text-slate-900 dark:text-gray-100">Send Notification</h2>
-                        <p className="mt-1 text-sm text-slate-600 dark:text-gray-200">
-                          Choose who receives your message.
-                        </p>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                          <Bell className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <h2 className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">Send Notification</h2>
+                        </div>
                       </div>
-                      <span className="flex items-center gap-2">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        <span className="hidden text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400 sm:inline">
                           {planSettings.plan?.toString().toUpperCase() || 'PLAN'}
                         </span>
                         {sendNotificationExpanded ? (
-                          <ChevronUp className="h-5 w-5 text-slate-500" />
+                          <ChevronUp className="h-4 w-4 text-slate-500" />
                         ) : (
-                          <ChevronDown className="h-5 w-5 text-slate-500" />
+                          <ChevronDown className="h-4 w-4 text-slate-500" />
                         )}
                       </span>
                     </button>
@@ -1013,21 +1292,121 @@ function BusinessDashboardContent() {
                   </div>
                 )}
 
-                <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div className={`relative rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 ${myPostsExpanded ? 'col-span-2' : ''}`}>
+                  <span className="absolute right-2 top-2 z-10 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+                    {businessPosts.length > 99 ? '99+' : businessPosts.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setMyPostsExpanded((prev) => !prev)}
+                    className="w-full flex items-center justify-between gap-2 p-3 text-left hover:bg-slate-50 dark:hover:bg-gray-700/50 rounded-2xl transition"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                        <FileText className="h-4 w-4" />
+                      </span>
+                      <h2 id="my-posts" className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">My Posts</h2>
+                    </div>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      {myPostsExpanded ? (
+                        <ChevronUp className="h-4 w-4 text-slate-500" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-slate-500" />
+                      )}
+                    </span>
+                  </button>
+                  {myPostsExpanded && (
+                    <div className="px-5 pb-5 pt-0">
+                      {businessPostsLoading ? (
+                        <div className="text-slate-500 dark:text-gray-400">Loading posts...</div>
+                      ) : businessPosts.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-slate-300 dark:border-gray-600 p-6 text-center text-slate-500 dark:text-gray-400">
+                          No posts yet.
+                        </div>
+                      ) : (
+                        <div className="mt-3 space-y-3">
+                          {businessPosts.map((post) => (
+                            <div
+                              key={post.id}
+                              className="rounded-2xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-4 shadow-sm"
+                            >
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-semibold text-slate-900 dark:text-gray-100 line-clamp-2">
+                                    {post.title || 'Untitled post'}
+                                  </p>
+                                  <p className="mt-1 text-sm text-slate-600 dark:text-gray-300 line-clamp-3">
+                                    {post.body || 'No post body'}
+                                  </p>
+                                  {post.video ? (
+                                    <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 dark:border-gray-600 bg-black">
+                                      <video
+                                        src={post.video}
+                                        controls
+                                        preload="metadata"
+                                        className="h-auto max-h-64 w-full"
+                                      />
+                                    </div>
+                                  ) : post.image ? (
+                                    <div className="mt-3 overflow-hidden rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-100 dark:bg-gray-700">
+                                      <img
+                                        src={post.image}
+                                        alt={post.title || 'Post image'}
+                                        className="h-auto max-h-64 w-full object-cover"
+                                      />
+                                    </div>
+                                  ) : null}
+                                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-gray-400">
+                                    <span>{new Date(post.created_at).toLocaleString()}</span>
+                                    <span>Likes: {post.likes_post ?? 0}</span>
+                                    <span>Comments: {businessPostCommentCounts[post.id] ?? 0}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Link
+                                    href={`/community/post/${post.id}`}
+                                    className="rounded-full border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-600"
+                                  >
+                                    View
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteBusinessPost(post.id)}
+                                    disabled={deletingBusinessPostId === post.id}
+                                    className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-900/30 dark:text-rose-200 dark:hover:bg-rose-900/50 disabled:opacity-50"
+                                  >
+                                    {deletingBusinessPostId === post.id ? 'Deleting...' : 'Delete'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className={`relative rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 ${previousNotificationsExpanded ? 'col-span-2' : ''}`}>
+                  <span className="absolute right-2 top-2 z-10 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+                    {notificationHistory.length > 99 ? '99+' : notificationHistory.length}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setPreviousNotificationsExpanded((prev) => !prev)}
-                    className="w-full flex items-center justify-between gap-4 p-5 text-left hover:bg-slate-50 dark:hover:bg-gray-700/50 rounded-2xl transition"
+                    className="w-full flex items-center justify-between gap-2 p-3 text-left hover:bg-slate-50 dark:hover:bg-gray-700/50 rounded-2xl transition"
                   >
-                    <h2 className="text-lg font-semibold text-slate-900 dark:text-gray-100">Previous Notifications</h2>
-                    <span className="flex items-center gap-2">
-                      <span className="text-sm text-slate-500 dark:text-gray-400">
-                        {notificationHistory.length} total
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                        <Bell className="h-4 w-4" />
                       </span>
+                      <h2 className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">Previous Notifications</h2>
+                    </div>
+                    <span className="flex shrink-0 items-center gap-1.5">
                       {previousNotificationsExpanded ? (
-                        <ChevronUp className="h-5 w-5 text-slate-500" />
+                        <ChevronUp className="h-4 w-4 text-slate-500" />
                       ) : (
-                        <ChevronDown className="h-5 w-5 text-slate-500" />
+                        <ChevronDown className="h-4 w-4 text-slate-500" />
                       )}
                     </span>
                   </button>
@@ -1100,21 +1479,26 @@ function BusinessDashboardContent() {
                   )}
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div className={`relative rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 ${promotionBannersExpanded ? 'col-span-2' : ''}`}>
+                  <span className="absolute right-2 top-2 z-10 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+                    {promotionRequests.length > 99 ? '99+' : promotionRequests.length}
+                  </span>
                   <button
                     type="button"
                     onClick={() => setPromotionBannersExpanded((prev) => !prev)}
-                    className="w-full flex items-center justify-between gap-4 p-5 text-left hover:bg-slate-50 dark:hover:bg-gray-700/50 rounded-2xl transition"
+                    className="w-full flex items-center justify-between gap-2 p-3 text-left hover:bg-slate-50 dark:hover:bg-gray-700/50 rounded-2xl transition"
                   >
-                    <h2 id="my-banners" className="text-lg font-semibold text-slate-900 dark:text-gray-100">My Banners</h2>
-                    <span className="flex items-center gap-2">
-                      <span className="text-sm text-slate-500 dark:text-gray-400">
-                        {promotionRequests.length} total
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                        <Image className="h-4 w-4" />
                       </span>
+                      <h2 id="my-banners" className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">My Banners</h2>
+                    </div>
+                    <span className="flex shrink-0 items-center gap-1.5">
                       {promotionBannersExpanded ? (
-                        <ChevronUp className="h-5 w-5 text-slate-500" />
+                        <ChevronUp className="h-4 w-4 text-slate-500" />
                       ) : (
-                        <ChevronDown className="h-5 w-5 text-slate-500" />
+                        <ChevronDown className="h-4 w-4 text-slate-500" />
                       )}
                     </span>
                   </button>
@@ -1192,6 +1576,7 @@ function BusinessDashboardContent() {
                       )}
                     </div>
                   )}
+                </div>
                 </div>
 
                 {notificationToDelete && typeof document !== 'undefined' && createPortal(
@@ -1367,6 +1752,294 @@ function BusinessDashboardContent() {
                       ) : (
                         <p className="text-sm text-slate-500 dark:text-gray-400 py-4">Could not load insights.</p>
                       )}
+                    </div>
+                  </div>,
+                  document.body
+                )}
+
+                {pageColorsOpen && typeof document !== 'undefined' && createPortal(
+                  <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="business-page-colors-title"
+                    onClick={() => setPageColorsOpen(false)}
+                  >
+                    <div
+                      className="my-8 w-full max-w-2xl shrink-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-gray-600 dark:bg-gray-800"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h3 id="business-page-colors-title" className="text-lg font-semibold text-slate-900 dark:text-gray-100">Business Page Colors</h3>
+                          <p className="mt-1 text-sm text-slate-600 dark:text-gray-300">
+                            Set your brand colors below, then optionally override the retail header/search strip, “View details” buttons, and burger menu actions.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setPageColorsOpen(false)}
+                          className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                          aria-label="Close page colors"
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      </div>
+
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <label className="block">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Primary color</span>
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={sanitizeHexColor(slugPrimaryColorInput, DEFAULT_SLUG_PRIMARY)}
+                              onChange={(e) => setSlugPrimaryColorInput(e.target.value)}
+                              className="h-10 w-14 cursor-pointer rounded border border-slate-300 bg-white p-1"
+                            />
+                            <input
+                              type="text"
+                              value={slugPrimaryColorInput}
+                              onChange={(e) => setSlugPrimaryColorInput(e.target.value)}
+                              className="h-10 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                              placeholder={DEFAULT_SLUG_PRIMARY}
+                            />
+                          </div>
+                          <div className="mt-2">
+                            <input
+                              type="range"
+                              min={0}
+                              max={360}
+                              value={slugPrimaryHue}
+                              onChange={(e) => handlePrimaryHueChange(Number(e.target.value))}
+                              className="color-spectrum h-3 w-full appearance-none rounded-full"
+                              style={{ background: 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)' }}
+                              aria-label="Primary color spectrum"
+                            />
+                          </div>
+                        </label>
+
+                        <label className="block">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Secondary color</span>
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={sanitizeHexColor(slugSecondaryColorInput, DEFAULT_SLUG_SECONDARY)}
+                              onChange={(e) => setSlugSecondaryColorInput(e.target.value)}
+                              className="h-10 w-14 cursor-pointer rounded border border-slate-300 bg-white p-1"
+                            />
+                            <input
+                              type="text"
+                              value={slugSecondaryColorInput}
+                              onChange={(e) => setSlugSecondaryColorInput(e.target.value)}
+                              className="h-10 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                              placeholder={DEFAULT_SLUG_SECONDARY}
+                            />
+                          </div>
+                          <div className="mt-2">
+                            <input
+                              type="range"
+                              min={0}
+                              max={360}
+                              value={slugSecondaryHue}
+                              onChange={(e) => handleSecondaryHueChange(Number(e.target.value))}
+                              className="color-spectrum h-3 w-full appearance-none rounded-full"
+                              style={{ background: 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)' }}
+                              aria-label="Secondary color spectrum"
+                            />
+                          </div>
+                        </label>
+                      </div>
+
+                      <label className="mt-4 inline-flex items-center gap-2 text-sm text-slate-700 dark:text-gray-200">
+                        <input
+                          type="checkbox"
+                          checked={slugUseGradientInput}
+                          onChange={(e) => setSlugUseGradientInput(e.target.checked)}
+                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        Use gradient blend between primary and secondary colors
+                      </label>
+
+                      <div className="mt-6 space-y-4 border-t border-slate-200 pt-4 dark:border-gray-600">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Retail header & search</p>
+                          <p className="mt-1 text-sm text-slate-600 dark:text-gray-300">
+                            Applies to both retail layouts: Basel-style strip and the Bagisto shop (header search, hero accents, directions, load-more spinner, category highlights).
+                          </p>
+                        </div>
+                        <label className="block">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Header & search accent</span>
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={retailSearchPreview}
+                              onChange={(e) => setRetailSearchAccentInput(e.target.value)}
+                              className="h-10 w-14 cursor-pointer rounded border border-slate-300 bg-white p-1"
+                            />
+                            <input
+                              type="text"
+                              value={retailSearchAccentInput}
+                              onChange={(e) => setRetailSearchAccentInput(e.target.value)}
+                              className="h-10 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                              placeholder={DEFAULT_RETAIL_SEARCH_ACCENT}
+                            />
+                          </div>
+                        </label>
+
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Button overrides</p>
+                          <p className="mt-1 text-sm text-slate-600 dark:text-gray-300">
+                            Leave blank to use the brand colors above. Set a solid color only for “View details” (and similar) or burger menu actions when you want them different from the header strip.
+                          </p>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">View details &amp; CTAs</span>
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={sanitizeHexColor(
+                                  viewDetailButtonColorInput || slugPrimaryColorInput,
+                                  DEFAULT_SLUG_PRIMARY
+                                )}
+                                onChange={(e) => setViewDetailButtonColorInput(e.target.value)}
+                                className="h-10 w-14 cursor-pointer rounded border border-slate-300 bg-white p-1"
+                              />
+                              <input
+                                type="text"
+                                value={viewDetailButtonColorInput}
+                                onChange={(e) => setViewDetailButtonColorInput(e.target.value)}
+                                className="h-10 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                placeholder="Default (brand colors)"
+                              />
+                            </div>
+                          </label>
+                          <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Burger menu actions</span>
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={sanitizeHexColor(
+                                  sidebarMenuButtonColorInput || slugPrimaryColorInput,
+                                  DEFAULT_SLUG_PRIMARY
+                                )}
+                                onChange={(e) => setSidebarMenuButtonColorInput(e.target.value)}
+                                className="h-10 w-14 cursor-pointer rounded border border-slate-300 bg-white p-1"
+                              />
+                              <input
+                                type="text"
+                                value={sidebarMenuButtonColorInput}
+                                onChange={(e) => setSidebarMenuButtonColorInput(e.target.value)}
+                                className="h-10 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                placeholder="Default (brand colors)"
+                              />
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 rounded-xl border border-slate-200 dark:border-gray-600 overflow-hidden">
+                        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400 bg-slate-50 dark:bg-gray-700/60">
+                          Preview
+                        </div>
+                        <div className="bg-white dark:bg-gray-900 p-3 space-y-3">
+                          <div
+                            className="rounded-lg px-3 py-2 text-white text-sm font-semibold"
+                            style={{ background: pagePreviewBackground }}
+                          >
+                            Brand header / strips (primary &amp; secondary)
+                          </div>
+                          <div
+                            className="rounded-lg px-3 py-2 text-white text-sm font-semibold"
+                            style={{ backgroundColor: retailSearchPreview }}
+                          >
+                            Retail header &amp; search accent (Basel-style)
+                          </div>
+                          <div
+                            className="flex items-center gap-2 rounded border bg-white px-2 py-1.5 dark:bg-gray-800"
+                            style={{ borderColor: retailSearchPreview }}
+                          >
+                            <span className="min-w-0 flex-1 truncate text-xs text-zinc-500 dark:text-zinc-400">Search products…</span>
+                            <span
+                              className="shrink-0 rounded px-2 py-1 text-[10px] font-semibold text-white"
+                              style={{ backgroundColor: retailSearchPreview }}
+                            >
+                              Search
+                            </span>
+                          </div>
+                          <div
+                            className="rounded-lg px-3 py-2 text-white text-sm font-semibold"
+                            style={{ background: pagePreviewBackground }}
+                          >
+                            Contact / info strip preview
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div
+                              className="inline-flex h-9 min-w-[2.25rem] items-center justify-center rounded-full px-2.5 text-[10px] font-semibold text-white shadow-sm"
+                              style={{ background: pagePreviewBackground }}
+                              title="Share button (restaurant Connect row)"
+                            >
+                              Share
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              className="rounded-md px-3 py-1.5 text-xs font-semibold text-white"
+                              style={{ background: viewDetailPreviewBackground }}
+                            >
+                              View details
+                            </button>
+                            <span
+                              className="rounded-md px-3 py-1.5 text-xs font-semibold text-white"
+                              style={{ background: sidebarMenuPreviewBackground }}
+                            >
+                              Burger menu action
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={resetPageColorsToDefault}
+                          disabled={savingPageColors}
+                          className="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                        >
+                          Default
+                        </button>
+                        <button
+                          type="button"
+                          onClick={savePageColors}
+                          disabled={savingPageColors}
+                          className="inline-flex items-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:opacity-60"
+                        >
+                          {savingPageColors ? 'Saving...' : 'Apply to business page'}
+                        </button>
+                      </div>
+                      <style jsx>{`
+                        .color-spectrum::-webkit-slider-thumb {
+                          -webkit-appearance: none;
+                          appearance: none;
+                          width: 18px;
+                          height: 18px;
+                          border-radius: 9999px;
+                          background: #ffffff;
+                          border: 2px solid rgba(15, 23, 42, 0.45);
+                          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+                          cursor: pointer;
+                        }
+                        .color-spectrum::-moz-range-thumb {
+                          width: 18px;
+                          height: 18px;
+                          border-radius: 9999px;
+                          background: #ffffff;
+                          border: 2px solid rgba(15, 23, 42, 0.45);
+                          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+                          cursor: pointer;
+                        }
+                      `}</style>
                     </div>
                   </div>,
                   document.body

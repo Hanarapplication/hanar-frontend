@@ -21,19 +21,20 @@ type DashboardBurgerMenuProps = {
   items: MenuItem[];
 };
 
-const SWIPE_THRESHOLD = 50;
+const MOVE_CANCEL_PX = 12;
 
 const rowClass =
-  'group flex w-full items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 active:scale-[0.99] dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600 dark:hover:bg-slate-800';
+  'group flex w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 active:scale-[0.99] dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600 dark:hover:bg-slate-800';
 
 const iconChipClass =
-  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700 transition-colors group-hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:group-hover:bg-slate-700 [&_svg]:h-[1.1rem] [&_svg]:w-[1.1rem]';
+  'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700 transition-colors group-hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:group-hover:bg-slate-700 [&_svg]:h-4 [&_svg]:w-4';
 
 const chevronClass =
   'mr-0.5 h-3 w-3 shrink-0 text-slate-400 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300';
 
 export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardBurgerMenuProps) {
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const openButtonPointerOrigin = useRef<{ x: number; y: number } | null>(null);
+  const openButtonPointerCancelled = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -54,18 +55,29 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
       <div className="-mx-4 -mt-16 mb-4 sm:-mx-6 lg:-mx-8">
         <button
           type="button"
-          onClick={onOpen}
-          onTouchStart={(e) => {
-            touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+          onPointerDown={(e) => {
+            openButtonPointerOrigin.current = { x: e.clientX, y: e.clientY };
+            openButtonPointerCancelled.current = false;
           }}
-          onTouchEnd={(e) => {
-            if (!touchStart.current) return;
-            const dx = e.changedTouches[0].clientX - touchStart.current.x;
-            const dy = e.changedTouches[0].clientY - touchStart.current.y;
-            touchStart.current = null;
-            if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
-              e.preventDefault();
+          onPointerMove={(e) => {
+            if (!openButtonPointerOrigin.current) return;
+            const dx = e.clientX - openButtonPointerOrigin.current.x;
+            const dy = e.clientY - openButtonPointerOrigin.current.y;
+            if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) openButtonPointerCancelled.current = true;
+          }}
+          onPointerUp={() => {
+            openButtonPointerOrigin.current = null;
+          }}
+          onPointerCancel={() => {
+            openButtonPointerOrigin.current = null;
+            openButtonPointerCancelled.current = true;
+          }}
+          onClick={() => {
+            if (openButtonPointerCancelled.current) {
+              openButtonPointerCancelled.current = false;
+              return;
             }
+            onOpen();
           }}
           className="flex w-full items-center gap-3 bg-gradient-to-r from-[#2b0710] via-[#4a0a14] to-[#0b2a66] px-5 py-3.5 text-white shadow-sm transition hover:brightness-105"
           aria-label="Open menu"
@@ -92,37 +104,41 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
         aria-modal="true"
         aria-label="Dashboard menu"
         className={[
-          'fixed left-0 top-14 z-[80] flex h-[calc(100vh-3.5rem)] w-[min(100vw-1rem,20rem)] max-w-full flex-col rounded-r-[1.75rem] border-r border-slate-200 bg-white shadow-[12px_0_48px_-12px_rgba(2,6,23,0.35)] dark:border-slate-700 dark:bg-slate-900 sm:top-16 sm:h-[calc(100vh-4rem)] sm:w-[22rem]',
+          'fixed left-0 top-14 z-[80] h-[calc(100vh-3.5rem)] w-[min(100vw-1rem,20rem)] max-w-full flex-col overflow-hidden rounded-r-[1.75rem] border-r border-slate-200 bg-white shadow-[12px_0_48px_-12px_rgba(2,6,23,0.35)] dark:border-slate-700 dark:bg-slate-900 sm:top-16 sm:h-[calc(100vh-4rem)] sm:w-[22rem]',
           'pb-[max(0.75rem,env(safe-area-inset-bottom))]',
-          'transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]',
-          open ? 'translate-x-0' : '-translate-x-full pointer-events-none',
+          open ? 'flex' : 'hidden',
         ].join(' ')}
         aria-hidden={!open}
       >
-        <div className="shrink-0 border-b border-slate-200 bg-gradient-to-r from-[#2b0710] via-[#4a0a14] to-[#0b2a66] px-4 pb-5 pt-[max(0.75rem,env(safe-area-inset-top))] dark:border-slate-700">
-          <div className="flex items-center justify-between gap-3 pt-2.5">
+        <div className="shrink-0 border-b border-slate-200 bg-gradient-to-r from-[#2b0710] via-[#4a0a14] to-[#0b2a66] px-2.5 pb-1.5 pt-[max(0.35rem,env(safe-area-inset-top))] dark:border-slate-700">
+          <div className="flex items-center justify-between gap-1.5 pt-0.5">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/85">Your dashboard</p>
+              <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/85">Your dashboard</p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/25 bg-black/20 text-white shadow-sm transition hover:bg-black/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/25 bg-black/20 text-white shadow-sm transition hover:bg-black/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
               aria-label="Close menu"
             >
-              <X className="h-5 w-5" aria-hidden />
+              <X className="h-3.5 w-3.5" aria-hidden />
             </button>
           </div>
         </div>
 
-        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain bg-white px-4 py-4 dark:bg-slate-900">
+        <nav
+          className="flex min-h-0 flex-1 touch-pan-y flex-col gap-1 overflow-y-auto overscroll-contain bg-white px-3 py-3 dark:bg-slate-900"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+          onTouchStartCapture={(e) => e.stopPropagation()}
+          onTouchMoveCapture={(e) => e.stopPropagation()}
+        >
           <ul className="flex flex-col gap-1">
             {items.map((item, i) => {
               const content = (
                 <>
                   {item.icon ? <span className={`${iconChipClass} ${item.color || ''}`}>{item.icon}</span> : null}
                   <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
-                    <span className="text-sm font-medium tracking-tight text-slate-900 dark:text-slate-100">{item.label}</span>
+                    <span className="text-[0.92rem] font-medium tracking-tight text-slate-900 dark:text-slate-100">{item.label}</span>
                     {item.subtitle ? (
                       <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{item.subtitle}</span>
                     ) : null}

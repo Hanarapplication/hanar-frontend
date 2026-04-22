@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type CSSProperties } from 'react';
 import { Flag } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -13,6 +13,8 @@ interface ReportButtonProps {
   /** 'icon' = just flag icon (compact), 'pill' = icon + text pill, 'text' = text link */
   variant?: 'icon' | 'pill' | 'text';
   className?: string;
+  /** Applied to the trigger control (e.g. brand gradient on business pages) */
+  style?: CSSProperties;
 }
 
 const REASONS = [
@@ -32,6 +34,7 @@ export default function ReportButton({
   entityTitle = '',
   variant = 'icon',
   className = '',
+  style,
 }: ReportButtonProps) {
   const [open, setOpen] = useState(false);
   const [selectedReason, setSelectedReason] = useState('');
@@ -131,6 +134,7 @@ export default function ReportButton({
           type="button"
           onClick={handleButtonClick}
           title={`Report this ${entityLabel.toLowerCase()}`}
+          style={style}
           className={`p-1.5 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 dark:text-gray-500 dark:hover:text-red-400 transition-colors ${className}`}
         >
           <Flag className="h-4 w-4" />
@@ -141,6 +145,7 @@ export default function ReportButton({
         <button
           type="button"
           onClick={handleButtonClick}
+          style={style}
           className={`flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-red-100 hover:text-red-600 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-red-900/40 dark:hover:text-red-300 ${className}`}
         >
           <Flag className="h-3.5 w-3.5" />
@@ -152,6 +157,7 @@ export default function ReportButton({
         <button
           type="button"
           onClick={handleButtonClick}
+          style={style}
           className={`text-sm text-slate-500 hover:text-red-500 hover:underline dark:text-gray-400 dark:hover:text-red-400 transition-colors ${className}`}
         >
           Report this {entityLabel.toLowerCase()}

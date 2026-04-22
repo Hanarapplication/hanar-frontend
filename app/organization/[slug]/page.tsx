@@ -497,6 +497,12 @@ export default function OrganizationProfilePage() {
     (currentUser.isIndividual || currentUser.isOrganization) &&
     (canFollow || !!blockStatus?.mutuallyBlocked);
 
+  const canMessage =
+    !!currentUser?.id &&
+    !!profile?.id &&
+    !!profile?.user_id &&
+    currentUser.id !== profile.user_id;
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="relative">
@@ -578,6 +584,15 @@ export default function OrganizationProfilePage() {
                       </button>
                     )}
                   </span>
+                )}
+                {canMessage && (
+                  <Link
+                    href={`/messages?targetType=organization&targetId=${encodeURIComponent(profile.id)}`}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    Message
+                  </Link>
                 )}
                 {currentUser &&
                   currentUser.id !== profile.user_id &&

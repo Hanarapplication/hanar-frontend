@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { usersAreMutuallyBlocked } from '@/lib/userBlocksServer';
+import { resolveNotificationActorLabel } from '@/lib/notificationActorLabel';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,10 +20,12 @@ export async function POST(req: Request) {
 
     const { data: commentRow } = await supabaseAdmin
       .from('community_comments')
-      .select('user_id')
+      .select('user_id, post_id')
       .eq('id', comment_id)
       .maybeSingle();
-    const commentAuthorId = (commentRow as { user_id?: string | null } | null)?.user_id;
+    const commentMeta = (commentRow as { user_id?: string | null; post_id?: string | null } | null) || null;
+    const commentAuthorId = commentMeta?.user_id;
+    const postId = commentMeta?.post_id || null;
     if (commentAuthorId && (await usersAreMutuallyBlocked(supabaseAdmin, user_id, commentAuthorId))) {
       return NextResponse.json({ error: 'Blocked' }, { status: 403 });
     }
@@ -58,6 +61,18 @@ export async function POST(req: Request) {
       .from('community_comments')
       .update({ likes: currentCount + 1 })
       .eq('id', comment_id);
+
+    if (commentAuthorId && commentAuthorId !== user_id) {
+      const actor = await resolveNotificationActorLabel(supabaseAdmin, user_id);
+      await supabaseAdmin.from('notifications').insert({
+        user_id: commentAuthorId,
+        type: 'comment_liked',
+        title: `${actor.mention} liked your comment`,
+        body: `${actor.mention} liked your comment. Tap to view.`,
+        url: postId ? `/community/post/${postId}` : '/notifications',
+        data: { comment_id, post_id: postId, liked_by: user_id, liker_name: actor.display },
+      });
+    }
 
     return NextResponse.json({ success: true, likes: currentCount + 1 }, { status: 200 });
   } catch (err) {

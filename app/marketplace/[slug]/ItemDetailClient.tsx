@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
-import { FaHeart, FaRegHeart, FaShareAlt, FaExternalLinkAlt, FaPhoneAlt, FaStore, FaEnvelope, FaWhatsapp, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaShareAlt, FaExternalLinkAlt, FaPhoneAlt, FaStore, FaEnvelope, FaWhatsapp, FaChevronLeft, FaChevronRight, FaCommentDots } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
 import ReportButton from '@/components/ReportButton';
 import { Avatar } from '@/components/Avatar';
@@ -33,6 +33,8 @@ type BusinessContact = {
   whatsapp?: string | null;
   email?: string | null;
   slug?: string | null;
+  id?: string | null;
+  owner_id?: string | null;
 };
 
 type IndividualSeller = {
@@ -99,6 +101,17 @@ const formatDateLabel = (value?: string | null) => {
 
 const normalizePhone = (value?: string | null) => (value || '').replace(/[^\d+]/g, '');
 
+const formatPriceWithCurrency = (value: string | number | null | undefined) => {
+  if (value == null) return '';
+  const raw = String(value).trim();
+  if (!raw) return '';
+  if (raw.startsWith('$')) return raw;
+  if (/^[A-Za-z]{3}\s+/.test(raw)) return raw;
+  const numeric = Number(raw.replace(/,/g, ''));
+  if (!Number.isNaN(numeric)) return `$${numeric.toLocaleString()}`;
+  return `$${raw}`;
+};
+
 export default function ItemDetailClient() {
   const params = useParams();
   const slug = String(params?.slug || '');
@@ -134,6 +147,23 @@ export default function ItemDetailClient() {
 
   const galleryWidth = galleryRef.current?.offsetWidth ?? 0;
   const numImages = item?.images?.length ?? 0;
+  const itemPreviewImage = item?.images?.[0] || '';
+  const itemPreviewPrice = formatPriceWithCurrency(item?.price);
+  const itemPreviewDescription = (item?.description || '').trim();
+
+  const buildMessageHref = (targetType: 'user' | 'business', targetId: string) => {
+    const params = new URLSearchParams({
+      targetType,
+      targetId,
+    });
+    if (slug) params.set('itemUrl', `/marketplace/${slug}`);
+    if (item?.title) params.set('itemTitle', item.title);
+    if (itemPreviewImage) params.set('itemImage', itemPreviewImage);
+    if (itemPreviewPrice) params.set('itemPrice', itemPreviewPrice);
+    if (itemPreviewDescription) params.set('itemDescription', itemPreviewDescription.slice(0, 700));
+    return `/messages?${params.toString()}`;
+  };
+
   const goPrev = useCallback(() => {
     if (numImages === 0) return;
     setImageIndex((i) => (i === 0 ? numImages - 1 : i - 1));
@@ -356,7 +386,7 @@ export default function ItemDetailClient() {
       if (row.business_id) {
         const { data: businessData } = await supabase
           .from('businesses')
-          .select('business_name, phone, whatsapp, email, slug, address')
+          .select('id, owner_id, business_name, phone, whatsapp, email, slug, address')
           .eq('id', row.business_id)
           .maybeSingle();
         if (!cancelled && businessData) {
@@ -745,39 +775,44 @@ export default function ItemDetailClient() {
                   </div>
                 </Link>
               </div>
-              {(individualSeller.contact?.phone || individualSeller.contact?.whatsapp || individualSeller.contact?.email) && (
-                <div className="flex flex-wrap gap-3">
-                  {individualSeller.contact?.phone && (
-                    <a
-                      href={`tel:${normalizePhone(individualSeller.contact.phone)}`}
-                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-emerald-700 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-                    >
-                      <FaPhoneAlt className="h-4 w-4 opacity-90" />
-                      Call
-                    </a>
-                  )}
-                  {individualSeller.contact?.whatsapp && (
-                    <a
-                      href={`https://wa.me/${normalizePhone(individualSeller.contact.whatsapp)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-[#20BD5A] hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-                    >
-                      <FaWhatsapp className="h-5 w-5" />
-                      WhatsApp
-                    </a>
-                  )}
-                  {individualSeller.contact?.email && (
-                    <a
-                      href={`mailto:${individualSeller.contact.email}`}
-                      className="inline-flex items-center gap-2 rounded-xl bg-slate-700 text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-slate-800 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
-                    >
-                      <FaEnvelope className="h-4 w-4 opacity-90" />
-                      Email
-                    </a>
-                  )}
-                </div>
-              )}
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href={buildMessageHref('user', individualSeller.user_id)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-indigo-700 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                >
+                  <FaCommentDots className="h-4 w-4 opacity-90" />
+                  DM seller
+                </Link>
+                {individualSeller.contact?.phone && (
+                  <a
+                    href={`tel:${normalizePhone(individualSeller.contact.phone)}`}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-emerald-700 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                  >
+                    <FaPhoneAlt className="h-4 w-4 opacity-90" />
+                    Call
+                  </a>
+                )}
+                {individualSeller.contact?.whatsapp && (
+                  <a
+                    href={`https://wa.me/${normalizePhone(individualSeller.contact.whatsapp)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-[#20BD5A] hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                  >
+                    <FaWhatsapp className="h-5 w-5" />
+                    WhatsApp
+                  </a>
+                )}
+                {individualSeller.contact?.email && (
+                  <a
+                    href={`mailto:${individualSeller.contact.email}`}
+                    className="inline-flex items-center gap-2 rounded-xl bg-slate-700 text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-slate-800 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                  >
+                    <FaEnvelope className="h-4 w-4 opacity-90" />
+                    Email
+                  </a>
+                )}
+              </div>
             </>
           ) : business ? (
             <>
@@ -802,6 +837,15 @@ export default function ItemDetailClient() {
                 </Link>
               </div>
               <div className="flex flex-wrap gap-3">
+                {business.id && (
+                  <Link
+                    href={buildMessageHref('business', business.id)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-indigo-700 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                  >
+                    <FaCommentDots className="h-4 w-4 opacity-90" />
+                    DM seller
+                  </Link>
+                )}
                 {business.phone && (
                   <a
                     href={`tel:${normalizePhone(business.phone)}`}

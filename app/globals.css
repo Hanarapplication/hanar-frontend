@@ -175,20 +175,29 @@ a:active,
   background-size: 800px 100%;
 }
 
-/* ── Page enter animation (used by transition wrapper) ── */
-@keyframes pageEnter {
+/* ── Route transition animation (used by app shell wrapper) ── */
+@keyframes routeSwapSoft {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(10px) scale(0.995);
+    filter: blur(2px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
 
-.animate-page-enter {
-  animation: pageEnter 0.25s ease-out both;
+.animate-route-swap-soft {
+  animation: routeSwapSoft 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity, filter;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-route-swap-soft {
+    animation: none;
+  }
 }
 
 @layer utilities {

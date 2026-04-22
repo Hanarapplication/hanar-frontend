@@ -1754,64 +1754,86 @@ const formatDateLabel = (value?: string | null) => {
           </div>
         )}
 
-        <div className="border-b border-white/20 bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 shadow-sm dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700">
-          {!composerExpanded ? (
-            <div className="px-0 py-2 sm:py-2.5">
+        <div className="bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700">
+          <div
+            className={`overflow-hidden px-0 transition-[max-height,opacity,transform] duration-300 ease-out ${
+              composerExpanded ? 'pointer-events-none' : 'pointer-events-auto'
+            }`}
+            style={{
+              maxHeight: composerExpanded ? '0px' : '110px',
+              opacity: composerExpanded ? 0 : 1,
+              transform: composerExpanded ? 'translateY(-8px)' : 'translateY(0)',
+            }}
+            aria-hidden={composerExpanded}
+          >
+            <div className="py-2 sm:py-2.5">
               <button
                 type="button"
                 onClick={() => {
                   if (!requireLogin()) return;
                   setComposerExpanded(true);
                 }}
-                className="group relative flex w-full min-h-[2.75rem] items-center gap-2.5 rounded-none border-b border-white/20 bg-white/10 py-2.5 pl-3.5 pr-3.5 text-left shadow-sm transition-all duration-200 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45"
+                className="group relative flex w-full min-h-[2.75rem] items-center gap-2.5 rounded-none bg-transparent py-2.5 pl-3.5 pr-3.5 text-left transition-colors duration-200 hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45"
                 aria-label="Ask — write a post"
               >
-                <span className="shrink-0 select-none rounded-full bg-white/20 px-2.5 py-1 text-sm font-semibold tracking-wide text-white shadow-sm ring-1 ring-white/25 transition group-hover:bg-white/25">
+                <span className="shrink-0 select-none px-2.5 py-1 text-sm font-semibold tracking-wide text-white">
                   Ask
                 </span>
-                <div className="pointer-events-none min-w-0 flex-1 rounded-xl border border-white/35 bg-white/95 px-3 py-2 shadow-inner shadow-black/10 dark:bg-white/90">
-                  <span className="block truncate text-sm text-slate-500 dark:text-slate-600">Ask the community...</span>
+                <div className="pointer-events-none min-w-0 flex-1 rounded-xl bg-white px-3 py-2">
+                  <span className="block truncate text-sm text-slate-500">Ask the community...</span>
                 </div>
               </button>
             </div>
-          ) : (
-            <div className="overflow-hidden" role="region" aria-labelledby="home-compose-post-title">
-              <div className="flex items-center justify-between gap-2 border-b border-white/20 bg-transparent px-3 py-1.5">
-                <span
-                  id="home-compose-post-title"
-                  className="text-sm font-bold tracking-wide text-white"
-                >
-                  Ask
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setComposerExpanded(false)}
-                  className="rounded-full p-1.5 text-white/90 transition hover:bg-white/15 hover:text-white"
-                  aria-label="Close composer"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="max-h-[min(85dvh,880px)] overflow-y-auto overscroll-contain bg-white px-1 pb-2 sm:px-2 sm:pb-2 dark:bg-white">
-                <Suspense
-                  fallback={
-                    <div className="flex justify-center py-12 text-sm text-slate-500 dark:text-gray-400">
-                      Loading...
-                    </div>
-                  }
-                >
-                  <CreateCommunityPostClient
-                    embed="inline"
-                    onCloseRequest={() => setComposerExpanded(false)}
-                    onPublished={() => {
-                      void refreshFeed();
-                      setComposerExpanded(false);
-                    }}
-                  />
-                </Suspense>
-              </div>
+          </div>
+
+          <div
+            className={`overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out ${
+              composerExpanded ? 'pointer-events-auto' : 'pointer-events-none'
+            }`}
+            style={{
+              maxHeight: composerExpanded ? 'min(85dvh,940px)' : '0px',
+              opacity: composerExpanded ? 1 : 0,
+              transform: composerExpanded ? 'translateY(0)' : 'translateY(-8px)',
+            }}
+            role="region"
+            aria-labelledby="home-compose-post-title"
+            aria-hidden={!composerExpanded}
+          >
+            <div className="flex items-center justify-between gap-2 bg-transparent px-3 py-1.5">
+              <span
+                id="home-compose-post-title"
+                className="text-sm font-bold tracking-wide text-white"
+              >
+                Ask
+              </span>
+              <button
+                type="button"
+                onClick={() => setComposerExpanded(false)}
+                className="rounded-full p-1.5 text-white/90 transition hover:bg-white/15 hover:text-white"
+                aria-label="Close composer"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-          )}
+            <div className="max-h-[min(85dvh,880px)] overflow-y-auto overscroll-contain bg-white px-1 pb-2 sm:px-2 sm:pb-2 dark:bg-white">
+              <Suspense
+                fallback={
+                  <div className="flex justify-center py-12 text-sm text-slate-500 dark:text-gray-400">
+                    Loading...
+                  </div>
+                }
+              >
+                <CreateCommunityPostClient
+                  embed="inline"
+                  onCloseRequest={() => setComposerExpanded(false)}
+                  onPublished={() => {
+                    void refreshFeed();
+                    setComposerExpanded(false);
+                  }}
+                />
+              </Suspense>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 border-b border-black dark:border-gray-500 bg-white px-3 py-2.5 shadow-sm dark:bg-gray-800 sm:px-4">

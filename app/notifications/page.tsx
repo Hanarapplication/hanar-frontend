@@ -31,6 +31,7 @@ export default function NotificationsPage() {
   const [hasMore, setHasMore] = useState(true);
   const pageRef = useRef(0);
   const rawOffsetRef = useRef(0);
+  const visibleCountRef = useRef(6);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadMoreLockRef = useRef(false);
   const PAGE_SIZE = 6;
@@ -74,6 +75,10 @@ export default function NotificationsPage() {
 
     return { visible, nextOffset: offset, hasMore: !reachedEnd };
   };
+
+  useEffect(() => {
+    visibleCountRef.current = Math.max(PAGE_SIZE, notifications.length || PAGE_SIZE);
+  }, [notifications.length]);
 
   const markAsRead = async (id: string) => {
     const nowIso = new Date().toISOString();
@@ -136,6 +141,7 @@ export default function NotificationsPage() {
         rawOffsetRef.current = nextOffset;
         setHasMore(more);
         setNotifications(visible.slice(0, PAGE_SIZE));
+        visibleCountRef.current = PAGE_SIZE;
       } catch (err: any) {
         toast.error(err?.message || t(effectiveLang, 'Failed to load notifications'));
       } finally {
@@ -145,6 +151,42 @@ export default function NotificationsPage() {
 
     load();
   }, [router]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`notifications-page-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        async () => {
+          try {
+            const desiredCount = Math.max(PAGE_SIZE, visibleCountRef.current || PAGE_SIZE);
+            const { visible, nextOffset, hasMore: more } = await fetchVisibleBatch(
+              userId,
+              ownBusinessIds,
+              0,
+              desiredCount
+            );
+            rawOffsetRef.current = nextOffset;
+            setHasMore(more);
+            setNotifications(visible.slice(0, desiredCount));
+          } catch {
+            // Ignore realtime refresh failures; next manual refresh/load-more will recover.
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, ownBusinessIds.join('|')]);
 
   useEffect(() => {
     if (!userId || !hasMore) return;
