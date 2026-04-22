@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { ArrowLeft, Check, CheckCheck, ExternalLink, Eye, Image as ImageIcon, Send } from 'lucide-react';
@@ -46,7 +46,7 @@ const ITEM_REF_PREFIX = '[ITEM_REF]';
 
 const shortUser = (userId: string) => `User ${userId.slice(0, 6)}`;
 
-export default function MessagesPage() {
+function MessagesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -1655,5 +1655,19 @@ export default function MessagesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-5xl px-4 py-10">
+          <p className="text-sm text-slate-500">Loading messages...</p>
+        </div>
+      }
+    >
+      <MessagesPageContent />
+    </Suspense>
   );
 }
