@@ -6,7 +6,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { User, Users, Globe, Building2, ShoppingBag, PenSquare, Camera, Tag, Trash2, ImagePlus, Video, X, Ban } from 'lucide-react';
+import { User, Users, Globe, Building2, ShoppingBag, PenSquare, Camera, Tag, ImagePlus, Video, X, Ban, CircleHelp, Phone, Settings, LogOut } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { Avatar } from '@/components/Avatar';
 import { useLanguage } from '@/context/LanguageContext';
@@ -146,13 +146,24 @@ function DashboardContent() {
     }
   }, [searchParams, router, effectiveLang]);
 
+  const handleHeaderLogout = async () => {
+    await supabase.auth.signOut();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('userType');
+    }
+    router.push('/login');
+  };
+
   const burgerItems = [
     ...(profile?.username ? [{ label: t(effectiveLang, 'View Profile'), href: `/profile/${profile.username}`, icon: <User className="h-5 w-5 shrink-0" />, color: 'bg-indigo-50 dark:bg-indigo-900/30' }] : []),
     { label: t(effectiveLang, 'Followers only'), subtitle: t(effectiveLang, 'Post to your profile — only followers see it'), href: '/community/post?visibility=profile', icon: <Users className="h-5 w-5 shrink-0" />, color: 'bg-violet-50 dark:bg-violet-900/30' },
     { label: t(effectiveLang, 'Public (Community)'), subtitle: t(effectiveLang, 'Post to Community feed — everyone can see it'), href: '/community/post?visibility=community', icon: <Globe className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
     { label: t(effectiveLang, 'Blocked accounts'), subtitle: t(effectiveLang, 'People you blocked or who blocked you'), href: '/dashboard/blocked', icon: <Ban className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-gray-800/80' },
     { label: t(effectiveLang, 'Sell Item'), href: '/marketplace/post', icon: <Tag className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
-    { label: t(effectiveLang, 'Delete My Account'), href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
+    { label: t(effectiveLang, 'faq'), href: '/faq', icon: <CircleHelp className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
+    { label: t(effectiveLang, 'contact'), href: '/contact', icon: <Phone className="h-5 w-5 shrink-0" />, color: 'bg-cyan-50 dark:bg-cyan-900/30' },
+    { label: t(effectiveLang, 'settings'), href: '/settings', icon: <Settings className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-slate-800/80' },
+    { label: t(effectiveLang, 'logout'), onClick: handleHeaderLogout, icon: <LogOut className="h-5 w-5 shrink-0" />, color: 'bg-slate-200 dark:bg-slate-700/80' },
   ];
 
   useEffect(() => {

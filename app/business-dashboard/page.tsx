@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { Edit, Eye, Crown, BarChart3, Megaphone, ChevronDown, ChevronUp, X, Image, Bell, Trash2, Download, FileText, Palette } from 'lucide-react';
+import { Edit, Eye, Crown, BarChart3, Megaphone, ChevronDown, ChevronUp, X, Image, Bell, Trash2, Download, FileText, Palette, CircleHelp, Phone, Settings, LogOut } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { isAppIOS, withAppParam } from '@/utils/isAppIOS';
 
@@ -1000,6 +1000,14 @@ function BusinessDashboardContent() {
     }
   };
 
+  const handleHeaderLogout = async () => {
+    await supabase.auth.signOut();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('userType');
+    }
+    router.push('/login');
+  };
+
   const burgerItems = [
     { label: 'Edit Business', href: `/businesses/edit/${business.slug}`, icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
     { label: 'View full insights', href: '/business-dashboard/insights', icon: <BarChart3 className="h-5 w-5 shrink-0" />, color: 'bg-indigo-50 dark:bg-indigo-900/30' },
@@ -1009,13 +1017,16 @@ function BusinessDashboardContent() {
     { label: 'Business page colors', onClick: () => setPageColorsOpen(true), icon: <Palette className="h-5 w-5 shrink-0" />, color: 'bg-cyan-50 dark:bg-cyan-900/30' },
     { label: 'My posts', onClick: () => { setMyPostsExpanded(true); setTimeout(() => document.getElementById('my-posts')?.scrollIntoView({ behavior: 'smooth' }), 100); }, icon: <FileText className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
     { label: 'My banners', onClick: () => { setPromotionBannersExpanded(true); setTimeout(() => document.getElementById('my-banners')?.scrollIntoView({ behavior: 'smooth' }), 100); }, icon: <Image className="h-5 w-5 shrink-0" />, color: 'bg-violet-50 dark:bg-violet-900/30' },
+    { label: 'FAQ', href: '/faq', icon: <CircleHelp className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
+    { label: 'Contact', href: '/contact', icon: <Phone className="h-5 w-5 shrink-0" />, color: 'bg-cyan-50 dark:bg-cyan-900/30' },
+    { label: 'Settings', href: '/settings', icon: <Settings className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-slate-800/80' },
     { label: business.trial_end && business.plan === 'premium'
         ? `Premium Trial · ${getDaysRemaining(business.trial_end) > 0 ? `${getDaysRemaining(business.trial_end)} days left` : 'Ended'}`
         : business.plan_expires_at && !business.trial_end && business.plan && business.plan !== 'free'
         ? `${String(business.plan).toUpperCase()} Plan · Renews ${formatExpiryDate(business.plan_expires_at)}`
         : 'Manage Plan',
       href: appIOS ? withAppParam('/dashboard/account', true) : '/business/plan', icon: <Crown className="h-5 w-5 shrink-0" />, color: 'bg-amber-50 dark:bg-amber-900/30' },
-    { label: 'Delete My Account', href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
+    { label: 'Logout', onClick: handleHeaderLogout, icon: <LogOut className="h-5 w-5 shrink-0" />, color: 'bg-slate-200 dark:bg-slate-700/80' },
   ];
   const pagePreviewBackground = buildBrandBackground(
     sanitizeHexColor(slugPrimaryColorInput, DEFAULT_SLUG_PRIMARY),

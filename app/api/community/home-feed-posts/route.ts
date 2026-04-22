@@ -47,6 +47,70 @@ type Body = {
 
 type PostRow = Record<string, unknown> & { id: string; created_at: string };
 
+async function enrichPostAvatars(posts: PostRow[]): Promise<PostRow[]> {
+  if (posts.length === 0) return posts;
+  const userIds = Array.from(new Set(posts.map((p) => p.user_id).filter(Boolean) as string[]));
+  const orgIds = Array.from(new Set(posts.map((p) => p.org_id).filter(Boolean) as string[]));
+  const businessSlugs = Array.from(
+    new Set(
+      posts
+        .map((p) => (typeof p.username === 'string' ? p.username.trim() : ''))
+        .filter((v) => v.length > 0)
+    )
+  );
+
+  const [{ data: profiles }, { data: organizationsByOrgId }, { data: organizationsByUserId }, { data: businesses }, { data: businessesBySlug }] = await Promise.all([
+    userIds.length > 0 ? supabaseAdmin.from('profiles').select('id, profile_pic_url').in('id', userIds) : Promise.resolve({ data: [] }),
+    orgIds.length > 0 ? supabaseAdmin.from('organizations').select('id, logo_url').in('id', orgIds) : Promise.resolve({ data: [] }),
+    userIds.length > 0 ? supabaseAdmin.from('organizations').select('user_id, logo_url').in('user_id', userIds) : Promise.resolve({ data: [] }),
+    userIds.length > 0
+      ? supabaseAdmin
+          .from('businesses')
+          .select('owner_id, logo_url, created_at')
+          .in('owner_id', userIds)
+          .order('created_at', { ascending: false })
+      : Promise.resolve({ data: [] }),
+    businessSlugs.length > 0
+      ? supabaseAdmin
+          .from('businesses')
+          .select('slug, logo_url')
+          .in('slug', businessSlugs)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const profileMap = new Map((profiles || []).map((p: { id: string; profile_pic_url: string | null }) => [p.id, p.profile_pic_url]));
+  const orgIdMap = new Map((organizationsByOrgId || []).map((o: { id: string; logo_url: string | null }) => [o.id, o.logo_url]));
+  const orgUserMap = new Map((organizationsByUserId || []).map((o: { user_id: string; logo_url: string | null }) => [o.user_id, o.logo_url]));
+  const businessMap = new Map<string, string | null>();
+  for (const row of (businesses || []) as Array<{ owner_id: string; logo_url: string | null }>) {
+    if (!businessMap.has(row.owner_id)) businessMap.set(row.owner_id, row.logo_url ?? null);
+  }
+  const businessSlugMap = new Map((businessesBySlug || []).map((b: { slug: string; logo_url: string | null }) => [b.slug, b.logo_url]));
+
+  return posts.map((p) => {
+    const authorType = String(p.author_type || '').toLowerCase();
+    const userId = (p.user_id as string | null) || null;
+    const orgId = (p.org_id as string | null) || null;
+    const username = typeof p.username === 'string' ? p.username.trim() : '';
+    const profilePic = userId ? profileMap.get(userId) ?? null : null;
+    const orgLogo = orgId ? orgIdMap.get(orgId) ?? null : userId ? orgUserMap.get(userId) ?? null : null;
+    const businessLogo = userId ? businessMap.get(userId) ?? null : null;
+    const businessLogoBySlug = username ? businessSlugMap.get(username) ?? null : null;
+
+    if (authorType === 'organization') {
+      return { ...p, logo_url: orgLogo ?? null, profile_pic_url: profilePic ?? null };
+    }
+    if (authorType === 'business') {
+      return { ...p, logo_url: businessLogo ?? businessLogoBySlug ?? orgLogo ?? null, profile_pic_url: profilePic ?? null };
+    }
+    // Legacy rows may not have author_type='business' but still use business slug as username.
+    if (businessLogoBySlug) {
+      return { ...p, logo_url: businessLogoBySlug, profile_pic_url: profilePic ?? null };
+    }
+    return { ...p, profile_pic_url: profilePic ?? orgLogo ?? businessLogo ?? null };
+  });
+}
+
 function normalizeFeedLang(raw: string | null | undefined): string | null {
   if (raw == null || typeof raw !== 'string') return null;
   const t = raw.trim().toLowerCase();
@@ -285,7 +349,8 @@ export async function POST(req: Request) {
           community_comments: [{ count: commentCount }],
         };
       });
-      return NextResponse.json({ posts: top });
+      const enrichedTop = await enrichPostAvatars(top);
+      return NextResponse.json({ posts: enrichedTop });
     }
 
     const ctx = await getHomeRankContext(supabaseAdmin, {
@@ -341,8 +406,8 @@ export async function POST(req: Request) {
       community_comments: [{ count: row.commentCount }],
       home_rank_score: row.home_rank_score,
     }));
-
-    return NextResponse.json({ posts: top });
+    const enrichedTop = await enrichPostAvatars(top);
+    return NextResponse.json({ posts: enrichedTop });
   } catch (err) {
     console.error('[home-feed-posts]', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

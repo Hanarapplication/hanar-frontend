@@ -637,7 +637,7 @@ export default function BusinessesPage() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="line-clamp-1 text-2xl font-semibold text-slate-900 group-hover:text-[#d32323]">
+            <h3 className="line-clamp-1 text-lg font-semibold text-slate-900 group-hover:text-[#d32323]">
               {biz.business_name}
             </h3>
             <button
@@ -652,11 +652,14 @@ export default function BusinessesPage() {
             {'★'.repeat(isPremium(biz) ? 5 : 4)}
             <span className="ml-1 text-slate-500">{isPremium(biz) ? 'Premium' : 'New'}</span>
           </p>
-          <p className="mt-1 line-clamp-1 text-lg text-slate-600">
-            {[displayCategory, locationText === 'Location not available' ? t(effectiveLang, 'Location not available') : locationText]
-              .filter(Boolean)
-              .join(' • ')}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            {displayCategory ? (
+              <span className="line-clamp-1 text-sm text-slate-600">{displayCategory}</span>
+            ) : null}
+            <span className="inline-flex items-center rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+              {locationText === 'Location not available' ? t(effectiveLang, 'Location not available') : locationText}
+            </span>
+          </div>
           {userCoords && bizCoords && (
             <p className="mt-0.5 text-xs text-slate-500">
               {getDistanceMiles(userCoords.lat, userCoords.lon, bizCoords.lat, bizCoords.lon).toFixed(1)} mi away
@@ -681,30 +684,40 @@ export default function BusinessesPage() {
     <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
       <div className="mx-auto max-w-[66rem] px-3 pt-0">
         {/* Search and location bar (Hanar nav gradient — matches home Ask strip) */}
-        <div className="sticky top-0 z-10 -mx-3 mb-5 border-b border-white/20 bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 px-3 pb-3 pt-0 shadow-sm sm:-mx-5 sm:mb-6 sm:px-5 dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700">
+        <div className="sticky top-0 z-10 -mx-3 mb-0 border-b border-slate-200 bg-slate-100 px-3 pb-3 pt-0 shadow-sm sm:-mx-5 sm:mb-0 sm:px-5 dark:border-slate-200 dark:bg-slate-100">
           <div className="mx-auto max-w-3xl">
             <button
               type="button"
               onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
-              className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-white/25 bg-white/15 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-white/20"
+              className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
-              <FaMapMarkerAlt className="h-3.5 w-3.5 text-white/90" />
+              <FaMapMarkerAlt className="h-3.5 w-3.5 text-slate-600" />
               <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose location')}</span>
               {locationLabel && (
-                <span className="text-[10px] text-white/75">{radius} mi</span>
+                <span className="text-[10px] text-slate-500">{radius} mi</span>
               )}
             </button>
 
-            <div className="flex overflow-hidden rounded-md border border-white/35 bg-white/95 shadow-inner shadow-black/10 dark:bg-white/90">
+            <div className="flex overflow-hidden rounded-md border border-white/35 bg-slate-100 shadow-inner shadow-black/10 dark:bg-slate-100">
               <div className="hidden items-center border-r border-slate-200/90 bg-slate-50/95 px-3 text-[11px] font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200 sm:flex">
                 All
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (query.trim()) setVisibleCount(6);
+                }}
+                className="inline-flex items-center justify-center border-r border-slate-200/90 bg-gradient-to-r from-blue-600 to-emerald-600 px-4 text-white transition hover:from-blue-500 hover:to-emerald-500 dark:border-slate-600 dark:from-blue-600 dark:to-emerald-600 dark:hover:from-blue-500 dark:hover:to-emerald-500"
+                aria-label={t(effectiveLang, 'Search')}
+              >
+                <FaSearch className="h-4 w-4" />
+              </button>
               <div className="relative min-w-0 flex-1">
                 <input
                   placeholder={t(effectiveLang, 'Find a restaurant, salon, gym...')}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                className="w-full border-0 bg-transparent py-2.5 pl-3 pr-14 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none dark:text-slate-100 dark:placeholder:text-slate-400"
+                className="w-full border-0 bg-white py-2.5 pl-3 pr-14 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-500"
                 />
                 {searching && (
                   <span className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 dark:text-slate-400">
@@ -712,16 +725,6 @@ export default function BusinessesPage() {
                   </span>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (query.trim()) setVisibleCount(6);
-                }}
-                className="inline-flex items-center justify-center bg-gradient-to-r from-blue-600 to-emerald-600 px-4 text-white transition hover:from-blue-500 hover:to-emerald-500 dark:from-blue-600 dark:to-emerald-600 dark:hover:from-blue-500 dark:hover:to-emerald-500"
-                aria-label={t(effectiveLang, 'Search')}
-              >
-                <FaSearch className="h-4 w-4" />
-              </button>
             </div>
           </div>
         </div>
@@ -871,7 +874,7 @@ export default function BusinessesPage() {
         )}
 
         {/* Yelp-style quick actions */}
-        <section className="mb-6 rounded-none border-y border-slate-200 bg-white px-3 py-4">
+        <section className="mb-0 rounded-none border-y border-slate-200 bg-white px-3 py-4">
           <div className="grid grid-cols-4 gap-y-3 sm:grid-cols-6">
             {quickFilters.map((item) => (
               <button
@@ -892,7 +895,7 @@ export default function BusinessesPage() {
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-base">
                   {item.icon}
                 </span>
-                <span className={`text-[10px] font-medium leading-tight ${selectedCategoryFilter === item.key ? 'text-[#d32323]' : 'text-slate-700'}`}>
+                <span className={`text-xs font-medium leading-tight ${selectedCategoryFilter === item.key ? 'text-[#d32323]' : 'text-slate-700'}`}>
                   {item.label}
                 </span>
               </button>
@@ -902,7 +905,7 @@ export default function BusinessesPage() {
 
         {/* Services & Professionals */}
         <section className="mb-6 rounded-none border-y border-slate-200 bg-white px-3 py-4">
-          <h2 className="mb-3 text-3xl font-semibold text-slate-900 tracking-tight">
+          <h2 className="mb-3 text-base font-semibold text-slate-900 tracking-tight">
             Services &amp; Professionals
           </h2>
           <div
@@ -925,7 +928,9 @@ export default function BusinessesPage() {
                     className="h-28 w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 </div>
-                <p className="mt-2 line-clamp-1 text-lg font-semibold text-slate-900">{formatBusinessCategory(biz.subcategory || biz.category) || 'Business'}</p>
+                <p className="mt-2 inline-flex max-w-full items-center rounded-md bg-blue-100 px-2 py-1 line-clamp-1 text-sm font-semibold text-blue-700">
+                  {formatBusinessCategory(biz.subcategory || biz.category) || 'Business'}
+                </p>
               </Link>
             ))}
           </div>
@@ -934,7 +939,7 @@ export default function BusinessesPage() {
         {/* Yelp-style nearby list */}
         <section className="rounded-none border-y border-slate-200 bg-white">
           <div className="px-3 py-4">
-            <h2 className="text-3xl font-semibold tracking-tight text-slate-900">Hot New Businesses Nearby</h2>
+            <h2 className="text-base font-semibold tracking-tight text-slate-900">Hot New Businesses Nearby</h2>
           </div>
           {areaFilterActive && filtered.length === 0 && (
             <div className="mx-3 mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export const HANAR_AVATAR_URL = '/hanar.logo.png';
 
@@ -26,6 +26,11 @@ type AvatarProps = {
  */
 export function Avatar({ src, alt = '', className = '', unframed = false }: AvatarProps) {
   const [useFallback, setUseFallback] = useState(!src);
+
+  useEffect(() => {
+    setUseFallback(!src);
+  }, [src]);
+
   const effectiveSrc = src && !useFallback ? src : HANAR_AVATAR_URL;
   const isHanar = effectiveSrc === HANAR_AVATAR_URL || useFallback;
   const frame = unframed ? '' : AVATAR_GOLD_RING;

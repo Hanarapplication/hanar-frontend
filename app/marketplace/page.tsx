@@ -1075,26 +1075,38 @@ export default function MarketplacePage() {
     <div className="min-h-screen bg-[#eaeded] pb-10 dark:bg-[#111827]">
     <div className="mx-auto max-w-[66rem] px-3 pt-0">
       {/* Search and location bar (Hanar nav gradient — matches home Ask strip) */}
-      <div className="sticky top-0 z-10 -mx-3 mb-6 border-b border-white/20 bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 px-3 pb-3 pt-2 shadow-sm dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700">
+      <div className="sticky top-0 z-10 -mx-3 mb-0 border-b border-slate-200 bg-slate-100 px-3 pb-3 pt-2 shadow-sm dark:border-slate-200 dark:bg-slate-100">
         <div className="mx-auto max-w-3xl">
           <button
             type="button"
             onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
-            className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-white/25 bg-white/15 px-3 py-1.5 text-[11px] font-medium text-white shadow-sm transition hover:bg-white/20"
+            className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
-            <FaMapMarkerAlt className="h-3.5 w-3.5 text-white/90" />
+            <FaMapMarkerAlt className="h-3.5 w-3.5 text-slate-600" />
             <span className="max-w-[11rem] truncate">{locationLabel || 'Choose delivery location'}</span>
-            {locationLabel && locationScope.mode === 'country' && <span className="text-[10px] text-white/75">Country</span>}
-            {locationLabel && locationScope.mode === 'state' && <span className="text-[10px] text-white/75">State</span>}
+            {locationLabel && locationScope.mode === 'country' && <span className="text-[10px] text-slate-500">Country</span>}
+            {locationLabel && locationScope.mode === 'state' && <span className="text-[10px] text-slate-500">State</span>}
             {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && userCoords && (
-              <span className="text-[10px] text-white/75">{radius} mi</span>
+              <span className="text-[10px] text-slate-500">{radius} mi</span>
             )}
           </button>
 
-          <div className="flex overflow-hidden rounded-md border border-white/35 bg-white/95 shadow-inner shadow-black/10 dark:bg-white/90">
+          <div className="flex overflow-hidden rounded-md border border-white/35 bg-slate-100 shadow-inner shadow-black/10 dark:bg-slate-100">
               <div className="hidden items-center border-r border-slate-200/90 bg-slate-50/95 px-3 text-[11px] font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200">
                 All categories
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (searchTerm.trim()) void addToRecentSearches(searchTerm);
+              }}
+              className="inline-flex items-center justify-center border-r border-slate-200/90 bg-gradient-to-r from-blue-600 to-emerald-600 px-4 text-white transition hover:from-blue-500 hover:to-emerald-500 dark:border-slate-600 dark:from-blue-600 dark:to-emerald-600 dark:hover:from-blue-500 dark:hover:to-emerald-500"
+              aria-label="Search marketplace"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
             <div className="relative min-w-0 flex-1">
               <input
                 type="text"
@@ -1103,7 +1115,7 @@ export default function MarketplacePage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
                 onBlur={handleSearchBlur}
-                className="w-full border-0 bg-transparent py-2.5 pl-3 pr-10 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none dark:text-slate-100 dark:placeholder:text-slate-400"
+                className="w-full border-0 bg-white py-2.5 pl-3 pr-10 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-500"
               />
               {searchTerm && (
                 <button
@@ -1118,18 +1130,6 @@ export default function MarketplacePage() {
                 </button>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (searchTerm.trim()) void addToRecentSearches(searchTerm);
-              }}
-              className="inline-flex items-center justify-center bg-gradient-to-r from-blue-600 to-emerald-600 px-4 text-white transition hover:from-blue-500 hover:to-emerald-500 dark:from-blue-600 dark:to-emerald-600 dark:hover:from-blue-500 dark:hover:to-emerald-500"
-              aria-label="Search marketplace"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </button>
           </div>
         </div>
       </div>

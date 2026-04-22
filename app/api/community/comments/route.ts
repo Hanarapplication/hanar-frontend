@@ -36,19 +36,74 @@ export async function GET(req: Request) {
     }
     const commentIds = list.map((c: { id: string }) => c.id);
     const userIds = [...new Set(list.map((c: { user_id: string | null }) => c.user_id).filter(Boolean))] as string[];
+    const usernames = [
+      ...new Set(
+        list
+          .map((c: { username?: string | null }) => (typeof c.username === 'string' ? c.username.trim().toLowerCase() : ''))
+          .filter(Boolean)
+      ),
+    ] as string[];
 
     let profileMap: Record<string, { profile_pic_url: string | null }> = {};
-    if (userIds.length > 0) {
-      const { data: profiles } = await supabaseAdmin
-        .from('profiles')
-        .select('id, profile_pic_url')
-        .in('id', userIds);
+    let orgLogoMap: Record<string, string | null> = {};
+    let businessLogoMap: Record<string, string | null> = {};
+    let businessSlugMap: Record<string, string | null> = {};
+    if (userIds.length > 0 || usernames.length > 0) {
+      const [{ data: profiles }, { data: organizations }, { data: businesses }, { data: businessesBySlug }] = await Promise.all([
+        userIds.length > 0
+          ? supabaseAdmin
+              .from('profiles')
+              .select('id, profile_pic_url')
+              .in('id', userIds)
+          : Promise.resolve({ data: [] }),
+        userIds.length > 0
+          ? supabaseAdmin
+              .from('organizations')
+              .select('user_id, logo_url')
+              .in('user_id', userIds)
+          : Promise.resolve({ data: [] }),
+        userIds.length > 0
+          ? supabaseAdmin
+              .from('businesses')
+              .select('owner_id, logo_url, created_at')
+              .in('owner_id', userIds)
+              .order('created_at', { ascending: false })
+          : Promise.resolve({ data: [] }),
+        usernames.length > 0
+          ? supabaseAdmin
+              .from('businesses')
+              .select('slug, logo_url')
+              .in('slug', usernames)
+          : Promise.resolve({ data: [] }),
+      ]);
       profileMap = (profiles || []).reduce(
         (acc, p: { id: string; profile_pic_url: string | null }) => {
           acc[p.id] = { profile_pic_url: p.profile_pic_url ?? null };
           return acc;
         },
         {} as Record<string, { profile_pic_url: string | null }>
+      );
+      orgLogoMap = (organizations || []).reduce(
+        (acc, o: { user_id: string; logo_url: string | null }) => {
+          if (!(o.user_id in acc)) acc[o.user_id] = o.logo_url ?? null;
+          return acc;
+        },
+        {} as Record<string, string | null>
+      );
+      businessLogoMap = (businesses || []).reduce(
+        (acc, b: { owner_id: string; logo_url: string | null }) => {
+          if (!(b.owner_id in acc)) acc[b.owner_id] = b.logo_url ?? null;
+          return acc;
+        },
+        {} as Record<string, string | null>
+      );
+      businessSlugMap = (businessesBySlug || []).reduce(
+        (acc, b: { slug: string; logo_url: string | null }) => {
+          const key = String(b.slug || '').trim().toLowerCase();
+          if (key && !(key in acc)) acc[key] = b.logo_url ?? null;
+          return acc;
+        },
+        {} as Record<string, string | null>
       );
     }
 
@@ -62,11 +117,31 @@ export async function GET(req: Request) {
       likedCommentIds = new Set((likes || []).map((r: { comment_id: string }) => r.comment_id));
     }
 
-    const commentsWithProfiles = list.map((c: { id: string; user_id: string | null }) => ({
-      ...c,
-      profiles: c.user_id ? profileMap[c.user_id] ?? null : null,
-      user_liked: likedCommentIds.has(c.id),
-    }));
+    const commentsWithProfiles = list.map((c: { id: string; user_id: string | null; author_type?: string | null; username?: string | null }) => {
+      const usernameKey = typeof c.username === 'string' ? c.username.trim().toLowerCase() : '';
+      const slugLogo = usernameKey ? businessSlugMap[usernameKey] ?? null : null;
+      const ownerLogo = c.user_id ? businessLogoMap[c.user_id] ?? null : null;
+      const orgLogo = c.user_id ? orgLogoMap[c.user_id] ?? null : null;
+      const profilePic = c.user_id ? profileMap[c.user_id]?.profile_pic_url ?? null : null;
+
+      return {
+        ...c,
+        profiles: c.user_id ? profileMap[c.user_id] ?? null : null,
+        logo_url:
+          c.user_id && c.author_type === 'organization'
+            ? orgLogo
+            : c.user_id && c.author_type === 'business'
+              ? slugLogo ?? ownerLogo
+              : slugLogo,
+        avatar_url:
+          c.user_id && c.author_type === 'organization'
+            ? orgLogo
+            : c.user_id && c.author_type === 'business'
+              ? slugLogo ?? ownerLogo ?? profilePic
+              : slugLogo ?? (c.user_id ? profilePic ?? orgLogo ?? ownerLogo : null),
+        user_liked: likedCommentIds.has(c.id),
+      };
+    });
 
     return NextResponse.json({ comments: commentsWithProfiles });
   } catch (err) {
@@ -89,7 +164,39 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Anonymous commenting is not allowed. Please comment with your profile.' }, { status: 400 });
     }
 
-    const displayAuthor = authorVal || username || 'User';
+    const normalizedUsername = typeof username === 'string' ? username.trim() : '';
+
+    const [{ data: org }, { data: businessBySlug }, { data: latestBusiness }] = await Promise.all([
+      supabaseAdmin
+        .from('organizations')
+        .select('id, logo_url')
+        .eq('user_id', user_id)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('businesses')
+        .select('id, logo_url, business_name, slug')
+        .eq('owner_id', user_id)
+        .eq('slug', normalizedUsername)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('businesses')
+        .select('id, logo_url, business_name, slug, created_at')
+        .eq('owner_id', user_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    const business = businessBySlug || latestBusiness || null;
+    const inferredAuthorType: 'organization' | 'business' | 'user' =
+      business?.id ? 'business' : org?.id ? 'organization' : 'user';
+    const usernameForRow =
+      inferredAuthorType === 'business'
+        ? (business?.slug ? business.slug : normalizedUsername || null)
+        : (normalizedUsername || null);
+    const displayAuthor =
+      inferredAuthorType === 'business'
+        ? (business?.business_name?.trim() || authorVal || usernameForRow || 'User')
+        : authorVal || usernameForRow || 'User';
 
     const { data: postRow } = await supabaseAdmin
       .from('community_posts')
@@ -107,9 +214,9 @@ export async function POST(req: Request) {
         {
           post_id,
           user_id,
-          username: username || null,
+          username: usernameForRow,
           author: displayAuthor,
-          author_type: 'user',
+          author_type: inferredAuthorType,
           body,
           parent_id: null,
           likes: 0,
@@ -155,8 +262,16 @@ export async function POST(req: Request) {
       if (profile) profiles = { profile_pic_url: profile.profile_pic_url ?? null };
     }
 
+    const avatarUrl =
+      inferredAuthorType === 'organization'
+        ? org?.logo_url ?? null
+        : inferredAuthorType === 'business'
+          ? business?.logo_url ?? profiles?.profile_pic_url ?? null
+          : profiles?.profile_pic_url ?? org?.logo_url ?? business?.logo_url ?? null;
+    const logoUrl = inferredAuthorType === 'organization' ? org?.logo_url ?? null : inferredAuthorType === 'business' ? business?.logo_url ?? null : null;
+
     return NextResponse.json({
-      comment: { ...inserted, profiles, likes: inserted?.likes ?? 0 },
+      comment: { ...inserted, profiles, logo_url: logoUrl, avatar_url: avatarUrl, likes: inserted?.likes ?? 0 },
     });
   } catch (err) {
     console.error('[API Error]', err);

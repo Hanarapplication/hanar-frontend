@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Ban, Bell, Edit, Megaphone, Trash2 } from 'lucide-react';
+import { ArrowLeft, Ban, Bell, Edit, Megaphone, CircleHelp, Phone, Settings, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { DashboardBlockedAccountsPanel } from '@/components/DashboardBlockedAccountsPanel';
@@ -17,15 +17,26 @@ function OrganizationBlockedContent() {
   const [allowed, setAllowed] = useState(false);
   const [burgerMenuOpen, setBurgerMenuOpen] = useState(false);
 
+  const handleHeaderLogout = async () => {
+    await supabase.auth.signOut();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('userType');
+    }
+    router.push('/login');
+  };
+
   const orgBurgerItems = useMemo(
     () => [
       { label: t(effectiveLang, 'Edit Organization'), href: '/organization/dashboard#edit-profile', icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
       { label: t(effectiveLang, 'Send Notification'), href: '/organization/dashboard', icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
       { label: t(effectiveLang, 'Promote Event / Message'), href: '/promote?for=organization', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
       { label: t(effectiveLang, 'Blocked accounts'), href: '/organization/dashboard/blocked', icon: <Ban className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-gray-800/80' },
-      { label: t(effectiveLang, 'Delete My Account'), href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
+      { label: t(effectiveLang, 'faq'), href: '/faq', icon: <CircleHelp className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
+      { label: t(effectiveLang, 'contact'), href: '/contact', icon: <Phone className="h-5 w-5 shrink-0" />, color: 'bg-cyan-50 dark:bg-cyan-900/30' },
+      { label: t(effectiveLang, 'settings'), href: '/settings', icon: <Settings className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-slate-800/80' },
+      { label: t(effectiveLang, 'logout'), onClick: handleHeaderLogout, icon: <LogOut className="h-5 w-5 shrink-0" />, color: 'bg-slate-200 dark:bg-slate-700/80' },
     ],
-    [effectiveLang],
+    [effectiveLang, router],
   );
 
   useEffect(() => {

@@ -2,7 +2,7 @@
 
 import { createPortal } from 'react-dom';
 import { Suspense, useEffect, useState, useRef, ChangeEvent, FormEvent, FC } from 'react';
-import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Trash2, Calendar, Eye, Megaphone, User, Building2, Ban } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Calendar, Eye, Megaphone, User, Building2, Ban, CircleHelp, Settings, LogOut } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { Avatar } from '@/components/Avatar';
 import { supabase } from '@/lib/supabaseClient';
@@ -1427,13 +1427,24 @@ function OrganizationDashboardContent() {
       </div>
     );
   }
+
+  const handleHeaderLogout = async () => {
+    await supabase.auth.signOut();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('userType');
+    }
+    router.push('/login');
+  };
   
   const burgerItems = [
     { label: 'Edit Organization', onClick: () => document.getElementById('edit-profile')?.scrollIntoView({ behavior: 'smooth' }), icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
     { label: 'Send Notification', onClick: () => setNotificationModalOpen(true), icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
     { label: 'Promote Event / Message', href: '/promote?for=organization', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
     { label: 'Blocked accounts', href: '/organization/dashboard/blocked', icon: <Ban className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-gray-800/80' },
-    { label: 'Delete My Account', href: '/settings', icon: <Trash2 className="h-5 w-5 shrink-0" />, color: 'bg-red-50 dark:bg-red-900/30' },
+    { label: 'FAQ', href: '/faq', icon: <CircleHelp className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
+    { label: 'Contact', href: '/contact', icon: <Phone className="h-5 w-5 shrink-0" />, color: 'bg-cyan-50 dark:bg-cyan-900/30' },
+    { label: 'Settings', href: '/settings', icon: <Settings className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-slate-800/80' },
+    { label: 'Logout', onClick: handleHeaderLogout, icon: <LogOut className="h-5 w-5 shrink-0" />, color: 'bg-slate-200 dark:bg-slate-700/80' },
   ];
 
   return (

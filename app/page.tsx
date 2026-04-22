@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, Fragment, Suspense }
 import Link from 'next/link';
 import { useKeenSlider } from 'keen-slider/react';
 import Footer from '@/components/Footer';
-import { Trash2, Megaphone, SendHorizontal, X, Search, SlidersHorizontal, ThumbsUp } from 'lucide-react';
+import { Trash2, Megaphone, SendHorizontal, X, Search, ThumbsUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
 import PostActionsBar from '@/components/PostActionsBar';
@@ -101,12 +101,15 @@ type Comment = {
   user_id: string;
   username: string | null;
   author: string | null;
+  author_type?: string | null;
   text?: string;
   body?: string;
   created_at: string;
   likes?: number;
   likes_comment?: number;
   user_liked?: boolean;
+  logo_url?: string | null;
+  avatar_url?: string | null;
   profiles?: { profile_pic_url: string | null } | null;
 };
 
@@ -158,6 +161,31 @@ const getStorageUrl = (bucket: string, path?: string | null) => {
   if (path.startsWith('http')) return path;
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   return `${base}/storage/v1/object/public/${bucket}/${path}`;
+};
+
+const normalizeAvatarUrl = (value?: string | null, buckets: string[] = []) => {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  if (trimmed.startsWith('/storage/v1/object/public/')) {
+    return base ? `${base}${trimmed}` : trimmed;
+  }
+  if (trimmed.startsWith('storage/v1/object/public/')) {
+    return base ? `${base}/${trimmed}` : `/${trimmed}`;
+  }
+  if (trimmed.startsWith('/')) {
+    return trimmed;
+  }
+  for (const bucket of buckets) {
+    const normalizedPath = trimmed.startsWith(`${bucket}/`) ? trimmed.slice(bucket.length + 1) : trimmed;
+    const normalized = getStorageUrl(bucket, normalizedPath);
+    if (normalized) return normalized;
+  }
+  return trimmed;
 };
 
 const normalizeImages = (value: unknown, bucket: string): string[] => {
@@ -643,9 +671,8 @@ export default function Home() {
   const [visibleCount, setVisibleCount] = useState(12);
   const [feedSearchQuery, setFeedSearchQuery] = useState('');
   const [feedSearchOpen, setFeedSearchOpen] = useState(false);
-  const [feedFiltersOpen, setFeedFiltersOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null; displayName: string | null }>({ id: '', username: null, displayName: null });
+  const [currentUser, setCurrentUser] = useState<{ id: string; username: string | null; displayName: string | null; avatarUrl: string | null }>({ id: '', username: null, displayName: null, avatarUrl: null });
   const [composerExpanded, setComposerExpanded] = useState(false);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
@@ -674,21 +701,45 @@ export default function Home() {
     const loadUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setCurrentUser({ id: '', username: null, displayName: null });
+        setCurrentUser({ id: '', username: null, displayName: null, avatarUrl: null });
         setLikedPosts(new Set());
         return;
       }
 
-      const { data: account } = await supabase
-        .from('registeredaccounts')
-        .select('username, full_name')
-        .eq('user_id', user.id)
-        .single();
+      const [{ data: account }, { data: profile }, { data: org }, { data: business }] = await Promise.all([
+        supabase
+          .from('registeredaccounts')
+          .select('username, full_name')
+          .eq('user_id', user.id)
+          .single(),
+        supabase
+          .from('profiles')
+          .select('profile_pic_url')
+          .eq('id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('organizations')
+          .select('logo_url')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('businesses')
+          .select('logo_url')
+          .eq('owner_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
       setCurrentUser({
         id: user.id,
         username: account?.username || null,
         displayName: account?.full_name?.trim() || null,
+        avatarUrl:
+          normalizeAvatarUrl(profile?.profile_pic_url, ['avatars']) ||
+          normalizeAvatarUrl(org?.logo_url, ['organizations', 'organization-uploads']) ||
+          normalizeAvatarUrl(business?.logo_url, ['business-uploads']) ||
+          null,
       });
       await fetchLikedPosts(user.id);
     };
@@ -697,10 +748,10 @@ export default function Home() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user?.id) {
-        setCurrentUser({ id: session.user.id, username: null, displayName: null });
+        setCurrentUser({ id: session.user.id, username: null, displayName: null, avatarUrl: null });
         fetchLikedPosts(session.user.id);
       } else {
-        setCurrentUser({ id: '', username: null, displayName: null });
+        setCurrentUser({ id: '', username: null, displayName: null, avatarUrl: null });
         setLikedPosts(new Set());
       }
     });
@@ -938,23 +989,68 @@ export default function Home() {
       } catch {
         // keep original likes_post
       }
-      // Enrich with profile pics and org logos
-      const userIds = [...new Set((rawPosts as { user_id?: string | null }[]).map((p) => p.user_id).filter(Boolean))] as string[];
-      const orgIds = [...new Set((rawPosts as { org_id?: string | null }[]).map((p) => p.org_id).filter(Boolean))] as string[];
-      const [profilesRes, orgsRes] = await Promise.all([
-        userIds.length > 0 ? supabase.from('profiles').select('id, profile_pic_url').in('id', userIds) : Promise.resolve({ data: [] }),
-        orgIds.length > 0 ? supabase.from('organizations').select('id, logo_url').in('id', orgIds) : Promise.resolve({ data: [] }),
-      ]);
-      const profileMap = new Map((profilesRes.data || []).map((p: { id: string; profile_pic_url: string | null }) => [p.id, p.profile_pic_url]));
-      const orgMap = new Map((orgsRes.data || []).map((o: { id: string; logo_url: string | null }) => [o.id, o.logo_url]));
-      rawPosts.forEach((p: { user_id?: string | null; org_id?: string | null; author_type?: string | null } & Record<string, unknown>) => {
-        if (p.author_type === 'organization' && p.org_id) {
-          (p as Record<string, unknown>).logo_url = orgMap.get(p.org_id) ?? null;
-        } else if (p.user_id) {
-          (p as Record<string, unknown>).profile_pic_url = profileMap.get(p.user_id) ?? null;
-        }
-      });
     }
+
+    // Enrich with profile pics, org logos, and business logos.
+    const userIds = [...new Set((rawPosts as { user_id?: string | null }[]).map((p) => p.user_id).filter(Boolean))] as string[];
+    const orgIds = [...new Set((rawPosts as { org_id?: string | null }[]).map((p) => p.org_id).filter(Boolean))] as string[];
+    const [profilesRes, orgsRes, businessesRes] = await Promise.all([
+      userIds.length > 0 ? supabase.from('profiles').select('id, profile_pic_url').in('id', userIds) : Promise.resolve({ data: [] }),
+      orgIds.length > 0 ? supabase.from('organizations').select('id, logo_url').in('id', orgIds) : Promise.resolve({ data: [] }),
+      userIds.length > 0
+        ? supabase
+            .from('businesses')
+            .select('owner_id, logo_url, created_at')
+            .in('owner_id', userIds)
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: [] }),
+    ]);
+    const profileMap = new Map(
+      (profilesRes.data || []).map((p: { id: string; profile_pic_url: string | null }) => [
+        p.id,
+        normalizeAvatarUrl(p.profile_pic_url, ['avatars']),
+      ])
+    );
+    const orgMap = new Map(
+      (orgsRes.data || []).map((o: { id: string; logo_url: string | null }) => [
+        o.id,
+        normalizeAvatarUrl(o.logo_url, ['organizations', 'organization-uploads']),
+      ])
+    );
+    const businessMap = new Map<string, string | null>();
+    for (const row of (businessesRes.data || []) as Array<{ owner_id: string; logo_url: string | null }>) {
+      if (!businessMap.has(row.owner_id)) {
+        businessMap.set(row.owner_id, normalizeAvatarUrl(row.logo_url, ['business-uploads']));
+      }
+    }
+    rawPosts.forEach((p: { user_id?: string | null; org_id?: string | null; author_type?: string | null; logo_url?: string | null; profile_pic_url?: string | null } & Record<string, unknown>) => {
+      const normalizedExistingProfile = normalizeAvatarUrl(p.profile_pic_url, [
+        'avatars',
+        'business-uploads',
+        'organizations',
+        'organization-uploads',
+      ]);
+      const normalizedExistingLogo = normalizeAvatarUrl(p.logo_url, [
+        'business-uploads',
+        'organizations',
+        'organization-uploads',
+      ]);
+      if (p.author_type === 'organization' && p.org_id) {
+        (p as Record<string, unknown>).logo_url = orgMap.get(p.org_id) ?? normalizedExistingLogo ?? null;
+      } else if (p.author_type === 'business' && p.user_id) {
+        (p as Record<string, unknown>).logo_url = businessMap.get(p.user_id) ?? normalizedExistingLogo ?? null;
+        (p as Record<string, unknown>).profile_pic_url = profileMap.get(p.user_id) ?? normalizedExistingProfile ?? null;
+      } else if (p.user_id) {
+        (p as Record<string, unknown>).profile_pic_url =
+          profileMap.get(p.user_id) ??
+          normalizedExistingProfile ??
+          businessMap.get(p.user_id) ??
+          null;
+      } else {
+        (p as Record<string, unknown>).profile_pic_url = normalizedExistingProfile ?? null;
+        (p as Record<string, unknown>).logo_url = normalizedExistingLogo ?? null;
+      }
+    });
 
     if (homeSession?.session?.access_token && homeSession.session.user?.id) {
       try {
@@ -1398,6 +1494,97 @@ const formatDateLabel = (value?: string | null) => {
     }
   };
 
+  const enrichCommentsWithAvatars = useCallback(async (comments: Comment[]) => {
+    if (!comments.length) return comments;
+    const userIds = Array.from(new Set(comments.map((c) => c.user_id).filter(Boolean)));
+    const normalizedWithoutLookup = comments.map((comment) => {
+      const isBusinessAuthor = String(comment.author_type || '').toLowerCase() === 'business';
+      const isOrgAuthor = String(comment.author_type || '').toLowerCase() === 'organization';
+      const normalizedCommentAvatar = normalizeAvatarUrl(
+        comment.avatar_url,
+        isBusinessAuthor
+          ? ['business-uploads', 'organizations', 'organization-uploads', 'avatars']
+          : isOrgAuthor
+            ? ['organizations', 'organization-uploads', 'avatars', 'business-uploads']
+            : ['avatars', 'business-uploads', 'organizations', 'organization-uploads']
+      );
+      const normalizedCommentLogo = normalizeAvatarUrl(
+        comment.logo_url,
+        isBusinessAuthor
+          ? ['business-uploads', 'organizations', 'organization-uploads']
+          : ['organizations', 'organization-uploads', 'business-uploads']
+      );
+      const normalizedProfileAvatar = normalizeAvatarUrl(comment.profiles?.profile_pic_url, ['avatars']);
+      return {
+        ...comment,
+        avatar_url: normalizedCommentAvatar || normalizedCommentLogo || normalizedProfileAvatar || null,
+      };
+    });
+    if (!userIds.length) return normalizedWithoutLookup;
+
+    const [profilesRes, orgsRes, businessesRes] = await Promise.all([
+      supabase.from('profiles').select('id, profile_pic_url').in('id', userIds),
+      supabase.from('organizations').select('user_id, logo_url').in('user_id', userIds),
+      supabase
+        .from('businesses')
+        .select('owner_id, logo_url, created_at')
+        .in('owner_id', userIds)
+        .order('created_at', { ascending: false }),
+    ]);
+
+    const profileMap = new Map(
+      (profilesRes.data || []).map((p: { id: string; profile_pic_url: string | null }) => [
+        p.id,
+        normalizeAvatarUrl(p.profile_pic_url, ['avatars']),
+      ])
+    );
+    const orgMap = new Map(
+      (orgsRes.data || []).map((o: { user_id: string; logo_url: string | null }) => [
+        o.user_id,
+        normalizeAvatarUrl(o.logo_url, ['organizations', 'organization-uploads']),
+      ])
+    );
+    const businessMap = new Map<string, string | null>();
+    for (const row of (businessesRes.data || []) as Array<{ owner_id: string; logo_url: string | null }>) {
+      if (!businessMap.has(row.owner_id)) {
+        businessMap.set(row.owner_id, normalizeAvatarUrl(row.logo_url, ['business-uploads']));
+      }
+    }
+
+    return normalizedWithoutLookup.map((comment) => {
+      const isBusinessAuthor = String(comment.author_type || '').toLowerCase() === 'business';
+      const isOrgAuthor = String(comment.author_type || '').toLowerCase() === 'organization';
+      const normalizedCommentAvatar = normalizeAvatarUrl(
+        comment.avatar_url,
+        isBusinessAuthor
+          ? ['business-uploads', 'organizations', 'organization-uploads', 'avatars']
+          : isOrgAuthor
+            ? ['organizations', 'organization-uploads', 'avatars', 'business-uploads']
+            : ['avatars', 'business-uploads', 'organizations', 'organization-uploads']
+      );
+      const normalizedCommentLogo = normalizeAvatarUrl(
+        comment.logo_url,
+        isBusinessAuthor
+          ? ['business-uploads', 'organizations', 'organization-uploads']
+          : ['organizations', 'organization-uploads', 'business-uploads']
+      );
+
+      return {
+        ...comment,
+        avatar_url:
+          normalizedCommentAvatar ||
+          normalizedCommentLogo ||
+          normalizeAvatarUrl(comment.profiles?.profile_pic_url, ['avatars']) ||
+          (isBusinessAuthor
+            ? businessMap.get(comment.user_id) || orgMap.get(comment.user_id) || profileMap.get(comment.user_id)
+            : isOrgAuthor
+              ? orgMap.get(comment.user_id) || profileMap.get(comment.user_id) || businessMap.get(comment.user_id)
+              : profileMap.get(comment.user_id) || orgMap.get(comment.user_id) || businessMap.get(comment.user_id)) ||
+          null,
+      };
+    });
+  }, []);
+
   const toggleComments = async (postId: string) => {
     setCommentsOpen((prev) => {
       const next = new Set(prev);
@@ -1416,7 +1603,8 @@ const formatDateLabel = (value?: string | null) => {
         if (currentUser.id) params.set('userId', currentUser.id);
         const res = await fetch(`/api/community/comments?${params.toString()}`);
         const data = await res.json();
-        setCommentsByPost((prev) => ({ ...prev, [postId]: data.comments || [] }));
+        const enrichedComments = await enrichCommentsWithAvatars((data.comments || []) as Comment[]);
+        setCommentsByPost((prev) => ({ ...prev, [postId]: enrichedComments }));
       } finally {
         setCommentLoading((prev) => ({ ...prev, [postId]: false }));
       }
@@ -1496,10 +1684,30 @@ const formatDateLabel = (value?: string | null) => {
 
     const data = await res.json();
     if (!res.ok) return;
+    const insertedComment = (data.comment || {}) as Comment;
+    const normalizedInsertedAvatar =
+      insertedComment.author_type === 'business'
+        ? normalizeAvatarUrl(insertedComment.logo_url || insertedComment.avatar_url, [
+            'business-uploads',
+            'organizations',
+            'organization-uploads',
+            'avatars',
+          ])
+        : normalizeAvatarUrl(insertedComment.avatar_url || insertedComment.logo_url, [
+            'avatars',
+            'business-uploads',
+            'organizations',
+            'organization-uploads',
+          ]);
+    const commentForState: Comment = {
+      ...insertedComment,
+      avatar_url: normalizedInsertedAvatar || null,
+    };
+    const [hydratedInsertedComment] = await enrichCommentsWithAvatars([commentForState]);
 
     setCommentsByPost((prev) => ({
       ...prev,
-      [postId]: [data.comment, ...(prev[postId] || [])],
+      [postId]: [hydratedInsertedComment || commentForState, ...(prev[postId] || [])],
     }));
     setCommentInputs((prev) => ({ ...prev, [postId]: '' }));
     setCommunityPosts((prev) =>
@@ -1754,89 +1962,7 @@ const formatDateLabel = (value?: string | null) => {
           </div>
         )}
 
-        <div className="bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700">
-          <div
-            className={`overflow-hidden px-0 transition-[max-height,opacity,transform] duration-300 ease-out ${
-              composerExpanded ? 'pointer-events-none' : 'pointer-events-auto'
-            }`}
-            style={{
-              maxHeight: composerExpanded ? '0px' : '110px',
-              opacity: composerExpanded ? 0 : 1,
-              transform: composerExpanded ? 'translateY(-8px)' : 'translateY(0)',
-            }}
-            aria-hidden={composerExpanded}
-          >
-            <div className="py-2 sm:py-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!requireLogin()) return;
-                  setComposerExpanded(true);
-                }}
-                className="group relative flex w-full min-h-[2.75rem] items-center gap-2.5 rounded-none bg-transparent py-2.5 pl-3.5 pr-3.5 text-left transition-colors duration-200 hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45"
-                aria-label="Ask — write a post"
-              >
-                <span className="shrink-0 select-none px-2.5 py-1 text-sm font-semibold tracking-wide text-white">
-                  Ask
-                </span>
-                <div className="pointer-events-none min-w-0 flex-1 rounded-xl bg-white px-3 py-2">
-                  <span className="block truncate text-sm text-slate-500">Ask the community...</span>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          <div
-            className={`overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out ${
-              composerExpanded ? 'pointer-events-auto' : 'pointer-events-none'
-            }`}
-            style={{
-              maxHeight: composerExpanded ? 'min(85dvh,940px)' : '0px',
-              opacity: composerExpanded ? 1 : 0,
-              transform: composerExpanded ? 'translateY(0)' : 'translateY(-8px)',
-            }}
-            role="region"
-            aria-labelledby="home-compose-post-title"
-            aria-hidden={!composerExpanded}
-          >
-            <div className="flex items-center justify-between gap-2 bg-transparent px-3 py-1.5">
-              <span
-                id="home-compose-post-title"
-                className="text-sm font-bold tracking-wide text-white"
-              >
-                Ask
-              </span>
-              <button
-                type="button"
-                onClick={() => setComposerExpanded(false)}
-                className="rounded-full p-1.5 text-white/90 transition hover:bg-white/15 hover:text-white"
-                aria-label="Close composer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="max-h-[min(85dvh,880px)] overflow-y-auto overscroll-contain bg-white px-1 pb-2 sm:px-2 sm:pb-2 dark:bg-white">
-              <Suspense
-                fallback={
-                  <div className="flex justify-center py-12 text-sm text-slate-500 dark:text-gray-400">
-                    Loading...
-                  </div>
-                }
-              >
-                <CreateCommunityPostClient
-                  embed="inline"
-                  onCloseRequest={() => setComposerExpanded(false)}
-                  onPublished={() => {
-                    void refreshFeed();
-                    setComposerExpanded(false);
-                  }}
-                />
-              </Suspense>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 border-b border-black dark:border-gray-500 bg-white px-3 py-2.5 shadow-sm dark:bg-gray-800 sm:px-4">
+        <div className="flex flex-wrap items-center gap-2 border-b border-black dark:border-gray-500 bg-white px-3 py-2.5 pr-24 shadow-sm dark:bg-gray-800 sm:px-4 sm:pr-28">
           <Link
             href="/"
             className="shrink-0 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition-all hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
@@ -1888,39 +2014,25 @@ const formatDateLabel = (value?: string | null) => {
             <Search className="h-3.5 w-3.5" />
             Search
           </button>
-          <button
-            type="button"
-            onClick={() => setFeedFiltersOpen((v) => !v)}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-              feedFiltersOpen ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-            aria-expanded={feedFiltersOpen}
-            aria-controls="home-feed-language-filter"
+          <select
+            id="home-feed-language-filter"
+            value={postFeedLang}
+            onChange={(e) => setPostFeedLang(e.target.value)}
+            className="h-8 min-w-[8.5rem] shrink-0 cursor-pointer appearance-none rounded-lg border border-gray-200 bg-[length:12px] bg-[right_0.35rem_center] bg-no-repeat py-1 pl-2 pr-6 text-xs font-medium text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-rose-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+            }}
+            title={
+              postFeedLang ? t(effectiveLang, 'Posts in this language first') : t(effectiveLang, 'All languages')
+            }
+            aria-label={t(effectiveLang, 'All languages')}
           >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            Filter
-          </button>
-          {feedFiltersOpen && (
-            <select
-              id="home-feed-language-filter"
-              value={postFeedLang}
-              onChange={(e) => setPostFeedLang(e.target.value)}
-              className="h-8 min-w-[8.5rem] shrink-0 cursor-pointer appearance-none rounded-lg border border-gray-200 bg-[length:12px] bg-[right_0.35rem_center] bg-no-repeat py-1 pl-2 pr-6 text-xs font-medium text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-rose-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
-              }}
-              title={
-                postFeedLang ? t(effectiveLang, 'Posts in this language first') : t(effectiveLang, 'All languages')
-              }
-              aria-label={t(effectiveLang, 'All languages')}
-            >
-              {homeFeedLangSelectOptions.map((opt) => (
-                <option key={opt.value || 'all'} value={opt.value}>
-                  {opt.emoji ? `${opt.emoji} ${opt.label}` : opt.label}
-                </option>
-              ))}
-            </select>
-          )}
+            {homeFeedLangSelectOptions.map((opt) => (
+              <option key={opt.value || 'all'} value={opt.value}>
+                {opt.emoji ? `${opt.emoji} ${opt.label}` : opt.label}
+              </option>
+            ))}
+          </select>
           {feedSearchOpen && (
           <div id="home-feed-search" className="w-full pt-1">
             <label className="relative block">
@@ -1939,6 +2051,92 @@ const formatDateLabel = (value?: string | null) => {
             </label>
           </div>
           )}
+        </div>
+
+        <div className="bg-slate-100 dark:bg-slate-100">
+          <div
+            className={`overflow-hidden px-0 transition-[max-height,opacity,transform] duration-300 ease-out ${
+              composerExpanded ? 'pointer-events-none' : 'pointer-events-auto'
+            }`}
+            style={{
+              maxHeight: composerExpanded ? '0px' : '110px',
+              opacity: composerExpanded ? 0 : 1,
+              transform: composerExpanded ? 'translateY(-8px)' : 'translateY(0)',
+            }}
+            aria-hidden={composerExpanded}
+          >
+            <div className="py-2 sm:py-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!requireLogin()) return;
+                  setComposerExpanded(true);
+                }}
+                className="group relative flex w-full min-h-[2.75rem] items-center gap-2.5 rounded-none bg-transparent py-2.5 pl-3.5 pr-3.5 text-left transition-colors duration-200 hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200"
+                aria-label="Ask — write a post"
+              >
+                <span className="shrink-0 select-none">
+                  <Avatar
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.displayName || currentUser.username || 'User'}
+                    className="h-8 w-8 rounded-md"
+                  />
+                </span>
+                <div className="pointer-events-none min-w-0 flex-1 rounded-xl bg-white px-3 py-2">
+                  <span className="block truncate text-sm text-slate-500">Ask the community...</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div
+            className={`overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out ${
+              composerExpanded ? 'pointer-events-auto' : 'pointer-events-none'
+            }`}
+            style={{
+              maxHeight: composerExpanded ? 'min(85dvh,940px)' : '0px',
+              opacity: composerExpanded ? 1 : 0,
+              transform: composerExpanded ? 'translateY(0)' : 'translateY(-8px)',
+            }}
+            role="region"
+            aria-labelledby="home-compose-post-title"
+            aria-hidden={!composerExpanded}
+          >
+            <div className="flex items-center justify-between gap-2 bg-transparent px-3 py-1.5">
+              <span
+                id="home-compose-post-title"
+                className="text-sm font-bold tracking-wide text-slate-700"
+              >
+                Ask
+              </span>
+              <button
+                type="button"
+                onClick={() => setComposerExpanded(false)}
+                className="rounded-full p-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Close composer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="max-h-[min(85dvh,880px)] overflow-y-auto overscroll-contain bg-white px-1 pb-2 sm:px-2 sm:pb-2 dark:bg-white">
+              <Suspense
+                fallback={
+                  <div className="flex justify-center py-12 text-sm text-slate-500 dark:text-gray-400">
+                    Loading...
+                  </div>
+                }
+              >
+                <CreateCommunityPostClient
+                  embed="inline"
+                  onCloseRequest={() => setComposerExpanded(false)}
+                  onPublished={() => {
+                    void refreshFeed();
+                    setComposerExpanded(false);
+                  }}
+                />
+              </Suspense>
+            </div>
+          </div>
         </div>
 
         {/* New content banner */}
@@ -2110,7 +2308,7 @@ const formatDateLabel = (value?: string | null) => {
                           <div key={comment.id} className="rounded-none bg-slate-100 px-3 py-2 text-sm flex gap-2 dark:bg-gray-700/80">
                             <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                               <Avatar
-                                src={comment.profiles?.profile_pic_url ? `${comment.profiles.profile_pic_url}?t=${Date.now()}` : null}
+                                src={comment.avatar_url || null}
                                 alt=""
                                 className="w-full h-full rounded-full"
                               />

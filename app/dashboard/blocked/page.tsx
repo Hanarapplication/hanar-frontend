@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, User, Users, Globe, Tag, Trash2, Ban } from 'lucide-react';
+import { ArrowLeft, User, Users, Globe, Tag, Ban, CircleHelp, Phone, Settings, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { DashboardBlockedAccountsPanel } from '@/components/DashboardBlockedAccountsPanel';
@@ -60,6 +60,14 @@ function BlockedAccountsContent() {
     };
   }, [router]);
 
+  const handleHeaderLogout = async () => {
+    await supabase.auth.signOut();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('userType');
+    }
+    router.push('/login');
+  };
+
   const burgerItems = useMemo(
     () => [
       ...(profileUsername
@@ -100,13 +108,31 @@ function BlockedAccountsContent() {
         color: 'bg-emerald-50 dark:bg-emerald-900/30',
       },
       {
-        label: t(effectiveLang, 'Delete My Account'),
+        label: t(effectiveLang, 'faq'),
+        href: '/faq',
+        icon: <CircleHelp className="h-5 w-5 shrink-0" />,
+        color: 'bg-blue-50 dark:bg-blue-900/30',
+      },
+      {
+        label: t(effectiveLang, 'contact'),
+        href: '/contact',
+        icon: <Phone className="h-5 w-5 shrink-0" />,
+        color: 'bg-cyan-50 dark:bg-cyan-900/30',
+      },
+      {
+        label: t(effectiveLang, 'settings'),
         href: '/settings',
-        icon: <Trash2 className="h-5 w-5 shrink-0" />,
-        color: 'bg-red-50 dark:bg-red-900/30',
+        icon: <Settings className="h-5 w-5 shrink-0" />,
+        color: 'bg-slate-100 dark:bg-slate-800/80',
+      },
+      {
+        label: t(effectiveLang, 'logout'),
+        onClick: handleHeaderLogout,
+        icon: <LogOut className="h-5 w-5 shrink-0" />,
+        color: 'bg-slate-200 dark:bg-slate-700/80',
       },
     ],
-    [effectiveLang, profileUsername],
+    [effectiveLang, profileUsername, router],
   );
 
   if (loading) {

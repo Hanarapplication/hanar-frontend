@@ -526,12 +526,20 @@ export default function CommunityPostPage() {
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <div className="h-7 w-7 flex-shrink-0 overflow-hidden rounded-full">
                       <Avatar
-                        src={c.profiles?.profile_pic_url ? `${c.profiles.profile_pic_url}?t=${Date.now()}` : null}
+                        src={c.avatar_url || c.logo_url || c.profiles?.profile_pic_url || null}
                         alt="avatar"
                         className="h-full w-full rounded-full"
                       />
                     </div>
-                    {c.username ? (
+                    {c.author_type === 'organization' && c.username ? (
+                      <Link href={`/organization/${c.username}`} className="text-xs text-blue-900 hover:underline dark:text-blue-300">
+                        {c.author || c.username || 'Organization'}
+                      </Link>
+                    ) : c.author_type === 'business' && c.username ? (
+                      <Link href={`/business/${c.username}`} className="text-xs text-blue-900 hover:underline dark:text-blue-300">
+                        {c.author || c.username || 'Business'}
+                      </Link>
+                    ) : c.username ? (
                       <Link href={`/profile/${c.username}`} className="text-xs text-blue-900 hover:underline dark:text-blue-300">
                         {c.author || c.username || 'User'}
                       </Link>

@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FaStore, FaShoppingCart, FaHome, FaUserCircle } from 'react-icons/fa';
+import { FaStore, FaShoppingCart, FaUserCircle } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
@@ -20,7 +20,7 @@ export default function MobileTopNav({ hidden = false }: { hidden?: boolean }) {
     {
       key: 'home',
       href: '/',
-      icon: <FaHome className={navFaIconClass} />,
+      icon: <span className="text-[1.02rem] font-serif font-bold lowercase tracking-[0.015em]">hanar</span>,
       label: t(effectiveLang, 'Feed'),
       isActive: (path) => path === '/',
     },
@@ -49,7 +49,7 @@ export default function MobileTopNav({ hidden = false }: { hidden?: boolean }) {
 
   return (
     <nav
-      className={`fixed left-0 right-0 top-14 z-40 bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 transition-all duration-200 dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700 sm:top-16 ${
+      className={`fixed left-0 right-0 top-0 z-40 bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 transition-all duration-200 dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700 ${
         hidden ? '-translate-y-[140%] opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
       }`}
       aria-label="Primary"
