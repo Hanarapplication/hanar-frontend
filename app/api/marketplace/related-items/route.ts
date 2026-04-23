@@ -67,7 +67,7 @@ export async function GET(req: Request) {
     };
 
     // Marketplace (individual) items
-    let qInd = supabaseAdmin.from('marketplace_items').select('id, title, price, location, category, image_urls, expires_at');
+    let qInd = supabaseAdmin.from('marketplace_items').select('id, title, price, location, category, image_urls, expires_at, is_on_hold');
     if (excludeId && source === 'individual') qInd = qInd.neq('id', excludeId);
     if (hasFilter) {
       if (hasCategory) qInd = qInd.ilike('category', `%${escape(category)}%`);
@@ -79,6 +79,7 @@ export async function GET(req: Request) {
     if (!errInd && rowsInd?.length) {
       const nowIso = new Date().toISOString();
       for (const row of rowsInd as any[]) {
+        if (row.is_on_hold) continue;
         if (row.expires_at && String(row.expires_at) < nowIso) continue;
         const imgs = normalizeImages(row.image_urls, 'marketplace-images');
         add({

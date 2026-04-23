@@ -263,7 +263,10 @@ export default function ItemDetailClient() {
           if (!cancelled) setError('Item not found.');
           return;
         }
-        if (individualRow.expires_at && new Date(individualRow.expires_at).getTime() < Date.now()) {
+        if (
+          individualRow.is_on_hold ||
+          (individualRow.expires_at && new Date(individualRow.expires_at).getTime() < Date.now())
+        ) {
           if (!cancelled) setError('Item not found.');
           return;
         }

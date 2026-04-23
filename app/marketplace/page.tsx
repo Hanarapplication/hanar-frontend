@@ -620,7 +620,9 @@ export default function MarketplacePage() {
     const realEstate = (realEstateRes.data || []).map((row: Record<string, unknown>) => normalizeRealEstateItem(row));
     const nowIso = new Date().toISOString();
     const individual = (individualRes.data || [])
-      .filter((row: { expires_at?: string | null }) => !row.expires_at || row.expires_at >= nowIso)
+      .filter((row: { expires_at?: string | null; is_on_hold?: boolean | null }) =>
+        (!row.expires_at || row.expires_at >= nowIso) && !row.is_on_hold
+      )
       .map(normalizeIndividualItem);
     const combined = [...retail, ...dealership, ...realEstate, ...individual].sort(sortByCreatedAt);
     const businessIds = Array.from(
@@ -1023,13 +1025,13 @@ export default function MarketplacePage() {
         }}
         className="group relative flex h-full flex-col text-xs"
       >
-        <div className="relative aspect-[5/3] overflow-hidden bg-[#f7f8f8]">
+        <div className="relative aspect-[5/3] overflow-hidden bg-[#f7f8f8] p-1">
           <img
             src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
             alt={item.title}
             loading="lazy"
             decoding="async"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:object-contain"
+            className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
           />
           {item.external_buy_url && (
             <span className="absolute left-1.5 top-1.5 inline-flex items-center rounded-md bg-[#cc0c39] px-1.5 py-[2px] text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">

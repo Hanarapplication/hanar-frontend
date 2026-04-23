@@ -20,6 +20,7 @@ const ADMIN_NAV = [
   { label: 'Feed Banners', path: '/admin/feed-banners' },
   { label: 'Promotion Requests', path: '/admin/promotion-requests' },
   { label: 'Create Promotion', path: '/admin/create-promotion' },
+  { label: 'Marketplace Items', path: '/admin/marketplace-items' },
   { label: 'Marketplace Insights', path: '/admin/marketplace-insights' },
   { label: 'Reports', path: '/admin/reports' },
   { label: 'Community Moderation', path: '/admin/community-moderation' },
