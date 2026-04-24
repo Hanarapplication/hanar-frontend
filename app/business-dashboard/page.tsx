@@ -785,9 +785,9 @@ function BusinessDashboardContent() {
     setPromotionBannersExpanded(true);
     router.replace('/business-dashboard', { scroll: false });
     // Webhook may not have run yet; refetch after a short delay so "In review" appears instead of "Payment pending"
-    const t = setTimeout(() => loadPromotionRequests(), 2500);
-    return () => clearTimeout(t);
-  }, [searchParams, router]);
+    const timerId = setTimeout(() => loadPromotionRequests(), 2500);
+    return () => clearTimeout(timerId);
+  }, [searchParams, router, effectiveLang]);
 
   const removeBanner = async (id: string) => {
     if (!business?.id) return;
