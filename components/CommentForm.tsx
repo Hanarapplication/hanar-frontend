@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useTranslation } from '@/context/LanguageContext';
 
 type Props = {
   parentId: string | null;
@@ -8,6 +9,7 @@ type Props = {
 
 export default function CommentForm({ parentId, onSubmit }: Props) {
   const [text, setText] = useState('');
+  const { t } = useTranslation();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +22,7 @@ export default function CommentForm({ parentId, onSubmit }: Props) {
     <form onSubmit={handleSubmit} className="space-y-2">
       <textarea
         className="w-full p-2 border rounded text-sm"
-        placeholder={parentId ? 'Write a reply...' : 'Write a comment...'}
+        placeholder={t('Write a comment...')}
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={2}
@@ -30,7 +32,7 @@ export default function CommentForm({ parentId, onSubmit }: Props) {
           type="submit"
           className="bg-rose-600 text-white text-xs px-3 py-1 rounded hover:bg-rose-700"
         >
-          Post
+          {t('Post comment')}
         </button>
       </div>
     </form>

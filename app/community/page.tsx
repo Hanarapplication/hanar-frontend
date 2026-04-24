@@ -776,13 +776,15 @@ function CommunityFeedPage() {
 
               {/* Text content */}
               <Link href={`/community/post/${post.id}`} data-no-translate>
-                <h2 className="text-xl font-semibold mb-1 text-gray-900 dark:text-gray-100">{post.title}</h2>
-                <p className="text-gray-600 dark:text-gray-300 line-clamp-2">{post.body}</p>
+                <p className="whitespace-pre-wrap text-gray-600 dark:text-gray-300 line-clamp-4">
+                  {post.body || post.title}
+                </p>
               </Link>
               <PostTranslateToggle
-                text={`${post.title}\n\n${post.body || ''}`}
+                text={String(post.body || post.title || '')}
                 postId={post.id}
                 sourceLang={post.language || null}
+                targetLang={effectiveLang}
                 className="mt-2"
               />
 

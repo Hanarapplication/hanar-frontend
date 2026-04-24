@@ -50,7 +50,6 @@ export default function CreateCommunityPostClient({
   const onCloseRequestRef = useRef(onCloseRequest);
   onCloseRequestRef.current = onCloseRequest;
 
-  const [title, setTitle] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [postAs, setPostAs] = useState('personal');
@@ -108,7 +107,7 @@ export default function CreateCommunityPostClient({
     editable: true,
     onUpdate: ({ editor }) => {
       const textLength = editor.getText().trim().length;
-      if (textLength > 300) {
+      if (textLength > 500) {
         setCharLimitToast(true);
         setTimeout(() => setCharLimitToast(false), 3000);
       }
@@ -323,13 +322,13 @@ export default function CreateCommunityPostClient({
 
     const plainText = editor.getText().trim();
 
-    if (!title.trim() || !plainText) {
+    if (!plainText) {
       setEmptyFieldsToast(true);
       setTimeout(() => setEmptyFieldsToast(false), 3000);
       return;
     }
 
-    if (plainText.length > 300) {
+    if (plainText.length > 500) {
       setCharLimitToast(true);
       setTimeout(() => setCharLimitToast(false), 3000);
       return;
@@ -364,7 +363,7 @@ export default function CreateCommunityPostClient({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        title: title.trim(),
+        title: plainText.slice(0, 100),
         body: plainText,
         tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
         lang: postLanguageCodeForApi(),
@@ -507,7 +506,7 @@ export default function CreateCommunityPostClient({
                   compact ? 'mb-2' : 'mb-6'
                 )}
               >
-                {t(effectiveLang, 'Title and content are required.')}
+                {t(effectiveLang, 'Post content is required.')}
               </div>
             )}
             {charLimitToast && (
@@ -517,7 +516,7 @@ export default function CreateCommunityPostClient({
                   compact ? 'mb-2' : 'mb-6'
                 )}
               >
-                {t(effectiveLang, 'Post content must be under 300 characters.')}
+                {t(effectiveLang, 'Post content must be under 500 characters.')}
               </div>
             )}
 
@@ -540,20 +539,10 @@ export default function CreateCommunityPostClient({
 
             {preview && editor ? (
               <div className={compact ? 'space-y-2.5' : 'space-y-5'}>
-                <div>
-                  <h2
-                    className={cn(
-                      'font-semibold text-slate-900',
-                      compact ? 'text-lg' : 'text-2xl'
-                    )}
-                  >
-                    {title || t(effectiveLang, 'Untitled Post')}
-                  </h2>
-                  <p className={cn('text-xs text-slate-500', compact ? 'mt-0.5' : 'mt-1')}>
-                    {t(effectiveLang, 'Posted as')}:{' '}
-                    {postAs === 'organization' ? orgName : postAs === 'business' ? businessName || businessSlug : username}
-                  </p>
-                </div>
+                <p className={cn('text-xs text-slate-500', compact ? 'mt-0.5' : 'mt-1')}>
+                  {t(effectiveLang, 'Posted as')}:{' '}
+                  {postAs === 'organization' ? orgName : postAs === 'business' ? businessName || businessSlug : username}
+                </p>
                 {videoPreviewUrl && (
                   <video
                     src={videoPreviewUrl}
@@ -577,26 +566,6 @@ export default function CreateCommunityPostClient({
               </div>
             ) : (
               <form onSubmit={handleSubmit} className={compact ? 'space-y-2.5' : 'space-y-6'}>
-                <div>
-                  <label
-                    className={cn(
-                      'block font-medium text-slate-700',
-                      compact ? 'text-xs' : 'text-sm'
-                    )}
-                  >
-                    {t(effectiveLang, 'Title or Question')}
-                  </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    maxLength={100}
-                    required
-                    className="form-input"
-                    placeholder={t(effectiveLang, 'Post Title')}
-                  />
-                </div>
-
                 <div>
                   <label
                     className={cn(
@@ -716,7 +685,7 @@ export default function CreateCommunityPostClient({
                         )}
                       </div>
                       <div className="shrink-0 text-right text-xs text-slate-500 dark:text-slate-400">
-                        {editor?.getText().length || 0}/300 {t(effectiveLang, 'characters')}
+                        {editor?.getText().length || 0}/500 {t(effectiveLang, 'characters')}
                       </div>
                     </div>
                     {tagsExpanded && (

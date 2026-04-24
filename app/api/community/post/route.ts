@@ -73,8 +73,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Title must be 3–100 characters' }, { status: 400 });
     }
 
-    if (!body || typeof body !== 'string' || body.trim().length < 5 || body.length > 300) {
-      return NextResponse.json({ error: 'Body must be 5–300 characters' }, { status: 400 });
+    if (!body || typeof body !== 'string' || body.trim().length < 5 || body.length > 500) {
+      return NextResponse.json({ error: 'Body must be 5–500 characters' }, { status: 400 });
     }
 
     if (!Array.isArray(tags) || tags.some(tag => typeof tag !== 'string' || tag.length > 20)) {
@@ -173,8 +173,8 @@ export async function PUT(req: Request) {
     if (!title || typeof title !== 'string' || title.trim().length < 3 || title.trim().length > 100) {
       return NextResponse.json({ error: 'Title must be 3–100 characters' }, { status: 400 });
     }
-    if (!body || typeof body !== 'string' || body.trim().length < 5 || body.trim().length > 300) {
-      return NextResponse.json({ error: 'Body must be 5–300 characters' }, { status: 400 });
+    if (!body || typeof body !== 'string' || body.trim().length < 5 || body.trim().length > 500) {
+      return NextResponse.json({ error: 'Body must be 5–500 characters' }, { status: 400 });
     }
     if (!Array.isArray(tags) || tags.some((tag) => typeof tag !== 'string' || tag.length > 20)) {
       return NextResponse.json({ error: 'Tags must be an array of strings (max 20 chars each)' }, { status: 400 });

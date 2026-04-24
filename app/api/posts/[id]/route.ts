@@ -15,13 +15,20 @@ type PostRow = {
   created_at: string;
 };
 
+function normalizeLangCode(value: string | null | undefined): string | null {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw || raw === 'auto') return null;
+  const primary = (raw.split(/[-_]/)[0] || '').trim();
+  if (!/^[a-z]{2,3}$/.test(primary)) return null;
+  return primary;
+}
+
 /**
  * GET /api/posts/:id?lang=en
  *
  * Translation cache policy:
- * - If post language matches requested language: return original
- * - Else check post_translations
- * - If missing, translate once, cache, then return
+ * - Check post_translations first
+ * - If missing (or suspicious stale original), translate once, cache, then return
  */
 export async function GET(
   request: NextRequest,
@@ -29,12 +36,7 @@ export async function GET(
 ) {
   try {
     const { id } = await context.params;
-    const targetLang = String(request.nextUrl.searchParams.get('lang') || '')
-      .trim()
-      .toLowerCase();
-    const sourceHint = String(request.nextUrl.searchParams.get('source') || '')
-      .trim()
-      .toLowerCase();
+    const targetLang = normalizeLangCode(request.nextUrl.searchParams.get('lang'));
 
     if (!id) {
       return NextResponse.json({ error: 'Post id is required' }, { status: 400 });
@@ -58,16 +60,7 @@ export async function GET(
       return NextResponse.json({ error: 'Post not found' }, { status: 404 });
     }
 
-    const sourceLang = sourceHint || String(post.language || 'en').toLowerCase();
-    if (sourceLang === targetLang) {
-      return NextResponse.json({
-        id: post.id,
-        language: sourceLang,
-        target_language: targetLang,
-        translated: false,
-        content: post.body,
-      });
-    }
+    const sourceLang = normalizeLangCode(post.language);
 
     // 2) Try translation cache first
     const { data: cached, error: cacheReadError } = await supabaseAdmin
@@ -82,30 +75,43 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to read translation cache' }, { status: 500 });
     }
 
-    if (cached?.translated_text) {
+    const cachedText = String(cached?.translated_text || '').trim();
+    const originalText = String(post.body || '').trim();
+    const sourceEqualsTarget = !!sourceLang && sourceLang === targetLang;
+    const suspiciousCachedOriginal =
+      !!cachedText &&
+      !!targetLang &&
+      (sourceEqualsTarget || !!sourceLang) &&
+      cachedText === originalText;
+
+    if (cachedText && !suspiciousCachedOriginal) {
       return NextResponse.json({
         id: post.id,
         language: sourceLang,
         target_language: targetLang,
         translated: true,
         cached: true,
-        content: cached.translated_text,
+        content: cachedText,
       });
     }
 
     // 3) Cache miss: translate server-side with Google Cloud
     let translatedText = '';
     try {
-      translatedText = await translatePost(post.body, sourceLang, targetLang);
+      // If stored source matches target, it may be wrong metadata; allow auto-detect instead.
+      const effectiveSourceLang = sourceEqualsTarget ? null : sourceLang;
+      translatedText = await translatePost(post.body, effectiveSourceLang, targetLang);
     } catch (translateError) {
       console.error('Google translate error', translateError);
-      return NextResponse.json(
-        {
-          error:
-            'Translation service unavailable. Verify GOOGLE_APPLICATION_CREDENTIALS, GOOGLE_CLOUD_PROJECT_ID, and enabled Cloud Translation API.',
-        },
-        { status: 502 }
-      );
+      return NextResponse.json({
+        id: post.id,
+        language: sourceLang,
+        target_language: targetLang,
+        translated: false,
+        cached: false,
+        fallback: 'original',
+        content: post.body,
+      });
     }
 
     // 4) Store translation once (unique constraint prevents duplicates)

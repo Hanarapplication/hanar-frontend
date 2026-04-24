@@ -1,7 +1,7 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { FaSearch, FaHeart, FaRegHeart, FaMapMarkerAlt } from 'react-icons/fa';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
@@ -16,9 +16,27 @@ import {
   resolveLatLon,
   writeSavedSearchRadiusMiles,
 } from '@/lib/geoDistance';
+import {
+  itemMatchesCountryFilter,
+  itemMatchesStateFilter,
+  scopeFromAddressResult,
+  type MarketplaceLocationScope,
+} from '@/lib/marketplaceLocationFilter';
 
 const BUSINESSES_CACHE_KEY = 'hanar_businesses_cache';
 const BUSINESSES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const BUSINESSES_UI_TRANSLATION_CACHE_PREFIX = 'hanar_businesses_ui_text:';
+const USER_LOCATION_SCOPE_KEY = 'userLocationScope';
+const QUICK_FILTER_LABELS = [
+  'Restaurants',
+  'Dealerships',
+  'Auto Services',
+  'Home Services',
+  'Transportation',
+  'Retail',
+  'Health & Beauty',
+  'More',
+];
 
 function readBusinessesCache(): { ts: number; businesses: Business[] } | null {
   try {
@@ -53,6 +71,13 @@ interface Business {
   spoken_languages?: string[] | null;
   plan?: string | null;
 }
+
+type BusinessLocationFields = {
+  location: string;
+  location_country?: string | null;
+  location_state?: string | null;
+  location_city?: string | null;
+};
 
 function businessLatLon(b: Business) {
   return resolveLatLon({ lat: b.lat, lon: b.lon }, b.address);
@@ -101,8 +126,10 @@ function formatStateLabel(value: string): string {
   return toTitleCaseWords(trimmed);
 }
 
+const LOCATION_NOT_AVAILABLE = 'Location not available';
+
 function getCityState(address: any): string {
-  if (!address) return 'Location not available';
+  if (!address) return LOCATION_NOT_AVAILABLE;
 
   if (typeof address === 'string') {
     const parts = address.split(',').map((p: string) => p.trim());
@@ -124,11 +151,16 @@ function getCityState(address: any): string {
     if (state) return formatStateLabel(String(state));
   }
 
-  return 'Location not available';
+  return LOCATION_NOT_AVAILABLE;
 }
 
 export default function BusinessesPage() {
   const { effectiveLang } = useLanguage();
+  const [dynamicUiTranslations, setDynamicUiTranslations] = useState<Record<string, string>>({});
+  const yourLocationLabel = t(effectiveLang, 'Your location');
+  const isYourLocationLabel = (value: string) =>
+    value.trim().toLowerCase() === 'your location' || value.trim().toLowerCase() === yourLocationLabel.trim().toLowerCase();
+  const translateUi = (label: string) => dynamicUiTranslations[label] || t(effectiveLang, label);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [query, setQuery] = useState('');
@@ -141,6 +173,7 @@ export default function BusinessesPage() {
   const [categoriesModalOpen, setCategoriesModalOpen] = useState(false);
   const [tempRadius, setTempRadius] = useState(() => readSavedSearchRadiusMiles(40));
   const [locationSearchValue, setLocationSearchValue] = useState('');
+  const [locationScope, setLocationScope] = useState<MarketplaceLocationScope>({ mode: 'none' });
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(6);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -202,22 +235,45 @@ export default function BusinessesPage() {
   }, []);
 
   const handleLocationSelect = (result: AddressResult) => {
+    const scope = scopeFromAddressResult(result);
+    setLocationScope(scope);
+    try {
+      localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(scope));
+    } catch {}
+
+    const label =
+      [result.city, result.state, result.country].filter(Boolean).join(', ') ||
+      result.formatted_address ||
+      t(effectiveLang, 'Selected location');
+    setLocationLabel(label);
+    setLocationSearchValue(label);
+    try {
+      if (label) localStorage.setItem('userLocationLabel', label);
+    } catch {}
+
     if (result.lat != null && result.lng != null) {
       const coords = { lat: result.lat, lon: result.lng };
-      const label =
-        [result.city, result.state, result.country].filter(Boolean).join(', ') ||
-        result.formatted_address ||
-        t(effectiveLang, 'Selected location');
       setUserCoords(coords);
-      setLocationLabel(label);
-      setLocationSearchValue(label);
       try {
         localStorage.setItem('userCoords', JSON.stringify(coords));
-        if (label) localStorage.setItem('userLocationLabel', label);
       } catch {}
       window.dispatchEvent(new CustomEvent('location:updated', {
         detail: {
           ...coords,
+          label,
+          city: result.city,
+          state: result.state,
+          country: result.country,
+          zip: result.zip,
+        },
+      }));
+    } else {
+      setUserCoords(null);
+      try {
+        localStorage.removeItem('userCoords');
+      } catch {}
+      window.dispatchEvent(new CustomEvent('location:updated', {
+        detail: {
           label,
           city: result.city,
           state: result.state,
@@ -235,6 +291,9 @@ export default function BusinessesPage() {
         const { lat, lon } = JSON.parse(stored);
         setUserCoords({ lat, lon });
         setLocationLabel(t(effectiveLang, 'Your location'));
+        const geoScope: MarketplaceLocationScope = { mode: 'city_radius', country: '', state: '', city: '' };
+        setLocationScope(geoScope);
+        localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(geoScope));
         return;
       } catch { /* ignore */ }
     }
@@ -246,7 +305,7 @@ export default function BusinessesPage() {
           let city: string | undefined;
           let state: string | undefined;
           let country: string | undefined;
-          let label = 'Your location';
+          let label = t(effectiveLang, 'Your location');
           try {
             const res = await fetch(
               `/api/geocode/reverse?lat=${encodeURIComponent(coords.lat)}&lon=${encodeURIComponent(coords.lon)}`
@@ -270,9 +329,12 @@ export default function BusinessesPage() {
           setUserCoords(coords);
           setLocationLabel(label);
           setLocationSearchValue(label);
+          const geoScope: MarketplaceLocationScope = { mode: 'city_radius', country: '', state: '', city: '' };
+          setLocationScope(geoScope);
           try {
             localStorage.setItem('userCoords', JSON.stringify(coords));
             if (label) localStorage.setItem('userLocationLabel', label);
+            localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(geoScope));
           } catch {}
           window.dispatchEvent(
             new CustomEvent('location:updated', {
@@ -297,6 +359,16 @@ export default function BusinessesPage() {
           setLocationLabel(savedLabel || t(effectiveLang, 'Your location'));
         }
       } catch { /* ignore */ }
+    }
+    try {
+      const rawScope = localStorage.getItem(USER_LOCATION_SCOPE_KEY);
+      if (rawScope) {
+        setLocationScope(JSON.parse(rawScope) as MarketplaceLocationScope);
+      } else if (saved) {
+        setLocationScope({ mode: 'city_radius', country: '', state: '', city: '' });
+      }
+    } catch {
+      /* ignore */
     }
     const handleLocationUpdated = (e: Event) => {
       const detail = (e as CustomEvent).detail as {
@@ -326,6 +398,19 @@ export default function BusinessesPage() {
       if (detail?.radiusMiles != null) {
         setRadius(detail.radiusMiles);
         setTempRadius(detail.radiusMiles);
+      }
+      if (detail && (detail.city != null || detail.state != null || detail.country != null)) {
+        const next = scopeFromAddressResult({
+          city: detail.city,
+          state: detail.state,
+          country: detail.country,
+        });
+        setLocationScope(next);
+        try {
+          localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(next));
+        } catch {
+          /* ignore */
+        }
       }
     };
     window.addEventListener('location:updated', handleLocationUpdated);
@@ -479,6 +564,35 @@ export default function BusinessesPage() {
   };
   const isPremium = (b: Business) => (b.plan || '').toLowerCase() === 'premium';
   const cityFromLabel = (locationLabel || '').split(',')[0]?.trim().toLowerCase() || '';
+  const businessLocationFields = (b: Business): BusinessLocationFields => {
+    const base: BusinessLocationFields = {
+      location: `${getCityState(b.address)} ${typeof b.address === 'string' ? b.address : ''}`.trim(),
+      location_country: null,
+      location_state: null,
+      location_city: null,
+    };
+    if (b.address && typeof b.address === 'object') {
+      return {
+        ...base,
+        location_country: typeof b.address.country === 'string' ? b.address.country : null,
+        location_state:
+          typeof b.address.state === 'string'
+            ? b.address.state
+            : typeof b.address.state_code === 'string'
+              ? b.address.state_code
+              : null,
+        location_city:
+          typeof b.address.city === 'string'
+            ? b.address.city
+            : typeof b.address.town === 'string'
+              ? b.address.town
+              : typeof b.address.locality === 'string'
+                ? b.address.locality
+                : null,
+      };
+    }
+    return base;
+  };
   const filteredByCategoryAndQuery = businesses
     .filter((b) => {
       if (!matchesSelectedCategory(b, selectedCategoryFilter)) return false;
@@ -496,12 +610,18 @@ export default function BusinessesPage() {
 
   const filtered = filteredByCategoryAndQuery
     .filter((b) => {
+      if (locationScope.mode === 'country') {
+        return itemMatchesCountryFilter(businessLocationFields(b), locationScope.country);
+      }
+      if (locationScope.mode === 'state') {
+        return itemMatchesStateFilter(businessLocationFields(b), locationScope.state, locationScope.country);
+      }
       if (userCoords) {
         const ll = businessLatLon(b);
         if (ll) {
           return getDistanceMiles(userCoords.lat, userCoords.lon, ll.lat, ll.lon) <= radius;
         }
-        if (!cityFromLabel || cityFromLabel === 'your location') return false;
+        if (!cityFromLabel || isYourLocationLabel(cityFromLabel)) return false;
         const loc = `${getCityState(b.address)} ${typeof b.address === 'string' ? b.address : ''}`.toLowerCase();
         return new RegExp(`\\b${cityFromLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(loc);
       }
@@ -531,7 +651,11 @@ export default function BusinessesPage() {
       return a.business_name.localeCompare(b.business_name);
     });
 
-    const areaFilterActive = Boolean(userCoords) || (cityFromLabel.length > 0 && cityFromLabel !== 'your location');
+    const areaFilterActive =
+      locationScope.mode === 'country' ||
+      locationScope.mode === 'state' ||
+      Boolean(userCoords) ||
+      (cityFromLabel.length > 0 && !isYourLocationLabel(cityFromLabel));
   const nearbyFallbackBusinesses = areaFilterActive && filtered.length === 0
     ? filteredByCategoryAndQuery
         .map((b) => {
@@ -541,8 +665,14 @@ export default function BusinessesPage() {
           return { business: b, distance };
         })
         .filter(({ business, distance }) => {
+          if (locationScope.mode === 'country') {
+            return !itemMatchesCountryFilter(businessLocationFields(business), locationScope.country);
+          }
+          if (locationScope.mode === 'state') {
+            return !itemMatchesStateFilter(businessLocationFields(business), locationScope.state, locationScope.country);
+          }
           if (userCoords && distance != null) return distance > radius;
-          if (cityFromLabel && cityFromLabel !== 'your location') {
+          if (cityFromLabel && !isYourLocationLabel(cityFromLabel)) {
             const loc = `${getCityState(business.address)} ${typeof business.address === 'string' ? business.address : ''}`.toLowerCase();
             return !new RegExp(`\\b${cityFromLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(loc);
           }
@@ -559,7 +689,13 @@ export default function BusinessesPage() {
     : [];
 
   const visible = filtered.slice(0, visibleCount);
-  const servicesShowcase = filtered.slice(0, 8);
+  const servicesShowcaseSource =
+    filtered.length > 0
+      ? filtered
+      : filteredByCategoryAndQuery.length > 0
+        ? filteredByCategoryAndQuery
+        : businesses;
+  const servicesShowcase = servicesShowcaseSource.slice(0, 8);
 
   useEffect(() => {
     const carousel = servicesCarouselRef.current;
@@ -591,14 +727,18 @@ export default function BusinessesPage() {
     { label: 'Health & Beauty', icon: '💇', key: 'beauty' },
     { label: 'More', icon: '⋯', key: 'more', more: true },
   ];
-  const allBusinessCategories = Array.from(
-    new Set(
-      businesses
-        .map((b) => businessCategoryLabel(b))
-        .map((v) => v.trim())
-        .filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b));
+  const allBusinessCategories = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          businesses
+            .map((b) => businessCategoryLabel(b))
+            .map((v) => v.trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [businesses]
+  );
   const quickFilterReserved = new Set(
     quickFilters.filter((f) => !f.more).map((f) => normalizeCategoryToken(f.label))
   );
@@ -609,6 +749,66 @@ export default function BusinessesPage() {
     if (token.includes('restaurant') || token.includes('dealership')) return false;
     return true;
   });
+  const dynamicUiLabels = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          [
+            ...QUICK_FILTER_LABELS,
+            ...allBusinessCategories,
+            ...businesses.map((b) => formatBusinessCategory(b.subcategory || b.category)).filter(Boolean),
+          ].map((value) => String(value).trim()).filter(Boolean)
+        )
+      ),
+    [allBusinessCategories, businesses]
+  );
+
+  useEffect(() => {
+    if (effectiveLang === 'en') {
+      setDynamicUiTranslations({});
+      return;
+    }
+
+    const cacheKey = `${BUSINESSES_UI_TRANSLATION_CACHE_PREFIX}${effectiveLang}`;
+    let cancelled = false;
+    const loadDynamicTranslations = async () => {
+      let cachedMap: Record<string, string> = {};
+      try {
+        const cachedRaw = localStorage.getItem(cacheKey);
+        if (cachedRaw) {
+          const parsed = JSON.parse(cachedRaw) as Record<string, string>;
+          if (parsed && typeof parsed === 'object') cachedMap = parsed;
+        }
+      } catch {
+        // Ignore cache read issues.
+      }
+
+      if (!cancelled) setDynamicUiTranslations(cachedMap);
+
+      const missing = dynamicUiLabels.filter((label) => !cachedMap[label]);
+      if (missing.length === 0) return;
+
+      // Populate missing entries from existing UI translation dictionaries/runtime map
+      // and store locally so they are one-time on this device.
+      const updates: Record<string, string> = {};
+      missing.forEach((label) => {
+        updates[label] = t(effectiveLang, label);
+      });
+      if (cancelled) return;
+      const merged = { ...cachedMap, ...updates };
+      setDynamicUiTranslations(merged);
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(merged));
+      } catch {
+        // Ignore quota issues.
+      }
+    };
+
+    void loadDynamicTranslations();
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveLang, dynamicUiLabels]);
 
   const handlePullRefresh = useCallback(async () => {
     try { sessionStorage.removeItem(BUSINESSES_CACHE_KEY); } catch {}
@@ -654,10 +854,10 @@ export default function BusinessesPage() {
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {displayCategory ? (
-              <span className="line-clamp-1 text-sm text-slate-600">{displayCategory}</span>
+              <span className="line-clamp-1 text-sm text-slate-600">{translateUi(displayCategory)}</span>
             ) : null}
             <span className="inline-flex items-center rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-              {locationText === 'Location not available' ? t(effectiveLang, 'Location not available') : locationText}
+              {locationText === LOCATION_NOT_AVAILABLE ? t(effectiveLang, 'Location not available') : locationText}
             </span>
           </div>
           {userCoords && bizCoords && (
@@ -693,8 +893,10 @@ export default function BusinessesPage() {
             >
               <FaMapMarkerAlt className="h-3.5 w-3.5 text-slate-600" />
               <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose city / zip code / country')}</span>
-              {locationLabel && (
-                <span className="text-[10px] text-slate-500">{radius} mi</span>
+              {locationLabel && locationScope.mode === 'country' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'Country')}</span>}
+              {locationLabel && locationScope.mode === 'state' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'State')}</span>}
+              {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && (
+                <span className="text-[10px] text-slate-500">{radius} {t(effectiveLang, 'miles')}</span>
               )}
             </button>
 
@@ -754,12 +956,12 @@ export default function BusinessesPage() {
 
               <div className="space-y-3">
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Country, city or address')}</label>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Country, state, or city')}</label>
                   <AddressAutocomplete
                     value={locationSearchValue}
                     onSelect={handleLocationSelect}
                     onChange={setLocationSearchValue}
-                    placeholder={t(effectiveLang, 'Search city, ZIP, or address...')}
+                    placeholder={t(effectiveLang, 'Search country, state, city, ZIP, or address...')}
                     mode="locality"
                     className="w-full"
                     inputClassName="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:bg-white focus:ring-2 focus:ring-rose-500/30 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
@@ -863,7 +1065,7 @@ export default function BusinessesPage() {
                       }}
                       className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#f0f2f2] px-3 py-1 text-[11px] font-semibold text-[#0f1111] transition hover:border-[#c7caca] hover:bg-[#e7e9ec]"
                     >
-                      <span>{category}</span>
+                      <span>{translateUi(category)}</span>
                     </button>
                   ))}
                 </div>
@@ -896,7 +1098,7 @@ export default function BusinessesPage() {
                   {item.icon}
                 </span>
                 <span className={`text-xs font-medium leading-tight ${selectedCategoryFilter === item.key ? 'text-[#d32323]' : 'text-slate-700'}`}>
-                  {t(effectiveLang, item.label)}
+                  {translateUi(item.label)}
                 </span>
               </button>
             ))}
@@ -929,7 +1131,7 @@ export default function BusinessesPage() {
                   />
                 </div>
                 <p className="mt-2 inline-flex max-w-full items-center rounded-md bg-blue-100 px-2 py-1 line-clamp-1 text-sm font-semibold text-blue-700">
-                  {formatBusinessCategory(biz.subcategory || biz.category) || t(effectiveLang, 'Business')}
+                  {translateUi(formatBusinessCategory(biz.subcategory || biz.category) || 'Business')}
                 </p>
               </Link>
             ))}

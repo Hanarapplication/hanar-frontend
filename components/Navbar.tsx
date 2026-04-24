@@ -450,6 +450,12 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     setNotificationsOpen(false);
     router.push(href);
   };
+  const handlePrimaryNavTap = (event: React.MouseEvent | React.TouchEvent, href: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setNotificationsOpen(false);
+    router.push(href);
+  };
 
   const toggleNotifications = () => {
     setNotificationsOpen((prev) => {
@@ -477,14 +483,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       key: 'marketplace',
       href: '/marketplace',
       icon: (
-        <ShoppingCart className={navLineIconClass} strokeWidth={1.9} stroke="url(#nav-grad-marketplace)">
-          <defs>
-            <linearGradient id="nav-grad-marketplace" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#2563eb" />
-              <stop offset="100%" stopColor="#dc2626" />
-            </linearGradient>
-          </defs>
-        </ShoppingCart>
+        <ShoppingCart className={`${navLineIconClass} text-blue-700`} strokeWidth={1.9} />
       ),
       label: t(effectiveLang, 'Marketplace'),
       isActive: (path) => path.startsWith('/marketplace'),
@@ -493,14 +492,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       key: 'businesses',
       href: '/businesses',
       icon: (
-        <Store className={navLineIconClass} strokeWidth={1.9} stroke="url(#nav-grad-businesses)">
-          <defs>
-            <linearGradient id="nav-grad-businesses" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#2563eb" />
-              <stop offset="100%" stopColor="#dc2626" />
-            </linearGradient>
-          </defs>
-        </Store>
+        <Store className={`${navLineIconClass} text-blue-700`} strokeWidth={1.9} />
       ),
       label: t(effectiveLang, 'Businesses'),
       isActive: (path) => path.startsWith('/businesses') || path.startsWith('/business/'),
@@ -509,7 +501,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       key: 'profile',
       href: dashboardIdentity.loggedIn ? '/dashboard' : '/login?redirect=/dashboard',
       icon: dashboardIdentity.loggedIn ? (
-        <span className="inline-flex h-[2.1rem] w-[2.1rem] items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-red-600 p-[1.5px]">
+        <span className="inline-flex h-[2.1rem] w-[2.1rem] items-center justify-center rounded-full border border-blue-600 bg-blue-600/10 p-[1.5px]">
           <Avatar
             src={dashboardIdentity.avatarUrl}
             alt="Dashboard profile"
@@ -518,14 +510,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
           />
         </span>
       ) : (
-        <CircleUserRound className={navLineIconClass} strokeWidth={1.9} stroke="url(#nav-grad-profile)">
-          <defs>
-            <linearGradient id="nav-grad-profile" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#2563eb" />
-              <stop offset="100%" stopColor="#dc2626" />
-            </linearGradient>
-          </defs>
-        </CircleUserRound>
+        <CircleUserRound className={`${navLineIconClass} text-blue-700`} strokeWidth={1.9} />
       ),
       label: t(effectiveLang, 'Profile'),
       isActive: (path) => path.startsWith('/dashboard') || (!dashboardIdentity.loggedIn && path.startsWith('/login')),
@@ -534,7 +519,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
 
   return (
     <>
-      <nav className={`fixed bottom-0 left-0 right-0 z-50 flex h-14 items-center border-t border-black bg-slate-100/80 px-1.5 pb-[max(0px,env(safe-area-inset-bottom))] backdrop-blur-sm transition-all duration-200 dark:border-black dark:bg-slate-700/80 sm:hidden ${hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
+      <nav data-bottom-nav="true" className={`fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto flex h-14 items-center border-t border-black bg-slate-100/80 px-1.5 pb-[max(0px,env(safe-area-inset-bottom))] backdrop-blur-sm transition-all duration-200 dark:border-black dark:bg-slate-700/80 sm:hidden ${hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
         <div className="flex w-full items-center gap-0.5">
           {primaryNavItems.map((item) => {
             const isActive = item.isActive(pathname);
@@ -543,7 +528,9 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
                 key={item.key}
                 href={item.href}
                 aria-label={item.label}
-                className={`relative inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-lg transition-colors ${
+                onClick={(event) => handlePrimaryNavTap(event, item.href)}
+                onTouchEnd={(event) => handlePrimaryNavTap(event, item.href)}
+                className={`relative inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-lg touch-manipulation pointer-events-auto transition-colors ${
                   isActive ? 'text-black' : 'text-black/70 hover:bg-black/10 hover:text-black'
                 }`}
               >
@@ -560,7 +547,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
         </div>
       </nav>
 
-      <nav className={`fixed bottom-0 left-0 right-0 z-50 hidden h-[3.75rem] items-center border-t border-black bg-slate-100/80 px-3 pb-[max(0px,env(safe-area-inset-bottom))] backdrop-blur-sm transition-all duration-200 isolate dark:border-black dark:bg-slate-700/80 sm:flex sm:h-16 ${hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
+      <nav data-bottom-nav="true" className={`fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto hidden h-[3.75rem] items-center border-t border-black bg-slate-100/80 px-3 pb-[max(0px,env(safe-area-inset-bottom))] backdrop-blur-sm transition-all duration-200 isolate dark:border-black dark:bg-slate-700/80 sm:flex sm:h-16 ${hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
         <div className="flex w-full items-center gap-1.5">
           {primaryNavItems.map((item) => {
             const isActive = item.isActive(pathname);
@@ -569,7 +556,9 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
                 key={`desktop-${item.key}`}
                 href={item.href}
                 aria-label={item.label}
-                className={`relative inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-lg transition-colors ${
+                onClick={(event) => handlePrimaryNavTap(event, item.href)}
+                onTouchEnd={(event) => handlePrimaryNavTap(event, item.href)}
+                className={`relative inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-lg touch-manipulation pointer-events-auto transition-colors ${
                   isActive ? 'text-black' : 'text-black/70 hover:bg-black/10 hover:text-black'
                 }`}
               >

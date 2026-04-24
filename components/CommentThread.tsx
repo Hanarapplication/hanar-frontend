@@ -1,6 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import CommentForm from './CommentForm';
+import { useTranslation } from '@/context/LanguageContext';
 
 type Comment = {
   id: string;
@@ -20,6 +21,7 @@ type Props = {
 
 export default function CommentThread({ comment, allComments, depth = 0, onReplySubmit }: Props) {
   const [replying, setReplying] = useState(false);
+  const { t } = useTranslation();
 
   const childComments = allComments.filter(c => c.parentId === comment.id);
 
@@ -33,7 +35,7 @@ export default function CommentThread({ comment, allComments, depth = 0, onReply
           onClick={() => setReplying(!replying)}
           className="text-xs text-rose-500 mt-2 hover:underline"
         >
-          {replying ? 'Cancel' : 'Reply'}
+          {replying ? t('Cancel') : t('Reply')}
         </button>
 
         {replying && (

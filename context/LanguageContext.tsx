@@ -3,44 +3,14 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { t as tFromTranslations } from '@/utils/translations';
 import { setRuntimeTranslations, getRuntimeTranslations } from '@/utils/runtimeTranslations';
+import { supportedLanguages } from '@/utils/languages';
 
-const SUPPORTED_CODES = new Set([
-  'en', 'am', 'ar', 'az', 'bn', 'de', 'el', 'es', 'fa', 'fr', 'ha', 'he', 'hi', 'hy', 'id', 'it', 'ja', 'ka', 'ku', 'ms', 'ne', 'pa', 'pl', 'ps', 'pt', 'ro', 'ru', 'so', 'ta', 'th', 'tr', 'ug', 'uk', 'ur', 'uz', 'vi', 'zh', 'ko', 'sw',
-]);
+const SUPPORTED_CODES = new Set(
+  supportedLanguages
+    .map((entry) => entry.code)
+    .filter((code) => code !== 'auto')
+);
 const UI_TRANSLATION_CACHE_PREFIX = 'hanarUiTranslationsV21:';
-const REQUIRED_UI_KEYS = [
-  'Services & Professionals',
-  'Hot New Businesses Nearby',
-  'More categories',
-  'Continue shopping deals',
-  'Categories for you',
-  'Search Hanar Marketplace',
-  'Dashboard Menu',
-  'Your dashboard',
-  'Edit username & display name',
-  'Followers only',
-  'Public (Community)',
-  'Blocked accounts',
-  'Sell Item',
-  'Edit Business',
-  'Business Dashboard',
-  'My Posts',
-  'Insights',
-  'View public profile',
-  'Edit Business Details',
-  'State (for U.S. businesses)',
-  'Select U.S. state',
-  'Car Dealer',
-  'Monday',
-  'No file chosen',
-  'Ask the community...',
-  'Featured businesses',
-  'Organization update',
-  'Latest on marketplace',
-  'Choose your language',
-  'Choose marketplace location',
-  'Choose city / zip code / country',
-];
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'OPTION']);
 const MAX_NODES_PER_PASS = 3000;
 
@@ -203,8 +173,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         const cachedRaw = localStorage.getItem(cacheKey);
         if (cachedRaw) {
           const cached = JSON.parse(cachedRaw) as Record<string, string>;
-          const hasRequiredKeys = REQUIRED_UI_KEYS.every((key) => typeof cached?.[key] === 'string');
-          if (cached && typeof cached === 'object' && hasRequiredKeys) {
+          if (cached && typeof cached === 'object' && Object.keys(cached).length > 0) {
             setRuntimeTranslations(effectiveLang, cached);
             setTranslationRevision((value) => value + 1);
             return;

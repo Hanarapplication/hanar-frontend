@@ -179,12 +179,13 @@ onClick={async () => {
             >
               <div className="bg-white p-5 rounded-lg border shadow-md hover:shadow-lg transition-shadow">
                 <Link href={`/community/${post.id}`} data-no-translate>
-                  <h2 className="font-semibold text-lg text-gray-900 line-clamp-1">{post.title}</h2>
-                  <p className="text-gray-700 text-sm mt-1 line-clamp-3">{post.body}</p>
+                  <p className="text-gray-700 text-sm whitespace-pre-wrap line-clamp-4">
+                    {post.body || post.title}
+                  </p>
                   {post.image && (
                     <img
                       src={post.image}
-                      alt={post.title}
+                      alt="Post image"
                       className="mt-2 block w-full h-auto max-h-[85vh] object-contain rounded-md"
                     />
                   )}
@@ -209,7 +210,7 @@ onClick={async () => {
                   </div>
                 </Link>
                 <PostTranslateToggle
-                  text={`${post.title}\n\n${post.body || ''}`}
+                  text={String(post.body || post.title || '')}
                   postId={post.id}
                   sourceLang={post.language || null}
                   className="mt-2"

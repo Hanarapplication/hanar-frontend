@@ -691,7 +691,17 @@ export default function Home() {
   const [feedBanners, setFeedBanners] = useState<AdBanner[]>([]);
   const [hasNewContent, setHasNewContent] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedPostText, setExpandedPostText] = useState<Set<string>>(new Set());
   const latestPostDateRef = useRef<string | null>(null);
+
+  const toggleExpandedPostText = useCallback((postId: string) => {
+    setExpandedPostText((prev) => {
+      const next = new Set(prev);
+      if (next.has(postId)) next.delete(postId);
+      else next.add(postId);
+      return next;
+    });
+  }, []);
 
   const fetchLikedPosts = useCallback(async (userId: string) => {
     try {
@@ -2200,6 +2210,9 @@ const formatDateLabel = (value?: string | null) => {
             const commentCount = item.post.community_comments?.[0]?.count || 0;
             const isCommentsOpen = commentsOpen.has(item.post.id);
             const comments = commentsByPost[item.post.id] || [];
+            const postText = String(item.post.body || item.post.title || '');
+            const isExpanded = expandedPostText.has(item.post.id);
+            const shouldShowExpand = postText.length > 180;
             return (
               <Fragment key={`post-${item.post.id}-${index}`}>
                 {index > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
@@ -2230,13 +2243,24 @@ const formatDateLabel = (value?: string | null) => {
                   <span className="flex-shrink-0">{dateLabel}</span>
                 </div>
                 <Link href={`/community/post/${item.post.id}`} data-no-translate>
-                  <h2 className="mt-2 text-[1.02rem] font-semibold leading-6 text-slate-800 dark:text-gray-100">{item.post.title}</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-gray-300 line-clamp-3">{item.post.body}</p>
+                  <p className={`mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600 dark:text-gray-300 ${isExpanded ? '' : 'line-clamp-4'}`}>
+                    {postText}
+                  </p>
                 </Link>
+                {shouldShowExpand ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleExpandedPostText(item.post.id)}
+                    className="mt-1 text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-300"
+                  >
+                    {isExpanded ? 'See less' : 'See more'}
+                  </button>
+                ) : null}
                 <PostTranslateToggle
-                  text={`${item.post.title}\n\n${item.post.body || ''}`}
+                  text={postText}
                   postId={item.post.id}
                   sourceLang={item.post.language || null}
+                  targetLang={effectiveLang}
                   className="mt-2"
                 />
                 {item.post.video ? (

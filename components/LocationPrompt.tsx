@@ -22,29 +22,40 @@ export default function LocationPromptModal() {
   const [selectedLang, setSelectedLang] = useState('en');
 
   useEffect(() => {
-    const savedLang = localStorage.getItem('hanarLang');
-    if (savedLang && savedLang !== 'auto') {
-      setSelectedLang(savedLang);
-    } else {
-      const browserLang = (navigator.language || navigator.languages?.[0] || 'en').slice(0, 2).toLowerCase();
-      const supportedCodes = new Set(
-        supportedLanguages
-          .map((entry) => entry.code)
-          .filter((code) => code !== 'auto')
-      );
-      setSelectedLang(supportedCodes.has(browserLang) ? browserLang : 'en');
-    }
+    const bootstrapPrompt = async () => {
+      const savedLang = localStorage.getItem('hanarLang');
+      if (savedLang && savedLang !== 'auto') {
+        setSelectedLang(savedLang);
+      } else {
+        const browserLang = (navigator.language || navigator.languages?.[0] || 'en').slice(0, 2).toLowerCase();
+        const supportedCodes = new Set(
+          supportedLanguages
+            .map((entry) => entry.code)
+            .filter((code) => code !== 'auto')
+        );
+        setSelectedLang(supportedCodes.has(browserLang) ? browserLang : 'en');
+      }
 
-    const isDone = localStorage.getItem(ONBOARDING_DONE_KEY) === 'true';
-    const savedCoords = localStorage.getItem('userCoords');
-    const currentLang = localStorage.getItem('hanarLang');
-    const hasChosenLang = !!currentLang && currentLang !== 'auto';
-    const hasLocation = !!savedCoords;
-    // Ask all users (including logged-out users) until both language and location are set.
-    const shouldShow = !isDone || !hasChosenLang || !hasLocation;
-    setShowModal(shouldShow);
-    if (shouldShow) setStep('language');
-    setInitialized(true);
+      // Never show onboarding location/language prompt to logged-in users.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setShowModal(false);
+        setInitialized(true);
+        return;
+      }
+
+      const isDone = localStorage.getItem(ONBOARDING_DONE_KEY) === 'true';
+      const savedCoords = localStorage.getItem('userCoords');
+      const currentLang = localStorage.getItem('hanarLang');
+      const hasChosenLang = !!currentLang && currentLang !== 'auto';
+      const hasLocation = !!savedCoords;
+      const shouldShow = !isDone || !hasChosenLang || !hasLocation;
+      setShowModal(shouldShow);
+      if (shouldShow) setStep('language');
+      setInitialized(true);
+    };
+
+    void bootstrapPrompt();
   }, []);
 
   const completeOnboarding = () => {

@@ -12,6 +12,7 @@ import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import { Avatar } from '@/components/Avatar';
 import { useLanguage } from '@/context/LanguageContext';
 import PostTranslateToggle from '@/components/PostTranslateToggle';
+import { t } from '@/utils/translations';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -459,11 +460,10 @@ export default function CommunityPostPage() {
           </div>
 
           <div data-no-translate>
-            <h1 className="mt-2 text-xl font-semibold text-slate-800">{post.title}</h1>
-            <p className="mt-2 whitespace-pre-wrap text-slate-700 text-sm">{post.body}</p>
+            <p className="mt-2 whitespace-pre-wrap text-slate-700 text-sm">{post.body || post.title}</p>
           </div>
           <PostTranslateToggle
-            text={`${post.title}\n\n${post.body || ''}`}
+            text={String(post.body || post.title || '')}
             postId={post.id}
             sourceLang={post.language || null}
             className="mt-2"
@@ -480,7 +480,7 @@ export default function CommunityPostPage() {
               className="mt-3 overflow-hidden rounded-lg border border-slate-100 cursor-pointer"
               onClick={() => setPopupImage(post.image)}
             >
-              <img src={post.image} alt={post.title} className="block w-full h-auto max-h-[85vh] object-contain" />
+              <img src={post.image} alt="Post image" className="block w-full h-auto max-h-[85vh] object-contain" />
             </div>
           )}
 
@@ -500,7 +500,7 @@ export default function CommunityPostPage() {
             onComment={() => document.getElementById('comment-box')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
             onShare={() => {
               if (navigator.share) {
-                navigator.share({ title: post.title, url: window.location.href });
+                navigator.share({ title: post.body || post.title || 'Post', url: window.location.href });
               } else {
                 toast('Sharing not supported on this device');
               }
@@ -510,20 +510,20 @@ export default function CommunityPostPage() {
           />
 
           <div className="mt-4 border-t border-slate-100 pt-4 dark:border-gray-600">
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">Comments</h3>
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-200">{t(effectiveLang, 'Comments')}</h3>
             <div className="mt-3 flex gap-4 text-xs text-slate-500 dark:text-gray-400">
-              <span>Sort by:</span>
+              <span>{t(effectiveLang, 'Sort by:')}</span>
               <button type="button" onClick={() => handleSortChange('latest')} className={sortMode === 'latest' ? 'font-semibold text-rose-600 dark:text-rose-400' : ''}>
-                Latest
+                {t(effectiveLang, 'Latest')}
               </button>
               <button type="button" onClick={() => handleSortChange('popular')} className={sortMode === 'popular' ? 'font-semibold text-rose-600 dark:text-rose-400' : ''}>
-                Most Popular
+                {t(effectiveLang, 'Most Popular')}
               </button>
             </div>
 
             <div className="mt-4">
               {comments.length === 0 && (
-                <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
+                <p className="text-xs text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Be the first to comment.')}</p>
               )}
               {visibleComments.length > 0 && (
               <div className="-mx-5 flex flex-col divide-y divide-slate-300 bg-white gap-0 dark:divide-slate-600 dark:bg-white">
@@ -596,13 +596,13 @@ export default function CommunityPostPage() {
                 onClick={() => setCommentsExpanded(true)}
                 className="mt-3 w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-gray-600 dark:bg-gray-700/80 dark:text-gray-200 dark:hover:bg-gray-700"
               >
-                Load more comments
+                {t(effectiveLang, 'Load more comments')}
               </button>
             )}
           </div>
 
           <div id="comment-box" className="mt-4 border-t border-slate-100 pt-4 dark:border-gray-600">
-            {!userSession && <p className="mb-2 text-xs italic text-slate-500 dark:text-gray-400">Log in to comment.</p>}
+            {!userSession && <p className="mb-2 text-xs italic text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Log in to comment.')}</p>}
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -614,7 +614,7 @@ export default function CommunityPostPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleCommentSubmit();
                 }}
-                placeholder={userSession ? 'Write a comment...' : 'Log in to write a comment'}
+                placeholder={userSession ? t(effectiveLang, 'Write a comment...') : t(effectiveLang, 'Log in to write a comment')}
                 disabled={!userSession}
                 className="flex-1 rounded-full border border-sky-300 px-4 py-2 text-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-400 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-sky-300 dark:focus:ring-sky-400/45 dark:placeholder-gray-400"
               />
@@ -622,7 +622,7 @@ export default function CommunityPostPage() {
                 type="button"
                 onClick={handleCommentSubmit}
                 disabled={!userSession || !newComment.trim()}
-                aria-label="Post comment"
+                aria-label={t(effectiveLang, 'Post comment')}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-sky-200 disabled:text-sky-100/90 dark:bg-sky-600 dark:hover:bg-sky-500 dark:disabled:bg-slate-600 dark:disabled:text-slate-400"
               >
                 <SendHorizontal className="h-4 w-4" strokeWidth={2.25} aria-hidden />

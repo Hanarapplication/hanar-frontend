@@ -146,6 +146,19 @@ function applyUiToneOverrides(lang: string, key: string, value: string): string 
   return value;
 }
 
+function buildLocalFallbackTranslations(
+  lang: string,
+  englishMap: Record<string, string>,
+  keys: string[]
+): Record<string, string> {
+  const localMap = translations[lang] || {};
+  const payload: Record<string, string> = {};
+  keys.forEach((key) => {
+    payload[key] = applyUiToneOverrides(lang, key, localMap[key] || englishMap[key] || key);
+  });
+  return payload;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const lang = resolveTargetLanguage(request.nextUrl.searchParams.get('lang'));
@@ -175,7 +188,15 @@ export async function GET(request: NextRequest) {
     );
     if (keys.length === 0) return NextResponse.json({ lang, translations: {} });
 
-    const client = createTranslateClient();
+    let client: Translate;
+    try {
+      client = createTranslateClient();
+    } catch (error) {
+      console.error('translate-ui client init error, using local fallback', error);
+      const payload = buildLocalFallbackTranslations(lang, englishMap, keys);
+      cache.set(lang, { expiresAt: now + ONE_HOUR_MS, payload });
+      return NextResponse.json({ lang, translations: payload, cached: false, fallback: 'local' });
+    }
     const payload: Record<string, string> = {};
 
     for (let start = 0; start < keys.length; start += MAX_SEGMENTS_PER_REQUEST) {
@@ -192,9 +213,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ lang, translations: payload, cached: false });
   } catch (error) {
     console.error('translate-ui route error', error);
-    return NextResponse.json(
-      { error: 'Failed to load translated UI strings.' },
-      { status: 500 }
+    const lang = resolveTargetLanguage(request.nextUrl.searchParams.get('lang'));
+    const englishMap = translations.en || {};
+    const categoryKeys = BUSINESS_CATEGORIES.flatMap((cat) => [
+      cat.label,
+      ...cat.subcategories.map((sub) => sub.label),
+    ]);
+    const keys = Array.from(
+      new Set([
+        ...Object.keys(englishMap),
+        ...categoryKeys,
+        'Select a category',
+        'Choose business category',
+        'Subcategory',
+      ])
     );
+    const payload = buildLocalFallbackTranslations(lang, englishMap, keys);
+    return NextResponse.json({ lang, translations: payload, fallback: 'local-error' });
   }
 }

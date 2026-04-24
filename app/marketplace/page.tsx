@@ -1407,11 +1407,11 @@ export default function MarketplacePage() {
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
-              className="rounded-lg bg-gradient-to-r from-[#a68920] via-[#e6cf6a] to-[#a68920] p-[2px] dark:from-[#4a4014] dark:via-[#c4a82c] dark:to-[#4a4014]"
+              className="rounded-lg bg-gradient-to-r from-[#d6d8dc] via-[#eef0f2] to-[#d6d8dc] p-[2px] dark:from-[#3f454d] dark:via-[#5b6470] dark:to-[#3f454d]"
             >
-              <div className="overflow-hidden rounded-[6px] bg-gradient-to-r from-[#b08f24] via-[#e7d487] to-[#b08f24] dark:from-[#6b5818] dark:via-[#c7ac46] dark:to-[#6b5818]">
+              <div className="overflow-hidden rounded-[6px] bg-gradient-to-r from-[#e3e5e8] via-[#f7f8fa] to-[#e3e5e8] dark:from-[#4a515b] dark:via-[#6a7380] dark:to-[#4a515b]">
                 <div className="skeleton aspect-[5/3] w-full rounded-none" />
-                <div className="space-y-2 bg-gradient-to-b from-[#5c1024] to-[#2d0610] p-2.5 dark:from-gray-900 dark:to-black">
+                <div className="space-y-2 bg-gradient-to-b from-[#f4f5f7] to-[#e7eaee] p-2.5 dark:from-gray-900 dark:to-black">
                   <div className="skeleton h-3.5 w-1/3 rounded-full" />
                   <div className="skeleton h-3.5 w-3/4 rounded" />
                   <div className="skeleton h-3 w-1/2 rounded" />

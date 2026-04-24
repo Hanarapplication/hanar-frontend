@@ -22,6 +22,8 @@ export default function PullToRefresh({ onRefresh, children, className = '' }: P
   const THRESHOLD = 80;
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
+    const target = e.target as Element | null;
+    if (target?.closest('[data-bottom-nav="true"]')) return;
     // Only activate if scrolled to top
     const scrollTop = window.scrollY || document.documentElement.scrollTop;
     if (scrollTop > 5 || refreshing) return;
