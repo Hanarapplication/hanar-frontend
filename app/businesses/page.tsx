@@ -692,7 +692,7 @@ export default function BusinessesPage() {
               className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
               <FaMapMarkerAlt className="h-3.5 w-3.5 text-slate-600" />
-              <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose location')}</span>
+              <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose city / zip code / country')}</span>
               {locationLabel && (
                 <span className="text-[10px] text-slate-500">{radius} mi</span>
               )}

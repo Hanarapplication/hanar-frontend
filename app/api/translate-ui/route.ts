@@ -7,6 +7,80 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
 const MAX_SEGMENTS_PER_REQUEST = 100;
 const cache = new Map<string, { expiresAt: number; payload: Record<string, string> }>();
 const HANAR_SPLIT_REGEX = /(hanar)/gi;
+const UI_SINGULAR_TONE_OVERRIDES: Record<string, Record<string, string>> = {
+  fa: {
+    'Ask the community...': 'از جامعه بپرس...',
+    'Write a comment...': 'یک نظر بنویس...',
+    'Log in to write a comment': 'برای نوشتن نظر وارد شوید',
+    'Post comment': 'ارسال نظر',
+  },
+  ar: {
+    'Ask the community...': 'اسأل المجتمع...',
+    'Write a comment...': 'اكتب تعليقًا...',
+    'Log in to write a comment': 'سجّل الدخول لكتابة تعليق',
+    'Post comment': 'أرسل التعليق',
+  },
+  es: {
+    'Ask the community...': 'Pregunta a la comunidad...',
+    'Write a comment...': 'Escribe un comentario...',
+    'Log in to write a comment': 'Inicia sesión para escribir un comentario',
+    'Post comment': 'Publicar comentario',
+  },
+  fr: {
+    'Ask the community...': 'Demande a la communaute...',
+    'Write a comment...': 'Ecris un commentaire...',
+    'Log in to write a comment': 'Connecte-toi pour ecrire un commentaire',
+    'Post comment': 'Publier le commentaire',
+  },
+  de: {
+    'Ask the community...': 'Frag die Community...',
+    'Write a comment...': 'Schreib einen Kommentar...',
+    'Log in to write a comment': 'Melde dich an, um einen Kommentar zu schreiben',
+    'Post comment': 'Kommentar posten',
+  },
+  it: {
+    'Ask the community...': 'Chiedi alla community...',
+    'Write a comment...': 'Scrivi un commento...',
+    'Log in to write a comment': 'Accedi per scrivere un commento',
+    'Post comment': 'Pubblica commento',
+  },
+  pt: {
+    'Ask the community...': 'Pergunta a comunidade...',
+    'Write a comment...': 'Escreve um comentario...',
+    'Log in to write a comment': 'Faz login para escrever um comentario',
+    'Post comment': 'Publicar comentario',
+  },
+  ru: {
+    'Ask the community...': 'Спроси сообщество...',
+    'Write a comment...': 'Напиши комментарий...',
+    'Log in to write a comment': 'Войди, чтобы написать комментарий',
+    'Post comment': 'Отправить комментарий',
+  },
+  tr: {
+    'Ask the community...': 'Topluluga sor...',
+    'Write a comment...': 'Yorum yaz...',
+    'Log in to write a comment': 'Yorum yazmak icin giris yap',
+    'Post comment': 'Yorumu gonder',
+  },
+  he: {
+    'Ask the community...': 'שאל את הקהילה...',
+    'Write a comment...': 'כתוב תגובה...',
+    'Log in to write a comment': 'התחבר כדי לכתוב תגובה',
+    'Post comment': 'פרסם תגובה',
+  },
+  ur: {
+    'Ask the community...': 'کمیونٹی سے پوچھ...',
+    'Write a comment...': 'تبصرہ لکھ...',
+    'Log in to write a comment': 'تبصرہ لکھنے کے لئے لاگ ان کرو',
+    'Post comment': 'تبصرہ پوسٹ کرو',
+  },
+  hi: {
+    'Ask the community...': 'कम्युनिटी से पूछो...',
+    'Write a comment...': 'टिप्पणी लिखो...',
+    'Log in to write a comment': 'टिप्पणी लिखने के लिए लॉग इन करो',
+    'Post comment': 'टिप्पणी पोस्ट करो',
+  },
+};
 
 type BrandSegment = { value: string; isBrand: boolean };
 
@@ -64,6 +138,14 @@ function createTranslateClient() {
   return new Translate({ projectId });
 }
 
+function applyUiToneOverrides(lang: string, key: string, value: string): string {
+  const overridesForLang = UI_SINGULAR_TONE_OVERRIDES[lang];
+  if (overridesForLang?.[key]) {
+    return overridesForLang[key];
+  }
+  return value;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const lang = resolveTargetLanguage(request.nextUrl.searchParams.get('lang'));
@@ -101,7 +183,8 @@ export async function GET(request: NextRequest) {
       const sourceChunk = keyChunk.map((key) => englishMap[key] || key);
       const translatedChunk = await translatePreservingBrand(client, sourceChunk, lang);
       keyChunk.forEach((key, index) => {
-        payload[key] = translatedChunk[index] || englishMap[key] || key;
+        const translatedValue = translatedChunk[index] || englishMap[key] || key;
+        payload[key] = applyUiToneOverrides(lang, key, translatedValue);
       });
     }
 

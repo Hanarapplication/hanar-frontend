@@ -1088,7 +1088,7 @@ export default function MarketplacePage() {
             className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
             <FaMapMarkerAlt className="h-3.5 w-3.5 text-slate-600" />
-            <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose delivery location')}</span>
+            <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose marketplace location')}</span>
             {locationLabel && locationScope.mode === 'country' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'Country')}</span>}
             {locationLabel && locationScope.mode === 'state' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'State')}</span>}
             {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && userCoords && (

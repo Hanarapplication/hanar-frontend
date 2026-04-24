@@ -5,25 +5,53 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 import { readSavedSearchRadiusMiles } from '@/lib/geoDistance';
+import { useLanguage } from '@/context/LanguageContext';
+import { supportedLanguages } from '@/utils/languages';
+import { t } from '@/utils/translations';
+
+const ONBOARDING_DONE_KEY = 'hanarOnboardingDone';
+const LEGACY_LOCATION_SEEN_KEY = 'hasSeenLocationPrompt';
+
+type OnboardingStep = 'language' | 'locationPrompt' | 'manualLocation';
 
 export default function LocationPromptModal() {
+  const { setLang, effectiveLang } = useLanguage();
   const [showModal, setShowModal] = useState(false);
-  const [showFallback, setShowFallback] = useState(false);
-  const [language, setLanguage] = useState<'en' | 'fa' | 'ar'>('en');
-
-  // Detect user language
-  useEffect(() => {
-    const lang = navigator.language || navigator.languages?.[0];
-    if (lang.startsWith('fa')) setLanguage('fa');
-    else if (lang.startsWith('ar')) setLanguage('ar');
-    else setLanguage('en');
-  }, []);
+  const [initialized, setInitialized] = useState(false);
+  const [step, setStep] = useState<OnboardingStep>('language');
+  const [selectedLang, setSelectedLang] = useState('en');
 
   useEffect(() => {
-    const hasSeenPrompt = localStorage.getItem('hasSeenLocationPrompt') === 'true';
-    const coords = localStorage.getItem('userCoords');
-    setShowModal(!hasSeenPrompt && !coords);
+    const savedLang = localStorage.getItem('hanarLang');
+    if (savedLang && savedLang !== 'auto') {
+      setSelectedLang(savedLang);
+    } else {
+      const browserLang = (navigator.language || navigator.languages?.[0] || 'en').slice(0, 2).toLowerCase();
+      const supportedCodes = new Set(
+        supportedLanguages
+          .map((entry) => entry.code)
+          .filter((code) => code !== 'auto')
+      );
+      setSelectedLang(supportedCodes.has(browserLang) ? browserLang : 'en');
+    }
+
+    const isDone = localStorage.getItem(ONBOARDING_DONE_KEY) === 'true';
+    const savedCoords = localStorage.getItem('userCoords');
+    const currentLang = localStorage.getItem('hanarLang');
+    const hasChosenLang = !!currentLang && currentLang !== 'auto';
+    const hasLocation = !!savedCoords;
+    // Ask all users (including logged-out users) until both language and location are set.
+    const shouldShow = !isDone || !hasChosenLang || !hasLocation;
+    setShowModal(shouldShow);
+    if (shouldShow) setStep('language');
+    setInitialized(true);
   }, []);
+
+  const completeOnboarding = () => {
+    localStorage.setItem(ONBOARDING_DONE_KEY, 'true');
+    localStorage.setItem(LEGACY_LOCATION_SEEN_KEY, 'true');
+    setShowModal(false);
+  };
 
   const persistLocation = async (
     lat: number,
@@ -62,7 +90,6 @@ export default function LocationPromptModal() {
             lon: pos.coords.longitude,
           };
           localStorage.setItem('userCoords', JSON.stringify(coords));
-          localStorage.setItem('hasSeenLocationPrompt', 'true');
           void persistLocation(coords.lat, coords.lon, { source: 'gps' });
 
           const radiusMiles = readSavedSearchRadiusMiles(40);
@@ -91,11 +118,11 @@ export default function LocationPromptModal() {
               detail: { ...coords, label, radiusMiles, source: 'gps' },
             })
           );
-          setShowModal(false);
+          completeOnboarding();
         })();
       },
       () => {
-        setShowFallback(true);
+        setStep('manualLocation');
       }
     );
   };
@@ -104,7 +131,7 @@ export default function LocationPromptModal() {
     const lat = result.lat ?? 0;
     const lng = result.lng ?? 0;
     if (lat === 0 && lng === 0) {
-      alert(t('notFound'));
+      alert(t(effectiveLang, 'Could not find that location.'));
       return;
     }
     const coords = { lat, lon: lng };
@@ -114,7 +141,6 @@ export default function LocationPromptModal() {
     const label = result.formatted_address || [result.city, result.state, result.zip].filter(Boolean).join(', ');
     localStorage.setItem('userCoords', JSON.stringify(coords));
     try { if (label) localStorage.setItem('userLocationLabel', label); } catch {}
-    localStorage.setItem('hasSeenLocationPrompt', 'true');
     persistLocation(coords.lat, coords.lon, {
       city: cityValue,
       state: stateValue,
@@ -135,100 +161,83 @@ export default function LocationPromptModal() {
         },
       }));
     }
-    setShowModal(false);
+    completeOnboarding();
   };
 
-  const handleSkip = () => {
-    setShowFallback(true);
+  const handleContinueLanguage = () => {
+    localStorage.setItem('hanarLang', selectedLang);
+    setLang(selectedLang);
+    setStep('locationPrompt');
   };
 
-  const t = (key: string) => {
-    const translations: Record<string, Record<'en' | 'fa' | 'ar', string>> = {
-      allowTitle: {
-        en: '📍 Allow Location Access',
-        fa: '📍 اجازه دسترسی به موقعیت مکانی',
-        ar: '📍 السماح بالوصول إلى الموقع',
-      },
-      allowText: {
-        en: 'We use your location to show nearby businesses and marketplace items.',
-        fa: 'ما از موقعیت مکانی شما برای نمایش کسب‌وکارهای نزدیک استفاده می‌کنیم.',
-        ar: 'نستخدم موقعك لعرض الأنشطة التجارية القريبة.',
-      },
-      allowBtn: { en: 'Allow Location', fa: 'اجازه بده', ar: 'السماح' },
-      notNow: { en: 'Not Now', fa: 'بعداً', ar: 'ليس الآن' },
-      fallbackTitle: {
-        en: '📍 Enter ZIP or City',
-        fa: '📍 وارد کردن زیپ‌کد یا شهر',
-        ar: '📍 أدخل الرمز البريدي أو المدينة',
-      },
-      fallbackText: {
-        en: 'We’ll use this to show you nearby listings.',
-        fa: 'از این برای نمایش آگهی‌های نزدیک استفاده می‌کنیم.',
-        ar: 'سنستخدم هذا لعرض الإعلانات القريبة منك.',
-      },
-      inputPlaceholder: {
-        en: 'ZIP code or City name',
-        fa: 'زیپ‌کد یا نام شهر',
-        ar: 'الرمز البريدي أو اسم المدينة',
-      },
-      submit: { en: 'Submit', fa: 'ثبت', ar: 'إرسال' },
-      pleaseEnterZip: {
-        en: 'Please enter a ZIP or city',
-        fa: 'لطفاً زیپ‌کد یا شهر را وارد کنید',
-        ar: 'يرجى إدخال الرمز البريدي أو المدينة',
-      },
-      notFound: {
-        en: 'Could not find that location.',
-        fa: 'موقعیت پیدا نشد.',
-        ar: 'تعذر العثور على هذا الموقع.',
-      },
-      lookupFailed: {
-        en: 'Failed to look up location.',
-        fa: 'خطا در یافتن موقعیت.',
-        ar: 'فشل في البحث عن الموقع.',
-      },
-    };
-
-    return translations[key]?.[language] || translations[key]?.en || key;
-  };
-
-  if (!showModal) return null;
+  if (!initialized || !showModal) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] pointer-events-none bg-black/30 flex items-center justify-center p-4 transition-opacity animate-fade-in" role="dialog" aria-modal="true" aria-label="Location access">
+    <div className="fixed inset-0 z-[9999] pointer-events-none bg-black/30 flex items-center justify-center p-4 transition-opacity animate-fade-in" role="dialog" aria-modal="true" aria-label={t(effectiveLang, 'Onboarding')}>
       <div className="pointer-events-auto bg-white w-full max-w-sm rounded-xl shadow-xl p-5 text-center transform transition-all scale-95 animate-scale-in">
-        {!showFallback ? (
+        {step === 'language' && (
           <>
-            <h2 className="text-lg font-semibold mb-2">{t('allowTitle')}</h2>
-            <p className="text-sm text-gray-600 mb-4">{t('allowText')}</p>
-            <div className="flex justify-center gap-3">
+            <h2 className="text-lg font-semibold mb-2">{t(effectiveLang, 'Choose your language')}</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              {t(effectiveLang, 'Pick your app language to start Hanar in your preferred language.')}
+            </p>
+            <select
+              value={selectedLang}
+              onChange={(e) => setSelectedLang(e.target.value)}
+              className="mb-4 w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              {supportedLanguages
+                .filter((entry) => entry.code !== 'auto')
+                .map((entry) => (
+                  <option key={entry.code} value={entry.code}>
+                    {entry.emoji} {entry.name}
+                  </option>
+                ))}
+            </select>
+            <div className="flex justify-center">
               <button
-                onClick={handleSkip}
-                className="px-3 py-2 text-sm border border-gray-400 rounded-md"
+                onClick={handleContinueLanguage}
+                className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md"
               >
-                {t('notNow')}
-              </button>
-              <button
-                onClick={handleAllow}
-                className="px-3 py-2 text-sm bg-green-600 text-white rounded-md"
-              >
-                {t('allowBtn')}
+                {t(effectiveLang, 'Continue')}
               </button>
             </div>
           </>
-        ) : (
+        )}
+
+        {step === 'locationPrompt' && (
           <>
-            <h2 className="text-lg font-semibold mb-2">{t('fallbackTitle')}</h2>
-            <p className="text-sm text-gray-600 mb-4">{t('fallbackText')}</p>
+            <h2 className="text-lg font-semibold mb-2">{t(effectiveLang, 'Allow Location Access')}</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              {t(effectiveLang, 'We use your location to show nearby businesses and marketplace items.')}
+            </p>
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setStep('manualLocation')}
+                className="px-3 py-2 text-sm border border-gray-400 rounded-md"
+              >
+                {t(effectiveLang, 'Enter ZIP or city')}
+              </button>
+              <button onClick={handleAllow} className="px-3 py-2 text-sm bg-green-600 text-white rounded-md">
+                {t(effectiveLang, 'Allow Location')}
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === 'manualLocation' && (
+          <>
+            <h2 className="text-lg font-semibold mb-2">{t(effectiveLang, 'Enter ZIP or City')}</h2>
+            <p className="text-sm text-gray-600 mb-4">{t(effectiveLang, "We'll use this to show you nearby listings.")}</p>
             <AddressAutocomplete
               value=""
               onSelect={handleAddressSelect}
-              placeholder={t('inputPlaceholder')}
+              placeholder={t(effectiveLang, 'ZIP code or City name')}
               mode="locality"
               className="mb-3"
               inputClassName="w-full p-2 border rounded-md text-sm"
             />
-            <p className="text-xs text-gray-500 mb-2">Search by city, ZIP, or address. Select a suggestion to save.</p>
+            <p className="text-xs text-gray-500 mb-2">{t(effectiveLang, 'Search by city, ZIP, or address. Select a suggestion to save.')}</p>
           </>
         )}
       </div>

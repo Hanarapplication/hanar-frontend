@@ -316,6 +316,7 @@ function mergePostsInApiOrderWithShuffledMisc(
 }
 
 const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
+  const { effectiveLang } = useLanguage();
   if (!items.length) return null;
   const [sliderRef, slider] = useKeenSlider({
     loop: true,
@@ -337,8 +338,8 @@ const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
   return (
     <section className="rounded-none bg-white shadow-sm p-4 dark:bg-gray-800">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-slate-700">Featured Businesses</h2>
-        <Link href="/businesses" className="text-xs text-rose-600 hover:underline">View all</Link>
+        <h2 className="text-sm font-semibold text-slate-700">{t(effectiveLang, 'Featured businesses')}</h2>
+        <Link href="/businesses" className="text-xs text-rose-600 hover:underline">{t(effectiveLang, 'View all')}</Link>
       </div>
       <div ref={sliderRef} className="keen-slider overflow-hidden rounded-none">
         {items.map((biz) => (
@@ -359,13 +360,13 @@ const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
               {(biz.plan || '').toLowerCase() === 'premium' && (
                 <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-amber-500/90 backdrop-blur-sm px-1 py-[1px] text-[8px] font-bold text-white shadow-sm">
                   <svg className="h-2 w-2" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.39c-.833.068-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.494c.714.437 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.583-.536-1.65l-4.752-.391-1.831-4.401z" clipRule="evenodd" /></svg>
-                  Premium
+                  {t(effectiveLang, 'Premium')}
                 </span>
               )}
             </div>
             <div className="p-2">
               <p className="text-xs font-semibold text-slate-800 truncate">{biz.name}</p>
-              <p className="text-[11px] text-slate-500">{biz.category}</p>
+              <p className="text-[11px] text-slate-500">{t(effectiveLang, biz.category)}</p>
             </div>
           </Link>
         ))}
@@ -383,6 +384,7 @@ const MarketplaceCategorySliderCard = ({
   categoryLabel: string;
   items: MarketplaceItem[];
 }) => {
+  const { effectiveLang } = useLanguage();
   const slides = items.slice(0, MARKETPLACE_CATEGORY_SLIDER_MAX);
   if (!slides.length) return null;
   const [sliderRef, slider] = useKeenSlider({
@@ -405,9 +407,9 @@ const MarketplaceCategorySliderCard = ({
   return (
     <section className="rounded-none bg-white shadow-sm p-4 dark:bg-gray-800">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="min-w-0 truncate text-sm font-semibold text-slate-700 dark:text-gray-200">{categoryLabel}</h2>
+        <h2 className="min-w-0 truncate text-sm font-semibold text-slate-700 dark:text-gray-200">{t(effectiveLang, categoryLabel)}</h2>
         <Link href="/marketplace" className="shrink-0 text-xs text-rose-600 hover:underline dark:text-rose-400">
-          Browse
+          {t(effectiveLang, 'Browse')}
         </Link>
       </div>
       <div ref={sliderRef} className="keen-slider overflow-hidden rounded-none">
@@ -436,7 +438,7 @@ const MarketplaceCategorySliderCard = ({
                         clipRule="evenodd"
                       />
                     </svg>
-                    Verified
+                    {t(effectiveLang, 'Verified')}
                   </span>
                 ) : (
                   <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-indigo-500/90 px-1 py-[1px] text-[8px] font-bold text-white shadow-sm backdrop-blur-sm">
@@ -447,7 +449,7 @@ const MarketplaceCategorySliderCard = ({
                         clipRule="evenodd"
                       />
                     </svg>
-                    Business
+                    {t(effectiveLang, 'Business')}
                   </span>
                 ))}
             </div>
@@ -570,7 +572,11 @@ function FeedBusinessCardWithTrack({
           </div>
           <p className="text-xs italic text-slate-600 dark:text-slate-600">{business.subcategory || business.category || 'Business'}</p>
           <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-700">
-            {getBusinessMessage(business)}
+            {typeof business.distance === 'number' ? (
+              getBusinessMessage(business)
+            ) : (
+              <span data-no-translate>{getBusinessMessage(business)}</span>
+            )}
           </p>
           {business.created_at && (
             <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-500">Joined {formatDateLabel(business.created_at)}</p>
@@ -1319,7 +1325,7 @@ export default function Home() {
 
   const getBusinessMessage = (biz: Business) => {
     if (typeof biz.distance === 'number') {
-      return `Now serving your area • ${Math.round(biz.distance)} miles away`;
+      return `${t(effectiveLang, 'Now serving your area')} • ${Math.round(biz.distance)} ${t(effectiveLang, 'miles away')}`;
     }
     return `${biz.business_name} just joined Hanar`;
   };
@@ -1384,7 +1390,7 @@ const formatDateLabel = (value?: string | null) => {
     const groups = new Map<string, MarketplaceItem[]>();
     for (const item of nearbyMarketplaceItems) {
       const label =
-        item.category && String(item.category).trim() ? String(item.category).trim() : 'Latest on MarketPlace';
+        item.category && String(item.category).trim() ? String(item.category).trim() : 'Latest on marketplace';
       const list = groups.get(label) ?? [];
       list.push(item);
       groups.set(label, list);
@@ -2075,7 +2081,7 @@ const formatDateLabel = (value?: string | null) => {
                   setComposerExpanded(true);
                 }}
                 className="group relative flex w-full min-h-[2.75rem] items-center gap-2.5 rounded-none bg-transparent py-2.5 pl-3.5 pr-3.5 text-left transition-colors duration-200 hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200"
-                aria-label="Ask — write a post"
+                aria-label={t(effectiveLang, 'Ask — write a post')}
               >
                 <span className="shrink-0 select-none">
                   <Avatar
@@ -2085,7 +2091,7 @@ const formatDateLabel = (value?: string | null) => {
                   />
                 </span>
                 <div className="pointer-events-none min-w-0 flex-1 rounded-xl bg-white px-3 py-2">
-                  <span className="block truncate text-sm text-slate-500">Ask the community...</span>
+                  <span className="block truncate text-sm text-slate-500">{t(effectiveLang, 'Ask the community...')}</span>
                 </div>
               </button>
             </div>
@@ -2109,13 +2115,13 @@ const formatDateLabel = (value?: string | null) => {
                 id="home-compose-post-title"
                 className="text-sm font-bold tracking-wide text-slate-700"
               >
-                Ask
+                {t(effectiveLang, 'Ask')}
               </span>
               <button
                 type="button"
                 onClick={() => setComposerExpanded(false)}
                 className="rounded-full p-1.5 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-                aria-label="Close composer"
+                aria-label={t(effectiveLang, 'Close composer')}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -2124,7 +2130,7 @@ const formatDateLabel = (value?: string | null) => {
               <Suspense
                 fallback={
                   <div className="flex justify-center py-12 text-sm text-slate-500 dark:text-gray-400">
-                    Loading...
+                    {t(effectiveLang, 'Loading...')}
                   </div>
                 }
               >
@@ -2152,7 +2158,7 @@ const formatDateLabel = (value?: string | null) => {
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
               </svg>
-              New posts available — tap to refresh
+              {t(effectiveLang, 'New posts available — tap to refresh')}
             </button>
           </div>
         )}
@@ -2268,7 +2274,7 @@ const formatDateLabel = (value?: string | null) => {
                     onFocus={() => {
                       if (!currentUser.id) requireLogin();
                     }}
-                    placeholder={currentUser.id ? 'Write a comment...' : 'Log in to write a comment'}
+                    placeholder={currentUser.id ? t(effectiveLang, 'Write a comment...') : t(effectiveLang, 'Log in to write a comment')}
                     disabled={!currentUser.id}
                     className="flex-1 rounded-full border border-sky-300 px-4 py-2 text-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-400 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-sky-300 dark:focus:ring-sky-400/45 dark:placeholder-gray-400"
                   />
@@ -2276,7 +2282,7 @@ const formatDateLabel = (value?: string | null) => {
                     type="button"
                     onClick={() => submitComment(item.post.id)}
                     disabled={!currentUser.id || !commentInputs[item.post.id]?.trim()}
-                    aria-label="Post comment"
+                    aria-label={t(effectiveLang, 'Post comment')}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-sky-200 disabled:text-sky-100/90 dark:bg-sky-600 dark:hover:bg-sky-500 dark:disabled:bg-slate-600 dark:disabled:text-slate-400"
                   >
                     <SendHorizontal className="h-4 w-4" strokeWidth={2.25} aria-hidden />
@@ -2291,14 +2297,14 @@ const formatDateLabel = (value?: string | null) => {
                       className="flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/40 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-300 transition hover:bg-red-200 dark:hover:bg-red-900/60 disabled:opacity-50"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                      Delete
+                      {t(effectiveLang, 'Delete')}
                     </button>
                     <button
                       onClick={handlePromotePost}
                       className="flex items-center gap-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-300 transition hover:bg-indigo-200 dark:hover:bg-indigo-900/60"
                     >
                       <Megaphone className="h-3.5 w-3.5" />
-                      Promote
+                      {t(effectiveLang, 'Promote')}
                     </button>
                   </div>
                 )}
@@ -2306,11 +2312,11 @@ const formatDateLabel = (value?: string | null) => {
                 {isCommentsOpen && (
                   <div className="mt-4 border-t border-slate-100 dark:border-gray-600 pt-4">
                     {commentLoading[item.post.id] ? (
-                      <p className="text-xs text-slate-500 dark:text-gray-400">Loading comments...</p>
+                      <p className="text-xs text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading comments...')}</p>
                     ) : (
                       <div className="space-y-3">
                         {comments.length === 0 && (
-                          <p className="text-xs text-slate-500 dark:text-gray-400">Be the first to comment.</p>
+                          <p className="text-xs text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Be the first to comment.')}</p>
                         )}
                         {comments.map((comment) => (
                           <div key={comment.id} className="rounded-none bg-slate-100 px-3 py-2 text-sm flex gap-2 dark:bg-gray-700/80">
@@ -2334,7 +2340,7 @@ const formatDateLabel = (value?: string | null) => {
                                   <button
                                     type="button"
                                     onClick={() => handleCommentLike(item.post.id, comment.id)}
-                                    aria-label={comment.user_liked ? 'Unlike comment' : 'Like comment'}
+                                    aria-label={comment.user_liked ? t(effectiveLang, 'Unlike comment') : t(effectiveLang, 'Like comment')}
                                     aria-pressed={!!comment.user_liked}
                                     className={`inline-flex items-center gap-1 text-xs font-medium transition ${
                                       comment.user_liked ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-gray-500 hover:text-rose-500 dark:hover:text-rose-400'
@@ -2395,7 +2401,7 @@ const formatDateLabel = (value?: string | null) => {
                     <Link href={`/organization/${item.organization.username}`} className="text-sm font-semibold text-slate-800 dark:text-gray-100 hover:underline">
                       {item.organization.full_name}
                     </Link>
-                    <p className="text-xs leading-5 text-slate-500 dark:text-gray-400 line-clamp-2">{item.organization.mission || 'Organization update'}</p>
+                    <p className="text-xs leading-5 text-slate-500 dark:text-gray-400 line-clamp-2">{item.organization.mission || t(effectiveLang, 'Organization update')}</p>
                   </div>
                 </div>
               </article>

@@ -7,7 +7,7 @@ import { setRuntimeTranslations, getRuntimeTranslations } from '@/utils/runtimeT
 const SUPPORTED_CODES = new Set([
   'en', 'am', 'ar', 'az', 'bn', 'de', 'el', 'es', 'fa', 'fr', 'ha', 'he', 'hi', 'hy', 'id', 'it', 'ja', 'ka', 'ku', 'ms', 'ne', 'pa', 'pl', 'ps', 'pt', 'ro', 'ru', 'so', 'ta', 'th', 'tr', 'ug', 'uk', 'ur', 'uz', 'vi', 'zh', 'ko', 'sw',
 ]);
-const UI_TRANSLATION_CACHE_PREFIX = 'hanarUiTranslationsV14:';
+const UI_TRANSLATION_CACHE_PREFIX = 'hanarUiTranslationsV21:';
 const REQUIRED_UI_KEYS = [
   'Services & Professionals',
   'Hot New Businesses Nearby',
@@ -33,6 +33,13 @@ const REQUIRED_UI_KEYS = [
   'Car Dealer',
   'Monday',
   'No file chosen',
+  'Ask the community...',
+  'Featured businesses',
+  'Organization update',
+  'Latest on marketplace',
+  'Choose your language',
+  'Choose marketplace location',
+  'Choose city / zip code / country',
 ];
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'OPTION']);
 const MAX_NODES_PER_PASS = 3000;
@@ -87,7 +94,14 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
           key.startsWith('hanarUiTranslationsV10:') ||
           key.startsWith('hanarUiTranslationsV11:') ||
           key.startsWith('hanarUiTranslationsV12:') ||
-          key.startsWith('hanarUiTranslationsV13:')
+          key.startsWith('hanarUiTranslationsV13:') ||
+          key.startsWith('hanarUiTranslationsV14:') ||
+          key.startsWith('hanarUiTranslationsV15:') ||
+          key.startsWith('hanarUiTranslationsV16:') ||
+          key.startsWith('hanarUiTranslationsV17:') ||
+          key.startsWith('hanarUiTranslationsV18:') ||
+          key.startsWith('hanarUiTranslationsV19:') ||
+          key.startsWith('hanarUiTranslationsV20:')
         ) {
           keysToRemove.push(key);
         }
