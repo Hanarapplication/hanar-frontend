@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { PhoneInput } from '@/components/PhoneInput';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
 import {
   BUSINESS_CATEGORIES,
@@ -129,6 +131,30 @@ const formatCurrencyDisplay = (value: string | number | null | undefined): strin
   const formatted = formatNumberWithCommas(value);
   return formatted ? `$${formatted}` : '';
 };
+
+const US_STATES: Array<{ code: string; name: string }> = [
+  { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
+  { code: 'AR', name: 'Arkansas' }, { code: 'CA', name: 'California' }, { code: 'CO', name: 'Colorado' },
+  { code: 'CT', name: 'Connecticut' }, { code: 'DE', name: 'Delaware' }, { code: 'DC', name: 'District of Columbia' },
+  { code: 'FL', name: 'Florida' }, { code: 'GA', name: 'Georgia' }, { code: 'HI', name: 'Hawaii' },
+  { code: 'ID', name: 'Idaho' }, { code: 'IL', name: 'Illinois' }, { code: 'IN', name: 'Indiana' },
+  { code: 'IA', name: 'Iowa' }, { code: 'KS', name: 'Kansas' }, { code: 'KY', name: 'Kentucky' },
+  { code: 'LA', name: 'Louisiana' }, { code: 'ME', name: 'Maine' }, { code: 'MD', name: 'Maryland' },
+  { code: 'MA', name: 'Massachusetts' }, { code: 'MI', name: 'Michigan' }, { code: 'MN', name: 'Minnesota' },
+  { code: 'MS', name: 'Mississippi' }, { code: 'MO', name: 'Missouri' }, { code: 'MT', name: 'Montana' },
+  { code: 'NE', name: 'Nebraska' }, { code: 'NV', name: 'Nevada' }, { code: 'NH', name: 'New Hampshire' },
+  { code: 'NJ', name: 'New Jersey' }, { code: 'NM', name: 'New Mexico' }, { code: 'NY', name: 'New York' },
+  { code: 'NC', name: 'North Carolina' }, { code: 'ND', name: 'North Dakota' }, { code: 'OH', name: 'Ohio' },
+  { code: 'OK', name: 'Oklahoma' }, { code: 'OR', name: 'Oregon' }, { code: 'PA', name: 'Pennsylvania' },
+  { code: 'RI', name: 'Rhode Island' }, { code: 'SC', name: 'South Carolina' }, { code: 'SD', name: 'South Dakota' },
+  { code: 'TN', name: 'Tennessee' }, { code: 'TX', name: 'Texas' }, { code: 'UT', name: 'Utah' },
+  { code: 'VT', name: 'Vermont' }, { code: 'VA', name: 'Virginia' }, { code: 'WA', name: 'Washington' },
+  { code: 'WV', name: 'West Virginia' }, { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' },
+];
+
+const US_STATE_NAME_TO_CODE = new Map<string, string>(
+  US_STATES.map((s) => [s.name.toLowerCase(), s.code])
+);
 
 /**
  * Helper to ensure images arrays are structured with { file: File | null, preview: string, id: string }
@@ -305,13 +331,14 @@ function CustomModal({ isOpen, title, message, onClose, onConfirm, backdropClass
  * @param {React.ComponentType} [props.icon] - Lucide icon component to display inside the input.
  * @param {object} [props] - Any other standard HTML input attributes.
 */
-const FormInput = ({ name, value, onChange, placeholder, type = 'text', icon: Icon, ...props }: {
+const FormInput = ({ name, value, onChange, placeholder, type = 'text', icon: Icon, className = '', ...props }: {
   name: string;
   value: string | number;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   placeholder: string;
   type?: string;
   icon?: React.ComponentType<{ size: number; className?: string }>;
+  className?: string;
   [key: string]: any; // For other props
 }) => (
   <div className="relative flex items-center">
@@ -322,7 +349,7 @@ const FormInput = ({ name, value, onChange, placeholder, type = 'text', icon: Ic
       onChange={onChange}
       placeholder={placeholder}
       type={type}
-      className={`w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-400 transition duration-200 ${Icon ? 'pl-10' : ''}`}
+      className={`w-full px-4 py-2.5 border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:border-indigo-400 transition duration-200 ${Icon ? 'pl-10' : ''} ${className}`}
       {...props}
     />
   </div>
@@ -489,6 +516,7 @@ interface BusinessForm {
 export default function EditBusinessPage() {
   const { slug } = useParams(); // Get slug from URL parameters
   const router = useRouter(); // Get router instance
+  const { effectiveLang } = useLanguage();
   // Configure dnd-kit sensors for pointer (mouse/touch) and keyboard interactions
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
@@ -551,8 +579,10 @@ export default function EditBusinessPage() {
   });
   // State for logo image preview URL (for newly selected file or existing URL)
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoFileName, setLogoFileName] = useState('');
   // State for gallery images preview URLs (for newly selected files or existing URLs)
   const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
+  const [galleryFileLabel, setGalleryFileLabel] = useState('');
   // State to indicate if data is currently being saved (for loading spinner)
   const [isSaving, setIsSaving] = useState(false);
   // State for controlling the custom modal's visibility and content
@@ -620,6 +650,7 @@ export default function EditBusinessPage() {
   // Ref for the logo file input to clear its value programmatically.
   // This is the correct and standard way to declare a ref for an HTMLInputElement.
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
 
   // --- Supabase Auth and User ID Effect ---
@@ -1177,15 +1208,22 @@ export default function EditBusinessPage() {
     if (file) {
       setForm((prevForm) => ({ ...prevForm, logo: file }));
       setLogoPreview(URL.createObjectURL(file));
+      setLogoFileName(file.name);
     } else {
       // If no file selected, revert to existing logo URL or null
       setForm((prevForm) => ({ ...prevForm, logo: null }));
       setLogoPreview(form._logoUrl);
+      setLogoFileName('');
     }
   };
 
   const handleGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setGalleryFileLabel(files.length === 1 ? files[0].name : `${files.length} ${t(effectiveLang, 'files selected')}`);
+    } else {
+      setGalleryFileLabel('');
+    }
     // Combine existing URLs and new staged files for current count
     const currentCombinedImages = [
       ...(form._galleryUrls || []).map((url: string) => ({ preview: url, file: null, isNew: false, id: url })), // Use URL as ID for existing
@@ -1197,6 +1235,7 @@ export default function EditBusinessPage() {
     if (newTotal > maxAllowed) {
       setModal({ isOpen: true, title: 'Upload Limit Exceeded', message: `Your plan allows a maximum of ${maxAllowed} gallery images. You currently have ${currentCombinedImages.length} images and are trying to add ${files.length} more, which would exceed your plan limit.`, onConfirm: () => {} });
       e.target.value = ''; // Clear the file input
+      setGalleryFileLabel('');
       return;
     }
 
@@ -1612,6 +1651,26 @@ export default function EditBusinessPage() {
 
 
       // businesses.address: expect one column "address" (jsonb). Value = { street, city, state, zip, country }. On load we support object or JSON string (parseAddressFromDb).
+      const normalizedCountryRaw = (form.address.country || '').trim();
+      const normalizedCountry = /^(us|usa|u\.s\.a\.|united states|united states of america)$/i.test(normalizedCountryRaw)
+        ? 'United States'
+        : normalizedCountryRaw;
+      const normalizedStateRaw = (form.address.state || '').trim();
+      const normalizedStateLower = normalizedStateRaw.toLowerCase();
+      const normalizedState =
+        normalizedCountry === 'United States'
+          ? (
+              (normalizedStateRaw.length === 2 ? normalizedStateRaw.toUpperCase() : '') ||
+              US_STATE_NAME_TO_CODE.get(normalizedStateLower) ||
+              normalizedStateRaw
+            )
+          : normalizedStateRaw;
+      const normalizedAddress = {
+        ...form.address,
+        state: normalizedState,
+        country: normalizedCountry,
+      };
+
       const updateData: any = {
         business_name: form.business_name,
         description: form.description,
@@ -1621,7 +1680,7 @@ export default function EditBusinessPage() {
         email: form.email,
         whatsapp: form.whatsapp,
         website: form.website,
-        address: form.address,
+        address: normalizedAddress,
         facebook: form.facebook,
         instagram: form.instagram,
         twitter: form.twitter,
@@ -2147,7 +2206,7 @@ export default function EditBusinessPage() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Loading business data...</span>
+          <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{t(effectiveLang, 'Loading business data...')}</span>
         </div>
       </div>
     );
@@ -2177,8 +2236,8 @@ export default function EditBusinessPage() {
 
       <CustomModal
         isOpen={categoryChangeModal.isOpen}
-        title="Change business category?"
-        message="Changing your category will clear any items that don't belong to the new category. Are you sure you want to continue?"
+        title={t(effectiveLang, 'Change business category?')}
+        message={t(effectiveLang, "Changing your category will clear any items that don't belong to the new category. Are you sure you want to continue?")}
         onClose={() => setCategoryChangeModal({ isOpen: false, nextValue: '', nextSubcategory: undefined })}
         onConfirm={() => {
           applyCategoryChange(categoryChangeModal.nextValue, categoryChangeModal.nextSubcategory);
@@ -2189,16 +2248,16 @@ export default function EditBusinessPage() {
 
       <CustomModal
         isOpen={deleteModal.isOpen}
-        title="Confirm Deletion"
-        message="Are you sure you want to delete this item?"
+        title={t(effectiveLang, 'Confirm Deletion')}
+        message={t(effectiveLang, 'Are you sure you want to delete this item?')}
         onClose={() => setDeleteModal({ isOpen: false, type: 'menu', index: -1 })}
         onConfirm={handleDeleteConfirm}
       />
 
       <div className="max-w-4xl mx-auto bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200/80 dark:border-slate-700/80 overflow-hidden">
         <div className="px-6 sm:px-8 pt-8 pb-2 border-b border-slate-100 dark:border-slate-800">
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Edit Business Details</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Update your business information and listings.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{t(effectiveLang, 'Edit Business Details')}</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t(effectiveLang, 'Update your business information and listings.')}</p>
         </div>
         <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-8">
           {/* Plan Status Section */}
@@ -2214,11 +2273,11 @@ export default function EditBusinessPage() {
                   <Package size={22} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <div>
                     <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                      Current Plan: <span className="text-indigo-600 dark:text-indigo-400 capitalize">{planStatus.plan}</span>
+                      {t(effectiveLang, 'Current Plan')}: <span className="text-indigo-600 dark:text-indigo-400 capitalize">{planStatus.plan}</span>
                     </h2>
                     {planStatus.plan_expires_at && (
                       <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                        Expires <span className="font-medium text-slate-700 dark:text-slate-300">{new Date(planStatus.plan_expires_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                        {t(effectiveLang, 'Expires')} <span className="font-medium text-slate-700 dark:text-slate-300">{new Date(planStatus.plan_expires_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
                       </p>
                     )}
                   </div>
@@ -2235,35 +2294,35 @@ export default function EditBusinessPage() {
                   }}
                   className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 active:scale-[0.98] transition-all duration-200 shadow-sm"
                 >
-                  Upgrade Plan
+                  {t(effectiveLang, 'Upgrade Plan')}
                 </button>
               </button>
               {planCardExpanded && (
               <div className="px-6 pb-6 pt-0 space-y-5 border-t border-indigo-100/80 dark:border-indigo-900/50">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-4">
                 <div className="bg-white/80 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
-                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Gallery</div>
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{t(effectiveLang, 'Gallery')}</div>
                   <div className="text-xl font-bold text-slate-800 dark:text-slate-100 tabular-nums">{combinedGalleryImages.length}<span className="text-slate-400 dark:text-slate-500 font-normal">/{planLimits.max_gallery_images}</span></div>
                 </div>
                 <div className="bg-white/80 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
-                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Menu</div>
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{t(effectiveLang, 'Menu')}</div>
                   <div className="text-xl font-bold text-slate-800 dark:text-slate-100 tabular-nums">{form.menu.length}<span className="text-slate-400 dark:text-slate-500 font-normal">/{planLimits.max_menu_items}</span></div>
                 </div>
                 <div className="bg-white/80 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
-                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Retail</div>
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{t(effectiveLang, 'Retail')}</div>
                   <div className="text-xl font-bold text-slate-800 dark:text-slate-100 tabular-nums">{form.retailItems.length}<span className="text-slate-400 dark:text-slate-500 font-normal">/{planLimits.max_retail_items}</span></div>
                 </div>
                 <div className="bg-white/80 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
-                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Dealership</div>
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{t(effectiveLang, 'Dealership')}</div>
                   <div className="text-xl font-bold text-slate-800 dark:text-slate-100 tabular-nums">{form.carListings.length}<span className="text-slate-400 dark:text-slate-500 font-normal">/{planLimits.max_car_listings}</span></div>
                 </div>
                 <div className="bg-white/80 dark:bg-slate-800/60 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
-                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Real Estate</div>
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">{t(effectiveLang, 'Real Estate')}</div>
                   <div className="text-xl font-bold text-slate-800 dark:text-slate-100 tabular-nums">{form.realEstateListings.length}<span className="text-slate-400 dark:text-slate-500 font-normal">/{planLimits.max_real_estate_listings}</span></div>
                 </div>
               </div>
               <div className="pt-4 border-t border-indigo-100/80 dark:border-indigo-900/50">
-                <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">Plan features</div>
+                <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-2">{t(effectiveLang, 'Plan features')}</div>
                 <div className="flex flex-wrap gap-2">
                   {[
                     { key: 'social', label: 'Social Links', on: planFeatures.allow_social_links },
@@ -2296,19 +2355,19 @@ export default function EditBusinessPage() {
 
           {/* General Business Information */}
           <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
-            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Basic Information</h2>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">{t(effectiveLang, 'Basic Information')}</h2>
             <FormInput
               name="business_name"
               value={form.business_name}
               onChange={handleChange}
-              placeholder="Business Name"
+              placeholder={t(effectiveLang, 'Business Name')}
               icon={Building}
             />
             <FormTextarea
               name="description"
               value={form.description}
               onChange={handleChange}
-              placeholder="A brief description of your business"
+              placeholder={t(effectiveLang, 'A brief description of your business')}
               rows={3}
               icon={Info}
             />
@@ -2317,11 +2376,11 @@ export default function EditBusinessPage() {
                 {descriptionCount}/{descriptionLimit}
               </span>
               {isDescriptionTooLong && (
-                <span className="text-red-600 dark:text-red-400">Description exceeds 120 characters.</span>
+                <span className="text-red-600 dark:text-red-400">{t(effectiveLang, 'Description exceeds 120 characters.')}</span>
               )}
             </div>
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Business Category</label>
+              <label htmlFor="category" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t(effectiveLang, 'Business Category')}</label>
               <button
                 type="button"
                 id="category"
@@ -2335,9 +2394,11 @@ export default function EditBusinessPage() {
                         const sub = form.subcategory
                           ? cat?.subcategories.find((s) => s.value === form.subcategory)?.label ?? form.subcategory
                           : null;
-                        return cat ? `${cat.icon} ${sub ? `${cat.label} › ${sub}` : cat.label}` : form.category;
+                        return cat
+                          ? `${cat.icon} ${sub ? `${t(effectiveLang, cat.label)} › ${t(effectiveLang, sub)}` : t(effectiveLang, cat.label)}`
+                          : t(effectiveLang, form.category);
                       })()
-                    : 'Select a category'}
+                    : t(effectiveLang, 'Select a category')}
                 </span>
                 <ChevronDown size={18} className="text-slate-500 dark:text-slate-400 shrink-0" />
               </button>
@@ -2347,7 +2408,7 @@ export default function EditBusinessPage() {
                 <div
                   role="dialog"
                   aria-modal="true"
-                  aria-label="Choose business category"
+                  aria-label={t(effectiveLang, 'Choose business category')}
                   className="fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6 bg-black/50 backdrop-blur-sm overflow-y-auto"
                   style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
                   onClick={() => setCategoryPickerOpen(false)}
@@ -2358,13 +2419,18 @@ export default function EditBusinessPage() {
                   >
                     <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
                       <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                        {categoryPickerMain ? BUSINESS_CATEGORIES.find((c) => c.value === categoryPickerMain)?.label ?? 'Subcategory' : 'Business Category'}
+                        {categoryPickerMain
+                          ? t(
+                              effectiveLang,
+                              BUSINESS_CATEGORIES.find((c) => c.value === categoryPickerMain)?.label ?? 'Subcategory'
+                            )
+                          : t(effectiveLang, 'Business Category')}
                       </h3>
                       <button
                         type="button"
                         onClick={() => categoryPickerMain ? setCategoryPickerMain(null) : setCategoryPickerOpen(false)}
                         className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        aria-label={categoryPickerMain ? 'Back' : 'Close'}
+                        aria-label={categoryPickerMain ? t(effectiveLang, 'Back') : t(effectiveLang, 'Close')}
                       >
                         <X size={20} />
                       </button>
@@ -2379,7 +2445,7 @@ export default function EditBusinessPage() {
                             className="w-full flex items-center gap-3 px-4 py-3.5 sm:py-4 rounded-xl text-left transition-colors border-2 border-transparent bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200"
                           >
                             <span className="text-xl shrink-0" aria-hidden>{cat.icon}</span>
-                            <span className="text-sm font-medium">{cat.label}</span>
+                            <span className="text-sm font-medium">{t(effectiveLang, cat.label)}</span>
                           </button>
                         ))
                       ) : (
@@ -2406,7 +2472,7 @@ export default function EditBusinessPage() {
                                     : 'border-transparent bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'
                                 }`}
                               >
-                                <span className="text-sm font-medium">{sub.label}</span>
+                                <span className="text-sm font-medium">{t(effectiveLang, sub.label)}</span>
                               </button>
                             );
                           })}
@@ -2422,7 +2488,7 @@ export default function EditBusinessPage() {
 
           {/* Contact Information */}
           <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
-            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Contact Information</h2>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">{t(effectiveLang, 'Contact Information')}</h2>
             <div>
               <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
                 <Phone className="h-4 w-4" />
@@ -2431,22 +2497,22 @@ export default function EditBusinessPage() {
               <PhoneInput
                 value={form.phone}
                 onChange={(v) => setForm((prev) => ({ ...prev, phone: v }))}
-                placeholder="e.g. 202 555 1234"
+                placeholder={t(effectiveLang, 'e.g. 202 555 1234')}
                 disabled={isSaving}
               />
             </div>
-            <FormInput name="email" value={form.email} onChange={handleChange} placeholder="Email Address" type="email" icon={Mail} />
+            <FormInput name="email" value={form.email} onChange={handleChange} placeholder={t(effectiveLang, 'Email Address')} type="email" icon={Mail} />
             {planFeatures.allow_whatsapp ? (
-              <FormInput name="whatsapp" value={form.whatsapp} onChange={handleChange} placeholder="WhatsApp Number (optional)" type="tel" icon={MessageSquare} />
+              <FormInput name="whatsapp" value={form.whatsapp} onChange={handleChange} placeholder={t(effectiveLang, 'WhatsApp Number (optional)')} type="tel" icon={MessageSquare} />
             ) : (
               <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200/80 dark:border-amber-800/50">
                 <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
                   <Info size={18} />
-                  <span className="text-sm font-medium">WhatsApp is not available on your current plan. Upgrade to enable this feature.</span>
+                  <span className="text-sm font-medium">{t(effectiveLang, 'WhatsApp is not available on your current plan. Upgrade to enable this feature.')}</span>
                 </div>
               </div>
             )}
-            <FormInput name="website" value={form.website} onChange={handleChange} placeholder="Website URL" type="url" icon={ExternalLink} />
+            <FormInput name="website" value={form.website} onChange={handleChange} placeholder={t(effectiveLang, 'Website URL')} type="url" icon={ExternalLink} />
           </section>
 
           {/* Spoken languages (optional) */}
@@ -2520,7 +2586,7 @@ export default function EditBusinessPage() {
                     }
                   }
                 }}
-                placeholder="Add another language"
+                placeholder={t(effectiveLang, 'Add another language')}
                 className="rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-3 py-2 text-sm w-48 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
               <button
@@ -2541,9 +2607,9 @@ export default function EditBusinessPage() {
 
           {/* Address */}
           <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
-            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Address</h2>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">{t(effectiveLang, 'Address')}</h2>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Search address</label>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t(effectiveLang, 'Search address')}</label>
               <AddressAutocomplete
                 value={[form.address.street, form.address.city, form.address.state, form.address.zip, form.address.country].filter(Boolean).join(', ')}
                 onSelect={(result: AddressResult) => {
@@ -2558,29 +2624,69 @@ export default function EditBusinessPage() {
                     },
                   }));
                 }}
-                placeholder="Type address, city, or ZIP..."
+                placeholder={t(effectiveLang, 'Type address, city, or ZIP...')}
                 mode="full"
                 inputClassName="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-4 py-2.5 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/^(us|usa|u\.s\.a\.|united states|united states of america)$/i.test((form.address.country || '').trim()) ? (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                    {t(effectiveLang, 'State (for U.S. businesses)')}
+                  </label>
+                  <select
+                    name="address.state"
+                    value={form.address.state}
+                    onChange={handleChange}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800/50 px-4 py-2.5 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  >
+                    <option value="">{t(effectiveLang, 'Select U.S. state')}</option>
+                    {US_STATES.map((state) => (
+                      <option key={state.code} value={state.code}>
+                        {state.name} ({state.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <FormInput
+                  name="address.state"
+                  value={form.address.state}
+                  onChange={handleChange}
+                  placeholder={t(effectiveLang, 'State (for U.S. businesses)')}
+                  icon={MapPin}
+                />
+              )}
+              <FormInput
+                name="address.country"
+                value={form.address.country}
+                onChange={handleChange}
+                placeholder={t(effectiveLang, 'Country (e.g., United States)')}
+                icon={MapPin}
+              />
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {t(effectiveLang, 'Add state and country so location filters can match your business in country/state searches.')}
+            </p>
           </section>
 
           {/* Social Media */}
           {planFeatures.allow_social_links ? (
             <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
-              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Social Media</h2>
-              <FormInput name="facebook" value={form.facebook} onChange={handleChange} placeholder="Facebook Profile URL" icon={Facebook} />
-              <FormInput name="instagram" value={form.instagram} onChange={handleChange} placeholder="Instagram Profile URL" icon={Instagram} />
-              <FormInput name="twitter" value={form.twitter} onChange={handleChange} placeholder="Twitter/X Profile URL" icon={Twitter} />
-              <FormInput name="tiktok" value={form.tiktok} onChange={handleChange} placeholder="TikTok Profile URL" icon={Video} />
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">{t(effectiveLang, 'Social Media')}</h2>
+              <FormInput name="facebook" value={form.facebook} onChange={handleChange} placeholder={t(effectiveLang, 'Facebook Profile URL')} icon={Facebook} />
+              <FormInput name="instagram" value={form.instagram} onChange={handleChange} placeholder={t(effectiveLang, 'Instagram Profile URL')} icon={Instagram} />
+              <FormInput name="twitter" value={form.twitter} onChange={handleChange} placeholder={t(effectiveLang, 'Twitter/X Profile URL')} icon={Twitter} />
+              <FormInput name="tiktok" value={form.tiktok} onChange={handleChange} placeholder={t(effectiveLang, 'TikTok Profile URL')} icon={Video} />
             </section>
           ) : (
             <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
-              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Social Media</h2>
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">{t(effectiveLang, 'Social Media')}</h2>
               <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200/80 dark:border-amber-800/50">
                 <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
                   <Info size={18} />
-                  <span className="text-sm font-medium">Social media links are not available on your current plan. Upgrade to enable this feature.</span>
+                  <span className="text-sm font-medium">{t(effectiveLang, 'Social media links are not available on your current plan. Upgrade to enable this feature.')}</span>
                 </div>
               </div>
             </section>
@@ -2588,19 +2694,20 @@ export default function EditBusinessPage() {
 
           {/* Business Hours */}
           <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
-            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Business Hours</h2>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">{t(effectiveLang, 'Business Hours')}</h2>
             {daysOfWeek.map(day => (
               <div key={day} className="grid grid-cols-2 gap-4 items-center">
                 <label className="text-slate-700 dark:text-slate-300 font-medium flex items-center">
                   <ClockIcon size={18} className="mr-2 text-slate-500" />
-                  {day}
+                  {t(effectiveLang, day)}
                 </label>
                 <FormInput
                   name={`hours.${day.toLowerCase()}`}
                   value={(form.hours as any)[day.toLowerCase()] || ''} // Type assertion for dynamic access
                   onChange={handleChange}
-                  placeholder="e.g., 9:00 AM - 5:00 PM or Closed"
+                  placeholder={t(effectiveLang, '00:00 am - 00:00 pm')}
                   type="text"
+                  className="text-sm placeholder:text-xs"
                 />
               </div>
             ))}
@@ -2608,20 +2715,26 @@ export default function EditBusinessPage() {
 
           {/* Logo Upload */}
           <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
-            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">Business Logo</h2>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleLogoChange}
-              ref={fileInputRef} 
-              className="block w-full text-sm text-slate-900 dark:text-slate-100
-                file:mr-4 file:py-2.5 file:px-4
-                file:rounded-xl file:border-0
-                file:text-sm file:font-medium
-                file:bg-indigo-50 file:text-indigo-700
-                hover:file:bg-indigo-100 transition duration-200
-                dark:file:bg-indigo-900/40 dark:file:text-indigo-200 dark:hover:file:bg-indigo-800/40"
-            />
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">{t(effectiveLang, 'Business Logo')}</h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                id="business-logo-file"
+                type="file"
+                accept="image/*"
+                onChange={handleLogoChange}
+                ref={fileInputRef}
+                className="sr-only"
+              />
+              <label
+                htmlFor="business-logo-file"
+                className="cursor-pointer rounded-xl bg-indigo-50 px-4 py-2.5 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-200 dark:hover:bg-indigo-800/40"
+              >
+                {t(effectiveLang, 'Choose logo file')}
+              </label>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {logoFileName || t(effectiveLang, 'No file chosen')}
+              </span>
+            </div>
             {logoPreview && (
               <div className="mt-4 flex items-center gap-4">
                 <img src={logoPreview} alt="Logo Preview" className="w-24 h-24 object-contain rounded-xl border border-slate-200 dark:border-slate-600 p-2 bg-slate-50 dark:bg-slate-800/50" />
@@ -2633,6 +2746,7 @@ export default function EditBusinessPage() {
                     if (fileInputRef.current) {
                       fileInputRef.current.value = '';
                     }
+                    setLogoFileName('');
                   }}
                   className="p-2.5 rounded-xl bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors"
                 >
@@ -2647,19 +2761,26 @@ export default function EditBusinessPage() {
             <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80">
               Gallery <span className="text-slate-500 dark:text-slate-400 font-normal">({combinedGalleryImages.length} / {planLimits.max_gallery_images})</span>
             </h2>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleGalleryChange}
-              className="block w-full text-sm text-slate-900 dark:text-slate-100
-                file:mr-4 file:py-2.5 file:px-4
-                file:rounded-xl file:border-0
-                file:text-sm file:font-medium
-                file:bg-indigo-50 file:text-indigo-700
-                hover:file:bg-indigo-100 transition duration-200
-                dark:file:bg-indigo-900/40 dark:file:text-indigo-200 dark:hover:file:bg-indigo-800/40"
-            />
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                id="business-gallery-files"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleGalleryChange}
+                ref={galleryInputRef}
+                className="sr-only"
+              />
+              <label
+                htmlFor="business-gallery-files"
+                className="cursor-pointer rounded-xl bg-indigo-50 px-4 py-2.5 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-200 dark:hover:bg-indigo-800/40"
+              >
+                {t(effectiveLang, 'Choose gallery files')}
+              </label>
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {galleryFileLabel || t(effectiveLang, 'No file chosen')}
+              </span>
+            </div>
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {combinedGalleryImages.map((img: ImageFileObject, index: number) => (
                 <div key={img.id} className="relative group w-full aspect-square max-h-32 bg-slate-100 dark:bg-slate-700/50 rounded-xl overflow-hidden border border-slate-200/60 dark:border-slate-600/60">
@@ -2690,7 +2811,7 @@ export default function EditBusinessPage() {
             <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80 flex justify-between items-center">
                 <span>
-                  Restaurant Menu Items
+                  {t(effectiveLang, 'Restaurant Menu Items')}
                   <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">
                     ({form.menu.length} / {planLimits.max_menu_items})
                   </span>
@@ -2705,13 +2826,13 @@ export default function EditBusinessPage() {
                       : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98]'
                   }`}
                 >
-                  <Plus size={16} className="mr-1.5" /> Add Menu Item
+                  <Plus size={16} className="mr-1.5" /> {t(effectiveLang, 'Add Menu Item')}
                 </button>
               </h2>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => handleDragEnd(event, 'menu')}>
                 <SortableContext items={form.menu.map((item: MenuItem) => item.id)} strategy={verticalListSortingStrategy}>
                   {form.menu.length === 0 && (
-                    <p className="text-gray-500 dark:text-gray-400 text-center py-4">No menu items added yet.</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-center py-4">{t(effectiveLang, 'No menu items added yet.')}</p>
                   )}
                   {form.menu.map((item: MenuItem, index: number) => (
                     <SortableItem key={item.id} id={item.id}>
@@ -2727,19 +2848,19 @@ export default function EditBusinessPage() {
                             >
                               <X size={24} />
                             </button>
-                            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-3">Menu Item #{index + 1}</h3>
+                            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-3">{t(effectiveLang, 'Menu Item')} #{index + 1}</h3>
                             <FormInput
                               name="name"
                               value={item.name}
                               onChange={(e) => handleMenuItemChange(index, 'name', e.target.value)}
-                              placeholder="Item Name"
+                              placeholder={t(effectiveLang, 'Item Name')}
                               icon={Text}
                             />
                             <FormTextarea
                               name="description"
                               value={item.description}
                               onChange={(e) => handleMenuItemChange(index, 'description', e.target.value)}
-                              placeholder="Item Description"
+                              placeholder={t(effectiveLang, 'Item Description')}
                               rows={3}
                               icon={Info}
                             />
@@ -2747,7 +2868,7 @@ export default function EditBusinessPage() {
                               name="price"
                               value={formatCurrencyDisplay(item.price)}
                               onChange={(e) => handleMenuItemChange(index, 'price', normalizeNumericInput(e.target.value, true))}
-                              placeholder="Price"
+                              placeholder={t(effectiveLang, 'Price')}
                               type="text" // Keep as text to allow flexible input like "10.99"
                               icon={DollarSign}
                             />
@@ -2755,14 +2876,14 @@ export default function EditBusinessPage() {
                               name="category"
                               value={item.category}
                               onChange={(e) => handleMenuItemChange(index, 'category', e.target.value)}
-                              placeholder="Menu Category (e.g., Appetizer, Main Course)"
+                              placeholder={t(effectiveLang, 'Menu Category (e.g., Appetizer, Main Course)')}
                               icon={Tag}
                             />
                             <div className="text-sm text-gray-600 dark:text-gray-300 mt-2">
                               <p className="line-clamp-2">{item.description}</p>
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Item Images (Max 8)</label>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t(effectiveLang, 'Item Images (Max 8)')}</label>
                               <input
                                 type="file"
                                 accept="image/*"
@@ -2803,7 +2924,7 @@ export default function EditBusinessPage() {
                           </div>
                         ) : (
                           <div className="text-center py-8 text-red-500 font-semibold">
-                            This item is marked for deletion.
+                            {t(effectiveLang, 'This item is marked for deletion.')}
                             <button
                               type="button"
                               onClick={() => setForm((prevForm) => {
@@ -2813,7 +2934,7 @@ export default function EditBusinessPage() {
                               })}
                               className="ml-2 text-rose-600 hover:underline"
                             >
-                              Undo
+                              {t(effectiveLang, 'Undo')}
                             </button>
                           </div>
                         )}
@@ -2829,7 +2950,7 @@ export default function EditBusinessPage() {
             <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80 flex justify-between items-center">
                 <span>
-                  Dealership Listings
+                  {t(effectiveLang, 'Dealership Listings')}
                   <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">
                     ({form.carListings.length} / {planLimits.max_car_listings})
                   </span>
@@ -2844,13 +2965,13 @@ export default function EditBusinessPage() {
                       : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98]'
                   }`}
                 >
-                  <Plus size={16} className="mr-1.5" /> Add Listing
+                  <Plus size={16} className="mr-1.5" /> {t(effectiveLang, 'Add Listing')}
                 </button>
               </h2>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => handleDragEnd(event, 'carListings')}>
                 <SortableContext items={form.carListings.map((item: CarListingItem) => item.id)} strategy={verticalListSortingStrategy}>
                   {form.carListings.length === 0 && (
-                    <p className="text-gray-500 dark:text-gray-400 text-center py-4">No listings added yet.</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-center py-4">{t(effectiveLang, 'No listings added yet.')}</p>
                   )}
                   {form.carListings.map((item: CarListingItem, index: number) => (
                     <SortableItem key={item.id} id={item.id}>
@@ -2866,19 +2987,19 @@ export default function EditBusinessPage() {
                             >
                               <X size={24} />
                             </button>
-                            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-3">Listing #{index + 1}</h3>
+                            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-3">{t(effectiveLang, 'Listing')} #{index + 1}</h3>
                             <FormInput
                               name="title"
                               value={item.title}
                               onChange={(e) => handleCarListingChange(index, 'title', e.target.value)}
-                              placeholder="Make & Model (e.g., Honda Civic)"
+                              placeholder={t(effectiveLang, 'Make & Model (e.g., Honda Civic)')}
                               icon={CarIcon}
                             />
                             <FormInput
                               name="price"
                               value={formatCurrencyDisplay(item.price)}
                               onChange={(e) => handleCarListingChange(index, 'price', normalizeNumericInput(e.target.value, true))}
-                              placeholder="Price (e.g., $25,000)"
+                              placeholder={t(effectiveLang, 'Price (e.g., $25,000)')}
                               type="text" // Keep as text to allow formatting like "$25,000"
                               icon={DollarIcon}
                             />
@@ -2886,7 +3007,7 @@ export default function EditBusinessPage() {
                               name="year"
                               value={item.year}
                               onChange={(e) => handleCarListingChange(index, 'year', e.target.value)}
-                              placeholder="Year"
+                              placeholder={t(effectiveLang, 'Year')}
                               type="number"
                               icon={CalendarIcon}
                             />
@@ -2894,7 +3015,7 @@ export default function EditBusinessPage() {
                               name="mileage"
                               value={formatNumberWithCommas(item.mileage)}
                               onChange={(e) => handleCarListingChange(index, 'mileage', normalizeNumericInput(e.target.value, false))}
-                              placeholder="Mileage (e.g., 50,000 miles)"
+                              placeholder={t(effectiveLang, 'Mileage (e.g., 50,000 miles)')}
                               type="text" // Keep as text to allow formatting like "50,000 miles"
                               icon={Gauge}
                             />
@@ -2902,14 +3023,14 @@ export default function EditBusinessPage() {
                               name="condition"
                               value={item.condition}
                               onChange={(e) => handleCarListingChange(index, 'condition', e.target.value)}
-                              placeholder="Condition (e.g., Used, New, Excellent)"
+                              placeholder={t(effectiveLang, 'Condition (e.g., Used, New, Excellent)')}
                               icon={Wrench}
                             />
                             <FormTextarea
                               name="description"
                               value={item.description}
                               onChange={(e) => handleCarListingChange(index, 'description', e.target.value)}
-                              placeholder="Full vehicle description"
+                              placeholder={t(effectiveLang, 'Full vehicle description')}
                               rows={3}
                               icon={Info}
                             />
@@ -2917,7 +3038,7 @@ export default function EditBusinessPage() {
                               <p className="line-clamp-2">{item.description}</p>
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Images (Max 8)</label>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t(effectiveLang, 'Images (Max 8)')}</label>
                               <input
                                 type="file"
                                 accept="image/*"
@@ -2959,7 +3080,7 @@ export default function EditBusinessPage() {
                           </>
                         ) : (
                           <div className="text-center py-8 text-red-500 font-semibold">
-                            This item is marked for deletion.
+                            {t(effectiveLang, 'This item is marked for deletion.')}
                             <button
                               type="button"
                               onClick={() => setForm((prevForm) => {
@@ -2969,7 +3090,7 @@ export default function EditBusinessPage() {
                               })}
                               className="ml-2 text-rose-600 hover:underline"
                             >
-                              Undo
+                              {t(effectiveLang, 'Undo')}
                             </button>
                           </div>
                         )}
@@ -2985,7 +3106,7 @@ export default function EditBusinessPage() {
             <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80 flex justify-between items-center">
                 <span>
-                  Real Estate Listings
+                  {t(effectiveLang, 'Real Estate Listings')}
                   <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">
                     ({form.realEstateListings.length} / {planLimits.max_real_estate_listings})
                   </span>
@@ -3000,13 +3121,13 @@ export default function EditBusinessPage() {
                       : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98]'
                   }`}
                 >
-                  <Plus size={16} className="mr-1.5" /> Add Listing
+                  <Plus size={16} className="mr-1.5" /> {t(effectiveLang, 'Add Listing')}
                 </button>
               </h2>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => handleDragEnd(event, 'realEstateListings')}>
                 <SortableContext items={form.realEstateListings.map((item: RealEstateItem) => item.id)} strategy={verticalListSortingStrategy}>
                   {form.realEstateListings.length === 0 && (
-                    <p className="text-gray-500 dark:text-gray-400 text-center py-4">No real estate listings yet. Add a property to get started.</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-center py-4">{t(effectiveLang, 'No real estate listings yet. Add a property to get started.')}</p>
                   )}
                   {form.realEstateListings.map((item: RealEstateItem, index: number) => (
                     <SortableItem key={item.id} id={item.id}>
@@ -3022,19 +3143,19 @@ export default function EditBusinessPage() {
                             >
                               <X size={24} />
                             </button>
-                            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-3">Listing #{index + 1}</h3>
+                            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-3">{t(effectiveLang, 'Listing')} #{index + 1}</h3>
                             <FormInput
                               name="title"
                               value={item.title}
                               onChange={(e) => handleRealEstateItemChange(index, 'title', e.target.value)}
-                              placeholder="Property title (e.g., 3BR House with Garden)"
+                              placeholder={t(effectiveLang, 'Property title (e.g., 3BR House with Garden)')}
                               icon={Building}
                             />
                             <FormInput
                               name="price"
                               value={formatCurrencyDisplay(item.price)}
                               onChange={(e) => handleRealEstateItemChange(index, 'price', normalizeNumericInput(e.target.value, true))}
-                              placeholder="Price"
+                              placeholder={t(effectiveLang, 'Price')}
                               type="text"
                               icon={DollarSign}
                             />
@@ -3042,26 +3163,26 @@ export default function EditBusinessPage() {
                               name="propertyType"
                               value={item.propertyType}
                               onChange={(e) => handleRealEstateItemChange(index, 'propertyType', e.target.value)}
-                              placeholder="Type (e.g., House, Apartment, Land)"
+                              placeholder={t(effectiveLang, 'Type (e.g., House, Apartment, Land)')}
                               icon={Tag}
                             />
                             <FormInput
                               name="address"
                               value={item.address}
                               onChange={(e) => handleRealEstateItemChange(index, 'address', e.target.value)}
-                              placeholder="Address"
+                              placeholder={t(effectiveLang, 'Address')}
                               icon={MapPin}
                             />
                             <FormTextarea
                               name="description"
                               value={item.description}
                               onChange={(e) => handleRealEstateItemChange(index, 'description', e.target.value)}
-                              placeholder="Property description and features"
+                              placeholder={t(effectiveLang, 'Property description and features')}
                               rows={3}
                               icon={Info}
                             />
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Images</label>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t(effectiveLang, 'Images')}</label>
                               <input
                                 type="file"
                                 accept="image/*"
@@ -3103,7 +3224,7 @@ export default function EditBusinessPage() {
                           </>
                         ) : (
                           <div className="text-center py-8 text-red-500 font-semibold">
-                            This item is marked for deletion.
+                            {t(effectiveLang, 'This item is marked for deletion.')}
                             <button
                               type="button"
                               onClick={() => setForm((prevForm) => {
@@ -3113,7 +3234,7 @@ export default function EditBusinessPage() {
                               })}
                               className="ml-2 text-rose-600 hover:underline"
                             >
-                              Undo
+                              {t(effectiveLang, 'Undo')}
                             </button>
                           </div>
                         )}
@@ -3129,7 +3250,7 @@ export default function EditBusinessPage() {
             <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
               <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 pb-2 border-b border-slate-100 dark:border-slate-700/80 flex justify-between items-center">
                 <span>
-                  Retail Items
+                  {t(effectiveLang, 'Retail Items')}
                   <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">
                     ({form.retailItems.length} / {planLimits.max_retail_items})
                   </span>
@@ -3144,13 +3265,13 @@ export default function EditBusinessPage() {
                       : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98]'
                   }`}
                 >
-                  <Plus size={16} className="mr-1.5" /> Add Retail Item
+                  <Plus size={16} className="mr-1.5" /> {t(effectiveLang, 'Add Retail Item')}
                 </button>
               </h2>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => handleDragEnd(event, 'retailItems')}>
                 <SortableContext items={form.retailItems.map((item: RetailItem) => item.id)} strategy={verticalListSortingStrategy}>
                   {form.retailItems.length === 0 && (
-                    <p className="text-gray-500 dark:text-gray-400 text-center py-4">No retail items added yet.</p>
+                    <p className="text-gray-500 dark:text-gray-400 text-center py-4">{t(effectiveLang, 'No retail items added yet.')}</p>
                   )}
                   {form.retailItems.map((item: RetailItem, index: number) => (
                     <SortableItem key={item.id} id={item.id}>
@@ -3166,19 +3287,19 @@ export default function EditBusinessPage() {
                             >
                               <X size={24} />
                             </button>
-                            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-3">Retail Item #{index + 1}</h3>
+                            <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-3">{t(effectiveLang, 'Retail Item')} #{index + 1}</h3>
                             <FormInput
                               name="name"
                               value={item.name}
                               onChange={(e) => handleRetailItemChange(index, 'name', e.target.value)}
-                              placeholder="Product Name"
+                              placeholder={t(effectiveLang, 'Product Name')}
                               icon={Package}
                             />
                             <FormInput
                               name="price"
                               value={formatCurrencyDisplay(item.price)}
                               onChange={(e) => handleRetailItemChange(index, 'price', normalizeNumericInput(e.target.value, true))}
-                              placeholder="Price (e.g., $49.99)"
+                              placeholder={t(effectiveLang, 'Price (e.g., $49.99)')}
                               type="text" // Keep as text to allow flexible input like "49.99"
                               icon={DollarIcon}
                             />
@@ -3186,14 +3307,14 @@ export default function EditBusinessPage() {
                               name="category"
                               value={item.category}
                               onChange={(e) => handleRetailItemChange(index, 'category', e.target.value)}
-                              placeholder="Product Category (e.g., Electronics, Apparel)"
+                              placeholder={t(effectiveLang, 'Product Category (e.g., Electronics, Apparel)')}
                               icon={Tag}
                             />
                             <FormTextarea
                               name="description"
                               value={item.description}
                               onChange={(e) => handleRetailItemChange(index, 'description', e.target.value)}
-                              placeholder="Product Description"
+                              placeholder={t(effectiveLang, 'Product Description')}
                               rows={3}
                               icon={Info}
                             />
@@ -3201,7 +3322,7 @@ export default function EditBusinessPage() {
                               <p className="line-clamp-2">{item.description}</p>
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Product Images (Max 8)</label>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t(effectiveLang, 'Product Images (Max 8)')}</label>
                               <input
                                 type="file"
                                 accept="image/*"
@@ -3242,7 +3363,7 @@ export default function EditBusinessPage() {
                           </>
                         ) : (
                           <div className="text-center py-8 text-red-500 font-semibold">
-                            This item is marked for deletion.
+                            {t(effectiveLang, 'This item is marked for deletion.')}
                             <button
                               type="button"
                               onClick={() => setForm((prevForm) => {
@@ -3252,7 +3373,7 @@ export default function EditBusinessPage() {
                               })}
                               className="ml-2 text-rose-600 hover:underline"
                             >
-                              Undo
+                              {t(effectiveLang, 'Undo')}
                             </button>
                           </div>
                         )}
@@ -3277,10 +3398,10 @@ export default function EditBusinessPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Saving...
+                  {t(effectiveLang, 'Saving...')}
                 </span>
               ) : (
-                'Save Changes'
+                t(effectiveLang, 'Save Changes')
               )}
             </button>
           </div>

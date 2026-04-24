@@ -161,8 +161,9 @@ function BlockedAccountsContent() {
 }
 
 export default function DashboardBlockedPage() {
+  const { effectiveLang } = useLanguage();
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">{t(effectiveLang, 'Loading...')}</div>}>
       <BlockedAccountsContent />
     </Suspense>
   );

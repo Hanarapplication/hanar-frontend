@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Bell, MessageCircle, Store, ShoppingCart, CircleUserRound } from 'lucide-react';
@@ -27,6 +27,18 @@ const navLineIconClass = 'h-[1.4rem] w-[1.4rem]';
 export default function Navbar({ hidden = false }: { hidden?: boolean }) {
   const router = useRouter();
   const pathname = usePathname() ?? '';
+  /** e.g. /marketplace/individual-abc — not /marketplace, /post, or /edit/... */
+  const isMarketplaceItemDetailPage = useMemo(() => {
+    const parts = pathname.split('/').filter(Boolean);
+    if (parts[0] !== 'marketplace' || parts.length !== 2) return false;
+    if (parts[1] === 'post' || parts[1] === 'edit') return false;
+    return true;
+  }, [pathname]);
+  useEffect(() => {
+    if (isMarketplaceItemDetailPage) {
+      setNotificationsOpen(false);
+    }
+  }, [isMarketplaceItemDetailPage]);
   const { effectiveLang } = useLanguage();
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
@@ -574,61 +586,63 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
         </div>
       </nav>
 
-      <div className={`fixed right-3 top-1 z-[70] flex items-center gap-2 transition-all duration-200 sm:right-4 sm:top-1 ${hidden ? 'translate-y-[-10px] opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
-        <button
-          ref={notificationsBellRef}
-          type="button"
-          onClick={toggleNotifications}
-          className="relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/45 bg-white/20 text-black shadow-sm backdrop-blur-sm transition hover:bg-white/30"
-          aria-label="Open notifications"
-          title="Notifications"
-          aria-expanded={notificationsOpen}
-          aria-haspopup="dialog"
-        >
-          <Bell className="h-[1.58rem] w-[1.58rem]" strokeWidth={2} stroke="url(#nav-grad-bell)" aria-hidden>
-            <defs>
-              <linearGradient id="nav-grad-bell" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#2563eb" />
-                <stop offset="100%" stopColor="#dc2626" />
-              </linearGradient>
-            </defs>
-          </Bell>
-          {unreadCount > 0 ? (
-            <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-semibold leading-none text-white">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          ) : null}
-        </button>
-        <button
-          type="button"
-          onClick={() => goToQuickAction('/messages?view=inbox')}
-          className="relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/45 bg-white/20 text-black shadow-sm backdrop-blur-sm transition hover:bg-white/30"
-          aria-label="Go to messages"
-          title="Messages"
-        >
-          <MessageCircle className="h-[1.58rem] w-[1.58rem]" strokeWidth={2} stroke="url(#nav-grad-message)" aria-hidden>
-            <defs>
-              <linearGradient id="nav-grad-message" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#2563eb" />
-                <stop offset="100%" stopColor="#dc2626" />
-              </linearGradient>
-            </defs>
-          </MessageCircle>
-          {unreadMessageCount > 0 ? (
-            <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-semibold leading-none text-white">
-              {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
-            </span>
-          ) : null}
-        </button>
-      </div>
+      {!isMarketplaceItemDetailPage && (
+        <div className={`fixed right-3 top-1 z-[70] flex items-center gap-2 transition-all duration-200 sm:right-4 sm:top-1 ${hidden ? 'translate-y-[-10px] opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
+          <button
+            ref={notificationsBellRef}
+            type="button"
+            onClick={toggleNotifications}
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/45 bg-white/20 text-black shadow-sm backdrop-blur-sm transition hover:bg-white/30"
+            aria-label="Open notifications"
+            title="Notifications"
+            aria-expanded={notificationsOpen}
+            aria-haspopup="dialog"
+          >
+            <Bell className="h-[1.58rem] w-[1.58rem]" strokeWidth={2} stroke="url(#nav-grad-bell)" aria-hidden>
+              <defs>
+                <linearGradient id="nav-grad-bell" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#2563eb" />
+                  <stop offset="100%" stopColor="#dc2626" />
+                </linearGradient>
+              </defs>
+            </Bell>
+            {unreadCount > 0 ? (
+              <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-semibold leading-none text-white">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            ) : null}
+          </button>
+          <button
+            type="button"
+            onClick={() => goToQuickAction('/messages?view=inbox')}
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/45 bg-white/20 text-black shadow-sm backdrop-blur-sm transition hover:bg-white/30"
+            aria-label="Go to messages"
+            title="Messages"
+          >
+            <MessageCircle className="h-[1.58rem] w-[1.58rem]" strokeWidth={2} stroke="url(#nav-grad-message)" aria-hidden>
+              <defs>
+                <linearGradient id="nav-grad-message" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#2563eb" />
+                  <stop offset="100%" stopColor="#dc2626" />
+                </linearGradient>
+              </defs>
+            </MessageCircle>
+            {unreadMessageCount > 0 ? (
+              <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-semibold leading-none text-white">
+                {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+              </span>
+            ) : null}
+          </button>
+        </div>
+      )}
 
       <div
         ref={notificationsPanelRef}
         role="dialog"
         aria-label="Notifications"
-        aria-hidden={!notificationsOpen}
+        aria-hidden={!notificationsOpen || isMarketplaceItemDetailPage}
         className={`fixed right-3 top-12 z-[75] w-[min(19rem,calc(100vw-1.5rem))] origin-top-right rounded-xl border border-blue-200 bg-blue-50/95 shadow-2xl transition-all duration-200 sm:right-4 sm:top-12 ${
-          notificationsOpen
+          notificationsOpen && !isMarketplaceItemDetailPage
             ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
             : 'pointer-events-none -translate-y-2 scale-95 opacity-0'
         }`}

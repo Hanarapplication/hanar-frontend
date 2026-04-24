@@ -11,6 +11,7 @@ import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import { Avatar } from '@/components/Avatar';
 import { useLanguage } from '@/context/LanguageContext';
+import PostTranslateToggle from '@/components/PostTranslateToggle';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -457,8 +458,16 @@ export default function CommunityPostPage() {
             <span>{new Date(post.created_at).toLocaleDateString()}</span>
           </div>
 
-          <h1 className="mt-2 text-xl font-semibold text-slate-800">{post.title}</h1>
-          <p className="mt-2 whitespace-pre-wrap text-slate-700 text-sm">{post.body}</p>
+          <div data-no-translate>
+            <h1 className="mt-2 text-xl font-semibold text-slate-800">{post.title}</h1>
+            <p className="mt-2 whitespace-pre-wrap text-slate-700 text-sm">{post.body}</p>
+          </div>
+          <PostTranslateToggle
+            text={`${post.title}\n\n${post.body || ''}`}
+            postId={post.id}
+            sourceLang={post.language || null}
+            className="mt-2"
+          />
 
           {post.video && (
             <div className="mt-3">
@@ -571,7 +580,10 @@ export default function CommunityPostPage() {
                       </button>
                     )}
                   </div>
-                  <p className="mt-2 text-sm text-slate-700 dark:text-gray-200">{c.body ?? c.text}</p>
+                  <div data-no-translate>
+                    <p className="mt-2 text-sm text-slate-700 dark:text-gray-200">{c.body ?? c.text}</p>
+                  </div>
+                  <PostTranslateToggle text={String(c.body ?? c.text ?? '')} className="mt-1" />
                 </div>
               ))}
               </div>

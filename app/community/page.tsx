@@ -14,6 +14,7 @@ import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
 import { Avatar } from '@/components/Avatar';
+import PostTranslateToggle from '@/components/PostTranslateToggle';
 import { t } from '@/utils/translations';
 
 const COMMUNITY_SEARCH_FRAME =
@@ -66,6 +67,7 @@ interface Post {
   id: string;
   title: string;
   body: string;
+  language?: string | null;
   author: string;
   author_type?: string | null;
   username?: string | null;
@@ -773,10 +775,16 @@ function CommunityFeedPage() {
               </div>
 
               {/* Text content */}
-              <Link href={`/community/post/${post.id}`}>
+              <Link href={`/community/post/${post.id}`} data-no-translate>
                 <h2 className="text-xl font-semibold mb-1 text-gray-900 dark:text-gray-100">{post.title}</h2>
                 <p className="text-gray-600 dark:text-gray-300 line-clamp-2">{post.body}</p>
               </Link>
+              <PostTranslateToggle
+                text={`${post.title}\n\n${post.body || ''}`}
+                postId={post.id}
+                sourceLang={post.language || null}
+                className="mt-2"
+              />
 
               {/* Media: video (inline player) or image (thumbnail) */}
               {post.video ? (
@@ -864,7 +872,10 @@ function CommunityFeedPage() {
                           <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
                             {comment.author || comment.username || 'User'}
                           </p>
-                          <p className="text-sm text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
+                          <div data-no-translate>
+                            <p className="text-sm text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
+                          </div>
+                          <PostTranslateToggle text={String(comment.body ?? comment.text ?? '')} className="mt-1" />
                         </div>
                       ))}
                     </div>

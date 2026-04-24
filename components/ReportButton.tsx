@@ -4,7 +4,13 @@ import { useState, useRef, useEffect, type CSSProperties } from 'react';
 import { Flag } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
-type EntityType = 'post' | 'item' | 'business' | 'organization';
+type EntityType = 'post' | 'item' | 'business' | 'organization' | 'chat' | 'seller';
+
+export type MarketplaceSellerTarget = {
+  kind: 'user' | 'business';
+  id: string;
+  displayName: string;
+};
 
 interface ReportButtonProps {
   entityType: EntityType;
@@ -15,6 +21,10 @@ interface ReportButtonProps {
   className?: string;
   /** Applied to the trigger control (e.g. brand gradient on business pages) */
   style?: CSSProperties;
+  /** Called when the report flow opens (after auth check; not called on redirect to login). */
+  onOpen?: () => void;
+  /** On marketplace item pages: also allow reporting the seller (user or business). */
+  marketplaceSeller?: MarketplaceSellerTarget;
 }
 
 const REASONS = [
@@ -35,8 +45,11 @@ export default function ReportButton({
   variant = 'icon',
   className = '',
   style,
+  onOpen,
+  marketplaceSeller,
 }: ReportButtonProps) {
   const [open, setOpen] = useState(false);
+  const [reportSubject, setReportSubject] = useState<'listing' | 'seller'>('listing');
   const [selectedReason, setSelectedReason] = useState('');
   const [details, setDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -55,6 +68,7 @@ export default function ReportButton({
     setOpen(false);
     // Reset after close animation
     setTimeout(() => {
+      setReportSubject('listing');
       setSelectedReason('');
       setDetails('');
       setError('');
@@ -79,6 +93,21 @@ export default function ReportButton({
         return;
       }
 
+      let submitEntityType: string = entityType;
+      let submitEntityId = entityId;
+      let submitEntityTitle = entityTitle || '';
+      if (marketplaceSeller && reportSubject === 'seller') {
+        if (marketplaceSeller.kind === 'user') {
+          submitEntityType = 'seller';
+          submitEntityId = marketplaceSeller.id;
+          submitEntityTitle = `Seller: ${marketplaceSeller.displayName}`.trim();
+        } else {
+          submitEntityType = 'business';
+          submitEntityId = marketplaceSeller.id;
+          submitEntityTitle = `Business: ${marketplaceSeller.displayName}`.trim();
+        }
+      }
+
       const res = await fetch('/api/reports', {
         method: 'POST',
         headers: {
@@ -86,9 +115,9 @@ export default function ReportButton({
           Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          entity_type: entityType,
-          entity_id: entityId,
-          entity_title: entityTitle,
+          entity_type: submitEntityType,
+          entity_id: submitEntityId,
+          entity_title: submitEntityTitle,
           reason: selectedReason,
           details,
         }),
@@ -118,14 +147,33 @@ export default function ReportButton({
       window.location.href = '/login';
       return;
     }
+    // Open dialog first; onOpen (e.g. close parent menu) must not unmount this component before setOpen runs.
     setOpen(true);
+    onOpen?.();
   };
 
-  const entityLabel =
-    entityType === 'post' ? 'Post' :
-    entityType === 'item' ? 'Item' :
-    entityType === 'business' ? 'Business' :
-    'Organization';
+  const defaultEntityLabel =
+    entityType === 'post' ? 'post' :
+    entityType === 'item' ? 'item' :
+    entityType === 'business' ? 'business' :
+    entityType === 'chat' ? 'conversation' :
+    entityType === 'seller' ? 'seller' :
+    'organization';
+
+  const dialogTitleWord = (() => {
+    if (marketplaceSeller && reportSubject === 'seller') {
+      return marketplaceSeller.kind === 'business' ? 'Business' : 'Seller';
+    }
+    const map: Record<string, string> = {
+      post: 'Post',
+      item: 'Item',
+      business: 'Business',
+      organization: 'Organization',
+      chat: 'Chat',
+      seller: 'Seller',
+    };
+    return map[entityType] || 'Content';
+  })();
 
   return (
     <>
@@ -133,7 +181,7 @@ export default function ReportButton({
         <button
           type="button"
           onClick={handleButtonClick}
-          title={`Report this ${entityLabel.toLowerCase()}`}
+          title={`Report this ${defaultEntityLabel}`}
           style={style}
           className={`p-1.5 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 dark:text-gray-500 dark:hover:text-red-400 transition-colors ${className}`}
         >
@@ -158,9 +206,10 @@ export default function ReportButton({
           type="button"
           onClick={handleButtonClick}
           style={style}
-          className={`text-sm text-slate-500 hover:text-red-500 hover:underline dark:text-gray-400 dark:hover:text-red-400 transition-colors ${className}`}
+          className={`inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 transition-colors hover:underline [&_svg]:shrink-0 ${className}`}
         >
-          Report this {entityLabel.toLowerCase()}
+          <Flag className="[height:1.2em] [width:1.2em]" aria-hidden />
+          <span>Report this {defaultEntityLabel}</span>
         </button>
       )}
 
@@ -194,7 +243,7 @@ export default function ReportButton({
               <>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-gray-100">
-                    Report {entityLabel}
+                    Report {dialogTitleWord}
                   </h3>
                   <button
                     type="button"
@@ -207,14 +256,78 @@ export default function ReportButton({
                   </button>
                 </div>
 
-                {entityTitle && (
+                {marketplaceSeller && (
+                  <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50/80 p-3 dark:border-gray-600 dark:bg-gray-800/50">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400 mb-2">
+                      What are you reporting?
+                    </p>
+                    <div className="space-y-2">
+                      <label
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition ${
+                          reportSubject === 'listing'
+                            ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-600 dark:bg-red-900/25 dark:text-red-100'
+                            : 'border-slate-200 text-slate-700 hover:border-slate-300 dark:border-gray-600 dark:text-gray-200 dark:hover:border-gray-500'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="report-subject"
+                          className="sr-only"
+                          checked={reportSubject === 'listing'}
+                          onChange={() => { setReportSubject('listing'); setSelectedReason(''); }}
+                        />
+                        <span
+                          className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                            reportSubject === 'listing' ? 'border-red-500' : 'border-slate-300 dark:border-gray-500'
+                          }`}
+                        >
+                          {reportSubject === 'listing' ? <span className="h-2 w-2 rounded-full bg-red-500" /> : null}
+                        </span>
+                        <span>
+                          <span className="font-medium">This listing</span>
+                          {entityTitle ? <span className="block text-xs text-slate-500 dark:text-gray-400 truncate">“{entityTitle}”</span> : null}
+                        </span>
+                      </label>
+                      <label
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition ${
+                          reportSubject === 'seller'
+                            ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-600 dark:bg-red-900/25 dark:text-red-100'
+                            : 'border-slate-200 text-slate-700 hover:border-slate-300 dark:border-gray-600 dark:text-gray-200 dark:hover:border-gray-500'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="report-subject"
+                          className="sr-only"
+                          checked={reportSubject === 'seller'}
+                          onChange={() => { setReportSubject('seller'); setSelectedReason(''); }}
+                        />
+                        <span
+                          className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                            reportSubject === 'seller' ? 'border-red-500' : 'border-slate-300 dark:border-gray-500'
+                          }`}
+                        >
+                          {reportSubject === 'seller' ? <span className="h-2 w-2 rounded-full bg-red-500" /> : null}
+                        </span>
+                        <span>
+                          <span className="font-medium">
+                            {marketplaceSeller.kind === 'business' ? 'This business / seller' : 'This seller'}
+                          </span>
+                          <span className="block text-xs text-slate-500 dark:text-gray-400">{marketplaceSeller.displayName}</span>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {!marketplaceSeller && entityTitle && (
                   <p className="mb-4 text-sm text-slate-500 dark:text-gray-400 truncate">
                     Reporting: <span className="font-medium text-slate-700 dark:text-gray-200">{entityTitle}</span>
                   </p>
                 )}
 
                 <label className="block text-sm font-medium text-slate-700 dark:text-gray-200 mb-2">
-                  Reason for reporting
+                  {marketplaceSeller ? 'Reason' : 'Reason for reporting'}
                 </label>
                 <div className="space-y-2 mb-4">
                   {REASONS.map((reason) => (

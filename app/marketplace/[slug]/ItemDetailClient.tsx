@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
-import { FaHeart, FaRegHeart, FaShareAlt, FaExternalLinkAlt, FaPhoneAlt, FaStore, FaEnvelope, FaWhatsapp, FaChevronLeft, FaChevronRight, FaCommentDots } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaShareAlt, FaExternalLinkAlt, FaPhoneAlt, FaStore, FaEnvelope, FaWhatsapp, FaChevronLeft, FaChevronRight, FaCommentDots, FaEllipsisH } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
 import ReportButton from '@/components/ReportButton';
 import { Avatar } from '@/components/Avatar';
 import { recordMarketplaceItemView, readMarketplaceBrowseSignals, personalizationScoreForItem } from '@/lib/marketplacePersonalize';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 
 type MarketplaceItem = {
   id: string;
@@ -113,6 +115,7 @@ const formatPriceWithCurrency = (value: string | number | null | undefined) => {
 };
 
 export default function ItemDetailClient() {
+  const { effectiveLang } = useLanguage();
   const params = useParams();
   const slug = String(params?.slug || '');
   const [item, setItem] = useState<MarketplaceItem | null>(null);
@@ -121,14 +124,17 @@ export default function ItemDetailClient() {
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [currentUrl, setCurrentUrl] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [sharedWithFallback, setSharedWithFallback] = useState(false);
   const [imageIndex, setImageIndex] = useState(0);
   const [dragOffsetPx, setDragOffsetPx] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [relatedItems, setRelatedItems] = useState<RelatedItem[]>([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [descriptionOverflows, setDescriptionOverflows] = useState(false);
+  const descriptionRef = useRef<HTMLParagraphElement>(null);
+  const itemMenuRef = useRef<HTMLDivElement>(null);
   const galleryRef = useRef<HTMLDivElement>(null);
+  const [itemMenuOpen, setItemMenuOpen] = useState(false);
   const relatedScrollRef = useRef<HTMLDivElement>(null);
   const pointerStartRef = useRef<{ x: number; index: number } | null>(null);
   const dragOffsetRef = useRef(0);
@@ -142,8 +148,39 @@ export default function ItemDetailClient() {
   useEffect(() => {
     setImageIndex(0);
     setDragOffsetPx(0);
+    setDescriptionExpanded(false);
+    setItemMenuOpen(false);
     pointerStartRef.current = null;
   }, [item?.id]);
+
+  useEffect(() => {
+    if (!itemMenuOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (itemMenuRef.current && !itemMenuRef.current.contains(e.target as Node)) {
+        setItemMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setItemMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [itemMenuOpen]);
+
+  useLayoutEffect(() => {
+    if (!item?.description?.trim()) {
+      setDescriptionOverflows(false);
+      return;
+    }
+    if (descriptionExpanded) return;
+    const el = descriptionRef.current;
+    if (!el) return;
+    setDescriptionOverflows(el.scrollHeight - el.clientHeight > 1);
+  }, [item?.id, item?.description, descriptionExpanded]);
 
   const galleryWidth = galleryRef.current?.offsetWidth ?? 0;
   const numImages = item?.images?.length ?? 0;
@@ -545,21 +582,22 @@ export default function ItemDetailClient() {
       alert('Sharing is not supported on your browser.');
     }
   };
+
+  /** Used on gallery chip: share sheet when available, otherwise copy link. */
+  const handleGalleryShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      handleNativeShare();
+    } else {
+      copyLinkFallback();
+    }
+  };
   
   const copyLinkFallback = () => {
     if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(currentUrl)
-        .then(() => {
-          setCopied(true);
-          setSharedWithFallback(true);
-          setTimeout(() => {
-            setCopied(false);
-            setSharedWithFallback(false);
-          }, 2000);
-        })
-        .catch(() => {
-          fallbackToTextareaCopy();
-        });
+      navigator.clipboard.writeText(currentUrl).catch(() => {
+        fallbackToTextareaCopy();
+      });
     } else {
       fallbackToTextareaCopy();
     }
@@ -575,99 +613,140 @@ export default function ItemDetailClient() {
     textArea.select();
     try {
       const successful = document.execCommand('copy');
-      if (successful) {
-        setCopied(true);
-        setSharedWithFallback(true);
-        setTimeout(() => {
-          setCopied(false);
-          setSharedWithFallback(false);
-        }, 2000);
-      } else {
-        alert('Could not copy. Try manually selecting the address bar.');
+      if (!successful) {
+        alert(t(effectiveLang, 'Could not copy. Try manually selecting the address bar.'));
       }
     } catch (err) {
-      alert('Copy failed. Try manually selecting the address bar.');
+      alert(t(effectiveLang, 'Copy failed. Try manually selecting the address bar.'));
     }
     document.body.removeChild(textArea);
   };
 
-  if (error) return <div className="text-center py-10 text-sm text-red-600">{error}</div>;
-  if (!item) return <div className="text-center py-10">Loading...</div>;
+  if (error) return <div className="text-center py-4 text-[11px] text-red-600">{error}</div>;
+  if (!item) return <div className="text-center py-4 text-xs text-slate-500">{t(effectiveLang, 'Loading...')}</div>;
+
+  const sellerProfileHref =
+    individualSeller?.username != null && String(individualSeller.username).trim() !== ''
+      ? `/profile/${individualSeller.username}`
+      : business?.slug
+        ? `/business/${business.slug}`
+        : null;
+
+  const marketplaceSellerForReport =
+    individualSeller?.user_id
+      ? {
+          kind: 'user' as const,
+          id: individualSeller.user_id,
+          displayName: individualSeller.username
+            ? `@${individualSeller.username}`
+            : t(effectiveLang, 'Individual seller'),
+        }
+      : business?.id
+        ? {
+            kind: 'business' as const,
+            id: business.id,
+            displayName: business.business_name || t(effectiveLang, 'Business'),
+          }
+        : undefined;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6">
+    <div className="max-w-sm mx-auto px-2 pt-2 pb-5 sm:px-3">
 
 
-      <div className="bg-white shadow-md rounded-2xl overflow-hidden p-5 sm:p-6">
-        {/* Top Info Box */}
-        <div className="flex justify-between items-start gap-4 mb-4">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">
-              {item.title}
-            </h1>
-            <p className="mt-2 text-2xl sm:text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-              {typeof item.price === 'number' ? `$${Number(item.price).toLocaleString()}` : item.price}
-            </p>
-            {item.condition && (
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                <span
-                  className={`inline-flex items-center px-2.5 py-1 rounded-full font-medium ${
-                    item.condition === 'New'
-                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200'
-                      : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
-                  }`}
-                >
-                  {item.condition}
-                </span>
-                {formatDateLabel(item.created_at) && (
-                  <span className="text-slate-500 dark:text-slate-400">{formatDateLabel(item.created_at)}</span>
+      <div className="bg-white shadow-sm rounded-lg overflow-hidden p-1.5 sm:p-2 text-[10px]">
+        {/* Item title – above photos */}
+        <div className="mb-1.5 flex justify-between items-start gap-1">
+          <h1 className="min-w-0 flex-1 text-[13px] sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight leading-snug">
+            {item.title}
+          </h1>
+          <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+            <button
+              type="button"
+              onClick={toggleFavorite}
+              className="-m-0.5 rounded-full p-1 text-inherit transition hover:bg-slate-100 active:scale-95 dark:hover:bg-slate-700/80"
+              aria-label={isFavorited ? t(effectiveLang, 'Remove from favorites') : t(effectiveLang, 'Add to favorites')}
+            >
+              {isFavorited ? (
+                <FaHeart className="h-5 w-5 text-red-500 sm:h-6 sm:w-6" />
+              ) : (
+                <FaRegHeart className="h-5 w-5 text-gray-400 hover:text-red-500 sm:h-6 sm:w-6" />
+              )}
+            </button>
+            <div className="relative" ref={itemMenuRef}>
+              <button
+                type="button"
+                onClick={() => setItemMenuOpen((o) => !o)}
+                className="-m-0.5 flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 active:scale-95 sm:h-9 sm:w-9 dark:text-slate-400 dark:hover:bg-slate-700/80"
+                aria-label={t(effectiveLang, 'More options')}
+                aria-expanded={itemMenuOpen}
+                aria-haspopup="menu"
+              >
+                <FaEllipsisH className="h-4 w-4 sm:h-5 sm:w-5" />
+              </button>
+              {/* Keep ReportButton mounted when menu closes so the report dialog can open (do not use {itemMenuOpen && ...} which unmounts the trigger). */}
+              <div
+                className={`absolute right-0 top-full z-50 mt-1 min-w-[12.5rem] overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-lg dark:border-slate-600 dark:bg-slate-800 ${
+                  itemMenuOpen ? '' : 'hidden'
+                }`}
+                role="menu"
+                aria-hidden={!itemMenuOpen}
+              >
+                {sellerProfileHref && (
+                  <Link
+                    href={sellerProfileHref}
+                    className="block px-3 py-2.5 text-sm text-slate-800 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700/80"
+                    role="menuitem"
+                    onClick={() => setItemMenuOpen(false)}
+                  >
+                    {t(effectiveLang, 'Go to seller profile')}
+                  </Link>
                 )}
+                <div
+                  className={
+                    sellerProfileHref
+                      ? 'border-t border-slate-100 dark:border-slate-600/80'
+                      : ''
+                  }
+                  role="none"
+                >
+                  <div className="px-1 py-0.5">
+                    <ReportButton
+                      entityType="item"
+                      entityId={item.id}
+                      entityTitle={item.title}
+                      variant="text"
+                      onOpen={() => setItemMenuOpen(false)}
+                      marketplaceSeller={marketplaceSellerForReport}
+                      className="!w-full !justify-start !rounded-md !px-2 !py-1.5 !text-xs !font-medium hover:!bg-slate-100 hover:!no-underline dark:hover:!bg-slate-700/80"
+                    />
+                  </div>
+                </div>
               </div>
-            )}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {item.category && (
-                <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200">
-                  {item.category}
-                </span>
-              )}
-              {item.location && (
-                <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-200 text-slate-700 dark:bg-slate-600/50 dark:text-slate-200">
-                  {item.location}
-                </span>
-              )}
             </div>
-            {item.description && (
-              <p className="mt-4 text-slate-600 dark:text-slate-300 leading-relaxed text-[15px]">
-                {item.description}
-              </p>
-            )}
           </div>
-          <button
-            type="button"
-            onClick={toggleFavorite}
-            className="text-lg mt-1"
-            aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-          >
-            {isFavorited ? (
-              <FaHeart className="text-red-500" />
-            ) : (
-              <FaRegHeart className="text-gray-400 hover:text-red-500" />
-            )}
-          </button>
         </div>
 
-        {/* Image gallery – slide (swipe/drag left & right); container fits each photo, no blank space */}
+        {/* Image gallery – slide (swipe/drag); below title */}
         {item.images.length > 0 && (
-          <div className="mb-4">
+          <div className="mb-1.5 -mx-1.5 sm:-mx-2 overflow-hidden rounded-md">
             <div
               ref={galleryRef}
-              className="relative w-full overflow-hidden rounded-2xl bg-slate-100 select-none touch-pan-y"
+              className="relative w-full overflow-hidden bg-slate-100 select-none touch-pan-y"
               onPointerDown={handleGalleryPointerDown}
               onPointerMove={handleGalleryPointerMove}
               onPointerUp={handleGalleryPointerUp}
               onPointerLeave={handleGalleryPointerUp}
               onPointerCancel={handleGalleryPointerUp}
             >
+              <button
+                type="button"
+                onClick={handleGalleryShare}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="absolute left-1 top-1 z-20 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/40 ring-2 ring-white/90 hover:from-sky-600 hover:via-blue-700 hover:to-indigo-700 hover:shadow-xl hover:shadow-blue-500/50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-transparent active:scale-95 transition"
+                aria-label={t(effectiveLang, 'Share this listing')}
+              >
+                <FaShareAlt className="h-3 w-3 sm:h-3.5 sm:w-3.5 drop-shadow-sm" />
+              </button>
               <div
                 className="flex"
                 style={{
@@ -687,7 +766,7 @@ export default function ItemDetailClient() {
                       alt={`Item image ${idx + 1} of ${item.images.length}`}
                       loading={idx <= 1 ? 'eager' : 'lazy'}
                       decoding="async"
-                      className="block w-full h-auto max-h-[85vh] object-contain"
+                      className="block w-full h-auto max-h-[28vh] sm:max-h-[36vh] object-contain"
                       draggable={false}
                     />
                   </div>
@@ -698,33 +777,33 @@ export default function ItemDetailClient() {
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); goPrev(); }}
-                    className="absolute left-2 top-1/2 z-10 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 focus:outline-none focus:ring-2 focus:ring-white/50 transition"
-                    aria-label="Previous image"
+                    className="absolute left-1 top-1/2 z-10 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 focus:outline-none focus:ring-1 focus:ring-white/50 transition"
+                    aria-label={t(effectiveLang, 'Previous image')}
                   >
-                    <FaChevronLeft className="h-5 w-5" />
+                    <FaChevronLeft className="h-2.5 w-2.5" />
                   </button>
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); goNext(); }}
-                    className="absolute right-2 top-1/2 z-10 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 focus:outline-none focus:ring-2 focus:ring-white/50 transition"
-                    aria-label="Next image"
+                    className="absolute right-1 top-1/2 z-10 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70 focus:outline-none focus:ring-1 focus:ring-white/50 transition"
+                    aria-label={t(effectiveLang, 'Next image')}
                   >
-                    <FaChevronRight className="h-5 w-5" />
+                    <FaChevronRight className="h-2.5 w-2.5" />
                   </button>
-                  <div className="absolute bottom-3 left-0 right-0 z-10 flex justify-center gap-1.5">
+                  <div className="absolute bottom-1.5 left-0 right-0 z-10 flex justify-center gap-0.5">
                     {item.images.map((_, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setImageIndex(idx); }}
-                        className={`h-2 rounded-full transition-all ${
-                          idx === imageIndex ? 'w-6 bg-white' : 'w-2 bg-white/60 hover:bg-white/80'
+                        className={`h-1 rounded-full transition-all ${
+                          idx === imageIndex ? 'w-3 bg-white' : 'w-1 bg-white/60 hover:bg-white/80'
                         }`}
-                        aria-label={`Go to image ${idx + 1}`}
+                        aria-label={`${t(effectiveLang, 'Go to image')} ${idx + 1}`}
                       />
                     ))}
                   </div>
-                  <span className="absolute top-2 right-2 z-10 rounded-full bg-black/50 px-2 py-0.5 text-xs font-medium text-white">
+                  <span className="absolute top-1 right-1 z-10 rounded-full bg-black/50 px-1 py-px text-[9px] font-medium text-white leading-tight">
                     {imageIndex + 1} / {item.images.length}
                   </span>
                 </>
@@ -733,66 +812,130 @@ export default function ItemDetailClient() {
           </div>
         )}
 
+        {/* Price, tags, description (title is above photos) */}
+        <div className="mb-1.5">
+            <div className="w-fit max-w-full">
+              <span
+                className="inline-flex items-center rounded-md bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-600 px-1.5 py-1 sm:px-2 sm:py-1 text-[11px] sm:text-xs font-bold tabular-nums text-white shadow-md ring-1 ring-white/30 dark:from-emerald-600 dark:via-teal-600 dark:to-cyan-700"
+              >
+                {typeof item.price === 'number' ? `$${Number(item.price).toLocaleString()}` : item.price}
+              </span>
+            </div>
+            {(item.condition || formatDateLabel(item.created_at)) && (
+              <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                {item.condition && (
+                  <span
+                    className={`inline-flex items-center px-1.5 py-px rounded-full text-[10px] font-medium ${
+                      item.condition === 'New'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
+                    }`}
+                  >
+                    {item.condition}
+                  </span>
+                )}
+                {formatDateLabel(item.created_at) && (
+                  <span className="inline-flex items-center rounded-md border border-slate-200/90 bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-700 shadow-sm sm:px-2 sm:py-1 dark:border-slate-600 dark:bg-slate-700/80 dark:text-slate-200">
+                    {formatDateLabel(item.created_at)}
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="mt-1 flex flex-wrap items-center gap-1">
+              {item.category && (
+                <span className="inline-flex items-center px-1.5 py-px rounded text-[10px] font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200">
+                  {item.category}
+                </span>
+              )}
+              {item.location && (
+                <span className="inline-flex items-center px-1.5 py-px rounded text-[10px] font-medium bg-slate-200 text-slate-700 dark:bg-slate-600/50 dark:text-slate-200">
+                  {item.location}
+                </span>
+              )}
+            </div>
+            {item.description && (
+              <div className="mt-1.5">
+                <p
+                  ref={descriptionRef}
+                  className={`text-slate-600 dark:text-slate-300 leading-relaxed text-[10px] whitespace-pre-wrap ${
+                    !descriptionExpanded ? 'line-clamp-2 sm:line-clamp-3' : ''
+                  }`}
+                >
+                  {item.description}
+                </p>
+                {descriptionOverflows && (
+                  <button
+                    type="button"
+                    onClick={() => setDescriptionExpanded((v) => !v)}
+                    className="mt-0.5 text-indigo-600 dark:text-indigo-400 text-[10px] font-medium hover:underline"
+                  >
+                    {descriptionExpanded ? t(effectiveLang, 'Read less') : t(effectiveLang, 'Read more')}
+                  </button>
+                )}
+              </div>
+            )}
+        </div>
+
         {/* Buy online (external link) */}
         {item.external_buy_url && (
-          <div className="relative overflow-hidden rounded-2xl mb-4 bg-gradient-to-br from-slate-900 to-slate-800 p-5 shadow-lg">
+          <div className="relative overflow-hidden rounded-md mb-1.5 bg-gradient-to-br from-slate-900 to-slate-800 p-1.5 shadow">
             <div className="relative z-10">
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-2">Also available online</p>
+              <p className="text-[9px] font-medium uppercase tracking-wider text-slate-400 mb-1">{t(effectiveLang, 'Also available online')}</p>
               <a
                 href={item.external_buy_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 rounded-xl bg-white text-slate-900 font-semibold text-sm px-5 py-3 shadow-md hover:bg-slate-50 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                className="inline-flex items-center gap-1 rounded-md bg-white text-slate-900 font-semibold text-[10px] px-2 py-1 shadow-sm hover:bg-slate-50 active:scale-[0.99] transition-all duration-200"
               >
-                <span>Buy on external site</span>
-                <FaExternalLinkAlt className="h-4 w-4 opacity-70" />
+                <span>{t(effectiveLang, 'Buy on external site')}</span>
+                <FaExternalLinkAlt className="h-2.5 w-2.5 opacity-70" />
               </a>
-              <p className="text-xs text-slate-500 mt-2.5">Opens in a new tab</p>
+              <p className="text-[9px] text-slate-500 mt-1">{t(effectiveLang, 'Opens in a new tab')}</p>
             </div>
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,255,255,0.08),transparent)] pointer-events-none" aria-hidden />
           </div>
         )}
 
         {/* Seller / Business Info */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm mb-4">
-          <h2 className="font-semibold text-slate-800 mb-3">Contact seller</h2>
+        <div className="rounded-md border border-slate-200 bg-white p-1.5 shadow-sm mb-1.5">
+          <h2 className="text-[10px] font-semibold text-slate-800 mb-1.5 uppercase tracking-wide">{t(effectiveLang, 'Contact seller')}</h2>
           {individualSeller ? (
             <>
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-1 mb-1.5">
                 <Link
                   href={individualSeller.username ? `/profile/${individualSeller.username}` : '#'}
-                  className={`flex items-center gap-3 ${individualSeller.username ? 'hover:opacity-90' : ''}`}
+                  className={`flex items-center gap-1 ${individualSeller.username ? 'hover:opacity-90' : ''}`}
                 >
-                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border-2 border-[#c41e56]/90 bg-slate-100 transition hover:opacity-90 dark:border-[#e85085]/65">
+                  <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border-2 border-[#c41e56]/90 bg-slate-100 transition hover:opacity-90 dark:border-[#e85085]/65">
                     <Avatar
                       src={individualSeller.profile_pic_url}
-                      alt={individualSeller.username ? `@${individualSeller.username}` : 'Seller'}
+                      alt={individualSeller.username ? `@${individualSeller.username}` : t(effectiveLang, 'Seller')}
                       className="h-full w-full rounded-full"
                       unframed
                     />
                   </div>
                   <div>
-                    <span className="font-semibold text-blue-900 dark:text-blue-300 hover:underline">
-                      {individualSeller.username ? `@${individualSeller.username}` : 'Individual seller'}
+                    <span className="text-xs font-semibold text-blue-900 dark:text-blue-300 hover:underline">
+                      {individualSeller.username ? `@${individualSeller.username}` : t(effectiveLang, 'Individual seller')}
                     </span>
                   </div>
                 </Link>
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-1.5">
                 <Link
                   href={buildMessageHref('user', individualSeller.user_id)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-indigo-700 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                  className="inline-flex items-center gap-1 rounded-md bg-indigo-600 text-white text-[10px] font-semibold px-2 py-1.5 shadow-sm hover:bg-indigo-700 active:scale-[0.98] transition-all duration-200"
                 >
-                  <FaCommentDots className="h-4 w-4 opacity-90" />
-                  DM seller
+                  <FaCommentDots className="h-2.5 w-2.5 opacity-90" />
+                  {t(effectiveLang, 'DM seller')}
                 </Link>
                 {individualSeller.contact?.phone && (
                   <a
                     href={`tel:${normalizePhone(individualSeller.contact.phone)}`}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-emerald-700 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                    className="inline-flex items-center gap-1 rounded-md bg-emerald-600 text-white text-[10px] font-medium px-2 py-1 shadow-sm hover:bg-emerald-700 active:scale-[0.98] transition-all duration-200"
                   >
-                    <FaPhoneAlt className="h-4 w-4 opacity-90" />
-                    Call
+                    <FaPhoneAlt className="h-2.5 w-2.5 opacity-90" />
+                    {t(effectiveLang, 'Call')}
                   </a>
                 )}
                 {individualSeller.contact?.whatsapp && (
@@ -800,62 +943,62 @@ export default function ItemDetailClient() {
                     href={`https://wa.me/${normalizePhone(individualSeller.contact.whatsapp)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-[#20BD5A] hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                    className="inline-flex items-center gap-1 rounded-md bg-[#25D366] text-white text-[10px] font-medium px-2 py-1 shadow-sm hover:bg-[#20BD5A] active:scale-[0.98] transition-all duration-200"
                   >
-                    <FaWhatsapp className="h-5 w-5" />
-                    WhatsApp
+                    <FaWhatsapp className="h-3 w-3" />
+                    {t(effectiveLang, 'WhatsApp')}
                   </a>
                 )}
                 {individualSeller.contact?.email && (
                   <a
                     href={`mailto:${individualSeller.contact.email}`}
-                    className="inline-flex items-center gap-2 rounded-xl bg-slate-700 text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-slate-800 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                    className="inline-flex items-center gap-1 rounded-md bg-slate-700 text-white text-[10px] font-medium px-2 py-1 shadow-sm hover:bg-slate-800 active:scale-[0.98] transition-all duration-200"
                   >
-                    <FaEnvelope className="h-4 w-4 opacity-90" />
-                    Email
+                    <FaEnvelope className="h-2.5 w-2.5 opacity-90" />
+                    {t(effectiveLang, 'Email')}
                   </a>
                 )}
               </div>
             </>
           ) : business ? (
             <>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-                <Link href={`/business/${business.slug || ''}`} className="flex items-center gap-3 hover:opacity-90">
-                  <div className="h-12 w-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
-                    <FaStore className="h-6 w-6 text-slate-500" />
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-1.5">
+                <Link href={`/business/${business.slug || ''}`} className="flex items-center gap-1 hover:opacity-90">
+                  <div className="h-7 w-7 rounded-md overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
+                    <FaStore className="h-3.5 w-3.5 text-slate-500" />
                   </div>
                   <div>
-                    <span className="text-sm font-semibold text-slate-800 hover:underline">
+                    <span className="text-xs font-semibold text-slate-800 hover:underline">
                       {business.business_name}
                     </span>
-                    <p className="text-xs text-slate-500">Verified business</p>
+                    <p className="text-[10px] text-slate-500">{t(effectiveLang, 'Verified business')}</p>
                   </div>
                 </Link>
                 <Link
                   href={`/business/${business.slug || ''}`}
-                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-indigo-700 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                  className="inline-flex items-center gap-1 rounded-md bg-indigo-600 text-white text-[10px] font-medium px-2 py-1 shadow-sm hover:bg-indigo-700 active:scale-[0.98] transition-all duration-200"
                 >
-                  <FaStore className="h-4 w-4 opacity-90" />
-                  Visit Business
+                  <FaStore className="h-2.5 w-2.5 opacity-90" />
+                  {t(effectiveLang, 'Visit Business')}
                 </Link>
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-1.5">
                 {business.id && (
                   <Link
                     href={buildMessageHref('business', business.id)}
-                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-indigo-700 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                    className="inline-flex items-center gap-1 rounded-md bg-indigo-600 text-white text-[10px] font-semibold px-2 py-1.5 shadow-sm hover:bg-indigo-700 active:scale-[0.98] transition-all duration-200"
                   >
-                    <FaCommentDots className="h-4 w-4 opacity-90" />
-                    DM seller
+                    <FaCommentDots className="h-2.5 w-2.5 opacity-90" />
+                    {t(effectiveLang, 'DM seller')}
                   </Link>
                 )}
                 {business.phone && (
                   <a
                     href={`tel:${normalizePhone(business.phone)}`}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-emerald-700 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                    className="inline-flex items-center gap-1 rounded-md bg-emerald-600 text-white text-[10px] font-medium px-2 py-1 shadow-sm hover:bg-emerald-700 active:scale-[0.98] transition-all duration-200"
                   >
-                    <FaPhoneAlt className="h-4 w-4 opacity-90" />
-                    Call
+                    <FaPhoneAlt className="h-2.5 w-2.5 opacity-90" />
+                    {t(effectiveLang, 'Call')}
                   </a>
                 )}
                 {business.whatsapp && (
@@ -863,80 +1006,57 @@ export default function ItemDetailClient() {
                     href={`https://wa.me/${normalizePhone(business.whatsapp)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] text-white text-sm font-medium px-4 py-2.5 shadow-md hover:bg-[#20BD5A] hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+                    className="inline-flex items-center gap-1 rounded-md bg-[#25D366] text-white text-[10px] font-medium px-2 py-1 shadow-sm hover:bg-[#20BD5A] active:scale-[0.98] transition-all duration-200"
                   >
-                    <FaWhatsapp className="h-5 w-5" />
-                    WhatsApp
+                    <FaWhatsapp className="h-3 w-3" />
+                    {t(effectiveLang, 'WhatsApp')}
                   </a>
                 )}
               </div>
             </>
           ) : (
-            <p className="text-sm text-slate-500">Seller details unavailable.</p>
-          )}
-        </div>
-
-        {/* Share Button Box */}
-        <div className="bg-gray-50 p-4 rounded-xl mb-4">
-          <h2 className="font-semibold text-sm text-gray-700 mb-2">Share</h2>
-          <button
-            onClick={handleNativeShare}
-            className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-full flex items-center gap-2 text-sm mb-2"
-          >
-            <FaShareAlt /> Share Item
-          </button>
-          {!navigator.share && (
-            <div className="text-sm text-gray-500">
-              Sharing not supported —
-              <button
-                onClick={copyLinkFallback}
-                className="underline text-rose-600 ml-1"
-              >
-                Copy link instead
-              </button>
-              {copied && (
-                <span className="ml-2 text-green-600">
-                  {sharedWithFallback ? '✓ Link copied!' : '✓ Copied!'}
-                </span>
-              )}
-            </div>
+            <p className="text-[10px] text-slate-500">{t(effectiveLang, 'Seller details unavailable.')}</p>
           )}
         </div>
 
         {/* Related items – always show section when item is loaded */}
         {item && (
-          <div className="mt-8 mb-4">
-            <h2 className="font-semibold text-slate-800 mb-3">Related items</h2>
+          <div className="mt-2 mb-1">
+            <h2 className="mb-1.5 w-fit max-w-full">
+              <span className="inline-flex items-center rounded-md bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-600 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-white/25 sm:px-2.5 sm:py-1 sm:text-[10px] dark:from-indigo-600 dark:via-violet-600 dark:to-fuchsia-700">
+                {t(effectiveLang, 'Related items')}
+              </span>
+            </h2>
             {relatedLoading ? (
-              <div className="flex gap-3 overflow-hidden">
+              <div className="flex gap-1 overflow-hidden">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="h-48 w-40 shrink-0 rounded-xl bg-slate-100 animate-pulse" />
+                  <div key={i} className="h-20 w-[5.75rem] sm:h-24 sm:w-24 shrink-0 rounded-md bg-slate-100 animate-pulse" />
                 ))}
               </div>
             ) : relatedItems.length > 0 ? (
               <div className="relative">
                 <div
                   ref={relatedScrollRef}
-                  className="flex gap-4 overflow-x-auto overflow-y-hidden pb-2 scroll-smooth snap-x snap-mandatory hide-scrollbar"
+                  className="flex gap-1 overflow-x-auto overflow-y-hidden pb-1 scroll-smooth snap-x snap-mandatory hide-scrollbar"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                   {relatedItems.map((r) => (
                     <Link
                       key={`${r.source}-${r.id}`}
                       href={`/marketplace/${r.slug}`}
-                      className="shrink-0 w-40 snap-start rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md hover:border-slate-300 transition"
+                      className="shrink-0 w-[5.75rem] sm:w-24 snap-start rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md hover:border-slate-300 transition"
                     >
                       <div className="aspect-square bg-slate-100 relative">
                         <img
                           src={r.image || '/placeholder.jpg'}
                           alt=""
-                          className="absolute inset-0 h-full w-full object-cover"
+                          className="absolute inset-0 h-full w-full object-contain object-center p-0.5"
                           onError={(e) => { e.currentTarget.src = '/placeholder.jpg'; e.currentTarget.onerror = null; }}
                         />
                       </div>
-                      <div className="p-2.5">
-                        <p className="text-sm font-medium text-slate-800 truncate" title={r.title}>{r.title}</p>
-                        <p className="text-sm font-semibold text-emerald-600 tabular-nums">
+                      <div className="p-1">
+                        <p className="text-[10px] font-medium text-slate-800 leading-tight line-clamp-2" title={r.title}>{r.title}</p>
+                        <p className="text-[10px] font-semibold text-emerald-600 tabular-nums mt-0.5">
                           {typeof r.price === 'number' ? `$${Number(r.price).toLocaleString()}` : (r.price ? `$${String(r.price)}` : '—')}
                         </p>
                       </div>
@@ -947,40 +1067,29 @@ export default function ItemDetailClient() {
                   <>
                     <button
                       type="button"
-                      onClick={() => relatedScrollRef.current?.scrollBy({ left: -180, behavior: 'smooth' })}
-                      className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 z-10 h-10 w-10 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50"
-                      aria-label="Previous"
+                      onClick={() => relatedScrollRef.current?.scrollBy({ left: -120, behavior: 'smooth' })}
+                      className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-0.5 z-10 h-6 w-6 rounded-full bg-white border border-slate-200 shadow flex items-center justify-center text-slate-600 hover:bg-slate-50"
+                      aria-label={t(effectiveLang, 'Previous')}
                     >
-                      <FaChevronLeft className="h-4 w-4" />
+                      <FaChevronLeft className="h-2.5 w-2.5" />
                     </button>
                     <button
                       type="button"
-                      onClick={() => relatedScrollRef.current?.scrollBy({ left: 180, behavior: 'smooth' })}
-                      className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 z-10 h-10 w-10 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50"
-                      aria-label="Next"
+                      onClick={() => relatedScrollRef.current?.scrollBy({ left: 120, behavior: 'smooth' })}
+                      className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-0.5 z-10 h-6 w-6 rounded-full bg-white border border-slate-200 shadow flex items-center justify-center text-slate-600 hover:bg-slate-50"
+                      aria-label={t(effectiveLang, 'Next')}
                     >
-                      <FaChevronRight className="h-4 w-4" />
+                      <FaChevronRight className="h-2.5 w-2.5" />
                     </button>
                   </>
                 )}
               </div>
             ) : (
-              <p className="text-sm text-slate-500">No related items right now. Check back later or browse the marketplace.</p>
+              <p className="text-[10px] text-slate-500">{t(effectiveLang, 'No related items right now. Check back later or browse the marketplace.')}</p>
             )}
           </div>
         )}
 
-        {/* Report */}
-        {item && (
-          <div className="text-right">
-            <ReportButton
-              entityType="item"
-              entityId={item.id}
-              entityTitle={item.title}
-              variant="text"
-            />
-          </div>
-        )}
       </div>
     </div>
   );

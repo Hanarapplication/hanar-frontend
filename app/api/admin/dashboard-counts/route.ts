@@ -138,7 +138,7 @@ export async function GET(req: Request) {
       const { count } = await supabaseAdmin
         .from('reports')
         .select('id', { count: 'exact', head: true })
-        .in('status', ['unread', 'read']);
+        .in('status', ['unread', 'read', 'in_review', 'need_attention']);
       unreadReports = count ?? 0;
     } catch {
       // table may not exist yet

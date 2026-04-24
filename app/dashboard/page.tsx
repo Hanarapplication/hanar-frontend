@@ -746,7 +746,7 @@ function DashboardContent() {
                         type="text"
                         value={editUsername}
                         onChange={(e) => setEditUsername(e.target.value)}
-                        placeholder="username"
+                        placeholder={t(effectiveLang, 'username')}
                         className="flex-1 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
                       />
                       {usernameStatus === 'available' && <span className="text-xs text-emerald-600 dark:text-emerald-400">✓ {t(effectiveLang, 'Available')}</span>}
@@ -1159,8 +1159,9 @@ function DashboardContent() {
 }
 
 export default function DashboardPage() {
+  const { effectiveLang } = useLanguage();
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">{t(effectiveLang, 'Loading...')}</div>}>
       <DashboardContent />
     </Suspense>
   );

@@ -194,7 +194,7 @@ export default function BusinessesPage() {
         const ids = (data || []).map((row: { business_id: string }) => row.business_id);
         setFavorites(ids);
       } catch (err: any) {
-        toast.error(err?.message || 'Failed to load favorites');
+        toast.error(err?.message || t(effectiveLang, 'Failed to load favorites'));
       }
     };
 
@@ -207,7 +207,7 @@ export default function BusinessesPage() {
       const label =
         [result.city, result.state, result.country].filter(Boolean).join(', ') ||
         result.formatted_address ||
-        'Selected location';
+        t(effectiveLang, 'Selected location');
       setUserCoords(coords);
       setLocationLabel(label);
       setLocationSearchValue(label);
@@ -234,7 +234,7 @@ export default function BusinessesPage() {
       try {
         const { lat, lon } = JSON.parse(stored);
         setUserCoords({ lat, lon });
-        setLocationLabel('Your location');
+        setLocationLabel(t(effectiveLang, 'Your location'));
         return;
       } catch { /* ignore */ }
     }
@@ -281,7 +281,7 @@ export default function BusinessesPage() {
           );
         })();
       },
-      () => toast.error('Could not get your location.')
+      () => toast.error(t(effectiveLang, 'Could not get your location.'))
     );
   };
 
@@ -294,7 +294,7 @@ export default function BusinessesPage() {
         const parsed = JSON.parse(saved) as { lat: number; lon: number };
         if (parsed?.lat != null && parsed?.lon != null) {
           setUserCoords(parsed);
-          setLocationLabel(savedLabel || 'Your location');
+          setLocationLabel(savedLabel || t(effectiveLang, 'Your location'));
         }
       } catch { /* ignore */ }
     }
@@ -319,7 +319,7 @@ export default function BusinessesPage() {
             setLocationLabel(composed);
             setLocationSearchValue(composed);
           } else {
-            setLocationLabel((prev) => prev ?? 'Your location');
+            setLocationLabel((prev) => prev ?? t(effectiveLang, 'Your location'));
           }
         }
       }
@@ -422,7 +422,7 @@ export default function BusinessesPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        toast.error('Login required to favorite businesses.');
+        toast.error(t(effectiveLang, 'Login required to favorite businesses.'));
         return;
       }
 
@@ -442,7 +442,7 @@ export default function BusinessesPage() {
         setFavorites((prev) => [...prev, businessId]);
       }
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to update favorite');
+      toast.error(err?.message || t(effectiveLang, 'Failed to update favorite'));
     }
   };
 
@@ -531,7 +531,7 @@ export default function BusinessesPage() {
       return a.business_name.localeCompare(b.business_name);
     });
 
-  const areaFilterActive = Boolean(userCoords) || (cityFromLabel.length > 0 && cityFromLabel !== 'your location');
+    const areaFilterActive = Boolean(userCoords) || (cityFromLabel.length > 0 && cityFromLabel !== 'your location');
   const nearbyFallbackBusinesses = areaFilterActive && filtered.length === 0
     ? filteredByCategoryAndQuery
         .map((b) => {
@@ -643,14 +643,14 @@ export default function BusinessesPage() {
             <button
               onClick={(e) => toggleFavorite(e, biz.id)}
               className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-rose-500"
-              aria-label="Toggle favorite"
+              aria-label={t(effectiveLang, 'Toggle favorite')}
             >
               {favorites.includes(biz.id) ? <FaHeart className="h-4 w-4 text-rose-500" /> : <FaRegHeart className="h-4 w-4" />}
             </button>
           </div>
           <p className="mt-0.5 text-sm font-medium text-[#d32323]">
             {'★'.repeat(isPremium(biz) ? 5 : 4)}
-            <span className="ml-1 text-slate-500">{isPremium(biz) ? 'Premium' : 'New'}</span>
+            <span className="ml-1 text-slate-500">{isPremium(biz) ? t(effectiveLang, 'Premium') : t(effectiveLang, 'New')}</span>
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {displayCategory ? (
@@ -662,7 +662,7 @@ export default function BusinessesPage() {
           </div>
           {userCoords && bizCoords && (
             <p className="mt-0.5 text-xs text-slate-500">
-              {getDistanceMiles(userCoords.lat, userCoords.lon, bizCoords.lat, bizCoords.lon).toFixed(1)} mi away
+              {getDistanceMiles(userCoords.lat, userCoords.lon, bizCoords.lat, bizCoords.lon).toFixed(1)} {t(effectiveLang, 'mi away')}
             </p>
           )}
         </div>
@@ -700,7 +700,7 @@ export default function BusinessesPage() {
 
             <div className="flex overflow-hidden rounded-md border border-white/35 bg-slate-100 shadow-inner shadow-black/10 dark:bg-slate-100">
               <div className="hidden items-center border-r border-slate-200/90 bg-slate-50/95 px-3 text-[11px] font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200 sm:flex">
-                All
+                {t(effectiveLang, 'All')}
               </div>
               <button
                 type="button"
@@ -759,7 +759,7 @@ export default function BusinessesPage() {
                     value={locationSearchValue}
                     onSelect={handleLocationSelect}
                     onChange={setLocationSearchValue}
-                    placeholder="Search city, ZIP, or address..."
+                    placeholder={t(effectiveLang, 'Search city, ZIP, or address...')}
                     mode="locality"
                     className="w-full"
                     inputClassName="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-rose-400 focus:bg-white focus:ring-2 focus:ring-rose-500/30 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
@@ -826,12 +826,12 @@ export default function BusinessesPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-2.5 flex items-center justify-between">
-                <h3 className="text-[15px] font-bold text-[#0f1111]">More categories</h3>
+                <h3 className="text-[15px] font-bold text-[#0f1111]">{t(effectiveLang, 'More categories')}</h3>
                 <button
                   type="button"
                   onClick={() => setCategoriesModalOpen(false)}
                   className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-                  aria-label="Close categories"
+                  aria-label={t(effectiveLang, 'Close categories')}
                 >
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -850,7 +850,7 @@ export default function BusinessesPage() {
                     className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#e7f4f5] px-3 py-1 text-[11px] font-semibold text-[#007185] transition hover:border-[#c7caca] hover:bg-[#dff0f2]"
                   >
                     <span aria-hidden>🌐</span>
-                    <span>All categories</span>
+                    <span>{t(effectiveLang, 'All categories')}</span>
                   </button>
                   {moreCategories.map((category) => (
                     <button
@@ -896,7 +896,7 @@ export default function BusinessesPage() {
                   {item.icon}
                 </span>
                 <span className={`text-xs font-medium leading-tight ${selectedCategoryFilter === item.key ? 'text-[#d32323]' : 'text-slate-700'}`}>
-                  {item.label}
+                  {t(effectiveLang, item.label)}
                 </span>
               </button>
             ))}
@@ -906,7 +906,7 @@ export default function BusinessesPage() {
         {/* Services & Professionals */}
         <section className="mb-6 rounded-none border-y border-slate-200 bg-white px-3 py-4">
           <h2 className="mb-3 text-base font-semibold text-slate-900 tracking-tight">
-            Services &amp; Professionals
+            {t(effectiveLang, 'Services & Professionals')}
           </h2>
           <div
             ref={servicesCarouselRef}
@@ -929,7 +929,7 @@ export default function BusinessesPage() {
                   />
                 </div>
                 <p className="mt-2 inline-flex max-w-full items-center rounded-md bg-blue-100 px-2 py-1 line-clamp-1 text-sm font-semibold text-blue-700">
-                  {formatBusinessCategory(biz.subcategory || biz.category) || 'Business'}
+                  {formatBusinessCategory(biz.subcategory || biz.category) || t(effectiveLang, 'Business')}
                 </p>
               </Link>
             ))}
@@ -939,11 +939,11 @@ export default function BusinessesPage() {
         {/* Yelp-style nearby list */}
         <section className="rounded-none border-y border-slate-200 bg-white">
           <div className="px-3 py-4">
-            <h2 className="text-base font-semibold tracking-tight text-slate-900">Hot New Businesses Nearby</h2>
+            <h2 className="text-base font-semibold tracking-tight text-slate-900">{t(effectiveLang, 'Hot New Businesses Nearby')}</h2>
           </div>
           {areaFilterActive && filtered.length === 0 && (
             <div className="mx-3 mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-              No businesses found in your selected area. Here are similar businesses in nearby cities.
+              {t(effectiveLang, 'No businesses found in your selected area. Here are similar businesses in nearby cities.')}
             </div>
           )}
           <div className="divide-y divide-slate-200">

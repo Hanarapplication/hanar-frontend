@@ -1,3 +1,5 @@
+import { getRuntimeTranslation } from '@/utils/runtimeTranslations';
+
 const translations: Record<string, Record<string, string>> = {
   "en": {
     "Welcome to Hanar": "Welcome to Hanar",
@@ -105,6 +107,31 @@ const translations: Record<string, Record<string, string>> = {
     "Search businesses, people, organizations...": "Search businesses, people, organizations…",
     "Filter": "Filter",
     "No results found": "No results found",
+    "Failed to load favorites": "Failed to load favorites",
+    "Selected location": "Selected location",
+    "Could not get your location.": "Could not get your location.",
+    "Login required to favorite businesses.": "Login required to favorite businesses.",
+    "Failed to update favorite": "Failed to update favorite",
+    "Toggle favorite": "Toggle favorite",
+    "New": "New",
+    "mi away": "mi away",
+    "All": "All",
+    "Search city, ZIP, or address...": "Search city, ZIP, or address...",
+    "More categories": "More categories",
+    "Close categories": "Close categories",
+    "All categories": "All categories",
+    "Restaurants": "Restaurants",
+    "Dealerships": "Dealerships",
+    "Auto Services": "Auto Services",
+    "Home Services": "Home Services",
+    "Transportation": "Transportation",
+    "Retail": "Retail",
+    "Health & Beauty": "Health & Beauty",
+    "More": "More",
+    "Services & Professionals": "Services & Professionals",
+    "Hot New Businesses Nearby": "Hot New Businesses Nearby",
+    "No businesses found in your selected area. Here are similar businesses in nearby cities.": "No businesses found in your selected area. Here are similar businesses in nearby cities.",
+    "Showing nearby results": "Showing nearby results",
     "Profile": "Profile",
     "Sign up": "Sign up",
     "Forgot password?": "Forgot password?",
@@ -127,6 +154,11 @@ const translations: Record<string, Record<string, string>> = {
     "Log In": "Log In",
     "Log Out": "Log Out",
     "Menu": "Menu",
+    "Open menu": "Open menu",
+    "Close menu": "Close menu",
+    "Dashboard Menu": "Dashboard Menu",
+    "Dashboard menu": "Dashboard menu",
+    "Your dashboard": "Your dashboard",
     "Email or phone number": "Email or phone number",
     "Logging in...": "Logging in...",
     "Forgotten password?": "Forgotten password?",
@@ -293,7 +325,228 @@ const translations: Record<string, Record<string, string>> = {
     "Favorite Items": "Favorite Items",
     "You have no favorite items yet. Browse the marketplace and add some.": "You have no favorite items yet. Browse the marketplace and add some.",
     "Remove": "Remove",
-    "Remove from favorites": "Remove from favorites"
+    "Remove from favorites": "Remove from favorites",
+    "Add to favorites": "Add to favorites",
+    "Retail item": "Retail item",
+    "Dealership listing": "Dealership listing",
+    "Listing": "Listing",
+    "Real estate listing": "Real estate listing",
+    "Deal": "Deal",
+    "Verified seller": "Verified seller",
+    "Business seller": "Business seller",
+    "Buy online": "Buy online",
+    "Choose delivery location": "Choose delivery location",
+    "Country": "Country",
+    "State": "State",
+    "Search marketplace": "Search marketplace",
+    "Search Hanar Marketplace": "Search Hanar Marketplace",
+    "Clear search": "Clear search",
+    "Search in this area": "Search in this area",
+    "Type a country (e.g. United States), a state or region, or a city. Country and state show all matching listings; city uses the radius below.": "Type a country (e.g. United States), a state or region, or a city. Country and state show all matching listings; city uses the radius below.",
+    "Country, state, or city": "Country, state, or city",
+    "Use my current location": "Use my current location",
+    "Radius": "Radius",
+    "miles": "miles",
+    "Continue shopping deals": "Continue shopping deals",
+    "See deal picks": "See deal picks",
+    "Categories for you": "Categories for you",
+    "See more": "See more",
+    "Tap to filter": "Tap to filter",
+    "More items to consider": "More items to consider",
+    "Available online": "Available online",
+    "Affiliate links": "Affiliate links",
+    "Trending now": "Trending now",
+    "Today's deals": "Today's deals",
+    "Limited deal": "Limited deal",
+    "Personalized from your recent searches and views": "Personalized from your recent searches and views",
+    "Recommended Listings": "Recommended Listings",
+    "results": "results",
+    "No results found. Try changing your search or filters.": "No results found. Try changing your search or filters.",
+    "Show More": "Show More",
+    "More options": "More options",
+    "Go to seller profile": "Go to seller profile",
+    "Share this listing": "Share this listing",
+    "Previous image": "Previous image",
+    "Next image": "Next image",
+    "Go to image": "Go to image",
+    "Read less": "Read less",
+    "Read more": "Read more",
+    "Also available online": "Also available online",
+    "Buy on external site": "Buy on external site",
+    "Opens in a new tab": "Opens in a new tab",
+    "Contact seller": "Contact seller",
+    "Seller": "Seller",
+    "Individual seller": "Individual seller",
+    "DM seller": "DM seller",
+    "Call": "Call",
+    "WhatsApp": "WhatsApp",
+    "Verified business": "Verified business",
+    "Visit Business": "Visit Business",
+    "Seller details unavailable.": "Seller details unavailable.",
+    "Related items": "Related items",
+    "No related items right now. Check back later or browse the marketplace.": "No related items right now. Check back later or browse the marketplace.",
+    "Edit Community Post": "Edit Community Post",
+    "Enter a captivating title": "Enter a captivating title",
+    "Choose Image": "Choose Image",
+    "Selected Image": "Selected Image",
+    "Add": "Add",
+    "Delete This Post": "Delete This Post",
+    "Save Changes": "Save Changes",
+    "Are you sure you want to delete this post?": "Are you sure you want to delete this post?",
+    "No": "No",
+    "Yes, Delete": "Yes, Delete",
+    "username": "username",
+    "Edit Business": "Edit Business",
+    "View full insights": "View full insights",
+    "Promote your business": "Promote your business",
+    "Download Business QR": "Download Business QR",
+    "Send Notification": "Send Notification",
+    "Business page colors": "Business page colors",
+    "My posts": "My posts",
+    "My banners": "My banners",
+    "FAQ": "FAQ",
+    "Contact": "Contact",
+    "Logout": "Logout",
+    "Manage Plan": "Manage Plan",
+    "Edit Organization": "Edit Organization",
+    "Promote Event / Message": "Promote Event / Message"
+    ,"Post deleted": "Post deleted"
+    ,"Business page colors updated": "Business page colors updated"
+    ,"Payment successful. Your promotion is in review.": "Payment successful. Your promotion is in review."
+    ,"Campaign ended": "Campaign ended"
+    ,"Follower notifications are not enabled for your plan.": "Follower notifications are not enabled for your plan."
+    ,"Area blasts are not available on your plan.": "Area blasts are not available on your plan."
+    ,"Your plan does not allow this radius.": "Your plan does not allow this radius."
+    ,"Title and message are required.": "Title and message are required."
+    ,"Message is too long.": "Message is too long."
+    ,"Area blast submitted for approval.": "Area blast submitted for approval."
+    ,"Notification removed": "Notification removed"
+    ,"QR downloaded": "QR downloaded"
+    ,"Could not download QR right now": "Could not download QR right now"
+    ,"Failed to load insights": "Failed to load insights"
+    ,"No business linked": "No business linked"
+    ,"Business Dashboard": "Business Dashboard"
+    ,"e.g. New menu items just dropped!": "e.g. New menu items just dropped!"
+    ,"Tell followers about a new item, promotion, or update.": "Tell followers about a new item, promotion, or update."
+    ,"My Posts": "My Posts"
+    ,"Loading posts...": "Loading posts..."
+    ,"Previous Notifications": "Previous Notifications"
+    ,"Loading history...": "Loading history..."
+    ,"My Banners": "My Banners"
+    ,"Loading banners...": "Loading banners..."
+    ,"Loading insights...": "Loading insights..."
+    ,"Profile views": "Profile views"
+    ,"Home feed, businesses page, profile": "Home feed, businesses page, profile"
+    ,"Retail items": "Retail items"
+    ,"views": "views"
+    ,"Car listings": "Car listings"
+    ,"Ad banners": "Ad banners"
+    ,"Notifications sent": "Notifications sent"
+    ,"Blasts + follower deliveries": "Blasts + follower deliveries"
+    ,"Ad banner views": "Ad banner views"
+    ,"Could not load insights.": "Could not load insights."
+    ,"Business Page Colors": "Business Page Colors"
+    ,"Primary color": "Primary color"
+    ,"Secondary color": "Secondary color"
+    ,"Retail header & search": "Retail header & search"
+    ,"Header & search accent": "Header & search accent"
+    ,"Button overrides": "Button overrides"
+    ,"View details & CTAs": "View details & CTAs"
+    ,"Default (brand colors)": "Default (brand colors)"
+    ,"Burger menu actions": "Burger menu actions"
+    ,"Search products...": "Search products..."
+    ,"Close page colors": "Close page colors"
+    ,"Primary color spectrum": "Primary color spectrum"
+    ,"Secondary color spectrum": "Secondary color spectrum"
+    ,"Insights": "Insights"
+    ,"View public profile": "View public profile"
+    ,"Premium free trial": "Premium free trial"
+    ,"Plan not confirmed": "Plan not confirmed"
+    ,"View Premium": "View Premium"
+    ,"Approved": "Approved"
+    ,"Pending": "Pending"
+    ,"Rejected": "Rejected"
+    ,"Archived": "Archived"
+    ,"Plan": "Plan"
+    ,"Loading business data...": "Loading business data..."
+    ,"Change business category?": "Change business category?"
+    ,"Changing your category will clear any items that don't belong to the new category. Are you sure you want to continue?": "Changing your category will clear any items that don't belong to the new category. Are you sure you want to continue?"
+    ,"Confirm Deletion": "Confirm Deletion"
+    ,"Are you sure you want to delete this item?": "Are you sure you want to delete this item?"
+    ,"Edit Business Details": "Edit Business Details"
+    ,"Update your business information and listings.": "Update your business information and listings."
+    ,"Upgrade Plan": "Upgrade Plan"
+    ,"Gallery": "Gallery"
+    ,"Dealership": "Dealership"
+    ,"Real Estate": "Real Estate"
+    ,"Plan features": "Plan features"
+    ,"Basic Information": "Basic Information"
+    ,"A brief description of your business": "A brief description of your business"
+    ,"Description exceeds 120 characters.": "Description exceeds 120 characters."
+    ,"Business Category": "Business Category"
+    ,"Restaurant Menu Items": "Restaurant Menu Items"
+    ,"Add Menu Item": "Add Menu Item"
+    ,"No menu items added yet.": "No menu items added yet."
+    ,"Menu Item": "Menu Item"
+    ,"Item Name": "Item Name"
+    ,"Item Description": "Item Description"
+    ,"Menu Category (e.g., Appetizer, Main Course)": "Menu Category (e.g., Appetizer, Main Course)"
+    ,"Item Images (Max 8)": "Item Images (Max 8)"
+    ,"This item is marked for deletion.": "This item is marked for deletion."
+    ,"Undo": "Undo"
+    ,"Dealership Listings": "Dealership Listings"
+    ,"Add Listing": "Add Listing"
+    ,"No listings added yet.": "No listings added yet."
+    ,"Make & Model (e.g., Honda Civic)": "Make & Model (e.g., Honda Civic)"
+    ,"Price (e.g., $25,000)": "Price (e.g., $25,000)"
+    ,"Year": "Year"
+    ,"Mileage (e.g., 50,000 miles)": "Mileage (e.g., 50,000 miles)"
+    ,"Condition (e.g., Used, New, Excellent)": "Condition (e.g., Used, New, Excellent)"
+    ,"Full vehicle description": "Full vehicle description"
+    ,"Images (Max 8)": "Images (Max 8)"
+    ,"No real estate listings yet. Add a property to get started.": "No real estate listings yet. Add a property to get started."
+    ,"Property title (e.g., 3BR House with Garden)": "Property title (e.g., 3BR House with Garden)"
+    ,"Type (e.g., House, Apartment, Land)": "Type (e.g., House, Apartment, Land)"
+    ,"Property description and features": "Property description and features"
+    ,"Images": "Images"
+    ,"Add Retail Item": "Add Retail Item"
+    ,"No retail items added yet.": "No retail items added yet."
+    ,"Retail Item": "Retail Item"
+    ,"Product Name": "Product Name"
+    ,"Price (e.g., $49.99)": "Price (e.g., $49.99)"
+    ,"Product Category (e.g., Electronics, Apparel)": "Product Category (e.g., Electronics, Apparel)"
+    ,"Product Description": "Product Description"
+    ,"Product Images (Max 8)": "Product Images (Max 8)"
+    ,"Contact Information": "Contact Information"
+    ,"Email Address": "Email Address"
+    ,"WhatsApp Number (optional)": "WhatsApp Number (optional)"
+    ,"WhatsApp is not available on your current plan. Upgrade to enable this feature.": "WhatsApp is not available on your current plan. Upgrade to enable this feature."
+    ,"Website URL": "Website URL"
+    ,"Add another language": "Add another language"
+    ,"Search address": "Search address"
+    ,"Type address, city, or ZIP...": "Type address, city, or ZIP..."
+    ,"Facebook Profile URL": "Facebook Profile URL"
+    ,"Instagram Profile URL": "Instagram Profile URL"
+    ,"Twitter/X Profile URL": "Twitter/X Profile URL"
+    ,"TikTok Profile URL": "TikTok Profile URL"
+    ,"Social media links are not available on your current plan. Upgrade to enable this feature.": "Social media links are not available on your current plan. Upgrade to enable this feature."
+    ,"e.g., 9:00 AM - 5:00 PM or Closed": "e.g., 9:00 AM - 5:00 PM or Closed"
+    ,"State (for U.S. businesses)": "State (for U.S. businesses)"
+    ,"Select U.S. state": "Select U.S. state"
+    ,"Country (e.g., United States)": "Country (e.g., United States)"
+    ,"Add state and country so location filters can match your business in country/state searches.": "Add state and country so location filters can match your business in country/state searches."
+    ,"Monday": "Monday"
+    ,"Tuesday": "Tuesday"
+    ,"Wednesday": "Wednesday"
+    ,"Thursday": "Thursday"
+    ,"Friday": "Friday"
+    ,"Saturday": "Saturday"
+    ,"Sunday": "Sunday"
+    ,"00:00 am - 00:00 pm": "00:00 am - 00:00 pm"
+    ,"Choose logo file": "Choose logo file"
+    ,"Choose gallery files": "Choose gallery files"
+    ,"No file chosen": "No file chosen"
+    ,"files selected": "files selected"
   },
   "am": {
     "Welcome to Hanar": "እንኳን ወደ Hanar በደህና መጡ",
@@ -3958,8 +4211,12 @@ const translations: Record<string, Record<string, string>> = {
 export default translations;
 
 export const t = (lang: string, key: string): string => {
+  const runtimeValue = getRuntimeTranslation(lang, key);
+  if (runtimeValue) return runtimeValue;
   if (lang === 'auto' && typeof navigator !== 'undefined') {
     const browser = navigator.language.slice(0, 2).toLowerCase();
+    const runtimeBrowserValue = getRuntimeTranslation(browser, key);
+    if (runtimeBrowserValue) return runtimeBrowserValue;
     if (translations[browser]?.[key]) return translations[browser][key];
   }
   return translations[lang]?.[key] || translations['en']?.[key] || key;

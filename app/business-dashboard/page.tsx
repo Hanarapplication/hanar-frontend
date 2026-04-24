@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { Edit, Eye, Crown, BarChart3, Megaphone, ChevronDown, ChevronUp, X, Image, Bell, Trash2, Download, FileText, Palette, CircleHelp, Phone, Settings, LogOut } from 'lucide-react';
 import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
 import { isAppIOS, withAppParam } from '@/utils/isAppIOS';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 
 type BusinessStatus = 'pending' | 'approved' | 'rejected' | 'hold' | 'archived';
 type ModerationStatus = 'on_hold' | 'active' | 'rejected';
@@ -192,6 +194,7 @@ function buildBrandBackground(primary: string, secondary: string, useGradient: b
 }
 
 function BusinessDashboardContent() {
+  const { effectiveLang } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
   const appIOS = isAppIOS(searchParams?.toString() ?? null);
@@ -556,7 +559,7 @@ function BusinessDashboardContent() {
       .eq('user_id', user.id)
       .eq('item_key', itemKey);
     if (error) {
-      toast.error('Failed to remove');
+      toast.error(t(effectiveLang, 'Failed to remove'));
       return;
     }
     setFavoriteItems((prev) => prev.filter((fav) => fav.key !== itemKey));
@@ -681,7 +684,7 @@ function BusinessDashboardContent() {
         delete next[postId];
         return next;
       });
-      toast.success('Post deleted');
+      toast.success(t(effectiveLang, 'Post deleted'));
     } catch (err: any) {
       toast.error(err?.message || 'Failed to delete post');
     } finally {
@@ -725,7 +728,7 @@ function BusinessDashboardContent() {
             }
           : prev
       );
-      toast.success('Business page colors updated');
+      toast.success(t(effectiveLang, 'Business page colors updated'));
     } catch (err: any) {
       toast.error(err?.message || 'Failed to save page colors');
     } finally {
@@ -778,7 +781,7 @@ function BusinessDashboardContent() {
   useEffect(() => {
     const success = searchParams?.get('success');
     if (success !== '1') return;
-    toast.success('Payment successful. Your promotion is in review.');
+    toast.success(t(effectiveLang, 'Payment successful. Your promotion is in review.'));
     setPromotionBannersExpanded(true);
     router.replace('/business-dashboard', { scroll: false });
     // Webhook may not have run yet; refetch after a short delay so "In review" appears instead of "Payment pending"
@@ -799,7 +802,7 @@ function BusinessDashboardContent() {
       if (!res.ok) throw new Error(data?.error || 'Failed to end campaign');
       setBannerToRemoveId(null);
       setPromotionRequests((prev) => prev.filter((r) => r.id !== id));
-      toast.success('Campaign ended');
+      toast.success(t(effectiveLang, 'Campaign ended'));
     } catch (err: any) {
       toast.error(err?.message || 'Failed to end campaign');
     } finally {
@@ -810,27 +813,27 @@ function BusinessDashboardContent() {
   const sendNotification = async () => {
     if (!business) return;
     if (notificationMode === 'followers' && !canSendNotifications) {
-      toast.error('Follower notifications are not enabled for your plan.');
+      toast.error(t(effectiveLang, 'Follower notifications are not enabled for your plan.'));
       return;
     }
     if (notificationMode === 'area_blast') {
       if (!planSettings?.max_area_blasts_per_month || planSettings.max_area_blasts_per_month <= 0) {
-        toast.error('Area blasts are not available on your plan.');
+        toast.error(t(effectiveLang, 'Area blasts are not available on your plan.'));
         return;
       }
       if ((planSettings.max_blast_radius_miles || 0) < areaBlastRadiusMiles) {
-        toast.error('Your plan does not allow this radius.');
+        toast.error(t(effectiveLang, 'Your plan does not allow this radius.'));
         return;
       }
     }
     const title = notificationTitle.trim();
     const body = notificationBody.trim();
     if (!title || !body) {
-      toast.error('Title and message are required.');
+      toast.error(t(effectiveLang, 'Title and message are required.'));
       return;
     }
     if (title.length > 140 || body.length > 1000) {
-      toast.error('Message is too long.');
+      toast.error(t(effectiveLang, 'Message is too long.'));
       return;
     }
 
@@ -860,7 +863,7 @@ function BusinessDashboardContent() {
       }
 
       if (data?.pending) {
-        toast.success('Area blast submitted for approval.');
+        toast.success(t(effectiveLang, 'Area blast submitted for approval.'));
       } else {
         const sentCount = Number(data.sent || 0);
         if (sentCount === 0) {
@@ -902,7 +905,7 @@ function BusinessDashboardContent() {
       if (!res.ok) throw new Error(data?.error || 'Failed to delete notification');
       setNotificationHistory((prev) => prev.filter((n) => n.id !== item.id));
       setNotificationToDelete(null);
-      toast.success('Notification removed');
+      toast.success(t(effectiveLang, 'Notification removed'));
     } catch (err: any) {
       toast.error(err?.message || 'Failed to delete notification');
     } finally {
@@ -947,7 +950,7 @@ function BusinessDashboardContent() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-8 max-w-md text-center shadow-sm">
-          <p className="text-lg font-semibold text-slate-800">No business linked</p>
+          <p className="text-lg font-semibold text-slate-800">{t(effectiveLang, 'No business linked')}</p>
           <p className="mt-2 text-slate-600">
             Your account does not have a business linked yet. Business accounts are typically created by an administrator.
           </p>
@@ -994,9 +997,9 @@ function BusinessDashboardContent() {
       a.click();
       a.remove();
       URL.revokeObjectURL(objectUrl);
-      toast.success('QR downloaded');
+      toast.success(t(effectiveLang, 'QR downloaded'));
     } catch {
-      toast.error('Could not download QR right now');
+      toast.error(t(effectiveLang, 'Could not download QR right now'));
     }
   };
 
@@ -1067,11 +1070,20 @@ function BusinessDashboardContent() {
                 )}
               </div>
               <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Business Dashboard</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{t(effectiveLang, 'Business Dashboard')}</p>
               <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">{business.business_name}</h1>
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                 <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusColor}`}>
-                  {uiStatus.toUpperCase()}
+                  {t(
+                    effectiveLang,
+                    uiStatus === 'approved'
+                      ? 'Approved'
+                      : uiStatus === 'pending'
+                      ? 'Pending'
+                      : uiStatus === 'rejected'
+                      ? 'Rejected'
+                      : 'Archived'
+                  )}
                 </span>
                 <span
                   className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
@@ -1084,9 +1096,9 @@ function BusinessDashboardContent() {
                 >
                   {planConfirmed && business.plan
                     ? business.trial_end && business.plan === 'premium'
-                      ? 'PREMIUM FREE TRIAL'
-                      : `${business.plan.toUpperCase()} PLAN`
-                    : 'PLAN NOT CONFIRMED'}
+                      ? t(effectiveLang, 'Premium free trial')
+                      : `${String(t(effectiveLang, String(business.plan).toUpperCase())).toUpperCase()} ${t(effectiveLang, 'Plan').toUpperCase()}`
+                    : t(effectiveLang, 'Plan not confirmed')}
                 </span>
               </div>
               </div>
@@ -1109,7 +1121,7 @@ function BusinessDashboardContent() {
                     if (res.ok) setInsightsData(data);
                     else toast.error(data?.error || 'Failed to load insights');
                   } catch {
-                    toast.error('Failed to load insights');
+                    toast.error(t(effectiveLang, 'Failed to load insights'));
                   } finally {
                     setInsightsLoading(false);
                   }
@@ -1117,14 +1129,14 @@ function BusinessDashboardContent() {
                 className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-900/50 px-4 py-2 text-sm font-semibold text-indigo-700 dark:text-gray-100 shadow-sm transition hover:bg-indigo-100 dark:hover:bg-indigo-900/70"
               >
                 <BarChart3 className="h-4 w-4" />
-                Insights
+                {t(effectiveLang, 'Insights')}
               </button>
               <button
                 onClick={() => router.push(`/business/${business.slug}`)}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-gray-200 shadow-sm transition hover:bg-slate-50 dark:hover:bg-gray-700"
               >
                 <Eye className="h-4 w-4" />
-                View public profile
+                {t(effectiveLang, 'View public profile')}
               </button>
               <button
                 onClick={() => router.push(appIOS ? withAppParam('/dashboard/account', true) : '/business/plan')}
@@ -1151,7 +1163,7 @@ function BusinessDashboardContent() {
                           <Bell className="h-4 w-4" />
                         </span>
                         <div className="min-w-0">
-                          <h2 className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">Send Notification</h2>
+                          <h2 className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">{t(effectiveLang, 'Send Notification')}</h2>
                         </div>
                       </div>
                       <span className="flex shrink-0 items-center gap-1.5">
@@ -1249,7 +1261,7 @@ function BusinessDashboardContent() {
                             (notificationMode === 'area_blast' && !canRequestAreaBlast)
                           }
                           className="mt-1 w-full rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-900 dark:text-gray-100 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:placeholder-gray-400"
-                          placeholder="e.g. New menu items just dropped!"
+                          placeholder={t(effectiveLang, 'e.g. New menu items just dropped!')}
                         />
                       </div>
                       <div>
@@ -1267,7 +1279,7 @@ function BusinessDashboardContent() {
                             (notificationMode === 'area_blast' && !canRequestAreaBlast)
                           }
                           className="mt-1 w-full rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-900 dark:text-gray-100 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:placeholder-gray-400"
-                          placeholder="Tell followers about a new item, promotion, or update."
+                          placeholder={t(effectiveLang, 'Tell followers about a new item, promotion, or update.')}
                         />
                       </div>
                       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-gray-200">
@@ -1316,7 +1328,7 @@ function BusinessDashboardContent() {
                       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
                         <FileText className="h-4 w-4" />
                       </span>
-                      <h2 id="my-posts" className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">My Posts</h2>
+                      <h2 id="my-posts" className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">{t(effectiveLang, 'My Posts')}</h2>
                     </div>
                     <span className="flex shrink-0 items-center gap-1.5">
                       {myPostsExpanded ? (
@@ -1329,7 +1341,7 @@ function BusinessDashboardContent() {
                   {myPostsExpanded && (
                     <div className="px-5 pb-5 pt-0">
                       {businessPostsLoading ? (
-                        <div className="text-slate-500 dark:text-gray-400">Loading posts...</div>
+                        <div className="text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading posts...')}</div>
                       ) : businessPosts.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-slate-300 dark:border-gray-600 p-6 text-center text-slate-500 dark:text-gray-400">
                           No posts yet.
@@ -1411,7 +1423,7 @@ function BusinessDashboardContent() {
                       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                         <Bell className="h-4 w-4" />
                       </span>
-                      <h2 className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">Previous Notifications</h2>
+                      <h2 className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">{t(effectiveLang, 'Previous Notifications')}</h2>
                     </div>
                     <span className="flex shrink-0 items-center gap-1.5">
                       {previousNotificationsExpanded ? (
@@ -1424,7 +1436,7 @@ function BusinessDashboardContent() {
                   {previousNotificationsExpanded && (
                     <div className="px-5 pb-5 pt-0">
                       {notificationHistoryLoading ? (
-                        <div className="text-slate-500 dark:text-gray-400">Loading history...</div>
+                        <div className="text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading history...')}</div>
                       ) : notificationHistory.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-slate-300 dark:border-gray-600 p-6 text-center text-slate-500 dark:text-gray-400">
                           No notifications sent yet.
@@ -1436,7 +1448,7 @@ function BusinessDashboardContent() {
                               item.status === 'pending'
                                 ? { label: 'Pending', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200' }
                                 : item.status === 'approved'
-                                ? { label: 'Approved', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200' }
+                                ? { label: t(effectiveLang, 'Approved'), color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200' }
                                 : item.status === 'rejected'
                                 ? { label: 'Rejected', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200' }
                                 : { label: 'Sent', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200' };
@@ -1503,7 +1515,7 @@ function BusinessDashboardContent() {
                       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
                         <Image className="h-4 w-4" />
                       </span>
-                      <h2 id="my-banners" className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">My Banners</h2>
+                      <h2 id="my-banners" className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">{t(effectiveLang, 'My Banners')}</h2>
                     </div>
                     <span className="flex shrink-0 items-center gap-1.5">
                       {promotionBannersExpanded ? (
@@ -1516,7 +1528,7 @@ function BusinessDashboardContent() {
                   {promotionBannersExpanded && (
                     <div className="px-5 pb-5 pt-0">
                       {promotionRequestsLoading ? (
-                        <div className="text-slate-500 dark:text-gray-400">Loading banners...</div>
+                        <div className="text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading banners...')}</div>
                       ) : promotionRequests.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-slate-300 dark:border-gray-600 p-6 text-center text-slate-500 dark:text-gray-400">
                           No promotion banners yet.{' '}
@@ -1535,7 +1547,7 @@ function BusinessDashboardContent() {
                                 : item.status === 'active'
                                 ? { label: 'Active', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200' }
                                 : item.status === 'approved'
-                                ? { label: 'Approved', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200' }
+                                ? { label: t(effectiveLang, 'Approved'), color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200' }
                                 : item.status === 'rejected'
                                 ? { label: 'Rejected', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200' }
                                 : item.status === 'expired'
@@ -1688,56 +1700,56 @@ function BusinessDashboardContent() {
                       <div className="flex items-center justify-between mb-4">
                         <h2 id="insights-title" className="text-xl font-semibold text-slate-900 dark:text-gray-100 flex items-center gap-2">
                           <BarChart3 className="h-5 w-5" />
-                          Analytics
+                          {t(effectiveLang, 'Insights')}
                         </h2>
                         <button
                           type="button"
                           onClick={() => setInsightsOpen(false)}
                           className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-gray-700"
-                          aria-label="Close"
+                          aria-label={t(effectiveLang, 'Close')}
                         >
                           <X className="h-5 w-5" />
                         </button>
                       </div>
                       {insightsLoading ? (
-                        <p className="text-sm text-slate-500 dark:text-gray-400 py-6">Loading insights…</p>
+                        <p className="text-sm text-slate-500 dark:text-gray-400 py-6">{t(effectiveLang, 'Loading insights...')}</p>
                       ) : insightsData ? (
                         <div className="space-y-4">
                           {business?.plan === 'premium' ? (
                             <>
                               <div className="grid grid-cols-2 gap-3">
                                 <div className="rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/50 p-4">
-                                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-gray-400">Profile views</p>
+                                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Profile views')}</p>
                                   <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-gray-100">{insightsData.businessViews.toLocaleString()}</p>
-                                  <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Home feed, businesses page, profile</p>
+                                  <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{t(effectiveLang, 'Home feed, businesses page, profile')}</p>
                                 </div>
                                 <div className="rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/50 p-4">
-                                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-gray-400">Retail items</p>
+                                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Retail items')}</p>
                                   <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-gray-100">{insightsData.retailItemViews.toLocaleString()}</p>
-                                  <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">views</p>
+                                  <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{t(effectiveLang, 'views')}</p>
                                 </div>
                                 <div className="rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/50 p-4">
-                                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-gray-400">Car listings</p>
+                                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Car listings')}</p>
                                   <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-gray-100">{insightsData.dealershipViews.toLocaleString()}</p>
-                                  <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">views</p>
+                                  <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{t(effectiveLang, 'views')}</p>
                                 </div>
                                 <div className="rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/50 p-4">
-                                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-gray-400">Ad banners</p>
+                                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Ad banners')}</p>
                                   <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-gray-100">{insightsData.totalAdBannerViews.toLocaleString()}</p>
-                                  <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">views</p>
+                                  <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{t(effectiveLang, 'views')}</p>
                                 </div>
                                 {typeof insightsData.notificationsSent === 'number' && (
                                   <div className="col-span-2 rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/50 p-4">
-                                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-gray-400">Notifications sent</p>
+                                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Notifications sent')}</p>
                                     <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-gray-100">{insightsData.notificationsSent.toLocaleString()}</p>
-                                    <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Blasts + follower deliveries · <Link href="/business-dashboard/insights" className="text-indigo-600 dark:text-indigo-400 underline" onClick={() => setInsightsOpen(false)}>View full insights</Link></p>
+                                    <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{t(effectiveLang, 'Blasts + follower deliveries')} · <Link href="/business-dashboard/insights" className="text-indigo-600 dark:text-indigo-400 underline" onClick={() => setInsightsOpen(false)}>{t(effectiveLang, 'View full insights')}</Link></p>
                                   </div>
                                 )}
                               </div>
                             </>
                           ) : insightsData.feedBanners.length > 0 ? (
                             <div className="rounded-xl border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/50 p-4">
-                              <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-gray-400">Ad banner views</p>
+                              <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Ad banner views')}</p>
                               <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-gray-100">{insightsData.totalAdBannerViews.toLocaleString()}</p>
                               <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Total views for your feed banner{insightsData.feedBanners.length > 1 ? 's' : ''}</p>
                             </div>
@@ -1755,13 +1767,13 @@ function BusinessDashboardContent() {
                                 onClick={() => setInsightsOpen(false)}
                               >
                                 <Crown className="h-4 w-4" />
-                                View Premium
+                                {t(effectiveLang, 'View Premium')}
                               </Link>
                             </div>
                           )}
                         </div>
                       ) : (
-                        <p className="text-sm text-slate-500 dark:text-gray-400 py-4">Could not load insights.</p>
+                        <p className="text-sm text-slate-500 dark:text-gray-400 py-4">{t(effectiveLang, 'Could not load insights.')}</p>
                       )}
                     </div>
                   </div>,
@@ -1782,7 +1794,7 @@ function BusinessDashboardContent() {
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <h3 id="business-page-colors-title" className="text-lg font-semibold text-slate-900 dark:text-gray-100">Business Page Colors</h3>
+                          <h3 id="business-page-colors-title" className="text-lg font-semibold text-slate-900 dark:text-gray-100">{t(effectiveLang, 'Business Page Colors')}</h3>
                           <p className="mt-1 text-sm text-slate-600 dark:text-gray-300">
                             Set your brand colors below, then optionally override the retail header/search strip, “View details” buttons, and burger menu actions.
                           </p>
@@ -1791,7 +1803,7 @@ function BusinessDashboardContent() {
                           type="button"
                           onClick={() => setPageColorsOpen(false)}
                           className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
-                          aria-label="Close page colors"
+                          aria-label={t(effectiveLang, 'Close page colors')}
                         >
                           <X className="h-5 w-5" />
                         </button>
@@ -1799,7 +1811,7 @@ function BusinessDashboardContent() {
 
                       <div className="mt-4 grid gap-4 sm:grid-cols-2">
                         <label className="block">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Primary color</span>
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Primary color')}</span>
                           <div className="mt-1.5 flex items-center gap-2">
                             <input
                               type="color"
@@ -1824,13 +1836,13 @@ function BusinessDashboardContent() {
                               onChange={(e) => handlePrimaryHueChange(Number(e.target.value))}
                               className="color-spectrum h-3 w-full appearance-none rounded-full"
                               style={{ background: 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)' }}
-                              aria-label="Primary color spectrum"
+                              aria-label={t(effectiveLang, 'Primary color spectrum')}
                             />
                           </div>
                         </label>
 
                         <label className="block">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Secondary color</span>
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Secondary color')}</span>
                           <div className="mt-1.5 flex items-center gap-2">
                             <input
                               type="color"
@@ -1855,7 +1867,7 @@ function BusinessDashboardContent() {
                               onChange={(e) => handleSecondaryHueChange(Number(e.target.value))}
                               className="color-spectrum h-3 w-full appearance-none rounded-full"
                               style={{ background: 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)' }}
-                              aria-label="Secondary color spectrum"
+                              aria-label={t(effectiveLang, 'Secondary color spectrum')}
                             />
                           </div>
                         </label>
@@ -1873,13 +1885,13 @@ function BusinessDashboardContent() {
 
                       <div className="mt-6 space-y-4 border-t border-slate-200 pt-4 dark:border-gray-600">
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Retail header & search</p>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Retail header & search')}</p>
                           <p className="mt-1 text-sm text-slate-600 dark:text-gray-300">
                             Applies to both retail layouts: Basel-style strip and the Bagisto shop (header search, hero accents, directions, load-more spinner, category highlights).
                           </p>
                         </div>
                         <label className="block">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Header & search accent</span>
+                          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Header & search accent')}</span>
                           <div className="mt-1.5 flex items-center gap-2">
                             <input
                               type="color"
@@ -1898,14 +1910,14 @@ function BusinessDashboardContent() {
                         </label>
 
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Button overrides</p>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Button overrides')}</p>
                           <p className="mt-1 text-sm text-slate-600 dark:text-gray-300">
                             Leave blank to use the brand colors above. Set a solid color only for “View details” (and similar) or burger menu actions when you want them different from the header strip.
                           </p>
                         </div>
                         <div className="grid gap-4 sm:grid-cols-2">
                           <label className="block">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">View details &amp; CTAs</span>
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'View details & CTAs')}</span>
                             <div className="mt-1.5 flex items-center gap-2">
                               <input
                                 type="color"
@@ -1921,12 +1933,12 @@ function BusinessDashboardContent() {
                                 value={viewDetailButtonColorInput}
                                 onChange={(e) => setViewDetailButtonColorInput(e.target.value)}
                                 className="h-10 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                                placeholder="Default (brand colors)"
+                                placeholder={t(effectiveLang, 'Default (brand colors)')}
                               />
                             </div>
                           </label>
                           <label className="block">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Burger menu actions</span>
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Burger menu actions')}</span>
                             <div className="mt-1.5 flex items-center gap-2">
                               <input
                                 type="color"
@@ -1942,7 +1954,7 @@ function BusinessDashboardContent() {
                                 value={sidebarMenuButtonColorInput}
                                 onChange={(e) => setSidebarMenuButtonColorInput(e.target.value)}
                                 className="h-10 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-                                placeholder="Default (brand colors)"
+                                placeholder={t(effectiveLang, 'Default (brand colors)')}
                               />
                             </div>
                           </label>
@@ -1970,7 +1982,7 @@ function BusinessDashboardContent() {
                             className="flex items-center gap-2 rounded border bg-white px-2 py-1.5 dark:bg-gray-800"
                             style={{ borderColor: retailSearchPreview }}
                           >
-                            <span className="min-w-0 flex-1 truncate text-xs text-zinc-500 dark:text-zinc-400">Search products…</span>
+                            <span className="min-w-0 flex-1 truncate text-xs text-zinc-500 dark:text-zinc-400">{t(effectiveLang, 'Search products...')}</span>
                             <span
                               className="shrink-0 rounded px-2 py-1 text-[10px] font-semibold text-white"
                               style={{ backgroundColor: retailSearchPreview }}
@@ -2071,8 +2083,9 @@ function BusinessDashboardContent() {
 }
 
 export default function BusinessDashboardPage() {
+  const { effectiveLang } = useLanguage();
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">{t(effectiveLang, 'Loading...')}</div>}>
       <BusinessDashboardContent />
     </Suspense>
   );

@@ -2,8 +2,11 @@
 
 import { useParams } from 'next/navigation';
 import { useState, useEffect, useRef, ChangeEvent } from 'react';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 
 export default function EditPostPage() {
+  const { effectiveLang } = useLanguage();
   const { id } = useParams();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const primaryColor = 'teal';
@@ -77,27 +80,27 @@ export default function EditPostPage() {
     <div className="max-w-3xl mx-auto p-8 bg-gray-50 rounded-xl shadow-lg relative overflow-hidden">
       <div className={`${showConfirmation ? 'blur-md pointer-events-none' : ''} transition-filter duration-300`}>
         <h1 className={`text-3xl font-extrabold text-${primaryColor}-700 mb-8 tracking-tight`}>
-          Edit Community Post
+          {t(effectiveLang, 'Edit Community Post')}
         </h1>
 
         <div className="space-y-6">
           {/* Title Input */}
           <div className="bg-gray-100 rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
             <div>
-              <label htmlFor="title" className="block text-lg font-semibold text-gray-800 mb-2">Title</label>
+              <label htmlFor="title" className="block text-lg font-semibold text-gray-800 mb-2">{t(effectiveLang, 'Title')}</label>
               <input
                 type="text"
                 id="title"
                 name="title"
                 value={form.title}
                 onChange={handleChange}
-                placeholder="Enter a captivating title"
+                placeholder={t(effectiveLang, 'Enter a captivating title')}
                 className={`block w-full rounded-md border-gray-300 shadow-inner focus:border-${primaryColor}-500 focus:ring-${primaryColor}-500 sm:text-sm py-3 px-4 bg-white`}
               />
             </div>
 
             <div>
-              <label htmlFor="body" className="block text-lg font-semibold text-gray-800 mb-2">Content</label>
+              <label htmlFor="body" className="block text-lg font-semibold text-gray-800 mb-2">{t(effectiveLang, 'Content')}</label>
               <textarea
                 id="body"
                 name="body"
@@ -109,18 +112,18 @@ export default function EditPostPage() {
             </div>
 
             <div>
-              <label className="block text-lg font-semibold text-gray-800 mb-2">Image</label>
+              <label className="block text-lg font-semibold text-gray-800 mb-2">{t(effectiveLang, 'Image')}</label>
               <div className="flex items-center space-x-4">
                 <button
                   type="button"
                   className={`inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-${primaryColor}-500`}
                   onClick={triggerImageUpload}
                 >
-                  Choose Image
+                  {t(effectiveLang, 'Choose Image')}
                 </button>
                 {form.image && (
                   <div className="relative w-24 h-24 overflow-hidden rounded-md shadow-md">
-                    <img src={form.image} alt="Selected Image" className="object-cover w-full h-full" />
+                    <img src={form.image} alt={t(effectiveLang, 'Selected Image')} className="object-cover w-full h-full" />
                   </div>
                 )}
                 <input type="file" onChange={handleImageChange} ref={imageInputRef} className="hidden" />
@@ -130,7 +133,7 @@ export default function EditPostPage() {
 
           {/* Tags Input */}
           <div className="bg-gray-100 rounded-lg shadow-sm border border-gray-200 p-6">
-            <label className="block text-lg font-semibold text-gray-800 mb-2">Tags</label>
+            <label className="block text-lg font-semibold text-gray-800 mb-2">{t(effectiveLang, 'Tags')}</label>
             <div className="flex rounded-md shadow-sm">
               <input
                 type="text"
@@ -143,7 +146,7 @@ export default function EditPostPage() {
                 onClick={addTag}
                 className="relative -ml-px inline-flex items-center space-x-2 rounded-r-md border border-gray-300 bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 focus:ring-2 focus:ring-rose-500"
               >
-                Add
+                {t(effectiveLang, 'Add')}
               </button>
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -163,7 +166,7 @@ export default function EditPostPage() {
 
           {/* Language Dropdown */}
           <div className="bg-gray-100 rounded-lg shadow-sm border border-gray-200 p-6">
-            <label htmlFor="language" className="block text-lg font-semibold text-gray-800 mb-2">Language</label>
+            <label htmlFor="language" className="block text-lg font-semibold text-gray-800 mb-2">{t(effectiveLang, 'Language')}</label>
             <select
               id="language"
               name="language"
@@ -185,12 +188,12 @@ export default function EditPostPage() {
               className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
               onClick={handleDeleteClick}
             >
-              Delete This Post
+              {t(effectiveLang, 'Delete This Post')}
             </button>
             <button
               className="rounded-md bg-rose-600 px-6 py-3 text-lg font-semibold text-white hover:bg-rose-700"
             >
-              Save Changes
+              {t(effectiveLang, 'Save Changes')}
             </button>
           </div>
         </div>
@@ -200,19 +203,19 @@ export default function EditPostPage() {
       {showConfirmation && (
         <div className="fixed top-0 left-0 w-full h-full flex justify-center items-center bg-black/30 z-50">
           <div className="bg-white p-6 rounded-xl shadow-lg space-y-4">
-            <p className="text-lg font-semibold text-gray-800">Are you sure you want to delete this post?</p>
+            <p className="text-lg font-semibold text-gray-800">{t(effectiveLang, 'Are you sure you want to delete this post?')}</p>
             <div className="flex justify-end gap-4">
               <button
                 onClick={handleCancelDelete}
                 className="px-4 py-2 rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300"
               >
-                No
+                {t(effectiveLang, 'No')}
               </button>
               <button
                 onClick={handleConfirmDelete}
                 className="px-4 py-2 rounded-md text-white bg-red-600 hover:bg-red-700"
               >
-                Yes, Delete
+                {t(effectiveLang, 'Yes, Delete')}
               </button>
             </div>
           </div>

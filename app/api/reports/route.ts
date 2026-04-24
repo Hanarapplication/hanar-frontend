@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const validTypes = ['post', 'item', 'business', 'organization', 'chat'];
+    const validTypes = ['post', 'item', 'business', 'organization', 'chat', 'seller'];
     if (!validTypes.includes(entity_type)) {
       return NextResponse.json(
         { error: 'Invalid entity_type' },

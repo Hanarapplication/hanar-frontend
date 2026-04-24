@@ -14,6 +14,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
+import PostTranslateToggle from '@/components/PostTranslateToggle';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -176,8 +177,8 @@ onClick={async () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <Link href={`/community/${post.id}`}>
-                <div className="bg-white p-5 rounded-lg border shadow-md hover:shadow-lg transition-shadow">
+              <div className="bg-white p-5 rounded-lg border shadow-md hover:shadow-lg transition-shadow">
+                <Link href={`/community/${post.id}`} data-no-translate>
                   <h2 className="font-semibold text-lg text-gray-900 line-clamp-1">{post.title}</h2>
                   <p className="text-gray-700 text-sm mt-1 line-clamp-3">{post.body}</p>
                   {post.image && (
@@ -206,8 +207,14 @@ onClick={async () => {
                       </span>
                     </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+                <PostTranslateToggle
+                  text={`${post.title}\n\n${post.body || ''}`}
+                  postId={post.id}
+                  sourceLang={post.language || null}
+                  className="mt-2"
+                />
+              </div>
             </motion.div>
           ))}
         </AnimatePresence>

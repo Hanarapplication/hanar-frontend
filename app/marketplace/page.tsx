@@ -25,6 +25,8 @@ import {
   scopeFromAddressResult,
   type MarketplaceLocationScope,
 } from '@/lib/marketplaceLocationFilter';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 
 type MarketplaceItem = {
   id: string;
@@ -172,6 +174,7 @@ function writeMarketplaceCache(items: MarketplaceItem[]) {
 }
 
 export default function MarketplacePage() {
+  const { effectiveLang } = useLanguage();
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
@@ -248,7 +251,7 @@ export default function MarketplacePage() {
     const label =
       [result.city, result.state, result.country].filter(Boolean).join(', ') ||
       result.formatted_address ||
-      'Selected location';
+      t(effectiveLang, 'Selected location');
     setLocationLabel(label);
     setLocationSearchValue(label);
     try {
@@ -297,7 +300,7 @@ export default function MarketplacePage() {
       let city: string | undefined;
       let state: string | undefined;
       let country: string | undefined;
-      let label = 'Your location';
+      let label = t(effectiveLang, 'Your location');
       try {
         const res = await fetch(
           `/api/geocode/reverse?lat=${encodeURIComponent(coords.lat)}&lon=${encodeURIComponent(coords.lon)}`
@@ -363,7 +366,7 @@ export default function MarketplacePage() {
         localStorage.setItem('userCoords', JSON.stringify(coords));
         void applyGeoLabel(coords);
       },
-      () => alert('Could not get your location.')
+      () => alert(t(effectiveLang, 'Could not get your location.'))
     );
   };
 
@@ -430,7 +433,7 @@ export default function MarketplacePage() {
         const parsed = JSON.parse(saved) as { lat: number; lon: number };
         if (parsed?.lat != null && parsed?.lon != null) {
           setUserCoords(parsed);
-          setLocationLabel(savedLabel || 'Your location');
+          setLocationLabel(savedLabel || t(effectiveLang, 'Your location'));
         }
       } catch {
         /* ignore */
@@ -464,7 +467,7 @@ export default function MarketplacePage() {
       if (detail?.lat != null && detail?.lon != null) {
         setUserCoords({ lat: detail.lat, lon: detail.lon });
         if (detail.label) setLocationLabel(detail.label);
-        else setLocationLabel((prev) => prev ?? 'Your location');
+        else setLocationLabel((prev) => prev ?? t(effectiveLang, 'Your location'));
       }
       if (detail?.radiusMiles != null) {
         setRadius(detail.radiusMiles);
@@ -514,7 +517,7 @@ export default function MarketplacePage() {
 
   const normalizeRetailItem = (row: any): MarketplaceItem => ({
     id: String(row.id),
-    title: row.title || row.name || row.item_name || 'Retail item',
+    title: row.title || row.name || row.item_name || t(effectiveLang, 'Retail item'),
     price: row.price ?? row.amount ?? row.cost ?? '',
     location: row.location || row.city || row.address || '',
     category: normalizeMarketplaceCategory(row.category || row.type, 'Retail'),
@@ -532,7 +535,7 @@ export default function MarketplacePage() {
 
   const normalizeDealershipItem = (row: any): MarketplaceItem => ({
     id: String(row.id),
-    title: row.title || row.name || row.vehicle_name || row.model || 'Dealership listing',
+    title: row.title || row.name || row.vehicle_name || row.model || t(effectiveLang, 'Dealership listing'),
     price: row.price ?? row.amount ?? row.cost ?? '',
     location: row.location || row.city || row.address || '',
     category: normalizeMarketplaceCategory(row.category || row.type, 'Cars'),
@@ -553,7 +556,7 @@ export default function MarketplacePage() {
     const urls = normalizeImages(raw, 'marketplace-images');
     return {
       id: String(row.id),
-      title: row.title || 'Listing',
+      title: row.title || t(effectiveLang, 'Listing'),
       price: row.price ?? '',
       location: row.location || '',
       category: normalizeMarketplaceCategory(row.category, 'General'),
@@ -584,7 +587,7 @@ export default function MarketplacePage() {
     const price: string | number = typeof p === 'number' ? p : typeof p === 'string' ? p : p != null ? String(p) : '';
     return {
       id: String(row.id),
-      title: (row.title as string) || 'Real estate listing',
+      title: (row.title as string) || t(effectiveLang, 'Real estate listing'),
       price,
       description: (row.description as string) || '',
       category: normalizeMarketplaceCategory((row.property_type as string), 'Real Estate'),
@@ -1005,7 +1008,7 @@ export default function MarketplacePage() {
         type="button"
         onClick={() => toggleFavorite(item)}
         className="absolute right-1.5 top-1.5 z-10 rounded-full border border-[#d5d9d9] bg-white p-1 shadow-sm transition hover:bg-[#f7fafa] active:scale-95"
-        aria-label={favoriteKeys.has(getFavoriteKey(item)) ? 'Remove from favorites' : 'Add to favorites'}
+        aria-label={favoriteKeys.has(getFavoriteKey(item)) ? t(effectiveLang, 'Remove from favorites') : t(effectiveLang, 'Add to favorites')}
       >
         {favoriteKeys.has(getFavoriteKey(item)) ? (
           <FaHeart className="h-3.5 w-3.5 text-[#cc0c39]" />
@@ -1035,7 +1038,7 @@ export default function MarketplacePage() {
           />
           {item.external_buy_url && (
             <span className="absolute left-1.5 top-1.5 inline-flex items-center rounded-md bg-[#cc0c39] px-1.5 py-[2px] text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
-              Deal
+              {t(effectiveLang, 'Deal')}
             </span>
           )}
         </div>
@@ -1059,12 +1062,12 @@ export default function MarketplacePage() {
           )}
           {item.business_id && (
             <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-md border border-[#d5d9d9] bg-white px-1.5 py-0.5 text-[9px] font-semibold text-[#007185]">
-              {item.business_verified ? 'Verified seller' : 'Business seller'}
+              {item.business_verified ? t(effectiveLang, 'Verified seller') : t(effectiveLang, 'Business seller')}
             </span>
           )}
           {item.external_buy_url && (
             <span className="mt-1 inline-flex w-fit items-center rounded-md bg-[#ffd814] px-2 py-0.5 text-[10px] font-semibold text-[#0f1111]">
-              Buy online
+              {t(effectiveLang, 'Buy online')}
             </span>
           )}
         </div>
@@ -1085,9 +1088,9 @@ export default function MarketplacePage() {
             className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
           >
             <FaMapMarkerAlt className="h-3.5 w-3.5 text-slate-600" />
-            <span className="max-w-[11rem] truncate">{locationLabel || 'Choose delivery location'}</span>
-            {locationLabel && locationScope.mode === 'country' && <span className="text-[10px] text-slate-500">Country</span>}
-            {locationLabel && locationScope.mode === 'state' && <span className="text-[10px] text-slate-500">State</span>}
+            <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose delivery location')}</span>
+            {locationLabel && locationScope.mode === 'country' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'Country')}</span>}
+            {locationLabel && locationScope.mode === 'state' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'State')}</span>}
             {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && userCoords && (
               <span className="text-[10px] text-slate-500">{radius} mi</span>
             )}
@@ -1095,7 +1098,7 @@ export default function MarketplacePage() {
 
           <div className="flex overflow-hidden rounded-md border border-white/35 bg-slate-100 shadow-inner shadow-black/10 dark:bg-slate-100">
               <div className="hidden items-center border-r border-slate-200/90 bg-slate-50/95 px-3 text-[11px] font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200">
-                All categories
+                {t(effectiveLang, 'All categories')}
             </div>
             <button
               type="button"
@@ -1103,7 +1106,7 @@ export default function MarketplacePage() {
                 if (searchTerm.trim()) void addToRecentSearches(searchTerm);
               }}
               className="inline-flex items-center justify-center border-r border-slate-200/90 bg-gradient-to-r from-blue-600 to-emerald-600 px-4 text-white transition hover:from-blue-500 hover:to-emerald-500 dark:border-slate-600 dark:from-blue-600 dark:to-emerald-600 dark:hover:from-blue-500 dark:hover:to-emerald-500"
-              aria-label="Search marketplace"
+              aria-label={t(effectiveLang, 'Search marketplace')}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -1112,7 +1115,7 @@ export default function MarketplacePage() {
             <div className="relative min-w-0 flex-1">
               <input
                 type="text"
-                placeholder="Search Hanar Marketplace"
+                placeholder={t(effectiveLang, 'Search Hanar Marketplace')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleSearchKeyDown}
@@ -1124,7 +1127,7 @@ export default function MarketplacePage() {
                   type="button"
                   onClick={() => setSearchTerm('')}
                   className="absolute right-1 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                  aria-label="Clear search"
+                  aria-label={t(effectiveLang, 'Clear search')}
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1146,12 +1149,12 @@ export default function MarketplacePage() {
         >
           <div className="w-full max-w-[20rem] rounded-xl border border-slate-200/90 bg-white/95 p-3 shadow-2xl ring-1 ring-black/5 backdrop-blur dark:border-gray-700/80 dark:bg-gray-900/95" onClick={(e) => e.stopPropagation()}>
             <div className="mb-2.5 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Search in this area</h3>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">{t(effectiveLang, 'Search in this area')}</h3>
               <button
                 type="button"
                 onClick={() => setLocationModalOpen(false)}
                 className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-                aria-label="Close"
+                aria-label={t(effectiveLang, 'Close')}
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1159,16 +1162,16 @@ export default function MarketplacePage() {
               </button>
             </div>
             <p className="mb-2.5 text-[11px] text-slate-500 dark:text-gray-400">
-              Type a country (e.g. United States), a state or region, or a city. Country and state show all matching listings; city uses the radius below.
+              {t(effectiveLang, 'Type a country (e.g. United States), a state or region, or a city. Country and state show all matching listings; city uses the radius below.')}
             </p>
             <div className="space-y-3">
               <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Country, state, or city</label>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Country, state, or city')}</label>
                 <AddressAutocomplete
                   value={locationSearchValue}
                   onSelect={handleLocationSelect}
                   onChange={setLocationSearchValue}
-                  placeholder="Search city, ZIP, or address..."
+                  placeholder={t(effectiveLang, 'Search city, ZIP, or address...')}
                   mode="locality"
                   className="w-full"
                   inputClassName="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/30 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
@@ -1180,10 +1183,10 @@ export default function MarketplacePage() {
                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-emerald-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-emerald-900/30"
               >
                 <FaMapMarkerAlt className="w-4 h-4 text-emerald-600" />
-                Use my current location
+                {t(effectiveLang, 'Use my current location')}
               </button>
               <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Radius: {tempRadius} miles</label>
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Radius')}: {tempRadius} {t(effectiveLang, 'miles')}</label>
                 <input
                   type="range"
                   min="10"
@@ -1201,14 +1204,14 @@ export default function MarketplacePage() {
                 onClick={() => setLocationModalOpen(false)}
                 className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
               >
-                Cancel
+                {t(effectiveLang, 'Cancel')}
               </button>
               <button
                 type="button"
                 onClick={handleApplyLocation}
                 className="flex-1 rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500"
               >
-                Apply
+                {t(effectiveLang, 'Apply')}
               </button>
             </div>
           </div>
@@ -1228,12 +1231,12 @@ export default function MarketplacePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-2.5 flex items-center justify-between">
-              <h3 className="text-[15px] font-bold text-[#0f1111]">All categories</h3>
+              <h3 className="text-[15px] font-bold text-[#0f1111]">{t(effectiveLang, 'All categories')}</h3>
               <button
                 type="button"
                 onClick={() => setCategoriesModalOpen(false)}
                 className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Close categories"
+                aria-label={t(effectiveLang, 'Close categories')}
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1248,7 +1251,7 @@ export default function MarketplacePage() {
                   className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#e7f4f5] px-3 py-1 text-[11px] font-semibold text-[#007185] transition hover:border-[#c7caca] hover:bg-[#dff0f2]"
                 >
                   <span aria-hidden>🌐</span>
-                  <span>All categories</span>
+                  <span>{t(effectiveLang, 'All categories')}</span>
                 </button>
                 {allCategories.map((category) => {
                   const emojiKey = category.toLowerCase();
@@ -1276,13 +1279,13 @@ export default function MarketplacePage() {
         <>
           <section className="mb-3 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <h2 className="text-[16px] font-bold text-[#0f1111]">Continue shopping deals</h2>
+              <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, 'Continue shopping deals')}</h2>
               <button
                 type="button"
                 onClick={() => setSort('priceLow')}
                 className="text-[11px] font-medium text-[#007185] hover:text-[#c7511f]"
               >
-                See deal picks
+                {t(effectiveLang, 'See deal picks')}
               </button>
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -1297,17 +1300,17 @@ export default function MarketplacePage() {
           {topCategories.length > 0 && (
             <section className="mb-3 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h2 className="text-[16px] font-bold text-[#0f1111]">Categories for you</h2>
+                <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, 'Categories for you')}</h2>
                 {allCategories.length > 11 ? (
                   <button
                     type="button"
                     onClick={() => setCategoriesModalOpen(true)}
                     className="text-[11px] font-semibold text-[#007185] hover:text-[#c7511f]"
                   >
-                    See more
+                    {t(effectiveLang, 'See more')}
                   </button>
                 ) : (
-                  <span className="text-[11px] text-[#565959]">Tap to filter</span>
+                  <span className="text-[11px] text-[#565959]">{t(effectiveLang, 'Tap to filter')}</span>
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -1317,7 +1320,7 @@ export default function MarketplacePage() {
                   className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#e7f4f5] px-3 py-1 text-[11px] font-semibold text-[#007185] transition hover:border-[#c7caca] hover:bg-[#dff0f2]"
                 >
                   <span aria-hidden>🌐</span>
-                  <span>All categories</span>
+                  <span>{t(effectiveLang, 'All categories')}</span>
                 </button>
                 {topCategories.map((category) => {
                   const emojiKey = category.toLowerCase();
@@ -1341,8 +1344,8 @@ export default function MarketplacePage() {
           {dealShowcaseItems.length > 0 && (
             <section className="mb-3 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[16px] font-bold text-[#0f1111]">More items to consider</h2>
-                <span className="text-[11px] font-semibold text-[#007185]">See more</span>
+                <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, 'More items to consider')}</h2>
+                <span className="text-[11px] font-semibold text-[#007185]">{t(effectiveLang, 'See more')}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {dealShowcaseItems.slice(0, 4).map((item) => (
@@ -1355,8 +1358,8 @@ export default function MarketplacePage() {
           {onlineSectionItems.length > 0 && (
             <section className="mb-6 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[16px] font-bold text-[#0f1111]">Available online</h2>
-                <span className="text-[11px] text-[#565959]">Affiliate links</span>
+                <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, 'Available online')}</h2>
+                <span className="text-[11px] text-[#565959]">{t(effectiveLang, 'Affiliate links')}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {onlineSectionItems.slice(0, 4).map((item) => (
@@ -1369,8 +1372,8 @@ export default function MarketplacePage() {
           {trendingItems.length > 0 && (
             <section className="mb-6 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[16px] font-bold text-[#0f1111]">Trending now</h2>
-                <span className="text-[11px] text-[#007185]">See more</span>
+                <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, 'Trending now')}</h2>
+                <span className="text-[11px] text-[#007185]">{t(effectiveLang, 'See more')}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {trendingItems.slice(0, 4).map((item) => (
@@ -1383,9 +1386,9 @@ export default function MarketplacePage() {
           {dealShowcaseItems.length > 0 && (
             <section className="mb-6 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[16px] font-bold text-[#0f1111]">Today&apos;s deals</h2>
+                <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, "Today's deals")}</h2>
                 <span className="inline-flex items-center rounded-full bg-[#cc0c39] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                  Limited deal
+                  {t(effectiveLang, 'Limited deal')}
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -1420,13 +1423,13 @@ export default function MarketplacePage() {
       )}
       {browsedSignals.length > 0 && !sort && items.length > 0 && (
         <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-          Personalized from your recent searches and views
+          {t(effectiveLang, 'Personalized from your recent searches and views')}
         </p>
       )}
       {items.length > 0 && (
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Recommended Listings</h2>
-          <span className="text-xs text-slate-500 dark:text-slate-400">{filteredItems.length} results</span>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t(effectiveLang, 'Recommended Listings')}</h2>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{filteredItems.length} {t(effectiveLang, 'results')}</span>
         </div>
       )}
       <div className="grid grid-cols-3 gap-2">
@@ -1437,12 +1440,12 @@ export default function MarketplacePage() {
 
       {/* Empty & Pagination */}
       {items.length > 0 && filteredItems.length === 0 && (
-        <p className="text-center text-gray-500 mt-6">No results found. Try changing your search or filters.</p>
+        <p className="text-center text-gray-500 mt-6">{t(effectiveLang, 'No results found. Try changing your search or filters.')}</p>
       )}
       {filteredItems.length > visibleCount && (
         <div className="text-center mt-8">
           <button type="button" onClick={() => setVisibleCount(visibleCount + 6)} className="bg-rose-500 text-white px-6 py-2 rounded-md hover:bg-rose-600 transition text-sm">
-            Show More
+            {t(effectiveLang, 'Show More')}
           </button>
         </div>
       )}

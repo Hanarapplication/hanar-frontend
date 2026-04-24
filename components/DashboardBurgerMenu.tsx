@@ -86,10 +86,10 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
             onOpen();
           }}
           className="flex w-full items-center gap-3 border-y border-slate-200 bg-white px-5 py-4 text-slate-900 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
-          aria-label="Open menu"
+          aria-label={t(effectiveLang, 'Open menu')}
         >
           <Menu className="h-7 w-7 shrink-0" aria-hidden />
-          <span className="text-lg font-semibold tracking-tight">Dashboard Menu</span>
+          <span className="text-lg font-semibold tracking-tight">{t(effectiveLang, 'Dashboard Menu')}</span>
           <ArrowLeft className="h-6 w-6 shrink-0 animate-pulse text-slate-500 dark:text-slate-300" aria-hidden />
         </button>
       </div>
@@ -108,7 +108,7 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label="Dashboard menu"
+        aria-label={t(effectiveLang, 'Dashboard menu')}
         className={[
           'fixed left-0 top-14 z-[80] h-[calc(100vh-3.5rem)] w-[min(100vw-1rem,20rem)] max-w-full flex-col overflow-hidden rounded-r-[1.75rem] border-r border-slate-200 bg-white shadow-[12px_0_48px_-12px_rgba(2,6,23,0.35)] dark:border-slate-700 dark:bg-slate-900 sm:top-16 sm:h-[calc(100vh-4rem)] sm:w-[22rem]',
           'pb-[max(7rem,env(safe-area-inset-bottom))]',
@@ -119,13 +119,13 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
         <div className="shrink-0 border-b border-slate-200 bg-white px-2.5 pb-1.5 pt-[max(0.35rem,env(safe-area-inset-top))] dark:border-slate-700 dark:bg-slate-900">
           <div className="flex items-center justify-between gap-1.5 pt-0.5">
             <div className="min-w-0">
-              <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">Your dashboard</p>
+              <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">{t(effectiveLang, 'Your dashboard')}</p>
             </div>
             <button
               type="button"
               onClick={onClose}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-slate-700 shadow-sm transition hover:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 dark:focus-visible:ring-slate-500"
-              aria-label="Close menu"
+              aria-label={t(effectiveLang, 'Close menu')}
             >
               <X className="h-3.5 w-3.5" aria-hidden />
             </button>
@@ -144,9 +144,9 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
                 <>
                   {item.icon ? <span className={`${iconChipClass} ${item.color || ''}`}>{item.icon}</span> : null}
                   <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
-                    <span className="text-[0.92rem] font-medium tracking-tight text-slate-900 dark:text-slate-100">{item.label}</span>
+                    <span className="text-[0.92rem] font-medium tracking-tight text-slate-900 dark:text-slate-100">{t(effectiveLang, item.label)}</span>
                     {item.subtitle ? (
-                      <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{item.subtitle}</span>
+                      <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{t(effectiveLang, item.subtitle)}</span>
                     ) : null}
                   </span>
                   <ChevronRight className={chevronClass} aria-hidden />
@@ -200,7 +200,7 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
               >
                 {supportedLanguages.map(({ code, name, emoji }) => (
                   <option key={code} value={code}>
-                    {emoji} {name}
+                    {emoji} {t(effectiveLang, name)}
                   </option>
                 ))}
               </select>
@@ -222,9 +222,9 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
               >
                 {logoutItem.icon ? <span className={`${iconChipClass} ${logoutItem.color || ''}`}>{logoutItem.icon}</span> : null}
                 <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
-                  <span className="text-[0.92rem] font-medium tracking-tight text-slate-900 dark:text-slate-100">{logoutItem.label}</span>
+                  <span className="text-[0.92rem] font-medium tracking-tight text-slate-900 dark:text-slate-100">{t(effectiveLang, logoutItem.label)}</span>
                   {logoutItem.subtitle ? (
-                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{logoutItem.subtitle}</span>
+                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{t(effectiveLang, logoutItem.subtitle)}</span>
                   ) : null}
                 </span>
                 <ChevronRight className={chevronClass} aria-hidden />
@@ -240,9 +240,9 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
               >
                 {logoutItem.icon ? <span className={`${iconChipClass} ${logoutItem.color || ''}`}>{logoutItem.icon}</span> : null}
                 <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
-                  <span className="text-[0.92rem] font-medium tracking-tight text-slate-900 dark:text-slate-100">{logoutItem.label}</span>
+                  <span className="text-[0.92rem] font-medium tracking-tight text-slate-900 dark:text-slate-100">{t(effectiveLang, logoutItem.label)}</span>
                   {logoutItem.subtitle ? (
-                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{logoutItem.subtitle}</span>
+                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400">{t(effectiveLang, logoutItem.subtitle)}</span>
                   ) : null}
                 </span>
                 <ChevronRight className={chevronClass} aria-hidden />

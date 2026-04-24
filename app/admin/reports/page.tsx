@@ -15,20 +15,22 @@ import {
   Filter,
   Send,
   ExternalLink,
+  AlertTriangle,
+  Search,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useAdminConfirm } from '@/components/AdminConfirmContext';
 
 type Report = {
   id: string;
-  entity_type: 'post' | 'item' | 'business' | 'organization';
+  entity_type: 'post' | 'item' | 'business' | 'organization' | 'chat' | 'seller';
   entity_id: string;
   entity_title: string;
   reporter_id: string;
   reporter_username: string;
   reason: string;
   details: string;
-  status: 'unread' | 'read' | 'archived' | 'resolved';
+  status: 'unread' | 'read' | 'in_review' | 'need_attention' | 'archived' | 'resolved';
   admin_note: string;
   created_at: string;
   updated_at: string;
@@ -45,8 +47,10 @@ type ReportComment = {
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
   unread: { label: 'Unread', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', icon: <Clock className="h-3.5 w-3.5" /> },
   read: { label: 'Read', color: 'text-rose-700', bg: 'bg-rose-50 border-rose-200', icon: <Eye className="h-3.5 w-3.5" /> },
+  in_review: { label: 'In review', color: 'text-blue-800', bg: 'bg-blue-50 border-blue-200', icon: <Search className="h-3.5 w-3.5" /> },
+  need_attention: { label: 'Needs attention', color: 'text-orange-800', bg: 'bg-orange-50 border-orange-200', icon: <AlertTriangle className="h-3.5 w-3.5" /> },
   archived: { label: 'Archived', color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200', icon: <Archive className="h-3.5 w-3.5" /> },
-  resolved: { label: 'Resolved', color: 'text-green-700', bg: 'bg-green-50 border-green-200', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  resolved: { label: 'Solved', color: 'text-green-700', bg: 'bg-green-50 border-green-200', icon: <CheckCircle className="h-3.5 w-3.5" /> },
 };
 
 const ENTITY_LABEL: Record<string, string> = {
@@ -54,6 +58,8 @@ const ENTITY_LABEL: Record<string, string> = {
   item: 'Marketplace Item',
   business: 'Business',
   organization: 'Organization',
+  chat: 'Chat',
+  seller: 'Seller (user)',
 };
 
 const ENTITY_LINK: Record<string, (id: string) => string> = {
@@ -61,6 +67,8 @@ const ENTITY_LINK: Record<string, (id: string) => string> = {
   item: (id) => `/marketplace/${id}`,
   business: (id) => `/business/${id}`,
   organization: (id) => `/organization/${id}`,
+  chat: () => '/messages',
+  seller: () => '/messages',
 };
 
 export default function AdminReportsPage() {
@@ -147,7 +155,11 @@ export default function AdminReportsPage() {
       });
       if (res.ok) {
         setReports((prev) =>
-          prev.map((r) => (r.id === reportId ? { ...r, status: status as Report['status'], updated_at: new Date().toISOString() } : r))
+          prev.map((r) =>
+            r.id === reportId
+              ? { ...r, status: status as Report['status'], updated_at: new Date().toISOString() }
+              : r
+          )
         );
       }
     } finally {
@@ -207,7 +219,9 @@ export default function AdminReportsPage() {
     }
   };
 
-  const unreadCount = reports.filter((r) => r.status === 'unread').length;
+  const needsAttentionCount = reports.filter((r) =>
+    ['unread', 'read', 'in_review', 'need_attention'].includes(r.status)
+  ).length;
 
   return (
     <div className="max-w-5xl">
@@ -218,8 +232,8 @@ export default function AdminReportsPage() {
             Reports
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            {unreadCount > 0
-              ? `${unreadCount} unread report${unreadCount > 1 ? 's' : ''} need attention`
+            {needsAttentionCount > 0
+              ? `${needsAttentionCount} report${needsAttentionCount > 1 ? 's' : ''} in queue (unread, read, in review, or needs attention)`
               : 'Review and manage user reports'}
           </p>
         </div>
@@ -245,8 +259,10 @@ export default function AdminReportsPage() {
             <option value="all">All</option>
             <option value="unread">Unread</option>
             <option value="read">Read</option>
+            <option value="in_review">In review</option>
+            <option value="need_attention">Needs attention</option>
             <option value="archived">Archived</option>
-            <option value="resolved">Resolved</option>
+            <option value="resolved">Solved</option>
           </select>
         </div>
         <div className="flex items-center gap-2">
@@ -261,6 +277,8 @@ export default function AdminReportsPage() {
             <option value="item">Marketplace Items</option>
             <option value="business">Businesses</option>
             <option value="organization">Organizations</option>
+            <option value="seller">Sellers (users)</option>
+            <option value="chat">Chats</option>
           </select>
         </div>
         <div className="text-sm text-slate-500 ml-auto">
@@ -295,7 +313,12 @@ export default function AdminReportsPage() {
       ) : (
         <div className="space-y-3">
           {reports.map((report) => {
-            const statusConf = STATUS_CONFIG[report.status] || STATUS_CONFIG.unread;
+            const statusConf = STATUS_CONFIG[report.status] || {
+              label: report.status,
+              color: 'text-slate-600',
+              bg: 'bg-slate-100 border-slate-200',
+              icon: <Flag className="h-3.5 w-3.5" />,
+            };
             const isExpanded = expandedReport === report.id;
             const isLoading = actionLoading[report.id];
             const reportComments = comments[report.id] || [];
@@ -304,7 +327,7 @@ export default function AdminReportsPage() {
               <div
                 key={report.id}
                 className={`rounded-xl border bg-white transition-all ${
-                  report.status === 'unread'
+                  report.status === 'unread' || report.status === 'need_attention'
                     ? 'border-amber-200 shadow-sm'
                     : 'border-slate-200'
                 }`}
@@ -359,15 +382,22 @@ export default function AdminReportsPage() {
 
                     {/* Link to entity */}
                     <div className="mb-4">
-                      <a
-                        href={ENTITY_LINK[report.entity_type]?.(report.entity_id) || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-sm text-rose-600 hover:text-rose-700 hover:underline"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        View reported {report.entity_type}
-                      </a>
+                      {report.entity_type === 'seller' ? (
+                        <p className="text-sm text-slate-600">
+                          <span className="font-medium text-slate-700">Reported user (seller) ID: </span>
+                          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-800">{report.entity_id}</code>
+                        </p>
+                      ) : (
+                        <a
+                          href={ENTITY_LINK[report.entity_type]?.(report.entity_id) || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm text-rose-600 hover:text-rose-700 hover:underline"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                          View reported {ENTITY_LABEL[report.entity_type] || report.entity_type}
+                        </a>
+                      )}
                     </div>
 
                     {/* Action Buttons */}
@@ -380,7 +410,29 @@ export default function AdminReportsPage() {
                           className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 transition"
                         >
                           <Eye className="h-3.5 w-3.5" />
-                          Mark as Read
+                          Mark as read
+                        </button>
+                      )}
+                      {report.status !== 'in_review' && (
+                        <button
+                          type="button"
+                          onClick={() => updateStatus(report.id, 'in_review')}
+                          disabled={isLoading}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-50 transition"
+                        >
+                          <Search className="h-3.5 w-3.5" />
+                          In review
+                        </button>
+                      )}
+                      {report.status !== 'need_attention' && (
+                        <button
+                          type="button"
+                          onClick={() => updateStatus(report.id, 'need_attention')}
+                          disabled={isLoading}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-orange-800 hover:bg-orange-100 disabled:opacity-50 transition"
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          Needs attention
                         </button>
                       )}
                       {report.status !== 'resolved' && (
@@ -391,7 +443,7 @@ export default function AdminReportsPage() {
                           className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100 disabled:opacity-50 transition"
                         >
                           <CheckCircle className="h-3.5 w-3.5" />
-                          Resolve
+                          Solved
                         </button>
                       )}
                       {report.status !== 'archived' && (

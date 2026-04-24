@@ -155,3 +155,78 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
+
+/**
+ * Update an existing post, then invalidate cached translations for that post.
+ * This prevents stale translated text after edits.
+ */
+export async function PUT(req: Request) {
+  try {
+    const { post_id, user_id, title, body, tags, image, video, visibility } = await req.json();
+
+    if (!post_id || typeof post_id !== 'string') {
+      return NextResponse.json({ error: 'Missing or invalid post_id' }, { status: 400 });
+    }
+    if (!user_id || typeof user_id !== 'string') {
+      return NextResponse.json({ error: 'Missing or invalid user_id' }, { status: 400 });
+    }
+    if (!title || typeof title !== 'string' || title.trim().length < 3 || title.trim().length > 100) {
+      return NextResponse.json({ error: 'Title must be 3–100 characters' }, { status: 400 });
+    }
+    if (!body || typeof body !== 'string' || body.trim().length < 5 || body.trim().length > 300) {
+      return NextResponse.json({ error: 'Body must be 5–300 characters' }, { status: 400 });
+    }
+    if (!Array.isArray(tags) || tags.some((tag) => typeof tag !== 'string' || tag.length > 20)) {
+      return NextResponse.json({ error: 'Tags must be an array of strings (max 20 chars each)' }, { status: 400 });
+    }
+
+    const { data: existing, error: fetchError } = await supabaseAdmin
+      .from('community_posts')
+      .select('id, user_id')
+      .eq('id', post_id)
+      .maybeSingle();
+    if (fetchError) {
+      console.error('[Post fetch error]', fetchError.message);
+      return NextResponse.json({ error: 'Database error' }, { status: 500 });
+    }
+    if (!existing) {
+      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+    }
+    if (String(existing.user_id) !== String(user_id)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const visibilityValue = visibility === 'profile' ? 'profile' : 'community';
+    const { error: updateError } = await supabaseAdmin
+      .from('community_posts')
+      .update({
+        title: title.trim(),
+        body: body.trim(),
+        tags,
+        image: image || null,
+        video: video || null,
+        visibility: visibilityValue,
+      })
+      .eq('id', post_id)
+      .eq('user_id', user_id);
+
+    if (updateError) {
+      console.error('[Post update error]', updateError.message);
+      return NextResponse.json({ error: 'Database error' }, { status: 500 });
+    }
+
+    // Invalidate translation cache to avoid stale translations after edits.
+    const { error: clearError } = await supabaseAdmin
+      .from('post_translations')
+      .delete()
+      .eq('post_id', post_id);
+    if (clearError) {
+      console.error('[Translation cache clear warning]', clearError.message);
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('[PUT /api/community/post error]', err);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}

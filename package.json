@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "translate:ui": "tsx scripts/translate-ui.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -14,6 +15,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@ffmpeg/ffmpeg": "^0.12.10",
     "@ffmpeg/util": "^0.12.1",
+    "@google-cloud/translate": "^9.3.0",
     "@headlessui/react": "^2.2.2",
     "@heroicons/react": "^2.2.0",
     "@marsidev/react-turnstile": "^1.4.2",
@@ -29,6 +31,7 @@
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.0.0",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.4.2",
     "emailjs-com": "^3.2.0",
     "emoji-mart": "^5.6.0",
     "emoji-picker-react": "^4.12.2",
@@ -66,6 +69,7 @@
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.3",
+    "tsx": "^4.21.0",
     "typescript": "5.9.3"
   }
 }

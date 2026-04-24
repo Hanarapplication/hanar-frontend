@@ -11,6 +11,7 @@ import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
 import { Avatar } from '@/components/Avatar';
+import PostTranslateToggle from '@/components/PostTranslateToggle';
 import CreateCommunityPostClient from '@/app/community/post/CreateCommunityPostClient';
 import { useLanguage } from '@/context/LanguageContext';
 import { supportedLanguages } from '@/utils/languages';
@@ -34,6 +35,7 @@ type CommunityPost = {
   id: string;
   title: string;
   body: string;
+  language?: string | null;
   created_at: string;
   author: string;
   author_type: string | null;
@@ -2221,10 +2223,16 @@ const formatDateLabel = (value?: string | null) => {
                   </div>
                   <span className="flex-shrink-0">{dateLabel}</span>
                 </div>
-                <Link href={`/community/post/${item.post.id}`}>
+                <Link href={`/community/post/${item.post.id}`} data-no-translate>
                   <h2 className="mt-2 text-[1.02rem] font-semibold leading-6 text-slate-800 dark:text-gray-100">{item.post.title}</h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-gray-300 line-clamp-3">{item.post.body}</p>
                 </Link>
+                <PostTranslateToggle
+                  text={`${item.post.title}\n\n${item.post.body || ''}`}
+                  postId={item.post.id}
+                  sourceLang={item.post.language || null}
+                  className="mt-2"
+                />
                 {item.post.video ? (
                   <div className="mt-3 w-[calc(100%+2.5rem)] max-w-none -mx-5">
                     <FeedVideoPlayer src={item.post.video} square />
@@ -2317,7 +2325,10 @@ const formatDateLabel = (value?: string | null) => {
                               <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
                                 {comment.author || comment.username || 'User'}
                               </p>
-                              <p className="text-sm leading-6 text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
+                              <div data-no-translate>
+                                <p className="text-sm leading-6 text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
+                              </div>
+                              <PostTranslateToggle text={String(comment.body ?? comment.text ?? '')} className="mt-1" />
                               <div className="flex items-center gap-2 mt-1">
                                 {currentUser.id && (
                                   <button
