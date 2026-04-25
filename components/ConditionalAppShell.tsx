@@ -26,7 +26,9 @@ export default function ConditionalAppShell({
     pathname === '/login' ||
     pathname === '/register' ||
     pathname === '/forgot-password' ||
-    pathname === '/reset-password';
+    pathname === '/reset-password' ||
+    pathname === '/admin-login';
+  const isAdminRoute = pathname === '/admin' || pathname.startsWith('/admin/');
 
   // Re-trigger enter animation on every route change
   const [animKey, setAnimKey] = useState(pathname);
@@ -39,7 +41,7 @@ export default function ConditionalAppShell({
     setIsChromeHidden(false);
   }, [pathname]);
 
-  if (isBusinessSlugPage || isAuthPage) {
+  if (isBusinessSlugPage || isAuthPage || isAdminRoute) {
     return (
       <main key={animKey} className="animate-route-swap-soft">
         {children}

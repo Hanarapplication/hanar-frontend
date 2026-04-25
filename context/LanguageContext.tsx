@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { t as tFromTranslations } from '@/utils/translations';
 import { setRuntimeTranslations, getRuntimeTranslations } from '@/utils/runtimeTranslations';
 import { supportedLanguages } from '@/utils/languages';
@@ -12,7 +13,19 @@ const SUPPORTED_CODES = new Set(
 );
 const UI_TRANSLATION_CACHE_PREFIX = 'hanarUiTranslationsV21:';
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'OPTION']);
-const MAX_NODES_PER_PASS = 3000;
+const MAX_NODES_PER_PASS = 10000;
+const TRANSLATABLE_ATTRIBUTES = ['placeholder', 'title', 'aria-label', 'aria-placeholder'] as const;
+const INPUT_VALUE_TYPES = new Set(['button', 'submit', 'reset']);
+
+function shouldSkipAutoTranslation(pathname: string): boolean {
+  return (
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password' ||
+    pathname === '/admin-login'
+  );
+}
 
 function resolveEffectiveLang(lang: string): string {
   if (lang !== 'auto') return SUPPORTED_CODES.has(lang) ? lang : 'en';
@@ -38,6 +51,7 @@ const LanguageContext = createContext<LanguageContextType>({
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() ?? '';
   const [lang, setLangState] = useState('auto');
   const [effectiveLang, setEffectiveLang] = useState('en');
   const [translationRevision, setTranslationRevision] = useState(0);
@@ -93,6 +107,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
+    if (shouldSkipAutoTranslation(pathname)) return;
 
     const collectTextNodes = () => {
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -116,8 +131,14 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       return nodes;
     };
 
+    const collectTranslatableElements = () => {
+      const all = Array.from(document.body.querySelectorAll<HTMLElement>('*'));
+      return all.slice(0, MAX_NODES_PER_PASS);
+    };
+
     const applyDomTranslations = () => {
       const nodes = collectTextNodes();
+      const elements = collectTranslatableElements();
       const map = getRuntimeTranslations(effectiveLang);
       nodes.forEach((node) => {
         const extended = node as Text & { __hanarOriginalText?: string };
@@ -132,10 +153,63 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         const key = original.trim();
         if (!key) return;
         const translated = map[key];
-        if (!translated) return;
+        if (!translated) {
+          return;
+        }
         const leading = original.match(/^\s*/)?.[0] || '';
         const trailing = original.match(/\s*$/)?.[0] || '';
         node.nodeValue = `${leading}${translated}${trailing}`;
+      });
+
+      elements.forEach((element) => {
+        if (element.closest('[data-no-translate]')) return;
+        const extended = element as HTMLElement & {
+          __hanarOriginalAttrs?: Record<string, string>;
+        };
+        if (!extended.__hanarOriginalAttrs) {
+          extended.__hanarOriginalAttrs = {};
+        }
+
+        TRANSLATABLE_ATTRIBUTES.forEach((attributeName) => {
+          const currentValue = element.getAttribute(attributeName);
+          if (!currentValue || !currentValue.trim()) return;
+
+          if (extended.__hanarOriginalAttrs && typeof extended.__hanarOriginalAttrs[attributeName] !== 'string') {
+            extended.__hanarOriginalAttrs[attributeName] = currentValue;
+          }
+          const original = extended.__hanarOriginalAttrs?.[attributeName] || currentValue;
+          const key = original.trim();
+          if (!key) return;
+
+          if (effectiveLang === 'en') {
+            element.setAttribute(attributeName, original);
+            return;
+          }
+          const translated = map[key];
+          if (!translated) {
+            return;
+          }
+          element.setAttribute(attributeName, translated);
+        });
+
+        if (element instanceof HTMLInputElement && INPUT_VALUE_TYPES.has((element.type || '').toLowerCase())) {
+          if (typeof extended.__hanarOriginalAttrs.value !== 'string') {
+            extended.__hanarOriginalAttrs.value = element.value || '';
+          }
+          const originalValue = extended.__hanarOriginalAttrs.value || '';
+          const key = originalValue.trim();
+          if (!key) return;
+
+          if (effectiveLang === 'en') {
+            element.value = originalValue;
+            return;
+          }
+          const translated = map[key];
+          if (!translated) {
+            return;
+          }
+          element.value = translated;
+        }
       });
     };
 
@@ -158,7 +232,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       observer.disconnect();
       if (timer) clearTimeout(timer);
     };
-  }, [effectiveLang, translationRevision]);
+  }, [effectiveLang, pathname, translationRevision]);
 
   useEffect(() => {
     let cancelled = false;

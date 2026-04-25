@@ -24,7 +24,7 @@ function normalizeLangCode(value: string | null | undefined): string | null {
   return primary;
 }
 
-export default function PostTranslateToggle({ text, postId, sourceLang, targetLang, prefetch = false, className }: Props) {
+export default function PostTranslateToggle({ text, postId, sourceLang, targetLang, className }: Props) {
   const { effectiveLang } = useLanguage();
   const [translated, setTranslated] = useState<string>('');
   const [open, setOpen] = useState(false);
@@ -143,22 +143,6 @@ export default function PostTranslateToggle({ text, postId, sourceLang, targetLa
     const cachedValue = localStorage.getItem(cacheKey);
     if (cachedValue) setTranslated(cachedValue);
   }, [cacheKey]);
-
-  useEffect(() => {
-    if (!prefetch) return;
-    if (translated) return;
-    let cancelled = false;
-    void fetchTranslation()
-      .then((value) => {
-        if (!cancelled && value) setTranslated(value);
-      })
-      .catch(() => {
-        // Keep non-blocking prefetch silent.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [prefetch, translated, cacheKey]);
 
   return (
     <div className={className}>
