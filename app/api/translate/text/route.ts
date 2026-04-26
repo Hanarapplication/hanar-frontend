@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthenticatedUserId } from '@/lib/authApi';
-import { translatePost } from '@/services/translatePost';
 import { logTranslationUsage } from '@/lib/translationUsage';
 
 const cache = new Map<string, string>();
@@ -10,7 +9,6 @@ const requestWindow = new Map<string, { startedAt: number; count: number }>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 20;
 const MAX_TEXT_LENGTH = 5000;
-const TRANSLATION_ENABLED = String(process.env.TRANSLATION_ENABLED || 'false').toLowerCase() === 'true';
 
 type TranslateTextBody = {
   postId?: string | number | null;
@@ -19,13 +17,6 @@ type TranslateTextBody = {
   targetLang?: string;
   targetLanguage?: string;
 };
-
-function isRateLimitError(error: unknown): boolean {
-  const anyError = error as { code?: number; message?: string };
-  if (anyError?.code === 403) return true;
-  const message = String(anyError?.message || '').toLowerCase();
-  return message.includes('rate limit') || message.includes('quota');
-}
 
 function normalizeLang(value: string | null | undefined): string | null {
   const raw = String(value || '').trim().toLowerCase();
@@ -169,33 +160,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ translatedText, cached: true, deduped: true });
     }
 
-    if (!TRANSLATION_ENABLED) {
-      await logTranslationUsage({
-        endpointName: 'api/translate/text',
-        userId,
-        ipAddress: requesterIp,
-        sourceLanguage: sourceLang,
-        targetLanguage: targetLang,
-        characterCount: text.length,
-        textPreview: text,
-        cacheHit: false,
-        reason: 'disabled by TRANSLATION_ENABLED',
-        paidCall: false,
-        blocked: true,
-      });
-      return NextResponse.json({
-        translatedText: text,
-        cached: false,
-        fallback: 'translation-disabled',
-      });
-    }
-
-    const pending = translatePost(text, sourceLang, targetLang, {
-      subjectKey: `translate-text:${subject}`,
-      endpointName: 'api/translate/text',
-      userId,
-      ipAddress: requesterIp,
-    });
+    const pending = Promise.resolve(text);
     inFlightRequests.set(cacheKey, pending);
     let translatedText = '';
     try {
@@ -208,34 +173,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ translatedText, cached: false });
   } catch (error) {
     const message = String((error as { message?: string })?.message || '');
-    if (message.toLowerCase().includes('daily translation character limit')) {
-      await logTranslationUsage({
-        endpointName: 'api/translate/text',
-        sourceLanguage: normalizeLang(body?.sourceLang || null),
-        targetLanguage: normalizeLang(body?.targetLanguage || body?.targetLang || null),
-        characterCount: String(body?.text || '').trim().length,
-        textPreview: String(body?.text || '').trim(),
-        cacheHit: false,
-        reason: 'daily limit reached',
-        paidCall: false,
-        blocked: true,
-      });
-      return NextResponse.json({ error: message }, { status: 429 });
-    }
-    if (isRateLimitError(error)) {
-      await logTranslationUsage({
-        endpointName: 'api/translate/text',
-        sourceLanguage: normalizeLang(body?.sourceLang || null),
-        targetLanguage: normalizeLang(body?.targetLanguage || body?.targetLang || null),
-        characterCount: String(body?.text || '').trim().length,
-        textPreview: String(body?.text || '').trim(),
-        cacheHit: false,
-        reason: 'rate limited/quota',
-        paidCall: false,
-        blocked: true,
-      });
-      return NextResponse.json({ error: 'Translation quota reached. Please try later.' }, { status: 429 });
-    }
     console.error('POST /api/translate/text failed', error);
     return NextResponse.json({
       translatedText: String(body?.text || '').trim(),
