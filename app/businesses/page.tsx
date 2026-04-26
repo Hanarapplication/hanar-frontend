@@ -825,11 +825,12 @@ export default function BusinessesPage() {
         key={biz.id}
         href={`/business/${biz.slug}`}
         className="group flex gap-3 px-3 py-3 transition hover:bg-slate-50"
+        data-no-translate
       >
         <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100">
           <img
             src={biz.logo_url || `https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop`}
-            alt={biz.business_name}
+            alt="Business logo"
             loading="lazy"
             decoding="async"
             className="h-full w-full object-cover"
@@ -837,7 +838,10 @@ export default function BusinessesPage() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="line-clamp-1 text-lg font-semibold text-slate-900 group-hover:text-[#d32323]">
+            <h3
+              className="line-clamp-1 text-lg font-semibold text-slate-900 group-hover:text-[#d32323]"
+              data-no-translate
+            >
               {biz.business_name}
             </h3>
             <button
@@ -852,11 +856,13 @@ export default function BusinessesPage() {
             {'★'.repeat(isPremium(biz) ? 5 : 4)}
             <span className="ml-1 text-slate-500">{isPremium(biz) ? t(effectiveLang, 'Premium') : t(effectiveLang, 'New')}</span>
           </p>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <div className="mt-1 flex flex-col items-start gap-1.5">
             {displayCategory ? (
-              <span className="line-clamp-1 text-sm text-slate-600">{translateUi(displayCategory)}</span>
+              <span className="block w-fit max-w-full rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium leading-tight text-blue-700 break-words whitespace-normal">
+                {translateUi(displayCategory)}
+              </span>
             ) : null}
-            <span className="inline-flex items-center rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+            <span className="block w-fit max-w-full rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium leading-tight text-blue-700 break-words whitespace-normal">
               {locationText === LOCATION_NOT_AVAILABLE ? t(effectiveLang, 'Location not available') : locationText}
             </span>
           </div>
@@ -886,19 +892,24 @@ export default function BusinessesPage() {
         {/* Search and location bar (Hanar nav gradient — matches home Ask strip) */}
         <div className="sticky top-0 z-10 -mx-3 mb-0 border-b border-slate-200 bg-slate-100 px-3 pb-3 pt-0 shadow-sm sm:-mx-5 sm:mb-0 sm:px-5 dark:border-slate-200 dark:bg-slate-100">
           <div className="mx-auto max-w-3xl">
-            <button
-              type="button"
-              onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
-              className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
-            >
-              <FaMapMarkerAlt className="h-3.5 w-3.5 text-slate-600" />
-              <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose city / zip code / country')}</span>
-              {locationLabel && locationScope.mode === 'country' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'Country')}</span>}
-              {locationLabel && locationScope.mode === 'state' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'State')}</span>}
-              {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && (
-                <span className="text-[10px] text-slate-500">{radius} {t(effectiveLang, 'miles')}</span>
-              )}
-            </button>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+              >
+                <FaMapMarkerAlt className="h-3.5 w-3.5 text-slate-600" />
+                <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose city / zip code / country')}</span>
+                {locationLabel && locationScope.mode === 'country' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'Country')}</span>}
+                {locationLabel && locationScope.mode === 'state' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'State')}</span>}
+                {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && (
+                  <span className="text-[10px] text-slate-500">{radius} {t(effectiveLang, 'miles')}</span>
+                )}
+              </button>
+              <div className="pointer-events-none rounded-md border border-blue-300 bg-gradient-to-r from-blue-500 to-cyan-500 px-3 py-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-white shadow-md">
+                Businesses ✨
+              </div>
+            </div>
 
             <div className="flex overflow-hidden rounded-md border border-white/35 bg-slate-100 shadow-inner shadow-black/10 dark:bg-slate-100">
               <div className="hidden items-center border-r border-slate-200/90 bg-slate-50/95 px-3 text-[11px] font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200 sm:flex">
@@ -909,7 +920,7 @@ export default function BusinessesPage() {
                 onClick={() => {
                   if (query.trim()) setVisibleCount(6);
                 }}
-                className="inline-flex items-center justify-center border-r border-slate-200/90 bg-gradient-to-r from-blue-600 to-emerald-600 px-4 text-white transition hover:from-blue-500 hover:to-emerald-500 dark:border-slate-600 dark:from-blue-600 dark:to-emerald-600 dark:hover:from-blue-500 dark:hover:to-emerald-500"
+                className="inline-flex items-center justify-center border-r border-slate-200/90 bg-gradient-to-r from-blue-500 to-cyan-500 px-4 text-white transition hover:from-blue-400 hover:to-cyan-400 dark:border-slate-600 dark:from-blue-500 dark:to-cyan-500 dark:hover:from-blue-400 dark:hover:to-cyan-400"
                 aria-label={t(effectiveLang, 'Search')}
               >
                 <FaSearch className="h-4 w-4" />
@@ -1092,12 +1103,14 @@ export default function BusinessesPage() {
                   }
                   setVisibleCount(6);
                 }}
-                className="flex flex-col items-center justify-center gap-0.5 text-center"
+                className="flex min-h-[4.75rem] flex-col items-center justify-start gap-0.5 text-center"
               >
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-base">
                   {item.icon}
                 </span>
-                <span className={`text-xs font-medium leading-tight ${selectedCategoryFilter === item.key ? 'text-[#d32323]' : 'text-slate-700'}`}>
+                <span
+                  className={`max-w-[5.5rem] text-xs font-medium leading-tight break-words whitespace-normal ${selectedCategoryFilter === item.key ? 'text-[#d32323]' : 'text-slate-700'}`}
+                >
                   {translateUi(item.label)}
                 </span>
               </button>
@@ -1120,17 +1133,18 @@ export default function BusinessesPage() {
                 href={`/business/${biz.slug}`}
                 className="group min-w-[10.5rem] max-w-[10.5rem] snap-start"
                 data-service-card="true"
+                data-no-translate
               >
                 <div className="overflow-hidden rounded-xl bg-slate-100">
                   <img
                     src={biz.logo_url || `https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop`}
-                    alt={biz.business_name}
+                    alt="Business logo"
                     loading="lazy"
                     decoding="async"
                     className="h-28 w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                 </div>
-                <p className="mt-2 inline-flex max-w-full items-center rounded-md bg-blue-100 px-2 py-1 line-clamp-1 text-sm font-semibold text-blue-700">
+                <p className="mt-2 w-full rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium leading-tight text-blue-700 break-words whitespace-normal">
                   {translateUi(formatBusinessCategory(biz.subcategory || biz.category) || 'Business')}
                 </p>
               </Link>

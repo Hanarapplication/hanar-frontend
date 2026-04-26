@@ -52,6 +52,7 @@ export function BusinessInfoCard({
               <h1
                 className="text-2xl sm:text-3xl font-bold truncate"
                 style={{ color: theme.text }}
+                data-no-translate
               >
                 {business.business_name}
               </h1>

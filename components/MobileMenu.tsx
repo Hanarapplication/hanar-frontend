@@ -217,7 +217,7 @@ export default function MobileMenu({
               type="button"
               onClick={close}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/25 bg-black/20 text-white shadow-sm transition hover:bg-black/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-              aria-label="Close Menu"
+              aria-label={t(effectiveLang, 'Close menu')}
             >
               <FaTimes className="text-lg" />
             </button>

@@ -10,7 +10,7 @@ import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 
-const navLineIconClass = 'h-[1.4rem] w-[1.4rem]';
+const navLineIconClass = 'h-[1.4rem] w-[1.4rem] drop-shadow-[0_1px_0_rgba(255,255,255,0.9)] drop-shadow-[0_0_7px_rgba(59,130,246,0.3)]';
 
  type NavbarNotificationRow = {
   id: string;
@@ -34,11 +34,23 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     if (parts[1] === 'post' || parts[1] === 'edit') return false;
     return true;
   }, [pathname]);
+  /** Main home feed: bell + message icons only here; notifications panel still opens globally on new alerts. */
+  const isHomeFeed = useMemo(() => pathname === '/' || pathname === '/home-feed', [pathname]);
   useEffect(() => {
     if (isMarketplaceItemDetailPage) {
       setNotificationsOpen(false);
     }
   }, [isMarketplaceItemDetailPage]);
+  useEffect(() => {
+    const prev = prevPathnameForNotifRef.current;
+    prevPathnameForNotifRef.current = pathname;
+    if (prev == null) return;
+    const wasHomeFeed = prev === '/' || prev === '/home-feed';
+    const isNowHomeFeed = pathname === '/' || pathname === '/home-feed';
+    if (wasHomeFeed && !isNowHomeFeed) {
+      setNotificationsOpen(false);
+    }
+  }, [pathname]);
   const { effectiveLang } = useLanguage();
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
@@ -53,6 +65,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
   });
   const notificationsPanelRef = useRef<HTMLDivElement | null>(null);
   const notificationsBellRef = useRef<HTMLButtonElement | null>(null);
+  const prevPathnameForNotifRef = useRef<string | null>(null);
   const incomingToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasInitializedIncomingRef = useRef(false);
   const lastIncomingMessageIdRef = useRef<string | null>(null);
@@ -299,8 +312,12 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
             table: 'notifications',
             filter: `user_id=eq.${user.id}`,
           },
-          () => {
+          (payload) => {
             loadUnreadCount();
+            if (payload && 'eventType' in payload && (payload as { eventType: string }).eventType === 'INSERT') {
+              setNotificationsOpen(true);
+              void loadNotificationItems();
+            }
           }
         )
         .subscribe();
@@ -311,7 +328,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       window.removeEventListener('notifications:updated', handler);
       if (activeChannel) supabase.removeChannel(activeChannel);
     };
-  }, [fetchOwnedBusinessIds]);
+  }, [fetchOwnedBusinessIds, loadNotificationItems]);
 
   useEffect(() => {
     const loadUnreadMessages = async () => {
@@ -446,6 +463,16 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     };
   }, []);
 
+  // Dashboard is one of the heaviest pages; prefetch it so profile tap feels immediate.
+  useEffect(() => {
+    const target = dashboardIdentity.loggedIn ? '/dashboard' : '/login?redirect=/dashboard';
+    try {
+      router.prefetch(target);
+    } catch {
+      // ignore prefetch errors
+    }
+  }, [dashboardIdentity.loggedIn, router]);
+
   const goToQuickAction = (href: string) => {
     setNotificationsOpen(false);
     router.push(href);
@@ -475,7 +502,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     {
       key: 'home',
       href: '/',
-      icon: <span className="text-[1.08rem] font-serif font-bold lowercase tracking-[0.015em] text-blue-600">hanar</span>,
+      icon: <span className="text-[1.08rem] font-semibold lowercase text-blue-700">hanar</span>,
       label: t(effectiveLang, 'Feed'),
       isActive: (path) => path === '/',
     },
@@ -501,7 +528,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       key: 'profile',
       href: dashboardIdentity.loggedIn ? '/dashboard' : '/login?redirect=/dashboard',
       icon: dashboardIdentity.loggedIn ? (
-        <span className="inline-flex h-[2.1rem] w-[2.1rem] items-center justify-center rounded-full border border-blue-600 bg-blue-600/10 p-[1.5px]">
+        <span className="inline-flex h-[2.1rem] w-[2.1rem] items-center justify-center rounded-full border border-cyan-200/90 bg-gradient-to-b from-white/95 via-sky-100/80 to-blue-100/70 p-[1.5px] backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_0_10px_rgba(56,189,248,0.35)]">
           <Avatar
             src={dashboardIdentity.avatarUrl}
             alt="Dashboard profile"
@@ -536,8 +563,8 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
               >
                 {item.icon}
                 <span
-                  className={`absolute bottom-0 left-2 right-2 h-[3px] rounded-full transition-opacity ${
-                    isActive ? 'bg-black opacity-100' : 'opacity-0'
+                  className={`absolute bottom-0 left-2 right-2 h-[3px] origin-center rounded-full transition-all duration-300 ${
+                    isActive ? 'bg-pink-500 opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
                   }`}
                   aria-hidden
                 />
@@ -564,8 +591,8 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
               >
                 {item.icon}
                 <span
-                  className={`absolute bottom-0 left-2 right-2 h-[3px] rounded-full transition-opacity ${
-                    isActive ? 'bg-black opacity-100' : 'opacity-0'
+                  className={`absolute bottom-0 left-2 right-2 h-[3px] origin-center rounded-full transition-all duration-300 ${
+                    isActive ? 'bg-pink-500 opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
                   }`}
                   aria-hidden
                 />
@@ -575,26 +602,19 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
         </div>
       </nav>
 
-      {!isMarketplaceItemDetailPage && (
+      {isHomeFeed && (
         <div className={`fixed right-3 top-1 z-[70] flex items-center gap-2 transition-all duration-200 sm:right-4 sm:top-1 ${hidden ? 'translate-y-[-10px] opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
           <button
             ref={notificationsBellRef}
             type="button"
             onClick={toggleNotifications}
-            className="relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/45 bg-white/20 text-black shadow-sm backdrop-blur-sm transition hover:bg-white/30"
+            className="relative inline-flex h-10 w-10 items-center justify-center text-blue-700 transition"
             aria-label="Open notifications"
             title="Notifications"
             aria-expanded={notificationsOpen}
             aria-haspopup="dialog"
           >
-            <Bell className="h-[1.58rem] w-[1.58rem]" strokeWidth={2} stroke="url(#nav-grad-bell)" aria-hidden>
-              <defs>
-                <linearGradient id="nav-grad-bell" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#2563eb" />
-                  <stop offset="100%" stopColor="#dc2626" />
-                </linearGradient>
-              </defs>
-            </Bell>
+            <Bell className="h-[1.58rem] w-[1.58rem]" strokeWidth={2} aria-hidden />
             {unreadCount > 0 ? (
               <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-semibold leading-none text-white">
                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -604,18 +624,11 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
           <button
             type="button"
             onClick={() => goToQuickAction('/messages?view=inbox')}
-            className="relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-white/45 bg-white/20 text-black shadow-sm backdrop-blur-sm transition hover:bg-white/30"
+            className="relative inline-flex h-10 w-10 items-center justify-center text-blue-700 transition"
             aria-label="Go to messages"
             title="Messages"
           >
-            <MessageCircle className="h-[1.58rem] w-[1.58rem]" strokeWidth={2} stroke="url(#nav-grad-message)" aria-hidden>
-              <defs>
-                <linearGradient id="nav-grad-message" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#2563eb" />
-                  <stop offset="100%" stopColor="#dc2626" />
-                </linearGradient>
-              </defs>
-            </MessageCircle>
+            <MessageCircle className="h-[1.58rem] w-[1.58rem]" strokeWidth={2} aria-hidden />
             {unreadMessageCount > 0 ? (
               <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-semibold leading-none text-white">
                 {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
@@ -629,9 +642,9 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
         ref={notificationsPanelRef}
         role="dialog"
         aria-label="Notifications"
-        aria-hidden={!notificationsOpen || isMarketplaceItemDetailPage}
+        aria-hidden={!notificationsOpen}
         className={`fixed right-3 top-12 z-[75] w-[min(19rem,calc(100vw-1.5rem))] origin-top-right rounded-xl border border-blue-200 bg-blue-50/95 shadow-2xl transition-all duration-200 sm:right-4 sm:top-12 ${
-          notificationsOpen && !isMarketplaceItemDetailPage
+          notificationsOpen
             ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
             : 'pointer-events-none -translate-y-2 scale-95 opacity-0'
         }`}

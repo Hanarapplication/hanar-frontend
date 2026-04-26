@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { PhoneInput } from '@/components/PhoneInput';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
+import { MarketplaceCategorySelects } from '@/components/MarketplaceCategorySelects';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
@@ -2519,10 +2520,10 @@ export default function EditBusinessPage() {
           <section className="p-6 sm:p-7 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 bg-slate-50/80 dark:bg-slate-800/50 space-y-4">
             <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-1 flex items-center gap-2">
               <Languages className="h-5 w-5 text-indigo-500" />
-              Spoken languages
+              {t(effectiveLang, 'Spoken languages')}
             </h2>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              Select languages spoken at your business. Customers searching in these languages may see you at the top (premium).
+              {t(effectiveLang, 'Select languages spoken at your business. Customers searching in these languages may see you at the top (Premium).')}
             </p>
             <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
               {spokenLanguagesWithDialects.map((lang) => {
@@ -3303,13 +3304,21 @@ export default function EditBusinessPage() {
                               type="text" // Keep as text to allow flexible input like "49.99"
                               icon={DollarIcon}
                             />
-                            <FormInput
-                              name="category"
-                              value={item.category}
-                              onChange={(e) => handleRetailItemChange(index, 'category', e.target.value)}
-                              placeholder={t(effectiveLang, 'Product Category (e.g., Electronics, Apparel)')}
-                              icon={Tag}
-                            />
+                            <div>
+                              <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                                <Tag className="h-4 w-4 text-rose-500 flex-shrink-0" aria-hidden />
+                                <span>{t(effectiveLang, 'Product Category (e.g., Electronics, Apparel)')}</span>
+                              </div>
+                              <MarketplaceCategorySelects
+                                value={item.category}
+                                onChange={(c) => handleRetailItemChange(index, 'category', c)}
+                                labelId={`retail-cat-${item.id}`}
+                                categoryLabel={t(effectiveLang, 'Category')}
+                                subcategoryLabel={t(effectiveLang, 'Subcategory')}
+                                labelClassName="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                                selectClassName="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-200 dark:focus:ring-rose-500/30"
+                              />
+                            </div>
                             <FormTextarea
                               name="description"
                               value={item.description}

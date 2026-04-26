@@ -11,11 +11,55 @@ const SUPPORTED_CODES = new Set(
     .map((entry) => entry.code)
     .filter((code) => code !== 'auto')
 );
-const UI_TRANSLATION_CACHE_PREFIX = 'hanarUiTranslationsV21:';
+const LANGUAGE_ALIASES: Record<string, string> = {
+  iw: 'he',
+  in: 'id',
+  kr: 'ko',
+  kz: 'kk',
+  kazakh: 'kk',
+  'қазақша': 'kk',
+  korean: 'ko',
+  '한국어': 'ko',
+  malay: 'ms',
+  melayu: 'ms',
+  bahasa: 'ms',
+  'bahasa melayu': 'ms',
+  'bahasa malaysia': 'ms',
+  '🇲🇾': 'ms',
+  polish: 'pl',
+  polski: 'pl',
+  '🇵🇱': 'pl',
+  portuguese: 'pt',
+  português: 'pt',
+  portugues: 'pt',
+  '🇵🇹': 'pt',
+  russian: 'ru',
+  русский: 'ru',
+  '🇷🇺': 'ru',
+  mm: 'my',
+  burmese: 'my',
+  myanmar: 'my',
+  'မြန်မာ': 'my',
+};
+const UI_TRANSLATION_CACHE_PREFIX = 'hanarUiTranslationsV33:';
+const HOME_POST_FEED_LANG_KEY = 'hanar_community_feed_lang';
+const FEED_LANG_SYNC_EVENT = 'hanar:post-feed-lang-sync';
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'OPTION']);
 const MAX_NODES_PER_PASS = 10000;
 const TRANSLATABLE_ATTRIBUTES = ['placeholder', 'title', 'aria-label', 'aria-placeholder'] as const;
 const INPUT_VALUE_TYPES = new Set(['button', 'submit', 'reset']);
+const NAME_LINK_SKIP_SELECTOR = [
+  'a[href^="/business/"]',
+  'a[href^="/businesses/"]',
+  'a[href^="/organization/"]',
+  'a[href^="/organizations/"]',
+  'a[href^="/profile/"]',
+].join(', ');
+
+function shouldSkipElementTranslationContext(element: Element | null): boolean {
+  if (!element) return true;
+  return !!(element.closest('[data-no-translate]') || element.closest(NAME_LINK_SKIP_SELECTOR));
+}
 
 function shouldSkipAutoTranslation(pathname: string): boolean {
   return (
@@ -28,10 +72,32 @@ function shouldSkipAutoTranslation(pathname: string): boolean {
 }
 
 function resolveEffectiveLang(lang: string): string {
-  if (lang !== 'auto') return SUPPORTED_CODES.has(lang) ? lang : 'en';
+  const normalizeCode = (value: string): string => {
+    const raw = (value || '').trim().toLowerCase();
+    if (!raw) return '';
+    const base = raw.split(/[-_]/)[0] || raw;
+    if (LANGUAGE_ALIASES[base]) return LANGUAGE_ALIASES[base];
+    return base;
+  };
+
+  if (lang !== 'auto') {
+    const normalized = normalizeCode(lang);
+    return SUPPORTED_CODES.has(normalized) ? normalized : 'en';
+  }
   if (typeof navigator === 'undefined') return 'en';
-  const browser = navigator.language.slice(0, 2).toLowerCase();
+  const browser = normalizeCode(navigator.language);
   return SUPPORTED_CODES.has(browser) ? browser : 'en';
+}
+
+function normalizeSelectedLang(value: string): string {
+  const raw = (value || '').trim().toLowerCase();
+  if (!raw) return 'auto';
+  if (raw === 'auto') return 'auto';
+
+  const base = raw.split(/[-_]/)[0] || raw;
+  const normalized = LANGUAGE_ALIASES[base] || base;
+  if (normalized === 'auto') return 'auto';
+  return SUPPORTED_CODES.has(normalized) ? normalized : 'en';
 }
 
 type LanguageContextType = {
@@ -57,8 +123,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [translationRevision, setTranslationRevision] = useState(0);
 
   useEffect(() => {
-    const savedLang = localStorage.getItem('hanarLang');
-    if (savedLang) setLangState(savedLang);
+    try {
+      const savedLang = localStorage.getItem('hanarLang');
+      if (savedLang) setLangState(normalizeSelectedLang(savedLang));
+    } catch {
+      // Ignore storage access errors on strict mobile privacy modes.
+    }
     // Drop old cache versions so newly added keys can load.
     try {
       const keysToRemove: string[] = [];
@@ -85,7 +155,16 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
           key.startsWith('hanarUiTranslationsV17:') ||
           key.startsWith('hanarUiTranslationsV18:') ||
           key.startsWith('hanarUiTranslationsV19:') ||
-          key.startsWith('hanarUiTranslationsV20:')
+          key.startsWith('hanarUiTranslationsV20:') ||
+          key.startsWith('hanarUiTranslationsV21:') ||
+          key.startsWith('hanarUiTranslationsV22:') ||
+          key.startsWith('hanarUiTranslationsV23:') ||
+          key.startsWith('hanarUiTranslationsV24:') ||
+          key.startsWith('hanarUiTranslationsV25:') ||
+          key.startsWith('hanarUiTranslationsV26:') ||
+          key.startsWith('hanarUiTranslationsV27:') ||
+          key.startsWith('hanarUiTranslationsV28:') ||
+          key.startsWith('hanarUiTranslationsV29:')
         ) {
           keysToRemove.push(key);
         }
@@ -97,7 +176,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('hanarLang', lang);
+    try {
+      localStorage.setItem('hanarLang', lang);
+    } catch {
+      // Ignore storage access errors on strict mobile privacy modes.
+    }
     setEffectiveLang(resolveEffectiveLang(lang));
   }, [lang]);
 
@@ -115,12 +198,17 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       let current = walker.nextNode();
       while (current && nodes.length < MAX_NODES_PER_PASS) {
         const node = current as Text;
+        const extended = node as Text & { __hanarOriginalText?: string };
         const parent = node.parentElement;
         if (!parent) {
           current = walker.nextNode();
           continue;
         }
-        if (SKIP_TAGS.has(parent.tagName) || parent.closest('[data-no-translate]')) {
+        if (SKIP_TAGS.has(parent.tagName) || shouldSkipElementTranslationContext(parent)) {
+          // If this node was previously translated, restore its original source text.
+          if (typeof extended.__hanarOriginalText === 'string') {
+            node.nodeValue = extended.__hanarOriginalText;
+          }
           current = walker.nextNode();
           continue;
         }
@@ -162,10 +250,26 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       });
 
       elements.forEach((element) => {
-        if (element.closest('[data-no-translate]')) return;
         const extended = element as HTMLElement & {
           __hanarOriginalAttrs?: Record<string, string>;
         };
+        if (shouldSkipElementTranslationContext(element)) {
+          if (extended.__hanarOriginalAttrs) {
+            TRANSLATABLE_ATTRIBUTES.forEach((attributeName) => {
+              const original = extended.__hanarOriginalAttrs?.[attributeName];
+              if (typeof original === 'string') {
+                element.setAttribute(attributeName, original);
+              }
+            });
+            if (element instanceof HTMLInputElement && INPUT_VALUE_TYPES.has((element.type || '').toLowerCase())) {
+              const originalValue = extended.__hanarOriginalAttrs.value;
+              if (typeof originalValue === 'string') {
+                element.value = originalValue;
+              }
+            }
+          }
+          return;
+        }
         if (!extended.__hanarOriginalAttrs) {
           extended.__hanarOriginalAttrs = {};
         }
@@ -236,41 +340,94 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    if (effectiveLang === 'en') {
-      setRuntimeTranslations('en', {});
-      setTranslationRevision((value) => value + 1);
-      return;
-    }
     const loadTranslations = async () => {
+      const cacheKey = `${UI_TRANSLATION_CACHE_PREFIX}${effectiveLang}`;
+      // Prevent stale in-memory runtime maps from pinning a wrong locale payload.
+      // If fetch fails, t() will still fall back to bundled static translations.
+      setRuntimeTranslations(effectiveLang, {});
+
       try {
-        const cacheKey = `${UI_TRANSLATION_CACHE_PREFIX}${effectiveLang}`;
+        const localePath = `/locales/${encodeURIComponent(effectiveLang)}.json`;
+        const localeVersion = encodeURIComponent(UI_TRANSLATION_CACHE_PREFIX);
+        const now = Date.now();
+        const origin =
+          typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
+        const candidates: Array<{ url: string; init?: RequestInit }> = [
+          {
+            url: `${localePath}?v=${localeVersion}&t=${now}`,
+            init: {
+              cache: 'no-store',
+              headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' },
+            },
+          },
+          {
+            url: localePath,
+            init: {
+              cache: 'reload',
+              headers: { 'Cache-Control': 'no-cache' },
+            },
+          },
+          ...(origin
+            ? [
+                {
+                  url: `${origin}${localePath}?v=${localeVersion}&t=${now}`,
+                  init: {
+                    cache: 'no-store' as RequestCache,
+                    credentials: 'same-origin' as RequestCredentials,
+                    headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' },
+                  },
+                },
+              ]
+            : []),
+        ];
+
+        let data: Record<string, string> | null = null;
+        for (let attempt = 0; attempt < 3 && !data; attempt += 1) {
+          for (const candidate of candidates) {
+            try {
+              const response = await fetch(candidate.url, candidate.init);
+              if (!response.ok) continue;
+              const parsed = (await response.json()) as Record<string, string>;
+              if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+                data = parsed;
+                break;
+              }
+            } catch {
+              // Try next candidate.
+            }
+          }
+          if (!data && attempt < 2) {
+            await new Promise((resolve) => setTimeout(resolve, 180 * (attempt + 1)));
+          }
+        }
+
+        if (cancelled) return;
+        if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+          setRuntimeTranslations(effectiveLang, data);
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(data));
+          } catch {
+            // Ignore storage quota/access issues.
+          }
+          setTranslationRevision((value) => value + 1);
+          return;
+        }
+      } catch {
+        // Keep local fallback translations when locale file fetch fails.
+      }
+
+      // Fallback to local cache only if fresh fetch did not succeed.
+      try {
         const cachedRaw = localStorage.getItem(cacheKey);
         if (cachedRaw) {
           const cached = JSON.parse(cachedRaw) as Record<string, string>;
           if (cached && typeof cached === 'object' && Object.keys(cached).length > 0) {
             setRuntimeTranslations(effectiveLang, cached);
             setTranslationRevision((value) => value + 1);
-            return;
           }
-        }
-
-        const response = await fetch(`/api/translate-ui?lang=${encodeURIComponent(effectiveLang)}`);
-        if (!response.ok) return;
-        const data = (await response.json()) as { translations?: Record<string, string> };
-        if (cancelled) return;
-        if (data && typeof data === 'object') {
-          const translations = (data as { translations?: Record<string, string> }).translations;
-          const map = translations && typeof translations === 'object' ? translations : (data as Record<string, string>);
-          setRuntimeTranslations(effectiveLang, map);
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify(map));
-          } catch {
-            // Ignore storage quota issues.
-          }
-          setTranslationRevision((value) => value + 1);
         }
       } catch {
-        // Keep local fallback translations when API fails.
+        // Ignore storage access/parsing issues (common on some mobile privacy modes).
       }
     };
     void loadTranslations();
@@ -281,7 +438,20 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   /** UI / translations only — does not update post language or feed personalization (see home/community language controls). */
   const setLang = useCallback((newLang: string) => {
-    setLangState(newLang);
+    const normalized = normalizeSelectedLang(newLang);
+    setLangState(normalized);
+    // One-way sync: changing app language also updates the home/community post language filter.
+    // Feed language controls remain independent and never change app UI language.
+    if (normalized !== 'auto') {
+      try {
+        localStorage.setItem(HOME_POST_FEED_LANG_KEY, normalized);
+      } catch {
+        // Ignore storage access errors.
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(FEED_LANG_SYNC_EVENT, { detail: { lang: normalized } }));
+      }
+    }
   }, []);
 
   return (

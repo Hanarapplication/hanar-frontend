@@ -11,10 +11,9 @@ import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
 import { Avatar } from '@/components/Avatar';
-import PostTranslateToggle from '@/components/PostTranslateToggle';
 import CreateCommunityPostClient from '@/app/community/post/CreateCommunityPostClient';
 import { useLanguage } from '@/context/LanguageContext';
-import { supportedLanguages } from '@/utils/languages';
+import { getNativeLanguageName, supportedLanguages } from '@/utils/languages';
 import { t } from '@/utils/translations';
 
 type SliderBusiness = {
@@ -29,7 +28,7 @@ type AdBanner = { id: string; image: string; link: string; alt: string };
 
 /** Neutral rule between feed / skeleton rows */
 const HOME_FEED_BETWEEN_ROW =
-  'h-px w-full shrink-0 bg-slate-200 dark:bg-gray-700';
+  'h-px w-full shrink-0 bg-slate-300 dark:bg-gray-600';
 
 type CommunityPost = {
   id: string;
@@ -122,6 +121,23 @@ type FeedItem =
   | { type: 'marketplaceCategorySlider'; categoryLabel: string; items: MarketplaceItem[] }
   | { type: 'ad'; banner: AdBanner }
   | { type: 'sliderBusinesses' };
+
+const coerceLikeCount = (value: unknown): number => {
+  if (typeof value === 'number') return Number.isFinite(value) ? Math.max(0, value) : 0;
+  if (typeof value === 'string') {
+    const n = Number(value.trim());
+    return Number.isFinite(n) ? Math.max(0, n) : 0;
+  }
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.likes_post === 'number' || typeof obj.likes_post === 'string') return coerceLikeCount(obj.likes_post);
+    if (typeof obj.likes === 'number' || typeof obj.likes === 'string') return coerceLikeCount(obj.likes);
+    if (typeof obj.likes_count === 'number' || typeof obj.likes_count === 'string') return coerceLikeCount(obj.likes_count);
+    if (typeof obj.count === 'number' || typeof obj.count === 'string') return coerceLikeCount(obj.count);
+    if (typeof obj.value === 'number' || typeof obj.value === 'string') return coerceLikeCount(obj.value);
+  }
+  return 0;
+};
 
 const getDistanceMiles = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 3958.8;
@@ -267,14 +283,26 @@ function feedItemStableKey(item: FeedItem): string {
   }
 }
 
+function hashString(value: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
 /** Shuffle cards from the home pool; sprinkle some of the newest items into early positions. */
 function shuffleHomeFeedWithFreshSprinkle(pool: { item: FeedItem; date: number }[]): FeedItem[] {
   if (pool.length === 0) return [];
-  const arr = [...pool];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
+  // Deterministic pseudo-shuffle so likes/comments updates don't reorder the whole feed.
+  const arr = [...pool].sort((a, b) => {
+    const aKey = feedItemStableKey(a.item);
+    const bKey = feedItemStableKey(b.item);
+    const aScore = hashString(`${aKey}:${a.date}`);
+    const bScore = hashString(`${bKey}:${b.date}`);
+    return aScore - bScore;
+  });
   const byNewest = [...pool].sort((a, b) => b.date - a.date);
   const topN = Math.min(12, Math.max(4, Math.ceil(pool.length * 0.05)));
   const latestEntries = byNewest.slice(0, topN);
@@ -283,7 +311,8 @@ function shuffleHomeFeedWithFreshSprinkle(pool: { item: FeedItem; date: number }
   const out: FeedItem[] = without.map((e) => e.item);
   for (const entry of latestEntries) {
     const cap = Math.min(out.length + 1, Math.max(12, Math.floor(out.length * 0.3) + 1));
-    const pos = Math.floor(Math.random() * cap);
+    const seed = hashString(`${feedItemStableKey(entry.item)}:${entry.date}:fresh`);
+    const pos = cap <= 1 ? 0 : seed % cap;
     out.splice(pos, 0, entry.item);
   }
   return out;
@@ -592,6 +621,7 @@ const FEED_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /** Same key as community feed so language preference stays in sync. */
 const HOME_POST_FEED_LANG_KEY = 'hanar_community_feed_lang';
+const FEED_LANG_SYNC_EVENT = 'hanar:post-feed-lang-sync';
 
 type HomeFeedTab = 'for_you' | 'popular' | 'news';
 
@@ -670,6 +700,32 @@ export default function Home() {
     setPostFeedLangReady(true);
   }, [normalizePostFeedLang]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const applySyncedLang = (value: string | null | undefined) => {
+      if (!value) return;
+      setPostFeedLang(value);
+    };
+
+    const handleFeedLangSync = (event: Event) => {
+      const custom = event as CustomEvent<{ lang?: string }>;
+      applySyncedLang(custom.detail?.lang);
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== HOME_POST_FEED_LANG_KEY) return;
+      applySyncedLang(event.newValue);
+    };
+
+    window.addEventListener(FEED_LANG_SYNC_EVENT, handleFeedLangSync as EventListener);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener(FEED_LANG_SYNC_EVENT, handleFeedLangSync as EventListener);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [setPostFeedLang]);
+
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -692,6 +748,8 @@ export default function Home() {
   const [hasNewContent, setHasNewContent] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedPostText, setExpandedPostText] = useState<Set<string>>(new Set());
+  const [expandablePostText, setExpandablePostText] = useState<Set<string>>(new Set());
+  const postTextRefs = useRef<Record<string, HTMLParagraphElement | null>>({});
   const latestPostDateRef = useRef<string | null>(null);
 
   const toggleExpandedPostText = useCallback((postId: string) => {
@@ -991,6 +1049,16 @@ export default function Home() {
       rawPosts = (fb.data || []) as CommunityPost[];
     }
 
+    // Ranked API may return like count under different keys; normalize once for UI consistency.
+    rawPosts = rawPosts.map((p) => {
+      const postAny = p as CommunityPost & { likes?: unknown; likes_count?: unknown };
+      const normalizedLikes =
+        coerceLikeCount(postAny.likes_post) ||
+        coerceLikeCount(postAny.likes) ||
+        coerceLikeCount(postAny.likes_count);
+      return { ...p, likes_post: normalizedLikes };
+    });
+
     const postIds = rawPosts.map((p: { id: string }) => p.id);
     const skipLikeRefetch =
       rawPosts.length > 0 && rawPosts.some((p) => p.home_rank_score !== undefined && p.home_rank_score !== null);
@@ -1001,7 +1069,7 @@ export default function Home() {
         const { counts } = await countsRes.json();
         if (counts) {
           rawPosts.forEach((p) => {
-            p.likes_post = counts[p.id] ?? p.likes_post ?? 0;
+            p.likes_post = coerceLikeCount(counts[p.id] ?? p.likes_post ?? 0);
           });
         }
       } catch {
@@ -1444,7 +1512,7 @@ const formatDateLabel = (value?: string | null) => {
     setCommunityPosts((prev) =>
       prev.map((post) =>
         post.id === postId
-          ? { ...post, likes_post: Math.max(0, (post.likes_post || 0) + delta) }
+          ? { ...post, likes_post: Math.max(0, coerceLikeCount(post.likes_post) + delta) }
           : post
       )
     );
@@ -1459,7 +1527,7 @@ const formatDateLabel = (value?: string | null) => {
       setCommunityPosts((prev) =>
         prev.map((post) =>
           post.id === postId
-            ? { ...post, likes_post: Math.max(0, (post.likes_post || 0) - delta) }
+            ? { ...post, likes_post: Math.max(0, coerceLikeCount(post.likes_post) - delta) }
             : post
         )
       );
@@ -1499,10 +1567,11 @@ const formatDateLabel = (value?: string | null) => {
 
       // Sync with server response for accurate count
       const data = await res.json().catch(() => ({}));
-      if (typeof data.likes === 'number') {
+      if (data.likes !== undefined) {
+        const likes = coerceLikeCount(data.likes);
         setCommunityPosts((prev) =>
           prev.map((post) =>
-            post.id === postId ? { ...post, likes_post: data.likes } : post
+            post.id === postId ? { ...post, likes_post: likes } : post
           )
         );
       }
@@ -1933,6 +2002,38 @@ const formatDateLabel = (value?: string | null) => {
   }, [feedItems, feedSearchQuery]);
 
   useEffect(() => {
+    const visiblePostIds = new Set(
+      filteredFeedItems
+        .slice(0, visibleCount)
+        .filter((item): item is Extract<FeedItem, { type: 'post' }> => item.type === 'post')
+        .map((item) => item.post.id)
+    );
+
+    const raf = window.requestAnimationFrame(() => {
+      setExpandablePostText((prev) => {
+        const next = new Set(prev);
+        // Remove stale IDs that are no longer in view.
+        for (const id of Array.from(next)) {
+          if (!visiblePostIds.has(id)) next.delete(id);
+        }
+        for (const postId of Array.from(visiblePostIds)) {
+          // Keep previous decision while expanded to avoid false negatives
+          // (expanded text has no line clamp and won't overflow).
+          if (expandedPostText.has(postId)) continue;
+          const element = postTextRefs.current[postId];
+          if (!element) continue;
+          const isOverflowing = element.scrollHeight > element.clientHeight + 1;
+          if (isOverflowing) next.add(postId);
+          else next.delete(postId);
+        }
+        return next;
+      });
+    });
+
+    return () => window.cancelAnimationFrame(raf);
+  }, [filteredFeedItems, visibleCount, expandedPostText]);
+
+  useEffect(() => {
     setVisibleCount(12);
   }, [feedSearchQuery]);
 
@@ -1964,7 +2065,7 @@ const formatDateLabel = (value?: string | null) => {
       { value: '', label: t(effectiveLang, 'All languages'), emoji: '🌐' },
       ...supportedLanguages
         .filter((l) => l.code !== 'auto')
-        .map((l) => ({ value: l.code, label: t(effectiveLang, l.name), emoji: l.emoji })),
+        .map((l) => ({ value: l.code, label: getNativeLanguageName(l.code, l.name), emoji: l.emoji })),
     ],
     [effectiveLang]
   );
@@ -2032,25 +2133,31 @@ const formatDateLabel = (value?: string | null) => {
             <Search className="h-3.5 w-3.5" />
             Search
           </button>
-          <select
-            id="home-feed-language-filter"
-            value={postFeedLang}
-            onChange={(e) => setPostFeedLang(e.target.value)}
-            className="h-8 min-w-[8.5rem] shrink-0 cursor-pointer appearance-none rounded-lg border border-gray-200 bg-[length:12px] bg-[right_0.35rem_center] bg-no-repeat py-1 pl-2 pr-6 text-xs font-medium text-gray-800 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-rose-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
-            }}
-            title={
-              postFeedLang ? t(effectiveLang, 'Posts in this language first') : t(effectiveLang, 'All languages')
-            }
-            aria-label={t(effectiveLang, 'All languages')}
-          >
-            {homeFeedLangSelectOptions.map((opt) => (
-              <option key={opt.value || 'all'} value={opt.value}>
-                {opt.emoji ? `${opt.emoji} ${opt.label}` : opt.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative h-9 min-w-[11rem] shrink-0 rounded-lg border border-slate-300 bg-white">
+            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500">🌐</span>
+            <select
+              id="home-feed-language-filter"
+              value={postFeedLang}
+              onChange={(e) => setPostFeedLang(e.target.value)}
+              className="h-full w-full cursor-pointer appearance-none rounded-lg border-0 bg-transparent py-1.5 pl-7 pr-8 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/25 dark:text-gray-200"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 0.55rem center',
+                backgroundSize: '0.8rem',
+              }}
+              title={
+                postFeedLang ? t(effectiveLang, 'Posts in this language first') : t(effectiveLang, 'All languages')
+              }
+              aria-label={t(effectiveLang, 'All languages')}
+            >
+              {homeFeedLangSelectOptions.map((opt) => (
+                <option key={opt.value || 'all'} value={opt.value}>
+                  {opt.emoji ? `${opt.emoji} ${opt.label}` : opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
           {feedSearchOpen && (
           <div id="home-feed-search" className="w-full pt-1">
             <label className="relative block">
@@ -2073,7 +2180,7 @@ const formatDateLabel = (value?: string | null) => {
 
         <div className="bg-slate-100 dark:bg-slate-100">
           <div
-            className={`overflow-hidden px-0 transition-[max-height,opacity,transform] duration-300 ease-out ${
+            className={`overflow-hidden px-2 transition-[max-height,opacity,transform] duration-300 ease-out sm:px-3 ${
               composerExpanded ? 'pointer-events-none' : 'pointer-events-auto'
             }`}
             style={{
@@ -2090,7 +2197,7 @@ const formatDateLabel = (value?: string | null) => {
                   if (!requireLogin()) return;
                   setComposerExpanded(true);
                 }}
-                className="group relative flex w-full min-h-[2.75rem] items-center gap-2.5 rounded-none bg-transparent py-2.5 pl-3.5 pr-3.5 text-left transition-colors duration-200 hover:bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200"
+                className="group relative flex w-full min-h-[3rem] items-center gap-2.5 rounded-2xl border border-slate-200 bg-white/95 py-2.5 pl-3.5 pr-3.5 text-left shadow-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200"
                 aria-label={t(effectiveLang, 'Ask — write a post')}
               >
                 <span className="shrink-0 select-none">
@@ -2100,8 +2207,8 @@ const formatDateLabel = (value?: string | null) => {
                     className="h-8 w-8 rounded-md"
                   />
                 </span>
-                <div className="pointer-events-none min-w-0 flex-1 rounded-xl bg-white px-3 py-2">
-                  <span className="block truncate text-sm text-slate-500">{t(effectiveLang, 'Ask the community...')}</span>
+                <div className="pointer-events-none min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <span className="block truncate text-sm font-medium text-slate-600">{t(effectiveLang, 'Ask the community...')}</span>
                 </div>
               </button>
             </div>
@@ -2120,7 +2227,7 @@ const formatDateLabel = (value?: string | null) => {
             aria-labelledby="home-compose-post-title"
             aria-hidden={!composerExpanded}
           >
-            <div className="flex items-center justify-between gap-2 bg-transparent px-3 py-1.5">
+            <div className="mx-2 mt-1 flex items-center justify-between gap-2 rounded-t-2xl border border-slate-200 border-b-0 bg-white px-3 py-2 shadow-sm sm:mx-3">
               <span
                 id="home-compose-post-title"
                 className="text-sm font-bold tracking-wide text-slate-700"
@@ -2136,7 +2243,7 @@ const formatDateLabel = (value?: string | null) => {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="max-h-[min(85dvh,880px)] overflow-y-auto overscroll-contain bg-white px-1 pb-2 sm:px-2 sm:pb-2 dark:bg-white">
+            <div className="mx-2 max-h-[min(85dvh,880px)] overflow-y-auto overscroll-contain rounded-b-2xl border border-slate-200 border-t-0 bg-white px-1 pb-2 shadow-sm sm:mx-3 sm:px-2 sm:pb-2 dark:bg-white">
               <Suspense
                 fallback={
                   <div className="flex justify-center py-12 text-sm text-slate-500 dark:text-gray-400">
@@ -2212,7 +2319,7 @@ const formatDateLabel = (value?: string | null) => {
             const comments = commentsByPost[item.post.id] || [];
             const postText = String(item.post.body || item.post.title || '');
             const isExpanded = expandedPostText.has(item.post.id);
-            const shouldShowExpand = postText.length > 180;
+            const shouldShowExpand = expandablePostText.has(item.post.id);
             return (
               <Fragment key={`post-${item.post.id}-${index}`}>
                 {index > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
@@ -2243,7 +2350,12 @@ const formatDateLabel = (value?: string | null) => {
                   <span className="flex-shrink-0">{dateLabel}</span>
                 </div>
                 <Link href={`/community/post/${item.post.id}`} data-no-translate>
-                  <p className={`mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600 dark:text-gray-300 ${isExpanded ? '' : 'line-clamp-4'}`}>
+                  <p
+                    ref={(node) => {
+                      postTextRefs.current[item.post.id] = node;
+                    }}
+                    className={`mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800 dark:text-gray-100 ${isExpanded ? '' : 'line-clamp-3'}`}
+                  >
                     {postText}
                   </p>
                 </Link>
@@ -2256,13 +2368,6 @@ const formatDateLabel = (value?: string | null) => {
                     {isExpanded ? 'See less' : 'See more'}
                   </button>
                 ) : null}
-                <PostTranslateToggle
-                  text={postText}
-                  postId={item.post.id}
-                  sourceLang={item.post.language || null}
-                  targetLang={effectiveLang}
-                  className="mt-2"
-                />
                 {item.post.video ? (
                   <div className="mt-3 w-[calc(100%+2.5rem)] max-w-none -mx-5">
                     <FeedVideoPlayer src={item.post.video} square />
@@ -2280,7 +2385,7 @@ const formatDateLabel = (value?: string | null) => {
                 ) : null}
                 <PostActionsBar
                   liked={liked}
-                  likesCount={item.post.likes_post || 0}
+                  likesCount={coerceLikeCount(item.post.likes_post)}
                   commentCount={commentCount}
                   canLike={!!currentUser.id}
                   onLike={() => handleLikePost(item.post.id)}
@@ -2289,30 +2394,6 @@ const formatDateLabel = (value?: string | null) => {
                   postId={item.post.id}
                   postTitle={item.post.title}
                 />
-                <div className="mt-2 flex items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-2">
-                  <input
-                    value={commentInputs[item.post.id] || ''}
-                    onChange={(e) =>
-                      setCommentInputs((prev) => ({ ...prev, [item.post.id]: e.target.value }))
-                    }
-                    onFocus={() => {
-                      if (!currentUser.id) requireLogin();
-                    }}
-                    placeholder={currentUser.id ? t(effectiveLang, 'Write a comment...') : t(effectiveLang, 'Log in to write a comment')}
-                    disabled={!currentUser.id}
-                    className="flex-1 rounded-full border border-sky-300 px-4 py-2 text-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-400 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-sky-300 dark:focus:ring-sky-400/45 dark:placeholder-gray-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => submitComment(item.post.id)}
-                    disabled={!currentUser.id || !commentInputs[item.post.id]?.trim()}
-                    aria-label={t(effectiveLang, 'Post comment')}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-sky-200 disabled:text-sky-100/90 dark:bg-sky-600 dark:hover:bg-sky-500 dark:disabled:bg-slate-600 dark:disabled:text-slate-400"
-                  >
-                    <SendHorizontal className="h-4 w-4" strokeWidth={2.25} aria-hidden />
-                  </button>
-                </div>
-
                 {currentUser.id && item.post.user_id === currentUser.id && (
                   <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-3 text-sm">
                     <button
@@ -2358,7 +2439,6 @@ const formatDateLabel = (value?: string | null) => {
                               <div data-no-translate>
                                 <p className="text-sm leading-6 text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
                               </div>
-                              <PostTranslateToggle text={String(comment.body ?? comment.text ?? '')} className="mt-1" />
                               <div className="flex items-center gap-2 mt-1">
                                 {currentUser.id && (
                                   <button
@@ -2388,6 +2468,29 @@ const formatDateLabel = (value?: string | null) => {
                         ))}
                       </div>
                     )}
+                    <div className="mt-3 flex items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-3">
+                      <input
+                        value={commentInputs[item.post.id] || ''}
+                        onChange={(e) =>
+                          setCommentInputs((prev) => ({ ...prev, [item.post.id]: e.target.value }))
+                        }
+                        onFocus={() => {
+                          if (!currentUser.id) requireLogin();
+                        }}
+                        placeholder={currentUser.id ? t(effectiveLang, 'Write a comment...') : t(effectiveLang, 'Log in to write a comment')}
+                        disabled={!currentUser.id}
+                        className="flex-1 rounded-full border border-sky-300 px-4 py-2 text-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-400 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-sky-300 dark:focus:ring-sky-400/45 dark:placeholder-gray-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => submitComment(item.post.id)}
+                        disabled={!currentUser.id || !commentInputs[item.post.id]?.trim()}
+                        aria-label={t(effectiveLang, 'Post comment')}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-sky-200 disabled:text-sky-100/90 dark:bg-sky-600 dark:hover:bg-sky-500 dark:disabled:bg-slate-600 dark:disabled:text-slate-400"
+                      >
+                        <SendHorizontal className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+                      </button>
+                    </div>
                   </div>
                 )}
               </article>

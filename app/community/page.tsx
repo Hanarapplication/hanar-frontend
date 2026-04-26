@@ -14,7 +14,6 @@ import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
 import { Avatar } from '@/components/Avatar';
-import PostTranslateToggle from '@/components/PostTranslateToggle';
 import { t } from '@/utils/translations';
 
 const COMMUNITY_SEARCH_FRAME =
@@ -780,13 +779,6 @@ function CommunityFeedPage() {
                   {post.body || post.title}
                 </p>
               </Link>
-              <PostTranslateToggle
-                text={String(post.body || post.title || '')}
-                postId={post.id}
-                sourceLang={post.language || null}
-                targetLang={effectiveLang}
-                className="mt-2"
-              />
 
               {/* Media: video (inline player) or image (thumbnail) */}
               {post.video ? (
@@ -877,7 +869,6 @@ function CommunityFeedPage() {
                           <div data-no-translate>
                             <p className="text-sm text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
                           </div>
-                          <PostTranslateToggle text={String(comment.body ?? comment.text ?? '')} className="mt-1" />
                         </div>
                       ))}
                     </div>

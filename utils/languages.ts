@@ -43,6 +43,57 @@ export const supportedLanguages = [
     { code: 'zh', name: 'Chinese', emoji: '🇨🇳' },
   ];
 
+const nativeLanguageNames: Record<string, string> = {
+  auto: 'Auto (Detect)',
+  am: 'አማርኛ',
+  ar: 'العربية',
+  az: 'Azərbaycanca',
+  bn: 'বাংলা',
+  de: 'Deutsch',
+  el: 'Ελληνικά',
+  en: 'English',
+  es: 'Español',
+  fa: 'فارسی',
+  fr: 'Français',
+  ha: 'Hausa',
+  he: 'עברית',
+  hi: 'हिन्दी',
+  hy: 'Հայերեն',
+  id: 'Bahasa Indonesia',
+  it: 'Italiano',
+  ja: '日本語',
+  ka: 'ქართული',
+  kk: 'Қазақша',
+  ko: '한국어',
+  ku: 'Kurdî',
+  ms: 'Bahasa Melayu',
+  my: 'မြန်မာ',
+  ne: 'नेपाली',
+  pa: 'ਪੰਜਾਬੀ',
+  pl: 'Polski',
+  ps: 'پښتو',
+  pt: 'Português',
+  ro: 'Română',
+  ru: 'Русский',
+  so: 'Soomaali',
+  sw: 'Kiswahili',
+  ta: 'தமிழ்',
+  th: 'ไทย',
+  tr: 'Türkçe',
+  ug: 'ئۇيغۇرچە',
+  uk: 'Українська',
+  ur: 'اردو',
+  uz: 'Oʻzbekcha',
+  vi: 'Tiếng Việt',
+  zh: '中文',
+};
+
+export function getNativeLanguageName(code: string, fallback?: string): string {
+  const key = String(code || '').trim().toLowerCase();
+  if (!key) return fallback || '';
+  return nativeLanguageNames[key] || fallback || key;
+}
+
 /** Spoken languages for profiles/ads: one entry per language, multiple flags when spoken in multiple countries. */
 export type SpokenLanguageOption = { code: string; label: string; flag: string };
 
@@ -60,6 +111,7 @@ export const spokenLanguagesWithDialects: SpokenLanguageOption[] = [
   { code: 'id', label: 'Indonesian', flag: '🇮🇩 …' },
   { code: 'de', label: 'German', flag: '🇩🇪 🇦🇹 🇨🇭 …' },
   { code: 'ja', label: 'Japanese', flag: '🇯🇵 …' },
+  { code: 'kk', label: 'Kazakh', flag: '🇰🇿 …' },
   { code: 'tr', label: 'Turkish', flag: '🇹🇷 …' },
   { code: 'ta', label: 'Tamil', flag: '🇮🇳 🇱🇰 …' },
   { code: 'ko', label: 'Korean', flag: '🇰🇷 …' },
@@ -78,7 +130,6 @@ export const spokenLanguagesWithDialects: SpokenLanguageOption[] = [
   { code: 'he', label: 'Hebrew', flag: '🇮🇱 …' },
   { code: 'hy', label: 'Armenian', flag: '🇦🇲 …' },
   { code: 'ka', label: 'Georgian', flag: '🇬🇪 …' },
-  { code: 'kk', label: 'Kazakh', flag: '🇰🇿 …' },
   { code: 'ku', label: 'Kurdish', flag: '🇹🇯 🇮🇶 …' },
   { code: 'ms', label: 'Malay', flag: '🇲🇾 🇮🇩 🇸🇬 …' },
   { code: 'ne', label: 'Nepali', flag: '🇳🇵 🇮🇳 …' },

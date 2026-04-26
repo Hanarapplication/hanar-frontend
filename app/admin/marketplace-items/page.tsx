@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Search, Pencil, Trash2, PauseCircle, PlayCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { MarketplaceCategorySelects } from '@/components/MarketplaceCategorySelects';
 
 type AdminMarketplaceItem = {
   id: string;
@@ -168,6 +169,10 @@ export default function AdminMarketplaceItemsPage() {
 
   const saveEdit = async () => {
     if (!editingItem || !editForm) return;
+    if (!(editForm.category || '').trim()) {
+      setError('Select a category and subcategory before saving.');
+      return;
+    }
     setSavingEdit(true);
     setError(null);
     try {
@@ -379,12 +384,17 @@ export default function AdminMarketplaceItemsPage() {
                 placeholder="Price"
                 className="rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               />
-              <input
-                value={editForm.category || ''}
-                onChange={(e) => setEditForm((prev) => (prev ? { ...prev, category: e.target.value } : prev))}
-                placeholder="Category"
-                className="rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              />
+              <div className="md:col-span-2">
+                <MarketplaceCategorySelects
+                  value={editForm.category || ''}
+                  onChange={(category) =>
+                    setEditForm((prev) => (prev ? { ...prev, category } : prev))
+                  }
+                  labelId={`admin-marketplace-edit-${editingItem.id}`}
+                  labelClassName="block text-xs font-medium text-slate-600"
+                  selectClassName="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                />
+              </div>
               <input
                 value={editForm.condition || ''}
                 onChange={(e) => setEditForm((prev) => (prev ? { ...prev, condition: e.target.value } : prev))}

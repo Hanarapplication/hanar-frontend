@@ -1425,7 +1425,10 @@ const BusinessProfilePage = () => {
                                     }}
                                 />
                             ) : null}
-                            <h1 className="min-w-0 flex-1 truncate text-left text-[13px] font-semibold tracking-tight text-white sm:text-sm">
+                            <h1
+                                className="min-w-0 flex-1 truncate text-left text-[13px] font-semibold tracking-tight text-white sm:text-sm"
+                                data-no-translate
+                            >
                                 {business.business_name}
                             </h1>
                         </div>
@@ -1566,7 +1569,7 @@ const BusinessProfilePage = () => {
                                     }}
                                 />
                             ) : null}
-                            <span className="min-w-0 truncate text-sm font-semibold text-white sm:text-base">{business.business_name}</span>
+                            <span className="min-w-0 truncate text-sm font-semibold text-white sm:text-base" data-no-translate>{business.business_name}</span>
                         </div>
                         <div className="flex shrink-0 items-center gap-2.5 sm:gap-3">
                             {!communityPostsLoading && communityPosts.length > 0 && (
@@ -1716,7 +1719,7 @@ const BusinessProfilePage = () => {
                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                             />
                         ) : null}
-                        <span className="min-w-0 truncate text-sm sm:text-base font-semibold text-white">
+                        <span className="min-w-0 truncate text-sm sm:text-base font-semibold text-white" data-no-translate>
                             {business.business_name}
                         </span>
                     </div>
@@ -2547,7 +2550,10 @@ const BusinessProfilePage = () => {
                                     </div>
                                 )}
                                 <div className="min-w-0 flex-1 text-center sm:text-left">
-                                    <h1 className={cn(restaurantHeading.className, 'text-3xl text-[#1A472A] sm:text-4xl')}>
+                                    <h1
+                                        className={cn(restaurantHeading.className, 'text-3xl text-[#1A472A] sm:text-4xl')}
+                                        data-no-translate
+                                    >
                                         {business.business_name}
                                     </h1>
                                     {displayCategory ? (
@@ -2938,7 +2944,7 @@ const BusinessProfilePage = () => {
                                 </ul>
                             </div>
                         </div>
-                        <p className="mx-auto mt-8 max-w-5xl border-t border-[#1A472A]/10 pt-6 text-center text-xs text-stone-500">
+                        <p className="mx-auto mt-8 max-w-5xl border-t border-[#1A472A]/10 pt-6 text-center text-xs text-stone-500" data-no-translate>
                             © {new Date().getFullYear()} {business.business_name} · Listed on Hanar
                         </p>
                     </footer>
@@ -3395,7 +3401,7 @@ const BusinessProfilePage = () => {
 
                     <footer className="mt-2 bg-black py-6 text-center">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white">Made with love</p>
-                        <p className="mt-2 text-[10px] text-neutral-500">
+                        <p className="mt-2 text-[10px] text-neutral-500" data-no-translate>
                             © {new Date().getFullYear()} {business.business_name} · Listed on Hanar
                         </p>
                     </footer>
@@ -3801,7 +3807,7 @@ const BusinessProfilePage = () => {
                         </div>
                     )}
 
-                    <footer className="mt-6 border-t border-zinc-200 bg-zinc-50 py-6 text-center text-xs text-zinc-500">
+                    <footer className="mt-6 border-t border-zinc-200 bg-zinc-50 py-6 text-center text-xs text-zinc-500" data-no-translate>
                         © {new Date().getFullYear()} {business.business_name} · Hanar
                     </footer>
                 </motion.div>
@@ -3912,7 +3918,12 @@ const BusinessProfilePage = () => {
                                 </div>
                             )}
                             <div className="min-w-0 flex-1 text-left">
-                                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">{business.business_name}</h1>
+                                <h1
+                                    className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100"
+                                    data-no-translate
+                                >
+                                    {business.business_name}
+                                </h1>
                                 {displayCategory ? (
                                   <p className="text-sm font-normal text-gray-500 dark:text-gray-400 italic">{displayCategory}</p>
                                 ) : null}

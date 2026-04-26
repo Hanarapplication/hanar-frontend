@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 import { ArrowLeft, ImagePlus, Home, Users, Globe, ExternalLink, Check, Target, MapPin, X } from 'lucide-react';
 import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
 
@@ -54,6 +56,7 @@ const DURATION_OPTIONS = [
 function PromotePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { effectiveLang } = useLanguage();
   const forOrg = searchParams?.get('for') === 'organization';
   const [business, setBusiness] = useState<{ id: string; business_name: string; slug: string } | null>(null);
   const [organization, setOrganization] = useState<{ id: string; full_name: string; username: string | null } | null>(null);
@@ -193,11 +196,11 @@ function PromotePageContent() {
     const entity = forOrg ? organization : business;
     if (!entity) return;
     if (targetCities.length === 0) {
-      toast.error('Please add at least one city to continue');
+      toast.error(t(effectiveLang, 'Please add at least one city to continue'));
       return;
     }
     if (linkType === 'external' && !linkValue.trim()) {
-      toast.error('Enter your website or external link');
+      toast.error(t(effectiveLang, 'Enter your website or external link'));
       return;
     }
     setSubmitting(true);
@@ -259,7 +262,7 @@ function PromotePageContent() {
         data = { error: res.statusText || 'Request failed' };
       }
       if (!res.ok) throw new Error(data?.error || res.statusText || 'Submit failed');
-      toast.success("Redirecting to payment… We'll review and may adjust the banner if needed.");
+      toast.success(t(effectiveLang, "Redirecting to payment... We'll review and may adjust the banner if needed."));
       const requestId = data.request?.id;
       const checkoutRes = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
@@ -271,14 +274,14 @@ function PromotePageContent() {
         ),
       });
       const checkoutData = await checkoutRes.json().catch(() => ({}));
-      if (!checkoutRes.ok) throw new Error(checkoutData?.error || 'Checkout failed');
+      if (!checkoutRes.ok) throw new Error(checkoutData?.error || t(effectiveLang, 'Checkout failed'));
       if (checkoutData?.url) {
         window.location.href = checkoutData.url;
         return;
       }
-      throw new Error('No checkout URL returned');
+      throw new Error(t(effectiveLang, 'No checkout URL returned'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Submit failed');
+      toast.error(err instanceof Error ? err.message : t(effectiveLang, 'Submit failed'));
     } finally {
       setSubmitting(false);
     }
@@ -288,13 +291,13 @@ function PromotePageContent() {
   if (loading || !entity) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <p className="text-slate-500">Loading...</p>
+        <p className="text-slate-500">{t(effectiveLang, 'Loading...')}</p>
       </div>
     );
   }
 
   const backHref = forOrg ? '/organization/dashboard' : '/business-dashboard';
-  const title = forOrg ? 'Promote your organization' : 'Promote your business';
+  const title = forOrg ? t(effectiveLang, 'Promote your organization') : t(effectiveLang, 'Promote your business');
   const slug = forOrg ? (organization?.username ?? '') : (business?.slug ?? '');
 
   return (
@@ -302,11 +305,11 @@ function PromotePageContent() {
       <div className="max-w-2xl mx-auto">
         <Link href={backHref} className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6">
           <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
+          {t(effectiveLang, 'Back to Dashboard')}
         </Link>
 
         <h1 className="text-2xl font-bold text-slate-900 mb-1">{title}</h1>
-        <p className="text-slate-600 mb-8">Choose where your banner appears, upload creative, and select a plan.</p>
+        <p className="text-slate-600 mb-8">{t(effectiveLang, 'Choose where your banner appears, upload creative, and select a plan.')}</p>
 
         {/* Step indicator */}
         <div className="flex gap-2 mb-8">
@@ -319,15 +322,15 @@ function PromotePageContent() {
                 step === s ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
               }`}
             >
-              {s === 1 ? 'Placement' : s === 2 ? 'Creative' : 'Pricing'}
+              {s === 1 ? t(effectiveLang, 'Placement') : s === 2 ? t(effectiveLang, 'Creative') : t(effectiveLang, 'Pricing')}
             </button>
           ))}
         </div>
 
         {step === 1 && (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900 mb-2">Where should your banner show?</h2>
-            <p className="text-sm text-slate-500 mb-4">Select one placement option.</p>
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">{t(effectiveLang, 'Where should your banner show?')}</h2>
+            <p className="text-sm text-slate-500 mb-4">{t(effectiveLang, 'Select one placement option.')}</p>
             <div className="space-y-3">
               {PLACEMENTS.map((p) => (
                 <label
@@ -339,8 +342,8 @@ function PromotePageContent() {
                   <input type="radio" name="placement" value={p.value} checked={placement === p.value} onChange={() => setPlacement(p.value)} className="sr-only" />
                   <span className="text-amber-600">{p.icon}</span>
                   <div>
-                    <p className="font-medium text-slate-900">{p.label}</p>
-                    <p className="text-sm text-slate-500">{p.desc}</p>
+                    <p className="font-medium text-slate-900">{t(effectiveLang, p.label)}</p>
+                    <p className="text-sm text-slate-500">{t(effectiveLang, p.desc)}</p>
                   </div>
                   {placement === p.value && <Check className="h-5 w-5 text-amber-600 ml-auto" />}
                 </label>
@@ -348,17 +351,17 @@ function PromotePageContent() {
             </div>
 
             <button type="button" onClick={() => setStep(2)} className="mt-6 w-full rounded-xl bg-amber-600 py-3 font-semibold text-white hover:bg-amber-500">
-              Next: Creative
+              {t(effectiveLang, 'Next: Creative')}
             </button>
           </div>
         )}
 
         {step === 2 && (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
-            <h2 className="text-lg font-semibold text-slate-900">Banner & link</h2>
+            <h2 className="text-lg font-semibold text-slate-900">{t(effectiveLang, 'Banner & link')}</h2>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Banner image (1200×630 recommended)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t(effectiveLang, 'Banner image (1200×630 recommended)')}</label>
               <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center">
                 <input
                   type="file"
@@ -370,13 +373,13 @@ function PromotePageContent() {
                 <label htmlFor="promo-file" className="cursor-pointer">
                   {file ? (
                     <div>
-                      <img src={URL.createObjectURL(file)} alt="Preview" className="mx-auto max-h-32 rounded-lg object-contain" />
+                      <img src={URL.createObjectURL(file)} alt={t(effectiveLang, 'Preview')} className="mx-auto max-h-32 rounded-lg object-contain" />
                       <p className="mt-2 text-sm text-slate-600">{file.name}</p>
                     </div>
                   ) : (
                     <div className="text-slate-500">
                       <ImagePlus className="mx-auto h-10 w-10" />
-                      <p className="mt-2 text-sm">Upload banner or we can fix it for you</p>
+                      <p className="mt-2 text-sm">{t(effectiveLang, 'Upload banner or we can fix it for you')}</p>
                     </div>
                   )}
                 </label>
@@ -384,49 +387,49 @@ function PromotePageContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Where should the banner link to?</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">{t(effectiveLang, 'Where should the banner link to?')}</label>
               <div className="flex gap-4 mb-3">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" name="linkType" checked={linkType === (forOrg ? 'organization_page' : 'business_page')} onChange={() => setLinkType(forOrg ? 'organization_page' : 'business_page')} />
-                  <span className="text-slate-700">{forOrg ? 'My organization page' : 'My business page'}</span>
+                  <span className="text-slate-700">{forOrg ? t(effectiveLang, 'My organization page') : t(effectiveLang, 'My business page')}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" name="linkType" checked={linkType === 'external'} onChange={() => setLinkType('external')} />
-                  <span className="text-slate-700">External website</span>
+                  <span className="text-slate-700">{t(effectiveLang, 'External website')}</span>
                 </label>
               </div>
               {(linkType === 'business_page' || linkType === 'organization_page') && (
-                <p className="text-sm text-slate-500">Links to: {forOrg ? `/organization/${slug}` : `/business/${slug}`}</p>
+                <p className="text-sm text-slate-500">{t(effectiveLang, 'Links to:')} {forOrg ? `/organization/${slug}` : `/business/${slug}`}</p>
               )}
               {linkType === 'external' && (
                 <input
                   type="url"
                   value={linkValue}
                   onChange={(e) => setLinkValue(e.target.value)}
-                  placeholder="https://yourwebsite.com"
+                  placeholder={t(effectiveLang, 'https://yourwebsite.com')}
                   className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900"
                 />
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Description / slogan / what to show</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t(effectiveLang, 'Description / slogan / what to show')}</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="e.g. slogan, website, special offer..."
+                placeholder={t(effectiveLang, 'e.g. slogan, website, special offer...')}
                 rows={3}
                 className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 placeholder:text-slate-400"
               />
-              <p className="text-xs text-slate-500 mt-1">We may adjust the banner design based on this.</p>
+              <p className="text-xs text-slate-500 mt-1">{t(effectiveLang, 'We may adjust the banner design based on this.')}</p>
             </div>
 
             <div className="flex gap-3">
               <button type="button" onClick={() => setStep(1)} className="rounded-xl border border-slate-300 px-4 py-2.5 font-medium text-slate-700 hover:bg-slate-50">
-                Back
+                {t(effectiveLang, 'Back')}
               </button>
               <button type="button" onClick={() => setStep(3)} className="flex-1 rounded-xl bg-amber-600 py-3 font-semibold text-white hover:bg-amber-500">
-                Next: Pricing
+                {t(effectiveLang, 'Next: Pricing')}
               </button>
             </div>
           </div>
@@ -434,20 +437,20 @@ function PromotePageContent() {
 
         {step === 3 && (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
-            <h2 className="text-lg font-semibold text-slate-900">Plan & targeting</h2>
-            <p className="text-sm text-slate-500">Pick a package. Targeting (who sees it) is set by package—BASIC is everyone; TARGETED and PREMIUM let you choose.</p>
+            <h2 className="text-lg font-semibold text-slate-900">{t(effectiveLang, 'Plan & targeting')}</h2>
+            <p className="text-sm text-slate-500">{t(effectiveLang, 'Pick a package. Targeting (who sees it) is set by package—BASIC is everyone; TARGETED and PREMIUM let you choose.')}</p>
 
             <div className="space-y-4">
-              {(['basic', 'targeted', 'premium'] as Tier[]).map((t) => (
-                <div key={t} className={`rounded-xl border-2 p-4 ${tier === t ? 'border-amber-500 bg-amber-50/30' : 'border-slate-200'}`}>
+              {(['basic', 'targeted', 'premium'] as Tier[]).map((tierOption) => (
+                <div key={tierOption} className={`rounded-xl border-2 p-4 ${tier === tierOption ? 'border-amber-500 bg-amber-50/30' : 'border-slate-200'}`}>
                   <label className="flex items-start gap-3 cursor-pointer">
-                    <input type="radio" name="tier" value={t} checked={tier === t} onChange={() => setTier(t)} className="mt-1" />
+                    <input type="radio" name="tier" value={tierOption} checked={tier === tierOption} onChange={() => setTier(tierOption)} className="mt-1" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-900">{TIER_LABELS[t]}</p>
+                      <p className="font-semibold text-slate-900">{t(effectiveLang, TIER_LABELS[tierOption])}</p>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {t === 'basic' && 'Everyone in chosen areas · Up to 3 cities (20 mi radius), no demographic targeting'}
-                        {t === 'targeted' && 'Target by language and location (up to 10 cities, 20 mi radius)'}
-                        {t === 'premium' && 'Target by gender, age, language, and location (unlimited cities, 20 mi radius)'}
+                        {tierOption === 'basic' && t(effectiveLang, 'Everyone in chosen areas · Up to 3 cities (20 mi radius), no demographic targeting')}
+                        {tierOption === 'targeted' && t(effectiveLang, 'Target by language and location (up to 10 cities, 20 mi radius)')}
+                        {tierOption === 'premium' && t(effectiveLang, 'Target by gender, age, language, and location (unlimited cities, 20 mi radius)')}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {DURATION_OPTIONS.map((d) => (
@@ -459,7 +462,7 @@ function PromotePageContent() {
                               durationDays === d.days ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                             }`}
                           >
-                            {d.label}: ${((pricing[t]?.find((p) => p.duration_days === d.days)?.price_cents ?? 0) / 100).toFixed(0)}
+                            {t(effectiveLang, d.label)}: ${((pricing[tierOption]?.find((p) => p.duration_days === d.days)?.price_cents ?? 0) / 100).toFixed(0)}
                           </button>
                         ))}
                       </div>
@@ -472,7 +475,7 @@ function PromotePageContent() {
             {tier === 'basic' && (
               <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
                 <p className="text-sm text-slate-700">
-                  Show to everyone in these areas (optional). Up to {MAX_CITIES_BASIC} cities, 20 mi radius each. No demographic targeting on BASIC.
+                  {t(effectiveLang, `Show to everyone in these areas (optional). Up to ${MAX_CITIES_BASIC} cities, 20 mi radius each. No demographic targeting on BASIC.`)}
                 </p>
                 <div className="relative" ref={citySearchWrapRef}>
                   <input
@@ -480,15 +483,15 @@ function PromotePageContent() {
                     value={citySearchQuery}
                     onChange={(e) => setCitySearchQuery(e.target.value)}
                     onFocus={() => citySearchQuery.trim().length >= 2 && setCitySearchOpen(true)}
-                    placeholder="Search city..."
+                    placeholder={t(effectiveLang, 'Search city...')}
                     className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400"
                   />
                   {citySearchOpen && (citySearchQuery.trim().length >= 2 || citySearchResults.length > 0) && (
                     <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-48 overflow-y-auto">
                       {citySearchLoading ? (
-                        <p className="px-3 py-2 text-xs text-slate-500">Searching...</p>
+                        <p className="px-3 py-2 text-xs text-slate-500">{t(effectiveLang, 'Searching...')}</p>
                       ) : citySearchResults.length === 0 ? (
-                        <p className="px-3 py-2 text-xs text-slate-500">No cities found.</p>
+                        <p className="px-3 py-2 text-xs text-slate-500">{t(effectiveLang, 'No cities found.')}</p>
                       ) : (
                         citySearchResults.map((city, i) => (
                           <button key={`${city.label}-${i}`} type="button" onClick={() => addTargetCity(city)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100">
@@ -503,11 +506,11 @@ function PromotePageContent() {
                     {targetCities.map((city, i) => (
                       <span key={city.label + i} className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2.5 py-1 text-xs text-slate-800">
                         {city.label} <span className="text-slate-500">(20 mi)</span>
-                        <button type="button" onClick={() => removeTargetCity(i)} className="rounded p-0.5 hover:bg-slate-300" aria-label="Remove"><X className="h-3 w-3" /></button>
+                        <button type="button" onClick={() => removeTargetCity(i)} className="rounded p-0.5 hover:bg-slate-300" aria-label={t(effectiveLang, 'Remove')}><X className="h-3 w-3" /></button>
                       </span>
                     ))}
                   </div>
-                  {targetCities.length >= MAX_CITIES_BASIC && <p className="mt-1 text-xs text-slate-500">Max {MAX_CITIES_BASIC} cities.</p>}
+                  {targetCities.length >= MAX_CITIES_BASIC && <p className="mt-1 text-xs text-slate-500">{t(effectiveLang, `Max ${MAX_CITIES_BASIC} cities.`)}</p>}
                 </div>
               </div>
             )}
@@ -516,43 +519,43 @@ function PromotePageContent() {
               <div className="rounded-xl border border-amber-200 bg-amber-50/30 p-4 space-y-4">
                 <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                   <Target className="h-4 w-4 text-amber-600" />
-                  Who should see this?
+                  {t(effectiveLang, 'Who should see this?')}
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  <span className="text-xs text-slate-600">Audience:</span>
+                  <span className="text-xs text-slate-600">{t(effectiveLang, 'Audience:')}</span>
                   <label className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm cursor-pointer">
                     <input type="radio" name="step3_audience" checked={audienceType === 'universal'} onChange={() => setAudienceType('universal')} className="sr-only" />
-                    <span>Everyone</span>
+                    <span>{t(effectiveLang, 'Everyone')}</span>
                   </label>
                   <label className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm cursor-pointer">
                     <input type="radio" name="step3_audience" checked={audienceType === 'targeted'} onChange={() => setAudienceType('targeted')} className="sr-only" />
-                    <span>Targeted</span>
+                    <span>{t(effectiveLang, 'Targeted')}</span>
                   </label>
                 </div>
                 <>
                     {tier === 'premium' && (
                       <>
                         <div>
-                          <p className="text-xs font-medium text-slate-700 mb-1.5">Gender</p>
+                          <p className="text-xs font-medium text-slate-700 mb-1.5">{t(effectiveLang, 'Gender')}</p>
                           <div className="flex flex-wrap gap-1.5">
                             {GENDER_OPTIONS.map((opt) => (
                               <label key={opt.value} className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs cursor-pointer ${genderOption === opt.value ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white'}`}>
                                 <input type="radio" name="step3_gender" value={opt.value} checked={genderOption === opt.value} onChange={() => setGenderOption(opt.value)} className="sr-only" />
-                                <span>{opt.label}</span>
+                                <span>{t(effectiveLang, opt.label)}</span>
                               </label>
                             ))}
                           </div>
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-slate-700 mb-1.5">Age groups</p>
+                          <p className="text-xs font-medium text-slate-700 mb-1.5">{t(effectiveLang, 'Age groups')}</p>
                           <div className="flex flex-wrap gap-1.5 mb-2">
                             <label className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs cursor-pointer ${ageScope === 'all' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white'}`}>
                               <input type="radio" name="step3_age_scope" checked={ageScope === 'all'} onChange={() => { setAgeScope('all'); setTargetAgeGroups([]); }} className="sr-only" />
-                              <span>All ages</span>
+                              <span>{t(effectiveLang, 'All ages')}</span>
                             </label>
                             <label className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs cursor-pointer ${ageScope === 'specific' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white'}`}>
                               <input type="radio" name="step3_age_scope" checked={ageScope === 'specific'} onChange={() => setAgeScope('specific')} className="sr-only" />
-                              <span>Select age groups</span>
+                              <span>{t(effectiveLang, 'Select age groups')}</span>
                             </label>
                           </div>
                           {ageScope === 'specific' && (
@@ -569,15 +572,15 @@ function PromotePageContent() {
                       </>
                     )}
                     <div>
-                      <p className="text-xs font-medium text-slate-700 mb-1.5">Languages</p>
+                      <p className="text-xs font-medium text-slate-700 mb-1.5">{t(effectiveLang, 'Languages')}</p>
                       <div className="flex flex-wrap gap-1.5 mb-2">
                         <label className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs cursor-pointer ${languageScope === 'all' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white'}`}>
                           <input type="radio" name="step3_lang_scope" checked={languageScope === 'all'} onChange={() => { setLanguageScope('all'); setTargetLanguages([]); setNewTargetLanguageInput(''); }} className="sr-only" />
-                          <span>All languages</span>
+                          <span>{t(effectiveLang, 'All languages')}</span>
                         </label>
                         <label className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs cursor-pointer ${languageScope === 'specific' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 bg-white'}`}>
                           <input type="radio" name="step3_lang_scope" checked={languageScope === 'specific'} onChange={() => setLanguageScope('specific')} className="sr-only" />
-                          <span>Select languages</span>
+                          <span>{t(effectiveLang, 'Select languages')}</span>
                         </label>
                       </div>
                       {languageScope === 'specific' && (
@@ -591,26 +594,26 @@ function PromotePageContent() {
                               </label>
                             ))}
                           </div>
-                          <input type="text" value={newTargetLanguageInput} onChange={(e) => setNewTargetLanguageInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const v = newTargetLanguageInput.trim(); if (v && !targetLanguages.includes(v)) { setTargetLanguages((prev) => [...prev, v]); setNewTargetLanguageInput(''); } } }} placeholder="+ language code" className="mt-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs w-32" />
+                          <input type="text" value={newTargetLanguageInput} onChange={(e) => setNewTargetLanguageInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const v = newTargetLanguageInput.trim(); if (v && !targetLanguages.includes(v)) { setTargetLanguages((prev) => [...prev, v]); setNewTargetLanguageInput(''); } } }} placeholder={t(effectiveLang, '+ language code')} className="mt-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs w-32" />
                         </>
                       )}
                     </div>
                     <div className="relative" ref={citySearchWrapRef}>
-                      <p className="text-xs font-medium text-slate-700 mb-1.5">Locations (20 mi radius each{tier === 'premium' ? ', unlimited cities' : `, max ${MAX_CITIES_TARGETED} cities`})</p>
+                      <p className="text-xs font-medium text-slate-700 mb-1.5">{tier === 'premium' ? t(effectiveLang, 'Locations (20 mi radius each, unlimited cities)') : t(effectiveLang, `Locations (20 mi radius each, max ${MAX_CITIES_TARGETED} cities)`)}</p>
                       <input
                         type="text"
                         value={citySearchQuery}
                         onChange={(e) => setCitySearchQuery(e.target.value)}
                         onFocus={() => citySearchQuery.trim().length >= 2 && setCitySearchOpen(true)}
-                        placeholder="Search city..."
+                        placeholder={t(effectiveLang, 'Search city...')}
                         className="w-full rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400"
                       />
                       {citySearchOpen && (citySearchQuery.trim().length >= 2 || citySearchResults.length > 0) && (
                         <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-48 overflow-y-auto">
                           {citySearchLoading ? (
-                            <p className="px-3 py-2 text-xs text-slate-500">Searching...</p>
+                            <p className="px-3 py-2 text-xs text-slate-500">{t(effectiveLang, 'Searching...')}</p>
                           ) : citySearchResults.length === 0 ? (
-                            <p className="px-3 py-2 text-xs text-slate-500">No cities found. Try another search.</p>
+                            <p className="px-3 py-2 text-xs text-slate-500">{t(effectiveLang, 'No cities found. Try another search.')}</p>
                           ) : (
                             citySearchResults.map((city, i) => (
                               <button
@@ -630,24 +633,24 @@ function PromotePageContent() {
                         {targetCities.map((city, i) => (
                           <span key={city.label + i} className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs text-slate-800">
                             {city.label} <span className="text-slate-500">(20 mi)</span>
-                            <button type="button" onClick={() => removeTargetCity(i)} className="rounded p-0.5 hover:bg-amber-200" aria-label="Remove"><X className="h-3 w-3" /></button>
+                            <button type="button" onClick={() => removeTargetCity(i)} className="rounded p-0.5 hover:bg-amber-200" aria-label={t(effectiveLang, 'Remove')}><X className="h-3 w-3" /></button>
                           </span>
                         ))}
                       </div>
-                      {tier !== 'premium' && targetCities.length >= maxCitiesForTier(tier) && <p className="mt-1 text-xs text-slate-500">Max {maxCitiesForTier(tier)} cities added.</p>}
+                      {tier !== 'premium' && targetCities.length >= maxCitiesForTier(tier) && <p className="mt-1 text-xs text-slate-500">{t(effectiveLang, `Max ${maxCitiesForTier(tier)} cities added.`)}</p>}
                     </div>
                 </>
               </div>
             )}
 
             <div className="rounded-xl bg-slate-100 p-4 flex items-center justify-between">
-              <span className="font-medium text-slate-900">Total</span>
+              <span className="font-medium text-slate-900">{t(effectiveLang, 'Total')}</span>
               <span className="text-xl font-bold text-amber-600">{priceDisplay}</span>
             </div>
 
             <div className="flex gap-3">
               <button type="button" onClick={() => setStep(2)} className="rounded-xl border border-slate-300 px-4 py-2.5 font-medium text-slate-700 hover:bg-slate-50">
-                Back
+                {t(effectiveLang, 'Back')}
               </button>
               <button
                 type="button"
@@ -655,7 +658,7 @@ function PromotePageContent() {
                 disabled={submitting || targetCities.length === 0}
                 className="flex-1 rounded-xl bg-amber-600 py-3 font-semibold text-white hover:bg-amber-500 disabled:opacity-50"
               >
-                {submitting ? 'Redirecting to payment...' : targetCities.length === 0 ? 'Add at least one city' : 'Pay & submit'}
+                {submitting ? t(effectiveLang, 'Redirecting to payment...') : targetCities.length === 0 ? t(effectiveLang, 'Add at least one city') : t(effectiveLang, 'Pay & submit')}
               </button>
             </div>
           </div>
@@ -667,7 +670,7 @@ function PromotePageContent() {
 
 export default function PromotePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">{t('en', 'Loading...')}</div>}>
       <PromotePageContent />
     </Suspense>
   );

@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { compressImage } from '@/lib/imageCompression';
 import { ArrowLeft } from 'lucide-react';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
+import { MarketplaceCategorySelects, isVehiclesCategoryString } from '@/components/MarketplaceCategorySelects';
 
 export default function PostItemPage() {
   const router = useRouter();
@@ -46,12 +47,7 @@ export default function PostItemPage() {
     externalBuyUrl: '',
   });
 
-  const isVehicleCategory = [
-    'vehicle', 'car', 'motorcycle', 'bike', 'automobile', 'cars',
-    'boat', 'tractor', 'airplane', 'helicopter', 'yatch', 'av',
-    'truck', 'semi', 'semi truck', '18 wheeler', 'trailer',
-    'atv', 'motor bike', 'off road bike'
-  ].some((keyword) => form.category.toLowerCase().includes(keyword));
+  const isVehicleCategory = isVehiclesCategoryString(form.category);
 
   useEffect(() => {
     const load = async () => {
@@ -147,6 +143,10 @@ export default function PostItemPage() {
     e.preventDefault();
     if (!userId) return toast.error('Please log in first');
     if (limitReached && !isBusiness) return toast.error('Listing limit reached. Delete one from your dashboard or get the Casual Seller Pack to list more.');
+    if (!form.category?.trim()) {
+      toast.error('Please select a category and subcategory');
+      return;
+    }
 
     setSubmitting(true);
     const { imageUrls, locationCity, locationState, locationCountry, locationZip, locationLat, locationLng, externalBuyUrl, ...rest } = form;
@@ -286,10 +286,12 @@ export default function PostItemPage() {
                 inputClassName="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
-              <input name="category" placeholder="e.g. Electronics, Vehicle, Furniture" value={form.category} onChange={handleChange} className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" required />
-            </div>
+            <MarketplaceCategorySelects
+              value={form.category}
+              onChange={(category) => setForm((prev) => ({ ...prev, category }))}
+              labelId="post-item-category"
+              className="space-y-2"
+            />
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Condition</label>
               <select name="condition" value={form.condition} onChange={handleChange} className="w-full border border-slate-300 rounded-xl px-4 py-2.5 text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200">

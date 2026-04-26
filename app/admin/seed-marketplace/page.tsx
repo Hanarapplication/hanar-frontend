@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useEffect } from 'react';
 import toast from 'react-hot-toast';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
+import { MarketplaceCategorySelects } from '@/components/MarketplaceCategorySelects';
 
 const MAX_PHOTOS = 5;
 type LocationGranularity = 'country' | 'state' | 'city' | 'zip' | 'full';
@@ -138,6 +139,10 @@ export default function AdminSeedMarketplacePage() {
         .split('\n')
         .map((line) => line.trim())
         .filter(Boolean);
+      if (!form.category?.trim()) {
+        toast.error('Please select a category and subcategory');
+        return;
+      }
       if (linkPhotos.length + uploadedPhotoUrls.length > MAX_PHOTOS) {
         toast.error(`You can add up to ${MAX_PHOTOS} photos total (uploads + links).`);
         return;
@@ -307,8 +312,13 @@ export default function AdminSeedMarketplacePage() {
             <p className="mt-1 text-xs text-slate-500">Live location suggestions. Pick country/state/city/zip to control visibility.</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
-            <input name="category" value={form.category} onChange={onChange} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <MarketplaceCategorySelects
+              value={form.category}
+              onChange={(category) => setForm((prev) => ({ ...prev, category }))}
+              labelId="admin-seed-category"
+              labelClassName="block text-sm font-medium text-slate-700 mb-1"
+              selectClassName="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
           </div>
         </div>
         <div>

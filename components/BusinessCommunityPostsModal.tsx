@@ -234,7 +234,7 @@ export default function BusinessCommunityPostsModal({
         <div className="flex items-center justify-between border-b border-white/20 bg-gradient-to-r from-blue-700 via-blue-800 to-emerald-600 px-4 py-3 dark:from-blue-950 dark:via-blue-900 dark:to-emerald-700">
           <div>
             <h2 className="text-lg font-semibold text-white">Community updates</h2>
-            <p className="text-xs text-blue-100/90">
+            <p className="text-xs text-blue-100/90" data-no-translate>
               {businessName} · @{businessSlug}
             </p>
           </div>

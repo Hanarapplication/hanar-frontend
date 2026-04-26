@@ -1071,7 +1071,12 @@ function BusinessDashboardContent() {
               </div>
               <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{t(effectiveLang, 'Business Dashboard')}</p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">{business.business_name}</h1>
+              <h1
+                className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl"
+                data-no-translate
+              >
+                {business.business_name}
+              </h1>
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                 <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusColor}`}>
                   {t(

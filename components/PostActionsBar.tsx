@@ -1,5 +1,6 @@
 import ReportButton from '@/components/ReportButton';
 import { cn } from '@/lib/utils';
+import { ThumbsUp } from 'lucide-react';
 
 type Props = {
   liked: boolean;
@@ -36,10 +37,12 @@ export default function PostActionsBar({
         aria-label={liked ? 'Unlike' : 'Like'}
         aria-pressed={liked}
         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition ${
-          liked ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/50 dark:text-rose-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'
-        } ${!canLike || !onLike ? 'cursor-not-allowed opacity-60' : ''}`}
+          liked ? 'bg-blue-200 text-blue-900 dark:bg-blue-900/55 dark:text-blue-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'
+        } ${
+          !canLike || !onLike ? 'cursor-not-allowed opacity-60' : ''
+        }`}
       >
-        <span aria-hidden>👍</span>
+        <ThumbsUp className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
         <span className="tabular-nums font-semibold">{likesCount}</span>
       </button>
       <button
@@ -47,11 +50,11 @@ export default function PostActionsBar({
         onClick={onComment}
         disabled={!onComment}
         aria-label="Comments"
-        className={`inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 ${
+        className={`inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500 ${
           !onComment ? 'cursor-not-allowed opacity-60' : ''
         }`}
       >
-        <span aria-hidden>💬</span>
+        <span aria-hidden className="text-sm">💬</span>
         <span className="tabular-nums font-semibold">{commentCount}</span>
       </button>
       <button

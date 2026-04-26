@@ -8,6 +8,8 @@ import { supabase } from '@/lib/supabaseClient';
 import { CheckCircle, X } from 'lucide-react';
 import { isAppIOS } from '@/utils/isAppIOS';
 import { openExternalBrowser } from '@/utils/openExternalBrowser';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 
 type Plan = 'free' | 'starter' | 'growth' | 'premium';
 
@@ -45,6 +47,7 @@ const WEB_ACCOUNT_EXTERNAL_URL = 'https://hanar.net/dashboard/account?external=1
 function BusinessPlanContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { effectiveLang } = useLanguage();
   const appIOS = isAppIOS(searchParams);
 
   const DASHBOARD_ROUTE = '/business-dashboard'; // ✅ your real dashboard route
@@ -69,11 +72,11 @@ function BusinessPlanContent() {
 
   useEffect(() => {
     if (searchParams?.get('success') === '1') {
-      toast.success('Payment successful! Your plan is now active.');
+      toast.success(t(effectiveLang, 'Payment successful! Your plan is now active.'));
       router.replace(DASHBOARD_ROUTE);
       return;
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, effectiveLang]);
 
   useEffect(() => {
     let isMounted = true;
@@ -109,7 +112,7 @@ function BusinessPlanContent() {
         if (error) throw error;
 
         if (!data?.id) {
-          toast.error('No business linked to your account.');
+          toast.error(t(effectiveLang, 'No business linked to your account.'));
           router.replace(DASHBOARD_ROUTE);
           return;
         }
@@ -128,7 +131,7 @@ function BusinessPlanContent() {
           });
         }
       } catch (err: any) {
-        toast.error(err?.message || 'Failed to load plan page');
+        toast.error(err?.message || t(effectiveLang, 'Failed to load plan page'));
         router.replace(DASHBOARD_ROUTE);
       } finally {
         if (isMounted) setLoading(false);
@@ -144,16 +147,16 @@ function BusinessPlanContent() {
         redirectTimerRef.current = null;
       }
     };
-  }, [router]);
+  }, [router, effectiveLang]);
 
   const showDowngradeToast = () => {
-    toast('Downgrading will remove features. Contact us to downgrade.');
+    toast(t(effectiveLang, 'Downgrading will remove features. Contact us to downgrade.'));
   };
 
   const choosePlan = async (plan: Plan) => {
     if (appIOS) return;
     if (!biz?.id) {
-      toast.error('Business not loaded yet. Refresh and try again.');
+      toast.error(t(effectiveLang, 'Business not loaded yet. Refresh and try again.'));
       return;
     }
     if (biz.plan && PLAN_ORDER.indexOf(plan) < PLAN_ORDER.indexOf(biz.plan)) {
@@ -176,11 +179,11 @@ function BusinessPlanContent() {
           .update({ plan: 'free', plan_selected_at: nowIso })
           .eq('id', biz.id);
         if (confirmError) throw confirmError;
-        toast.success('Plan applied: FREE');
+        toast.success(t(effectiveLang, 'Plan applied: FREE'));
         setBiz((prev) => (prev ? { ...prev, plan: 'free', plan_selected_at: nowIso } : prev));
         redirectTimerRef.current = window.setTimeout(() => router.replace(DASHBOARD_ROUTE), 700);
       } catch (err: any) {
-        toast.error(err?.message || 'Failed to apply plan');
+        toast.error(err?.message || t(effectiveLang, 'Failed to apply plan'));
       } finally {
         setSaving(null);
       }
@@ -198,14 +201,14 @@ function BusinessPlanContent() {
         body: JSON.stringify({ type: 'business_plan', plan, businessId: biz.id }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Checkout failed');
+      if (!res.ok) throw new Error(data?.error || t(effectiveLang, 'Checkout failed'));
       if (data?.url) {
         window.location.href = data.url;
       } else {
-        throw new Error('No checkout URL returned');
+        throw new Error(t(effectiveLang, 'No checkout URL returned'));
       }
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to start checkout');
+      toast.error(err?.message || t(effectiveLang, 'Failed to start checkout'));
       setSaving(null);
     }
   };
@@ -213,7 +216,7 @@ function BusinessPlanContent() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-lg font-medium text-gray-600 animate-pulse">Loading plans...</div>
+        <div className="text-lg font-medium text-gray-600 animate-pulse">{t(effectiveLang, 'Loading plans...')}</div>
       </div>
     );
   }
@@ -231,27 +234,27 @@ function BusinessPlanContent() {
       <div className="max-w-7xl mx-auto">
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200/50 overflow-hidden">
           <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-indigo-800 px-4 py-6 sm:px-6 sm:py-8 lg:py-10 text-white">
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-center">Choose or Upgrade Your Plan</h1>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-center">{t(effectiveLang, 'Choose or Upgrade Your Plan')}</h1>
 
             <p className="mt-2 sm:mt-3 text-sm sm:text-base text-indigo-100 text-center max-w-2xl mx-auto px-2">
               {!hasSelected
-                ? 'Please confirm a plan to continue. (Free is available.)'
+                ? t(effectiveLang, 'Please confirm a plan to continue. (Free is available.)')
                 : isOnPremiumTrial
-                ? `You are on Premium Free Trial — ${daysRemaining} days remaining. Subscribe to keep your business on Premium.`
+                ? `${t(effectiveLang, 'You are on Premium Free Trial')} — ${daysRemaining} ${t(effectiveLang, 'days remaining')}. ${t(effectiveLang, 'Subscribe to keep your business on Premium.')}`
                 : currentPlan === 'free'
-                ? 'You are on Free. Upgrade anytime for more features.'
-                : `You are on ${String(currentPlan).toUpperCase()}. You can upgrade anytime.`}
+                ? t(effectiveLang, 'You are on Free. Upgrade anytime for more features.')
+                : `${t(effectiveLang, 'You are on')} ${String(currentPlan).toUpperCase()}. ${t(effectiveLang, 'You can upgrade anytime.')}`}
             </p>
             {isOnPremiumTrial && (
               <p className="mt-3 text-sm font-medium text-amber-200 text-center max-w-2xl mx-auto px-2">
                 {appIOS
-                  ? 'Manage your plan in your account.'
-                  : 'Want to keep your business on Premium and unlock all features? Subscribe now to continue.'}
+                  ? t(effectiveLang, 'Manage your plan in your account.')
+                  : t(effectiveLang, 'Want to keep your business on Premium and unlock all features? Subscribe now to continue.')}
               </p>
             )}
             {(!hasSelected || currentPlan === 'free' || currentPlan === 'starter' || currentPlan === 'growth') && !isOnPremiumTrial && (
               <p className="mt-3 text-sm font-medium text-amber-200 text-center max-w-2xl mx-auto px-2">
-                Upgrade to Premium for a 3-month free trial!
+                {t(effectiveLang, 'Upgrade to Premium for a 3-month free trial!')}
               </p>
             )}
           </div>
@@ -266,15 +269,15 @@ function BusinessPlanContent() {
                   type="button"
                   onClick={() => {
                     openExternalBrowser(WEB_ACCOUNT_EXTERNAL_URL);
-                    toast.success('Opening browser…');
+                    toast.success(t(effectiveLang, 'Opening browser...'));
                   }}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
                 >
-                  Open in browser
+                  {t(effectiveLang, 'Open in browser')}
                 </button>
               </div>
             ) : plans.length === 0 ? (
-              <div className="text-center py-10 text-gray-600">Loading plans...</div>
+              <div className="text-center py-10 text-gray-600">{t(effectiveLang, 'Loading plans...')}</div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
                 {plans.map((planData) => {
@@ -294,17 +297,18 @@ function BusinessPlanContent() {
                       title={planData.plan.charAt(0).toUpperCase() + planData.plan.slice(1)}
                       price={
                         showPremiumTrial
-                          ? `3 months free trial, then $${planData.price_yearly}/year`
+                          ? `${t(effectiveLang, '3 months free trial, then')} $${planData.price_yearly}/${t(effectiveLang, 'year')}`
                           : isOnPremiumTrial
-                          ? `${daysRemaining} days left in trial`
-                          : `$${planData.price_yearly} / year`
+                          ? `${daysRemaining} ${t(effectiveLang, 'days left in trial')}`
+                          : `$${planData.price_yearly} / ${t(effectiveLang, 'year')}`
                       }
                       trialNote={
                         showPremiumTrial
-                          ? 'No automatic renewal after 3 months. You\'ll receive email and text reminders before your trial ends so you can renew to keep your business.'
+                          ? t(effectiveLang, "No automatic renewal after 3 months. You'll receive email and text reminders before your trial ends so you can renew to keep your business.")
                           : undefined
                       }
                       planData={planData}
+                      effectiveLang={effectiveLang}
                       isPopular={isPopular}
                       isCurrent={isCurrentPlan}
                       isDowngrade={isDowngrade}
@@ -323,25 +327,25 @@ function BusinessPlanContent() {
                 onClick={() => router.replace(DASHBOARD_ROUTE)}
                 className="px-6 sm:px-8 py-2.5 sm:py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition-colors duration-200 text-sm sm:text-base"
               >
-                Back to Dashboard
+                {t(effectiveLang, 'Back to Dashboard')}
               </button>
             </div>
 
             <div className="mt-4 sm:mt-6 text-center text-xs sm:text-sm text-gray-600">
-              <span className="font-semibold">Current:</span>{' '}
+              <span className="font-semibold">{t(effectiveLang, 'Current:')}</span>{' '}
               {hasSelected
                 ? isOnPremiumTrial
-                  ? 'PREMIUM FREE TRIAL'
+                  ? t(effectiveLang, 'PREMIUM FREE TRIAL')
                   : currentPlan
                   ? currentPlan.toUpperCase()
-                  : 'UNKNOWN'
-                : 'NOT CONFIRMED'}
+                  : t(effectiveLang, 'UNKNOWN')
+                : t(effectiveLang, 'NOT CONFIRMED')}
             </div>
           </div>
         </div>
 
         <p className="mt-4 sm:mt-6 text-center text-xs sm:text-sm text-gray-500 px-4">
-          You can upgrade your plan anytime from this page. Downgrades require contacting support.
+          {t(effectiveLang, 'You can upgrade your plan anytime from this page. Downgrades require contacting support.')}
         </p>
       </div>
     </div>
@@ -350,7 +354,7 @@ function BusinessPlanContent() {
 
 export default function BusinessPlanPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">{t('en', 'Loading...')}</div>}>
       <BusinessPlanContent />
     </Suspense>
   );
@@ -361,6 +365,7 @@ function PlanCard({
   price,
   trialNote,
   planData,
+  effectiveLang,
   isPopular = false,
   isCurrent = false,
   isDowngrade = false,
@@ -373,6 +378,7 @@ function PlanCard({
   price: string;
   trialNote?: string;
   planData: BusinessPlan;
+  effectiveLang: string;
   isPopular?: boolean;
   isCurrent?: boolean;
   isDowngrade?: boolean;
@@ -382,14 +388,14 @@ function PlanCard({
   onClick: () => void | Promise<void>;
 }) {
   // Car and real estate: free 0, starter 5, growth 10, premium 999 (same as DB)
-  const carListingsValue = planData.max_car_listings >= 9999 ? 'Unlimited' : (planData.plan.toLowerCase() === 'starter' && planData.max_car_listings < 5 ? 5 : planData.max_car_listings);
+  const carListingsValue = planData.max_car_listings >= 9999 ? t(effectiveLang, 'Unlimited') : (planData.plan.toLowerCase() === 'starter' && planData.max_car_listings < 5 ? 5 : planData.max_car_listings);
   const maxRealEstate = planData.max_real_estate_listings ?? planData.max_car_listings;
-  const realEstateListingsValue = maxRealEstate >= 9999 ? 'Unlimited' : (planData.plan.toLowerCase() === 'starter' && maxRealEstate < 5 ? 5 : maxRealEstate);
+  const realEstateListingsValue = maxRealEstate >= 9999 ? t(effectiveLang, 'Unlimited') : (planData.plan.toLowerCase() === 'starter' && maxRealEstate < 5 ? 5 : maxRealEstate);
 
   const features = [
-    { label: 'Gallery Images', value: planData.max_gallery_images === 9999 ? 'Unlimited' : planData.max_gallery_images },
-    { label: 'Menu Items', value: planData.max_menu_items === 9999 ? 'Unlimited' : planData.max_menu_items },
-    { label: 'Retail Items', value: planData.max_retail_items === 9999 ? 'Unlimited' : planData.max_retail_items },
+    { label: 'Gallery Images', value: planData.max_gallery_images === 9999 ? t(effectiveLang, 'Unlimited') : planData.max_gallery_images },
+    { label: 'Menu Items', value: planData.max_menu_items === 9999 ? t(effectiveLang, 'Unlimited') : planData.max_menu_items },
+    { label: 'Retail Items', value: planData.max_retail_items === 9999 ? t(effectiveLang, 'Unlimited') : planData.max_retail_items },
     { label: 'Dealership Listings', value: carListingsValue },
     { label: 'Real Estate Listings', value: realEstateListingsValue },
     {
@@ -414,7 +420,7 @@ function PlanCard({
     },
     {
       label: 'Area Blast Approval',
-      value: planData.area_blast_requires_admin_approval ? 'Required' : 'Not Required',
+      value: planData.area_blast_requires_admin_approval ? t(effectiveLang, 'Required') : t(effectiveLang, 'Not Required'),
     },
   ];
 
@@ -448,22 +454,22 @@ function PlanCard({
     >
       {isPopular && !isFreeTrial && (
         <div className="absolute -top-2.5 sm:-top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-[10px] sm:text-xs font-bold px-3 sm:px-4 py-0.5 sm:py-1 rounded-full shadow-lg z-10">
-          Most Popular
+          {t(effectiveLang, 'Most Popular')}
         </div>
       )}
       {isFreeTrial && (
         <div className="absolute -top-2.5 sm:-top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] sm:text-xs font-bold px-3 sm:px-4 py-0.5 sm:py-1 rounded-full shadow-lg z-10">
-          Free Trial
+          {t(effectiveLang, 'Free Trial')}
         </div>
       )}
       {isCurrent && (
         <div className="absolute -top-2.5 sm:-top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-[10px] sm:text-xs font-bold px-3 sm:px-4 py-0.5 sm:py-1 rounded-full shadow-lg z-10">
-          Current Plan
+          {t(effectiveLang, 'Current Plan')}
         </div>
       )}
 
       <div className="flex-1">
-        <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mt-1 sm:mt-2">{title}</h3>
+        <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mt-1 sm:mt-2">{t(effectiveLang, title)}</h3>
         <div className="mt-1 sm:mt-2 text-2xl sm:text-3xl lg:text-4xl font-extrabold bg-gradient-to-r from-indigo-600 to-indigo-800 bg-clip-text text-transparent">
           {price}
         </div>
@@ -476,12 +482,12 @@ function PlanCard({
         <div className="mt-4 sm:mt-5 lg:mt-6 space-y-3 sm:space-y-4 flex-grow">
           {/* Limits */}
           <div>
-            <h4 className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2 uppercase tracking-wide">Limits</h4>
+            <h4 className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2 uppercase tracking-wide">{t(effectiveLang, 'Limits')}</h4>
             <ul className="space-y-1.5 sm:space-y-2">
               {features.map((feature, idx) => (
                 <li key={idx} className="flex items-start text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                   <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500 mr-1.5 sm:mr-2 mt-0.5 flex-shrink-0" />
-                  <span className="leading-tight"><strong className="font-semibold">{feature.label}:</strong> <span className="text-gray-600">{feature.value}</span></span>
+                  <span className="leading-tight"><strong className="font-semibold">{t(effectiveLang, feature.label)}:</strong> <span className="text-gray-600">{feature.value}</span></span>
                 </li>
               ))}
             </ul>
@@ -489,19 +495,19 @@ function PlanCard({
 
           {/* Features */}
           <div>
-            <h4 className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2 uppercase tracking-wide">Features</h4>
+            <h4 className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 sm:mb-2 uppercase tracking-wide">{t(effectiveLang, 'Features')}</h4>
             <ul className="space-y-1.5 sm:space-y-2">
               {featureFlags.map((flag, idx) => (
                 <li key={idx} className="flex items-start text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                   {flag.enabled ? (
                     <>
                       <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-500 mr-1.5 sm:mr-2 mt-0.5 flex-shrink-0" />
-                      <span className="leading-tight">{flag.label}</span>
+                      <span className="leading-tight">{t(effectiveLang, flag.label)}</span>
                     </>
                   ) : (
                     <>
                       <X className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-300 mr-1.5 sm:mr-2 mt-0.5 flex-shrink-0" />
-                      <span className="text-gray-400 line-through leading-tight">{flag.label}</span>
+                      <span className="text-gray-400 line-through leading-tight">{t(effectiveLang, flag.label)}</span>
                     </>
                   )}
                 </li>
@@ -528,14 +534,14 @@ function PlanCard({
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            Applying...
+            {t(effectiveLang, 'Applying...')}
           </span>
         ) : isCurrent ? (
-          'Current Plan'
+          t(effectiveLang, 'Current Plan')
         ) : isDowngrade ? (
-          'Downgrade (contact us)'
+          t(effectiveLang, 'Downgrade (contact us)')
         ) : (
-          'Select This Plan'
+          t(effectiveLang, 'Select This Plan')
         )}
       </button>
     </div>

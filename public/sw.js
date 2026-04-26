@@ -2,7 +2,7 @@
  * Minimal PWA service worker for installability.
  * Caches app shell for offline support.
  */
-const CACHE_NAME = 'hanar-v1';
+const CACHE_NAME = 'hanar-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -15,6 +15,12 @@ self.addEventListener('activate', (event) => {
     )
   );
   self.clients.claim();
+});
+
+self.addEventListener('message', (event) => {
+  if (event?.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', (event) => {

@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { X, Menu, ArrowLeft, ChevronRight, Languages } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { supportedLanguages } from '@/utils/languages';
+import { getNativeLanguageName, supportedLanguages } from '@/utils/languages';
 import { t } from '@/utils/translations';
 
 export type MenuItem = {
@@ -181,29 +181,32 @@ export function DashboardBurgerMenu({ open, onOpen, onClose, items }: DashboardB
                 </li>
               );
             })}
-            <li className="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+            <li className="mt-8 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50 p-3.5 shadow-sm dark:border-slate-700 dark:from-slate-900 dark:to-slate-800">
               <label className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                 <Languages className="h-3.5 w-3.5 text-slate-700 dark:text-slate-200" aria-hidden />
                 {t(effectiveLang, 'Language')}
               </label>
-              <select
-                value={lang}
-                onChange={(e) => setLang(e.target.value)}
-                className="mt-2 w-full cursor-pointer appearance-none rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-9 text-xs font-medium text-slate-800 shadow-sm transition focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/35 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                style={{
-                  backgroundImage:
-                    'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2364748b\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")',
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'right 0.65rem center',
-                  backgroundSize: '0.75rem',
-                }}
-              >
-                {supportedLanguages.map(({ code, name, emoji }) => (
-                  <option key={code} value={code}>
-                    {emoji} {t(effectiveLang, name)}
-                  </option>
-                ))}
-              </select>
+              <div className="relative mt-2.5">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">🌐</span>
+                <select
+                  value={lang}
+                  onChange={(e) => setLang(e.target.value)}
+                  className="w-full cursor-pointer appearance-none rounded-lg border border-slate-300 bg-white py-2.5 pl-8 pr-10 text-sm font-medium text-slate-800 shadow-sm transition focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                  style={{
+                    backgroundImage:
+                      'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2364748b\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 0.8rem center',
+                    backgroundSize: '0.85rem',
+                  }}
+                >
+                  {supportedLanguages.map(({ code, name, emoji }) => (
+                    <option key={code} value={code}>
+                      {emoji} {getNativeLanguageName(code, name)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </li>
             <li aria-hidden className="h-16 shrink-0" />
           </ul>

@@ -1,7 +1,7 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 
 import { FaHeart, FaRegHeart, FaMapMarkerAlt } from 'react-icons/fa';
@@ -27,6 +27,8 @@ import {
 } from '@/lib/marketplaceLocationFilter';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
+import { CATEGORY_SEPARATOR, parseMarketplaceCategoryForForm } from '@/lib/marketplaceCategories';
+import { getMarketplaceCategoryIcon } from '@/lib/marketplaceCategoryIcons';
 
 type MarketplaceItem = {
   id: string;
@@ -119,10 +121,49 @@ const getPriceValue = (value: string | number) => {
 const normalizeMarketplaceCategory = (value: unknown, fallback = 'General') => {
   const raw = String(value ?? '').trim();
   if (!raw) return fallback;
-  const key = raw.toLowerCase();
+  const key = raw.toLowerCase().replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
   if (key === 'dealership' || key === 'dealerships' || key === 'car dealership') return 'Cars';
   if (key === 'real_estate') return 'Real Estate';
+  // Canonical vehicle bucket for marketplace (matches car / cars / vehicle search & category chips)
+  if (
+    key === 'car' ||
+    key === 'cars' ||
+    key === 'vehicle' ||
+    key === 'vehicles' ||
+    key === 'auto' ||
+    key === 'automotive' ||
+    key === 'truck' ||
+    key === 'trucks' ||
+    key === 'suv' ||
+    key === 'van' ||
+    key === 'pickup' ||
+    key === 'sedan' ||
+    key === 'motorcycle' ||
+    key === 'moto' ||
+    key === 'atv' ||
+    key === 'dealer' ||
+    key === 'dealer lot'
+  ) {
+    return 'Cars';
+  }
   return raw;
+};
+
+/** All rows from the dealership (car lot) table belong in the vehicle category for filters/chips. */
+const dealershipMarketplaceCategory = 'Cars' as const;
+
+/** How many category chips to show in "Categories for you" before "See more" opens the rest in a modal. */
+const MARKETPLACE_INLINE_CATEGORY_CHIPS = 5;
+
+/** Group structured `Parent — Sub` listings by top-level label for category chips; keep legacy normalization otherwise. */
+const categoryChipKey = (value: unknown, fallback = 'General') => {
+  const raw = String(value ?? '').trim();
+  if (!raw) return fallback;
+  if (raw.includes(CATEGORY_SEPARATOR)) {
+    const p = parseMarketplaceCategoryForForm(raw).parent;
+    if (p) return p;
+  }
+  return normalizeMarketplaceCategory(value, fallback);
 };
 
 const shuffleInChunks = <T,>(items: T[], chunkSize = 6) => {
@@ -136,6 +177,16 @@ const shuffleInChunks = <T,>(items: T[], chunkSize = 6) => {
     result.push(...chunk);
   }
   return result;
+};
+
+/** Random order for category chips; new order whenever marketplace `items` list changes. */
+const shuffleArray = <T,>(arr: T[]): T[] => {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 };
 
 const planRank: Record<string, number> = {
@@ -538,7 +589,8 @@ export default function MarketplacePage() {
     title: row.title || row.name || row.vehicle_name || row.model || t(effectiveLang, 'Dealership listing'),
     price: row.price ?? row.amount ?? row.cost ?? '',
     location: row.location || row.city || row.address || '',
-    category: normalizeMarketplaceCategory(row.category || row.type, 'Cars'),
+    // All dealership (car lot) rows count under Cars for category chips, filters, and car/vehicle search
+    category: dealershipMarketplaceCategory,
     condition: row.condition || row.item_condition || '',
     description: row.description || row.details || row.notes || null,
     imageUrls: normalizeImages(row.images ?? row.image_url ?? row.image_urls ?? row.photos, 'car-listings'),
@@ -939,6 +991,25 @@ export default function MarketplacePage() {
   });
   filteredItems = withRelevance.map(({ item }) => item);
 
+  const itemCategorySignature = filteredItems
+    .map((i) => categoryChipKey(i.category, 'General'))
+    .sort()
+    .join('\u0001');
+
+  const allCategories = useMemo(() => {
+    const keySet = new Set<string>();
+    for (const item of filteredItems) {
+      const key = categoryChipKey(item.category, 'General');
+      if (key) keySet.add(key);
+    }
+    const arr = Array.from(keySet);
+    if (arr.length === 0) return [];
+    return shuffleArray(arr);
+  }, [itemCategorySignature]);
+
+  const topCategories = allCategories.slice(0, MARKETPLACE_INLINE_CATEGORY_CHIPS);
+  const extraCategories = allCategories.slice(MARKETPLACE_INLINE_CATEGORY_CHIPS);
+
   const trendingItems = filteredItems.slice(0, 8);
   const dealsItems = filteredItems
     .filter((item) => {
@@ -956,33 +1027,6 @@ export default function MarketplacePage() {
   const onlineSectionItems = onlineAffiliateItems.length > 0
     ? onlineAffiliateItems
     : onlineAffiliateFallbackItems;
-
-  const categoryCounts = items.reduce((acc, item) => {
-    const key = normalizeMarketplaceCategory(item.category, 'General');
-    if (!key) return acc;
-    acc.set(key, (acc.get(key) || 0) + 1);
-    return acc;
-  }, new Map<string, number>());
-  const allCategories = Array.from(categoryCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .map(([name]) => name);
-  const topCategories = allCategories.slice(0, 11);
-
-  const categoryEmoji: Record<string, string> = {
-    electronics: '💻',
-    phones: '📱',
-    fashion: '👕',
-    clothes: '👕',
-    shoes: '👟',
-    cars: '🚗',
-    dealership: '🚘',
-    furniture: '🛋️',
-    realestate: '🏡',
-    'real estate': '🏡',
-    beauty: '💄',
-    groceries: '🛒',
-    tools: '🧰',
-  };
 
   const handlePullRefresh = useCallback(async () => {
     try { sessionStorage.removeItem(MARKETPLACE_CACHE_KEY); } catch {}
@@ -1082,19 +1126,24 @@ export default function MarketplacePage() {
       {/* Search and location bar (Hanar nav gradient — matches home Ask strip) */}
       <div className="sticky top-0 z-10 -mx-3 mb-0 border-b border-slate-200 bg-slate-100 px-3 pb-3 pt-2 shadow-sm dark:border-slate-200 dark:bg-slate-100">
         <div className="mx-auto max-w-3xl">
-          <button
-            type="button"
-            onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
-            className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
-          >
-            <FaMapMarkerAlt className="h-3.5 w-3.5 text-slate-600" />
-            <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose marketplace location')}</span>
-            {locationLabel && locationScope.mode === 'country' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'Country')}</span>}
-            {locationLabel && locationScope.mode === 'state' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'State')}</span>}
-            {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && userCoords && (
-              <span className="text-[10px] text-slate-500">{radius} mi</span>
-            )}
-          </button>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              <FaMapMarkerAlt className="h-3.5 w-3.5 text-slate-600" />
+              <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose marketplace location')}</span>
+              {locationLabel && locationScope.mode === 'country' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'Country')}</span>}
+              {locationLabel && locationScope.mode === 'state' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'State')}</span>}
+              {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && userCoords && (
+                <span className="text-[10px] text-slate-500">{radius} mi</span>
+              )}
+            </button>
+            <div className="pointer-events-none rounded-md border border-pink-300 bg-gradient-to-r from-pink-500 to-fuchsia-500 px-3 py-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-white shadow-md">
+              Marketplace ✨
+            </div>
+          </div>
 
           <div className="flex overflow-hidden rounded-md border border-white/35 bg-slate-100 shadow-inner shadow-black/10 dark:bg-slate-100">
               <div className="hidden items-center border-r border-slate-200/90 bg-slate-50/95 px-3 text-[11px] font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200">
@@ -1105,7 +1154,7 @@ export default function MarketplacePage() {
               onClick={() => {
                 if (searchTerm.trim()) void addToRecentSearches(searchTerm);
               }}
-              className="inline-flex items-center justify-center border-r border-slate-200/90 bg-gradient-to-r from-blue-600 to-emerald-600 px-4 text-white transition hover:from-blue-500 hover:to-emerald-500 dark:border-slate-600 dark:from-blue-600 dark:to-emerald-600 dark:hover:from-blue-500 dark:hover:to-emerald-500"
+              className="inline-flex items-center justify-center border-r border-slate-200/90 bg-gradient-to-r from-pink-500 to-fuchsia-500 px-4 text-white transition hover:from-pink-400 hover:to-fuchsia-400 dark:border-slate-600 dark:from-pink-500 dark:to-fuchsia-500 dark:hover:from-pink-400 dark:hover:to-fuchsia-400"
               aria-label={t(effectiveLang, 'Search marketplace')}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -1231,7 +1280,9 @@ export default function MarketplacePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-2.5 flex items-center justify-between">
-              <h3 className="text-[15px] font-bold text-[#0f1111]">{t(effectiveLang, 'All categories')}</h3>
+              <h3 className="text-[15px] font-bold text-[#0f1111]">
+                {t(effectiveLang, 'More categories')}
+              </h3>
               <button
                 type="button"
                 onClick={() => setCategoriesModalOpen(false)}
@@ -1253,9 +1304,8 @@ export default function MarketplacePage() {
                   <span aria-hidden>🌐</span>
                   <span>{t(effectiveLang, 'All categories')}</span>
                 </button>
-                {allCategories.map((category) => {
-                  const emojiKey = category.toLowerCase();
-                  const emoji = categoryEmoji[emojiKey] || '📦';
+                {extraCategories.map((category) => {
+                  const emoji = getMarketplaceCategoryIcon(category);
                   return (
                     <button
                       key={`all-cat-${category}`}
@@ -1264,7 +1314,7 @@ export default function MarketplacePage() {
                       className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#f0f2f2] px-3 py-1 text-[11px] font-semibold text-[#0f1111] transition hover:border-[#c7caca] hover:bg-[#e7e9ec]"
                     >
                       <span aria-hidden>{emoji}</span>
-                      <span>{category}</span>
+                      <span>{t(effectiveLang, category)}</span>
                     </button>
                   );
                 })}
@@ -1277,31 +1327,11 @@ export default function MarketplacePage() {
 
       {items.length > 0 && (
         <>
-          <section className="mb-3 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, 'Continue shopping deals')}</h2>
-              <button
-                type="button"
-                onClick={() => setSort('priceLow')}
-                className="text-[11px] font-medium text-[#007185] hover:text-[#c7511f]"
-              >
-                {t(effectiveLang, 'See deal picks')}
-              </button>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {(dealShowcaseItems.length > 0 ? dealShowcaseItems : filteredItems.slice(3, 9))
-                .slice(0, 4)
-                .map((item) => (
-                  <ItemCard key={`continue-deal-${item.source}-${item.id}`} item={item} />
-                ))}
-            </div>
-          </section>
-
           {topCategories.length > 0 && (
             <section className="mb-3 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, 'Categories for you')}</h2>
-                {allCategories.length > 11 ? (
+                {extraCategories.length > 0 ? (
                   <button
                     type="button"
                     onClick={() => setCategoriesModalOpen(true)}
@@ -1323,8 +1353,7 @@ export default function MarketplacePage() {
                   <span>{t(effectiveLang, 'All categories')}</span>
                 </button>
                 {topCategories.map((category) => {
-                  const emojiKey = category.toLowerCase();
-                  const emoji = categoryEmoji[emojiKey] || '📦';
+                  const emoji = getMarketplaceCategoryIcon(category);
                   return (
                     <button
                       key={category}
@@ -1333,13 +1362,33 @@ export default function MarketplacePage() {
                       className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#f0f2f2] px-3 py-1 text-[11px] font-semibold text-[#0f1111] transition hover:border-[#c7caca] hover:bg-[#e7e9ec]"
                     >
                       <span aria-hidden>{emoji}</span>
-                      <span>{category}</span>
+                      <span>{t(effectiveLang, category)}</span>
                     </button>
                   );
                 })}
               </div>
             </section>
           )}
+
+          <section className="mb-3 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, 'Continue shopping deals')}</h2>
+              <button
+                type="button"
+                onClick={() => setSort('priceLow')}
+                className="text-[11px] font-medium text-[#007185] hover:text-[#c7511f]"
+              >
+                {t(effectiveLang, 'See deal picks')}
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {(dealShowcaseItems.length > 0 ? dealShowcaseItems : filteredItems.slice(3, 9))
+                .slice(0, 4)
+                .map((item) => (
+                  <ItemCard key={`continue-deal-${item.source}-${item.id}`} item={item} />
+                ))}
+            </div>
+          </section>
 
           {dealShowcaseItems.length > 0 && (
             <section className="mb-3 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">

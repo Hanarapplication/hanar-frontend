@@ -14,7 +14,6 @@ import { useLanguage } from '@/context/LanguageContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-import PostTranslateToggle from '@/components/PostTranslateToggle';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -209,12 +208,6 @@ onClick={async () => {
                     </div>
                   </div>
                 </Link>
-                <PostTranslateToggle
-                  text={String(post.body || post.title || '')}
-                  postId={post.id}
-                  sourceLang={post.language || null}
-                  className="mt-2"
-                />
               </div>
             </motion.div>
           ))}

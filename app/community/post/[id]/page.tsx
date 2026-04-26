@@ -11,7 +11,6 @@ import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import { Avatar } from '@/components/Avatar';
 import { useLanguage } from '@/context/LanguageContext';
-import PostTranslateToggle from '@/components/PostTranslateToggle';
 import { t } from '@/utils/translations';
 
 const supabase = createClient(
@@ -462,12 +461,6 @@ export default function CommunityPostPage() {
           <div data-no-translate>
             <p className="mt-2 whitespace-pre-wrap text-slate-700 text-sm">{post.body || post.title}</p>
           </div>
-          <PostTranslateToggle
-            text={String(post.body || post.title || '')}
-            postId={post.id}
-            sourceLang={post.language || null}
-            className="mt-2"
-          />
 
           {post.video && (
             <div className="mt-3">
@@ -583,7 +576,6 @@ export default function CommunityPostPage() {
                   <div data-no-translate>
                     <p className="mt-2 text-sm text-slate-700 dark:text-gray-200">{c.body ?? c.text}</p>
                   </div>
-                  <PostTranslateToggle text={String(c.body ?? c.text ?? '')} className="mt-1" />
                 </div>
               ))}
               </div>
