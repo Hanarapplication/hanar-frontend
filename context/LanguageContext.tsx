@@ -71,6 +71,10 @@ function shouldSkipAutoTranslation(pathname: string): boolean {
   );
 }
 
+function shouldForceEnglish(pathname: string): boolean {
+  return pathname === '/admin' || pathname.startsWith('/admin/');
+}
+
 function resolveEffectiveLang(lang: string): string {
   const normalizeCode = (value: string): string => {
     const raw = (value || '').trim().toLowerCase();
@@ -181,8 +185,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Ignore storage access errors on strict mobile privacy modes.
     }
-    setEffectiveLang(resolveEffectiveLang(lang));
-  }, [lang]);
+    setEffectiveLang(shouldForceEnglish(pathname) ? 'en' : resolveEffectiveLang(lang));
+  }, [lang, pathname]);
 
   useEffect(() => {
     if (typeof document !== 'undefined') document.documentElement.lang = effectiveLang;
