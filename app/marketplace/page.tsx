@@ -9,9 +9,7 @@ import { supabase } from '@/lib/supabaseClient';
 import PullToRefresh from '@/components/PullToRefresh';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 import {
-  readMarketplaceBrowseSignals,
   recordMarketplaceItemView,
-  personalizationScoreForItem,
 } from '@/lib/marketplacePersonalize';
 import {
   getDistanceMiles,
@@ -242,7 +240,9 @@ export default function MarketplacePage() {
   const [locationSearchValue, setLocationSearchValue] = useState('');
   const [tempRadius, setTempRadius] = useState(() => readSavedSearchRadiusMiles(40));
   const [locationScope, setLocationScope] = useState<MarketplaceLocationScope>({ mode: 'none' });
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
   const hasFetchedRef = useRef(false);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
   const [_personalizeBump, setPersonalizeBump] = useState(0);
 
   const addToRecentSearches = async (term: string) => {
@@ -858,117 +858,47 @@ export default function MarketplacePage() {
   const matchesAllGroups = (value: string, groups: string[][]) =>
     groups.length === 0 ? true : groups.every((group) => matchesSearch(value, group));
 
-  let filteredItems = items.filter((item) => {
-    const title = (item.title || '').toLowerCase();
-    const location = (item.location || '').toLowerCase();
-    const category = (item.category || '').toLowerCase();
-    const description = (item.description || '').toLowerCase();
-    const searchable = `${title} ${category} ${location} ${description}`.trim();
-    return matchesAllGroups(searchable, expandedTermGroups);
-  });
+  const hasSearchTerm = tokens.length > 0;
+  const hasCategoryFilter = Boolean(selectedCategoryFilter);
+  const shouldFilterByCategoryOrSearch = hasSearchTerm || hasCategoryFilter;
 
-  if (expandedTerms.length > 0) {
-    if (wantsDealership && !wantsRetail) {
-      const dealershipItems = filteredItems.filter((item) => item.source === 'dealership');
-      if (dealershipItems.length > 0) filteredItems = dealershipItems;
-    } else if (wantsRetail && !wantsDealership) {
-      const retailItems = filteredItems.filter((item) => item.source === 'retail');
-      if (retailItems.length > 0) filteredItems = retailItems;
+  let filteredItems = [...items];
+  if (shouldFilterByCategoryOrSearch) {
+    filteredItems = items.filter((item) => {
+      if (selectedCategoryFilter && categoryChipKey(item.category, 'General') !== selectedCategoryFilter) {
+        return false;
+      }
+      if (!hasSearchTerm) return true;
+      const title = (item.title || '').toLowerCase();
+      const location = (item.location || '').toLowerCase();
+      const category = (item.category || '').toLowerCase();
+      const description = (item.description || '').toLowerCase();
+      const searchable = `${title} ${category} ${location} ${description}`.trim();
+      return matchesAllGroups(searchable, expandedTermGroups);
+    });
+
+    // Preserve broad intent shortcuts only when search terms are active.
+    if (hasSearchTerm && expandedTerms.length > 0) {
+      if (wantsDealership && !wantsRetail) {
+        const dealershipItems = filteredItems.filter((item) => item.source === 'dealership');
+        if (dealershipItems.length > 0) filteredItems = dealershipItems;
+      } else if (wantsRetail && !wantsDealership) {
+        const retailItems = filteredItems.filter((item) => item.source === 'retail');
+        if (retailItems.length > 0) filteredItems = retailItems;
+      }
     }
   }
 
-  if (minPrice) {
-    const min = parseFloat(minPrice);
-    filteredItems = filteredItems.filter((i) => {
-      const value = getPriceValue(i.price);
-      return value !== null && value >= min;
-    });
-  }
-  if (maxPrice) {
-    const max = parseFloat(maxPrice);
-    filteredItems = filteredItems.filter((i) => {
-      const value = getPriceValue(i.price);
-      return value !== null && value <= max;
-    });
-  }
-  const itemLocFields = (i: MarketplaceItem) => ({
-    location: i.location || '',
-    location_country: i.location_country,
-    location_state: i.location_state,
-    location_city: i.location_city,
-  });
-
-  if (locationScope.mode === 'country') {
-    filteredItems = filteredItems.filter((i) =>
-      itemMatchesCountryFilter(itemLocFields(i), locationScope.country)
-    );
-  } else if (locationScope.mode === 'state') {
-    filteredItems = filteredItems.filter((i) =>
-      itemMatchesStateFilter(itemLocFields(i), locationScope.state, locationScope.country)
-    );
-  } else if (userCoords && (locationScope.mode === 'city_radius' || locationScope.mode === 'none')) {
-    const cityForFallback =
-      locationScope.mode === 'city_radius' ? (locationScope.city || '').trim().toLowerCase() : '';
-    const escapedCity = cityForFallback.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    filteredItems = filteredItems.filter((i) => {
-      if (i.lat != null && i.lon != null) {
-        return getDistanceMiles(userCoords.lat, userCoords.lon, i.lat, i.lon) <= radius;
-      }
-      if (cityForFallback && escapedCity) {
-        const loc = (i.location || '').toLowerCase();
-        return new RegExp(`\\b${escapedCity}\\b`, 'i').test(loc);
-      }
-      return false;
-    });
-  }
-
-  // Relevance: current search + recent searches + listings you've opened (local)
-  const browsedSignals = readMarketplaceBrowseSignals();
-  const currentSearchWords = tokens.map(normalizeToken).filter((w) => w.length >= 2);
-  const recentSearchWords = Array.from(
-    new Set(
-      recentSearches.flatMap((s) =>
-        s
-          .toLowerCase()
-          .split(/\s+/)
-          .map((w) => w.trim())
-          .filter((w) => w.length >= 2)
-      )
-    )
-  );
-  const allRelevanceWords = Array.from(new Set([...currentSearchWords, ...recentSearchWords]));
-
-  const getRelevanceScore = (item: MarketplaceItem) => {
-    const text = `${item.title || ''} ${item.category || ''} ${item.location || ''} ${item.description || ''}`.toLowerCase();
-    let score = 0;
-    for (const word of allRelevanceWords) {
-      if (text.includes(word)) score += currentSearchWords.includes(word) ? 2 : 1;
-    }
-    score += personalizationScoreForItem(
-      {
-        id: item.id,
-        source: item.source,
-        title: item.title || '',
-        category: item.category || '',
-        description: item.description,
-        location: item.location,
-      },
-      browsedSignals
-    );
-    return score;
-  };
-
-  const withRelevance = filteredItems.map((item) => ({ item, score: getRelevanceScore(item) }));
-  withRelevance.sort((a, b) => {
-    if (sort === 'priceLow') return (getPriceValue(a.item.price) || 0) - (getPriceValue(b.item.price) || 0);
-    if (sort === 'priceHigh') return (getPriceValue(b.item.price) || 0) - (getPriceValue(a.item.price) || 0);
-    if (sort === 'newest') return new Date(b.item.created_at || 0).getTime() - new Date(a.item.created_at || 0).getTime();
+  filteredItems.sort((a, b) => {
+    if (sort === 'priceLow') return (getPriceValue(a.price) || 0) - (getPriceValue(b.price) || 0);
+    if (sort === 'priceHigh') return (getPriceValue(b.price) || 0) - (getPriceValue(a.price) || 0);
+    if (sort === 'newest') return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
     if (sort === 'distance' && userCoords) {
-      const aHasCoords = a.item.lat != null && a.item.lon != null;
-      const bHasCoords = b.item.lat != null && b.item.lon != null;
+      const aHasCoords = a.lat != null && a.lon != null;
+      const bHasCoords = b.lat != null && b.lon != null;
       if (aHasCoords && bHasCoords) {
-        const aDist = getDistanceMiles(userCoords.lat, userCoords.lon, a.item.lat as number, a.item.lon as number);
-        const bDist = getDistanceMiles(userCoords.lat, userCoords.lon, b.item.lat as number, b.item.lon as number);
+        const aDist = getDistanceMiles(userCoords.lat, userCoords.lon, a.lat as number, a.lon as number);
+        const bDist = getDistanceMiles(userCoords.lat, userCoords.lon, b.lat as number, b.lon as number);
         return aDist - bDist;
       }
       if (aHasCoords && !bHasCoords) return -1;
@@ -976,20 +906,18 @@ export default function MarketplacePage() {
       return 0;
     }
     if (userCoords) {
-      const aHasCoords = a.item.lat != null && a.item.lon != null;
-      const bHasCoords = b.item.lat != null && b.item.lon != null;
+      const aHasCoords = a.lat != null && a.lon != null;
+      const bHasCoords = b.lat != null && b.lon != null;
       if (aHasCoords && bHasCoords) {
-        const aDist = getDistanceMiles(userCoords.lat, userCoords.lon, a.item.lat as number, a.item.lon as number);
-        const bDist = getDistanceMiles(userCoords.lat, userCoords.lon, b.item.lat as number, b.item.lon as number);
+        const aDist = getDistanceMiles(userCoords.lat, userCoords.lon, a.lat as number, a.lon as number);
+        const bDist = getDistanceMiles(userCoords.lat, userCoords.lon, b.lat as number, b.lon as number);
         return aDist - bDist;
       }
       if (aHasCoords && !bHasCoords) return -1;
       if (!aHasCoords && bHasCoords) return 1;
     }
-    if (b.score !== a.score) return b.score - a.score;
-    return new Date(b.item.created_at || 0).getTime() - new Date(a.item.created_at || 0).getTime();
+    return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
   });
-  filteredItems = withRelevance.map(({ item }) => item);
 
   const itemCategorySignature = filteredItems
     .map((i) => categoryChipKey(i.category, 'General'))
@@ -1010,23 +938,24 @@ export default function MarketplacePage() {
   const topCategories = allCategories.slice(0, MARKETPLACE_INLINE_CATEGORY_CHIPS);
   const extraCategories = allCategories.slice(MARKETPLACE_INLINE_CATEGORY_CHIPS);
 
-  const trendingItems = filteredItems.slice(0, 8);
-  const dealsItems = filteredItems
-    .filter((item) => {
-      const price = getPriceValue(item.price);
-      return price !== null && price <= 250;
-    })
-    .slice(0, 8);
-  const dealShowcaseItems = dealsItems.length > 0 ? dealsItems : filteredItems.slice(0, 8);
-  const onlineAffiliateItems = filteredItems
-    .filter((item) => Boolean(item.external_buy_url))
-    .slice(0, 8);
-  const onlineAffiliateFallbackItems = items
-    .filter((item) => Boolean(item.external_buy_url))
-    .slice(0, 8);
-  const onlineSectionItems = onlineAffiliateItems.length > 0
-    ? onlineAffiliateItems
-    : onlineAffiliateFallbackItems;
+  const displayedItems = filteredItems.slice(0, visibleCount);
+
+  useEffect(() => {
+    const target = bottomRef.current;
+    if (!target) return;
+    if (visibleCount >= filteredItems.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        setVisibleCount((count) => Math.min(count + 12, filteredItems.length));
+      },
+      { rootMargin: '200px 0px', threshold: 0.1 }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [visibleCount, filteredItems.length]);
 
   const handlePullRefresh = useCallback(async () => {
     try { sessionStorage.removeItem(MARKETPLACE_CACHE_KEY); } catch {}
@@ -1035,29 +964,29 @@ export default function MarketplacePage() {
   }, []);
 
   const handleCategoryClick = (category: string) => {
-    setSearchTerm(category);
+    setSelectedCategoryFilter(category);
     setVisibleCount(10);
     setCategoriesModalOpen(false);
   };
 
   const handleAllCategoriesClick = () => {
-    setSearchTerm('');
+    setSelectedCategoryFilter(null);
     setVisibleCount(6);
     setCategoriesModalOpen(false);
   };
 
   const ItemCard = ({ item }: { item: MarketplaceItem }) => (
-    <div className="relative h-full overflow-hidden rounded-lg border border-[#d5d9d9] bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <div className="relative h-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <button
         type="button"
         onClick={() => toggleFavorite(item)}
-        className="absolute right-1.5 top-1.5 z-10 rounded-full border border-[#d5d9d9] bg-white p-1 shadow-sm transition hover:bg-[#f7fafa] active:scale-95"
+        className="absolute right-1.5 top-1.5 z-10 rounded-full bg-white/95 p-1 shadow-sm ring-1 ring-black/10 transition hover:bg-white active:scale-95"
         aria-label={favoriteKeys.has(getFavoriteKey(item)) ? t(effectiveLang, 'Remove from favorites') : t(effectiveLang, 'Add to favorites')}
       >
         {favoriteKeys.has(getFavoriteKey(item)) ? (
-          <FaHeart className="h-3.5 w-3.5 text-[#cc0c39]" />
+          <FaHeart className="h-3 w-3 text-rose-500" />
         ) : (
-          <FaRegHeart className="h-3.5 w-3.5 text-[#565959]" />
+          <FaRegHeart className="h-3 w-3 text-slate-500" />
         )}
       </button>
       <Link
@@ -1070,48 +999,43 @@ export default function MarketplacePage() {
             category: item.category || '',
           });
         }}
-        className="group relative flex h-full flex-col text-xs"
+        className="group relative flex h-full flex-col"
       >
-        <div className="relative aspect-[5/3] overflow-hidden bg-[#f7f8f8] p-1">
+        <div className="relative aspect-square overflow-hidden bg-slate-100">
           <img
             src={getFirstImage(item.imageUrls) || '/placeholder.jpg'}
             alt={item.title}
             loading="lazy"
             decoding="async"
-            className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
           {item.external_buy_url && (
-            <span className="absolute left-1.5 top-1.5 inline-flex items-center rounded-md bg-[#cc0c39] px-1.5 py-[2px] text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
-              {t(effectiveLang, 'Deal')}
+            <span className="absolute left-1.5 top-1.5 max-w-[calc(100%-0.5rem)] inline-flex items-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[9px] font-semibold leading-tight text-white shadow-sm sm:left-2 sm:top-2 sm:max-w-[calc(100%-1rem)] sm:px-2 sm:text-[10px]">
+              {t(effectiveLang, 'Available online')}
             </span>
           )}
         </div>
 
         <div className="flex flex-grow flex-col p-2">
-          <h3 className="line-clamp-2 text-[12px] font-medium leading-snug text-[#0f1111] transition-colors group-hover:text-[#c7511f]">
-            {item.title}
-          </h3>
-          <p className="mt-1 text-[13px] font-bold leading-none text-[#0f1111]">
+          <p className="text-[13px] font-semibold leading-none text-slate-900">
             {getPriceValue(item.price) === null ? item.price : `$${getPriceValue(item.price)}`}
           </p>
-          {item.condition && (
-            <span className="mt-1 inline-flex w-fit items-center rounded-md bg-[#f0f2f2] px-1.5 py-0.5 text-[10px] font-semibold text-[#0f1111]">
-              {item.condition}
-            </span>
-          )}
+          <h3 className="mt-0.5 line-clamp-2 text-[12px] font-medium leading-snug text-slate-800 transition-colors group-hover:text-slate-950">
+            {item.title}
+          </h3>
           {item.location && (
-            <p className="mt-1 line-clamp-1 text-[10px] text-[#565959]">
+            <p className="mt-0.5 line-clamp-1 text-[10px] text-slate-500">
               {getCityStateFromLocation(item.location) || item.location}
             </p>
           )}
-          {item.business_id && (
-            <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-md border border-[#d5d9d9] bg-white px-1.5 py-0.5 text-[9px] font-semibold text-[#007185]">
-              {item.business_verified ? t(effectiveLang, 'Verified seller') : t(effectiveLang, 'Business seller')}
+          {item.condition && (
+            <span className="mt-1 inline-flex w-fit items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-700">
+              {item.condition}
             </span>
           )}
-          {item.external_buy_url && (
-            <span className="mt-1 inline-flex w-fit items-center rounded-md bg-[#ffd814] px-2 py-0.5 text-[10px] font-semibold text-[#0f1111]">
-              {t(effectiveLang, 'Buy online')}
+          {item.business_id && (
+            <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold text-blue-700">
+              {item.business_verified ? t(effectiveLang, 'Verified seller') : t(effectiveLang, 'Business seller')}
             </span>
           )}
         </div>
@@ -1166,7 +1090,10 @@ export default function MarketplacePage() {
                 type="text"
                 placeholder={t(effectiveLang, 'Search Hanar Marketplace')}
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setSelectedCategoryFilter(null);
+                }}
                 onKeyDown={handleSearchKeyDown}
                 onBlur={handleSearchBlur}
                 className="w-full border-0 bg-white py-2.5 pl-3 pr-10 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-500"
@@ -1370,89 +1297,12 @@ export default function MarketplacePage() {
             </section>
           )}
 
-          <section className="mb-3 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, 'Continue shopping deals')}</h2>
-              <button
-                type="button"
-                onClick={() => setSort('priceLow')}
-                className="text-[11px] font-medium text-[#007185] hover:text-[#c7511f]"
-              >
-                {t(effectiveLang, 'See deal picks')}
-              </button>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {(dealShowcaseItems.length > 0 ? dealShowcaseItems : filteredItems.slice(3, 9))
-                .slice(0, 4)
-                .map((item) => (
-                  <ItemCard key={`continue-deal-${item.source}-${item.id}`} item={item} />
-                ))}
-            </div>
-          </section>
-
-          {dealShowcaseItems.length > 0 && (
-            <section className="mb-3 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, 'More items to consider')}</h2>
-                <span className="text-[11px] font-semibold text-[#007185]">{t(effectiveLang, 'See more')}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {dealShowcaseItems.slice(0, 4).map((item) => (
-                  <ItemCard key={`consider-${item.source}-${item.id}`} item={item} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {onlineSectionItems.length > 0 && (
-            <section className="mb-6 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, 'Available online')}</h2>
-                <span className="text-[11px] text-[#565959]">{t(effectiveLang, 'Affiliate links')}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {onlineSectionItems.slice(0, 4).map((item) => (
-                  <ItemCard key={`online-${item.source}-${item.id}`} item={item} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {trendingItems.length > 0 && (
-            <section className="mb-6 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, 'Trending now')}</h2>
-                <span className="text-[11px] text-[#007185]">{t(effectiveLang, 'See more')}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {trendingItems.slice(0, 4).map((item) => (
-                  <ItemCard key={`trend-strip-${item.source}-${item.id}`} item={item} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {dealShowcaseItems.length > 0 && (
-            <section className="mb-6 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, "Today's deals")}</h2>
-                <span className="inline-flex items-center rounded-full bg-[#cc0c39] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                  {t(effectiveLang, 'Limited deal')}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {dealShowcaseItems.slice(0, 4).map((item) => (
-                  <ItemCard key={`deal-${item.source}-${item.id}`} item={item} />
-                ))}
-              </div>
-            </section>
-          )}
         </>
       )}
 
       {/* Items */}
       {items.length === 0 && (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
@@ -1470,33 +1320,27 @@ export default function MarketplacePage() {
           ))}
         </div>
       )}
-      {browsedSignals.length > 0 && !sort && items.length > 0 && (
-        <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
-          {t(effectiveLang, 'Personalized from your recent searches and views')}
-        </p>
-      )}
       {items.length > 0 && (
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t(effectiveLang, 'Recommended Listings')}</h2>
           <span className="text-xs text-slate-500 dark:text-slate-400">{filteredItems.length} {t(effectiveLang, 'results')}</span>
         </div>
       )}
-      <div className="grid grid-cols-3 gap-2">
-        {filteredItems.slice(0, visibleCount).map((item) => (
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        {displayedItems.map((item) => (
           <ItemCard key={`${item.source}-${item.id}`} item={item} />
         ))}
       </div>
 
+      {filteredItems.length > visibleCount && (
+        <div ref={bottomRef} className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+          {t(effectiveLang, 'Loading more listings...')}
+        </div>
+      )}
+
       {/* Empty & Pagination */}
       {items.length > 0 && filteredItems.length === 0 && (
         <p className="text-center text-gray-500 mt-6">{t(effectiveLang, 'No results found. Try changing your search or filters.')}</p>
-      )}
-      {filteredItems.length > visibleCount && (
-        <div className="text-center mt-8">
-          <button type="button" onClick={() => setVisibleCount(visibleCount + 6)} className="bg-rose-500 text-white px-6 py-2 rounded-md hover:bg-rose-600 transition text-sm">
-            {t(effectiveLang, 'Show More')}
-          </button>
-        </div>
       )}
     </div>
     </div>
