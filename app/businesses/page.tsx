@@ -816,6 +816,11 @@ export default function BusinessesPage() {
     await fetchBusinesses();
   }, []);
 
+  const getBusinessHref = (biz: Business) => {
+    const value = String(biz.slug || biz.id || '').trim();
+    return value ? `/business/${encodeURIComponent(value)}` : '/businesses';
+  };
+
   const renderBusinessRow = (biz: Business) => {
     const displayCategory = formatBusinessCategory(biz.subcategory || biz.category);
     const locationText = getCityState(biz.address);
@@ -823,7 +828,7 @@ export default function BusinessesPage() {
     return (
       <Link
         key={biz.id}
-        href={`/business/${biz.slug}`}
+        href={getBusinessHref(biz)}
         className="group flex gap-3 px-3 py-3 transition hover:bg-slate-50"
         data-no-translate
       >
@@ -1130,7 +1135,7 @@ export default function BusinessesPage() {
             {servicesShowcase.map((biz) => (
               <Link
                 key={`service-${biz.id}`}
-                href={`/business/${biz.slug}`}
+                href={getBusinessHref(biz)}
                 className="group min-w-[10.5rem] max-w-[10.5rem] snap-start"
                 data-service-card="true"
                 data-no-translate

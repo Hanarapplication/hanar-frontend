@@ -10,7 +10,7 @@ import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 
-const navLineIconClass = 'h-[1.4rem] w-[1.4rem] drop-shadow-[0_1px_0_rgba(255,255,255,0.9)] drop-shadow-[0_0_7px_rgba(59,130,246,0.3)]';
+const navLineIconClass = 'h-[1.35rem] w-[1.35rem]';
 
  type NavbarNotificationRow = {
   id: string;
@@ -477,12 +477,6 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     setNotificationsOpen(false);
     router.push(href);
   };
-  const handlePrimaryNavTap = (event: React.MouseEvent | React.TouchEvent, href: string) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setNotificationsOpen(false);
-    router.push(href);
-  };
 
   const toggleNotifications = () => {
     setNotificationsOpen((prev) => {
@@ -528,7 +522,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       key: 'profile',
       href: dashboardIdentity.loggedIn ? '/dashboard' : '/login?redirect=/dashboard',
       icon: dashboardIdentity.loggedIn ? (
-        <span className="inline-flex h-[2.1rem] w-[2.1rem] items-center justify-center rounded-full border border-cyan-200/90 bg-gradient-to-b from-white/95 via-sky-100/80 to-blue-100/70 p-[1.5px] backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_0_10px_rgba(56,189,248,0.35)]">
+        <span className="inline-flex h-[2rem] w-[2rem] items-center justify-center rounded-full border border-slate-300 bg-white p-[1.5px]">
           <Avatar
             src={dashboardIdentity.avatarUrl}
             alt="Dashboard profile"
@@ -555,8 +549,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
                 key={item.key}
                 href={item.href}
                 aria-label={item.label}
-                onClick={(event) => handlePrimaryNavTap(event, item.href)}
-                onTouchEnd={(event) => handlePrimaryNavTap(event, item.href)}
+                onClick={() => setNotificationsOpen(false)}
                 className={`relative inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-lg touch-manipulation pointer-events-auto transition-colors ${
                   isActive ? 'text-black' : 'text-black/70 hover:bg-black/10 hover:text-black'
                 }`}
@@ -583,8 +576,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
                 key={`desktop-${item.key}`}
                 href={item.href}
                 aria-label={item.label}
-                onClick={(event) => handlePrimaryNavTap(event, item.href)}
-                onTouchEnd={(event) => handlePrimaryNavTap(event, item.href)}
+                onClick={() => setNotificationsOpen(false)}
                 className={`relative inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-lg touch-manipulation pointer-events-auto transition-colors ${
                   isActive ? 'text-black' : 'text-black/70 hover:bg-black/10 hover:text-black'
                 }`}

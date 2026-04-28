@@ -503,7 +503,14 @@ const BusinessMap = ({ address }: { address: BusinessType['address'] }) => {
 
 const BusinessProfilePage = () => {
     const params = useParams();
-    const slug = typeof params?.slug === 'string' ? params.slug : '';
+    const slugParam = typeof params?.slug === 'string' ? params.slug : '';
+    const slug = (() => {
+        try {
+            return decodeURIComponent(slugParam);
+        } catch {
+            return slugParam;
+        }
+    })();
 
     const [business, setBusiness] = useState<BusinessType | null>(null);
     const [menu, setMenu] = useState<MenuItem[]>([]);
@@ -778,14 +785,25 @@ const BusinessProfilePage = () => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const { data: businessData, error: businessError } = await supabase
+                const createBusinessQuery = () => supabase
                     .from('businesses')
                     .select('*')
-                    .eq('slug', slug)
                     .in('moderation_status', ['active', 'on_hold'])
                     .eq('is_archived', false)
-                    .neq('lifecycle_status', 'archived')
-                    .single();
+                    .neq('lifecycle_status', 'archived');
+
+                let { data: businessData, error: businessError } = await createBusinessQuery()
+                    .eq('slug', slug)
+                    .maybeSingle();
+
+                // Fallback: allow links that use raw business id when slug is missing.
+                if (!businessData) {
+                    const fallbackRes = await createBusinessQuery()
+                        .eq('id', slug)
+                        .maybeSingle();
+                    businessData = fallbackRes.data;
+                    businessError = fallbackRes.error;
+                }
 
                 if (businessError || !businessData) {
                     setBusiness(null);

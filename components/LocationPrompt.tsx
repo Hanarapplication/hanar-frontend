@@ -2,6 +2,7 @@
 
 import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 import { readSavedSearchRadiusMiles } from '@/lib/geoDistance';
@@ -16,6 +17,7 @@ type OnboardingStep = 'language' | 'locationPrompt' | 'manualLocation';
 
 export default function LocationPromptModal() {
   const { setLang, effectiveLang } = useLanguage();
+  const pathname = usePathname() ?? '';
   const [showModal, setShowModal] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [step, setStep] = useState<OnboardingStep>('language');
@@ -23,6 +25,14 @@ export default function LocationPromptModal() {
 
   useEffect(() => {
     const bootstrapPrompt = async () => {
+      // Only allow onboarding prompt on feed pages, never while browsing detail/list pages.
+      const shouldRenderOnRoute = pathname === '/' || pathname === '/home-feed';
+      if (!shouldRenderOnRoute) {
+        setShowModal(false);
+        setInitialized(true);
+        return;
+      }
+
       const savedLang = localStorage.getItem('hanarLang');
       if (savedLang && savedLang !== 'auto') {
         setSelectedLang(savedLang);
@@ -56,7 +66,7 @@ export default function LocationPromptModal() {
     };
 
     void bootstrapPrompt();
-  }, []);
+  }, [pathname]);
 
   const completeOnboarding = () => {
     localStorage.setItem(ONBOARDING_DONE_KEY, 'true');

@@ -95,6 +95,12 @@ const normalizeImages = (value: unknown, bucket: string): string[] => {
 
 const getFirstImage = (value: string[] | null | undefined) => (value?.[0] || '');
 
+const getMarketplaceItemHref = (item: MarketplaceItem) => {
+  const slug = String(item.slug || '').trim();
+  if (slug) return `/marketplace/${encodeURIComponent(slug)}`;
+  return `/marketplace/${item.source}-${item.id}`;
+};
+
 /** Reduce a full address to "City, State" for card display. */
 function getCityStateFromLocation(location: string | null | undefined): string {
   const s = (location || '').trim();
@@ -990,7 +996,7 @@ export default function MarketplacePage() {
         )}
       </button>
       <Link
-        href={`/marketplace/${item.slug}`}
+        href={getMarketplaceItemHref(item)}
         onClick={() => {
           recordMarketplaceItemView({
             source: item.source,
