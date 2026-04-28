@@ -1048,7 +1048,7 @@ export default function MarketplacePage() {
     <div className="min-h-screen bg-[#eaeded] pb-10 dark:bg-[#111827]">
     <div className="mx-auto max-w-[66rem] px-3 pt-0">
       {/* Search and location bar (Hanar nav gradient — matches home Ask strip) */}
-      <div className="sticky top-0 z-10 -mx-3 mb-0 border-b border-slate-200 bg-slate-100 px-3 pb-3 pt-2 shadow-sm dark:border-slate-200 dark:bg-slate-100">
+      <div className="sticky top-0 z-10 mb-0 border border-slate-200 bg-slate-100 px-3 pb-3 pt-2 shadow-sm dark:border-slate-200 dark:bg-slate-100">
         <div className="mx-auto max-w-3xl">
           <div className="mb-2 flex items-center justify-between gap-2">
             <button
@@ -1069,7 +1069,7 @@ export default function MarketplacePage() {
             </div>
           </div>
 
-          <div className="flex overflow-hidden rounded-md border border-white/35 bg-slate-100 shadow-inner shadow-black/10 dark:bg-slate-100">
+          <div className="flex overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm dark:bg-white">
               <div className="hidden items-center border-r border-slate-200/90 bg-slate-50/95 px-3 text-[11px] font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200">
                 {t(effectiveLang, 'All categories')}
             </div>
