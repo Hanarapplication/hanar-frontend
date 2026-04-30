@@ -43,7 +43,7 @@ export default function ConditionalAppShell({
 
   if (isBusinessSlugPage || isAuthPage || isAdminRoute) {
     return (
-      <main key={animKey} className="animate-route-swap-soft">
+      <main key={animKey} className="animate-route-swap-soft pt-2 sm:pt-3">
         {children}
       </main>
     );
@@ -56,7 +56,7 @@ export default function ConditionalAppShell({
       <ClientRedirectTracker />
       <main
         key={animKey}
-        className="animate-route-swap-soft pb-[calc(3rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]"
+        className="animate-route-swap-soft pt-2 sm:pt-3 pb-[calc(3rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]"
       >
         {children}
       </main>

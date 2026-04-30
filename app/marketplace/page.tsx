@@ -158,7 +158,7 @@ const normalizeMarketplaceCategory = (value: unknown, fallback = 'General') => {
 const dealershipMarketplaceCategory = 'Cars' as const;
 
 /** How many category chips to show in "Categories for you" before "See more" opens the rest in a modal. */
-const MARKETPLACE_INLINE_CATEGORY_CHIPS = 5;
+const MARKETPLACE_INLINE_CATEGORY_CHIPS = 8;
 
 /** Group structured `Parent — Sub` listings by top-level label for category chips; keep legacy normalization otherwise. */
 const categoryChipKey = (value: unknown, fallback = 'General') => {
@@ -983,7 +983,7 @@ export default function MarketplacePage() {
   };
 
   const ItemCard = ({ item }: { item: MarketplaceItem }) => (
-    <div className="relative h-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <div className="relative h-full overflow-hidden rounded-lg border border-[#d4af37] bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <button
         type="button"
         onClick={() => toggleFavorite(item)}
@@ -1071,14 +1071,14 @@ export default function MarketplacePage() {
                 <span className="text-[10px] text-slate-500">{radius} mi</span>
               )}
             </button>
-            <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-md border border-pink-400 bg-gradient-to-r from-pink-500 to-[#0030ff] px-3 py-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-white shadow-md">
+            <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-md border border-[#d4af37] bg-gradient-to-r from-[#b8860b] via-[#d4af37] to-[#f5d76e] px-3 py-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-black shadow-md">
               <Store className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
               <span>Marketplace</span>
             </div>
           </div>
 
-          <div className="flex overflow-hidden rounded-md border border-pink-400 bg-gradient-to-r from-black/70 via-pink-500 to-pink-400 shadow-sm">
-              <div className="hidden items-center border-r border-white/20 bg-black/55 px-3 text-[11px] font-medium text-white sm:flex">
+          <div className="flex overflow-hidden rounded-md border border-amber-700/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_22px_-12px_rgba(60,40,0,0.55)] [background:linear-gradient(155deg,#4a3608_0%,#8a6b12_20%,#c9a227_44%,#f0d878_55%,#d4af37_72%,#6b4c0a_100%)]">
+              <div className="hidden items-center border-r border-amber-950/30 bg-black/25 px-3 text-[11px] font-semibold text-amber-950 sm:flex">
                 {t(effectiveLang, 'All categories')}
             </div>
             <button
@@ -1086,7 +1086,7 @@ export default function MarketplacePage() {
               onClick={() => {
                 if (searchTerm.trim()) void addToRecentSearches(searchTerm);
               }}
-              className="inline-flex items-center justify-center border-r border-white/20 bg-black/55 px-4 text-white transition hover:bg-black/70"
+              className="inline-flex items-center justify-center border-r border-amber-950/30 bg-black px-4 text-[#f5d76e] transition hover:bg-black/90"
               aria-label={t(effectiveLang, 'Search marketplace')}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -1234,7 +1234,7 @@ export default function MarketplacePage() {
                 <button
                   type="button"
                   onClick={handleAllCategoriesClick}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#e7f4f5] px-3 py-1 text-[11px] font-semibold text-[#007185] transition hover:border-[#c7caca] hover:bg-[#dff0f2]"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-white px-3 py-1 text-[11px] font-semibold text-[#007185] transition hover:border-[#c7caca] hover:bg-[#f7f7f7]"
                 >
                   <span aria-hidden>🌐</span>
                   <span>{t(effectiveLang, 'All categories')}</span>
@@ -1246,7 +1246,7 @@ export default function MarketplacePage() {
                       key={`all-cat-${category}`}
                       type="button"
                       onClick={() => handleCategoryClick(category)}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#f0f2f2] px-3 py-1 text-[11px] font-semibold text-[#0f1111] transition hover:border-[#c7caca] hover:bg-[#e7e9ec]"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-white px-3 py-1 text-[11px] font-semibold text-[#0f1111] transition hover:border-[#c7caca] hover:bg-[#f7f7f7]"
                     >
                       <span aria-hidden>{emoji}</span>
                       <span>{t(effectiveLang, category)}</span>
@@ -1263,26 +1263,19 @@ export default function MarketplacePage() {
       {items.length > 0 && (
         <>
           {topCategories.length > 0 && (
-            <section className="mb-3 rounded-lg border border-[#d5d9d9] bg-white p-3 shadow-sm">
+            <>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h2 className="text-[16px] font-bold text-[#0f1111]">{t(effectiveLang, 'Categories for you')}</h2>
-                {extraCategories.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setCategoriesModalOpen(true)}
-                    className="text-[11px] font-semibold text-[#007185] hover:text-[#c7511f]"
-                  >
-                    {t(effectiveLang, 'See more')}
-                  </button>
-                ) : (
-                  <span className="text-[11px] text-[#565959]">{t(effectiveLang, 'Tap to filter')}</span>
-                )}
+                <h2 className="inline-flex items-center rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[16px] font-bold text-slate-900 shadow-sm">
+                  {t(effectiveLang, 'Categories for you')}
+                </h2>
+                <span className="text-[11px] text-amber-950/80">{t(effectiveLang, 'Tap to filter')}</span>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <section className="relative mb-3 overflow-hidden rounded-xl border border-amber-600/50 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_24px_-10px_rgba(60,40,0,0.45)] ring-1 ring-amber-200/30 [background:linear-gradient(155deg,#4a3608_0%,#8a6b12_18%,#c9a227_42%,#f0d878_52%,#d4af37_68%,#6b4c0a_100%)] before:pointer-events-none before:absolute before:-right-6 before:top-0 before:h-28 before:w-40 before:rotate-12 before:rounded-full before:bg-gradient-to-l before:from-white/40 before:via-white/10 before:to-transparent after:pointer-events-none after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-white/40 after:to-transparent">
+              <div className="relative flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={handleAllCategoriesClick}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#e7f4f5] px-3 py-1 text-[11px] font-semibold text-[#007185] transition hover:border-[#c7caca] hover:bg-[#dff0f2]"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-900/25 bg-white px-3 py-1 text-[11px] font-semibold text-amber-950 shadow-sm transition hover:border-amber-900/40 hover:bg-[#fefefe]"
                 >
                   <span aria-hidden>🌐</span>
                   <span>{t(effectiveLang, 'All categories')}</span>
@@ -1294,15 +1287,26 @@ export default function MarketplacePage() {
                       key={category}
                       type="button"
                       onClick={() => handleCategoryClick(category)}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-[#d5d9d9] bg-[#f0f2f2] px-3 py-1 text-[11px] font-semibold text-[#0f1111] transition hover:border-[#c7caca] hover:bg-[#e7e9ec]"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-amber-900/20 bg-white px-3 py-1 text-[11px] font-semibold text-amber-950 shadow-sm transition hover:border-amber-900/35 hover:bg-[#fefefe]"
                     >
                       <span aria-hidden>{emoji}</span>
                       <span>{t(effectiveLang, category)}</span>
                     </button>
                   );
                 })}
+                {extraCategories.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setCategoriesModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-900/20 bg-white px-3 py-1 text-[11px] font-semibold text-amber-950 shadow-sm transition hover:border-amber-900/35 hover:bg-[#fefefe]"
+                  >
+                    <span>{t(effectiveLang, 'See more')}</span>
+                    <span aria-hidden>→</span>
+                  </button>
+                )}
               </div>
-            </section>
+              </section>
+            </>
           )}
 
         </>
@@ -1330,7 +1334,9 @@ export default function MarketplacePage() {
       )}
       {items.length > 0 && (
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">{t(effectiveLang, 'Recommended Listings')}</h2>
+          <h2 className="inline-flex items-center rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xl font-bold text-black shadow-sm">
+            {t(effectiveLang, 'Recommended Listings')}
+          </h2>
           <span className="text-xs text-slate-500 dark:text-slate-400">{filteredItems.length} {t(effectiveLang, 'results')}</span>
         </div>
       )}

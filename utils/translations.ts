@@ -175,6 +175,7 @@ const translations: Record<string, Record<string, string>> = {
       "Logging in...": "Logging in...",
       "Forgotten password?": "Forgotten password?",
       "Create new account": "Create new account",
+      "View without logging in": "View without logging in",
       "By continuing, you agree to our Terms and Privacy Policy.": "By continuing, you agree to our Terms and Privacy Policy.",
       "Login successful!": "Login successful!",
       "Login succeeded, but user ID is missing.": "Login succeeded, but user ID is missing.",

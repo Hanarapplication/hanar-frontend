@@ -158,6 +158,7 @@ function getCityState(address: any): string {
 export default function BusinessesPage() {
   const { effectiveLang } = useLanguage();
   const [dynamicUiTranslations, setDynamicUiTranslations] = useState<Record<string, string>>({});
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const yourLocationLabel = t(effectiveLang, 'Your location');
   const isYourLocationLabel = (value: string) =>
     value.trim().toLowerCase() === 'your location' || value.trim().toLowerCase() === yourLocationLabel.trim().toLowerCase();
@@ -208,6 +209,25 @@ export default function BusinessesPage() {
     } else {
       fetchBusinesses();
     }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const syncAuthState = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (mounted) setIsLoggedIn(Boolean(user));
+    };
+
+    syncAuthState();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(Boolean(session?.user));
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -912,14 +932,14 @@ export default function BusinessesPage() {
                   <span className="text-[10px] text-slate-500">{radius} {t(effectiveLang, 'miles')}</span>
                 )}
               </button>
-              <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-md border border-black bg-black px-3 py-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-white shadow-md">
+              <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-md border border-[#8a6b12] bg-gradient-to-r from-black via-black to-[#8a6b12] px-3 py-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-white shadow-md">
                 <Store className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
                 <span>Businesses</span>
               </div>
             </div>
 
-            <div className="flex overflow-hidden rounded-md border border-[#0030ff] bg-[#0030ff] shadow-inner shadow-black/20">
-              <div className="hidden items-center border-r border-white/25 bg-[#0030ff] px-3 text-[11px] font-medium text-white sm:flex">
+            <div className="flex overflow-hidden rounded-md border border-black bg-black shadow-inner shadow-black/20">
+              <div className="hidden items-center border-r border-white/20 bg-black px-3 text-[11px] font-medium text-white sm:flex">
                 {t(effectiveLang, 'All')}
               </div>
               <button
@@ -927,7 +947,7 @@ export default function BusinessesPage() {
                 onClick={() => {
                   if (query.trim()) setVisibleCount(6);
                 }}
-                className="inline-flex items-center justify-center border-r border-white/25 bg-[#0030ff] px-4 text-white transition hover:bg-[#0027d1]"
+                className="inline-flex items-center justify-center border-r border-white/20 bg-black px-4 text-white transition hover:bg-neutral-900"
                 aria-label={t(effectiveLang, 'Search')}
               >
                 <FaSearch className="h-4 w-4" />
@@ -1094,7 +1114,7 @@ export default function BusinessesPage() {
         )}
 
         {/* Yelp-style quick actions */}
-        <section className="mb-0 rounded-none border-y border-slate-200 bg-white px-3 py-4">
+        <section className="relative left-1/2 mb-0 w-screen -translate-x-1/2 rounded-none border-y border-[#d4af37] bg-black px-3 py-4">
           <div className="grid grid-cols-4 gap-y-3 sm:grid-cols-6">
             {quickFilters.map((item) => (
               <button
@@ -1116,7 +1136,7 @@ export default function BusinessesPage() {
                   {item.icon}
                 </span>
                 <span
-                  className={`max-w-[5.5rem] text-xs font-bold leading-tight break-words whitespace-normal ${selectedCategoryFilter === item.key ? 'text-[#d32323]' : 'text-slate-700'}`}
+                  className={`max-w-[5.5rem] text-xs font-bold leading-tight break-words whitespace-normal ${selectedCategoryFilter === item.key ? 'text-white' : 'text-white/85'}`}
                 >
                   {translateUi(item.label)}
                 </span>
@@ -1126,11 +1146,22 @@ export default function BusinessesPage() {
         </section>
 
         {/* Services & Professionals */}
-        <section className="mb-6 rounded-none border-y border-slate-200 bg-white px-3 py-4">
-          <h2 className="mb-3 text-base font-semibold text-slate-900 tracking-tight">
-            {t(effectiveLang, 'Services & Professionals')}
-          </h2>
-          <div className="rounded-2xl border-2 border-slate-400 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300 p-3 shadow-[0_10px_30px_-14px_rgba(15,23,42,0.25)] ring-1 ring-slate-400/60">
+        <section className="relative left-1/2 mb-6 w-screen -translate-x-1/2 rounded-none bg-white px-0 py-4">
+          <div className="mb-3 flex items-center justify-between gap-2 pl-4 pr-4">
+            <h2 className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-white px-3 py-1 text-base font-semibold text-slate-900 tracking-tight shadow-sm">
+              <Store className="h-4 w-4" strokeWidth={2} aria-hidden />
+              <span>{t(effectiveLang, 'Services & Professionals')}</span>
+            </h2>
+            {!isLoggedIn && (
+              <Link
+                href="/register"
+                className="shrink-0 rounded-md border border-[#d4af37] bg-black px-3 py-1 text-xs font-semibold text-[#d4af37] transition hover:bg-[#111827]"
+              >
+                {t(effectiveLang, 'Register your business for free')}
+              </Link>
+            )}
+          </div>
+          <div className="bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300 px-3 py-3">
             <div
               ref={servicesCarouselRef}
               className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -1167,7 +1198,10 @@ export default function BusinessesPage() {
         {/* Yelp-style nearby list */}
         <section className="rounded-none border-y border-slate-200 bg-white">
           <div className="px-3 py-4">
-            <h2 className="text-base font-semibold tracking-tight text-slate-900">{t(effectiveLang, 'Hot New Businesses Nearby')}</h2>
+            <h2 className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-white px-3 py-1 text-base font-semibold tracking-tight text-slate-900 shadow-sm">
+              <Store className="h-4 w-4" strokeWidth={2} aria-hidden />
+              <span>{t(effectiveLang, 'Hot New Businesses Nearby')}</span>
+            </h2>
           </div>
           {areaFilterActive && filtered.length === 0 && (
             <div className="mx-3 mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">

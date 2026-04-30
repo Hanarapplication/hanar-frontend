@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
@@ -173,6 +174,13 @@ export default function LoginPage() {
         >
           {t(effectiveLang, 'Create new account')}
         </a>
+
+        <Link
+          href="/"
+          className="mt-3 block w-full py-2.5 text-center rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
+        >
+          {t(effectiveLang, 'View without logging in')}
+        </Link>
 
         <p className="mt-4 text-center text-xs text-gray-500">
           {t(effectiveLang, 'By continuing, you agree to our Terms and Privacy Policy.')}
