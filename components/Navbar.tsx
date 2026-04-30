@@ -530,11 +530,11 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       key: 'profile',
       href: dashboardIdentity.loggedIn ? '/dashboard' : '/login?redirect=/dashboard',
       icon: dashboardIdentity.loggedIn ? (
-        <span className="inline-flex h-[2rem] w-[2rem] items-center justify-center rounded-full border border-slate-300 bg-white p-[1.5px]">
+        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white p-px">
           <Avatar
             src={dashboardIdentity.avatarUrl}
             alt="Dashboard profile"
-            className="h-full w-full rounded-full"
+            className="m-0 block h-full w-full rounded-full"
             unframed
           />
         </span>
@@ -548,8 +548,18 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
 
   return (
     <>
-      <nav data-bottom-nav="true" className={`fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto flex h-14 items-center border-t border-black bg-slate-100/80 px-1.5 pb-safe-bottom backdrop-blur-sm transition-all duration-200 dark:border-black dark:bg-slate-700/80 sm:hidden ${hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
-        <div className="flex w-full items-center gap-0.5">
+      {/*
+        Safe area must not share the same height as the tab row: with border-box, pb-safe-bottom
+        inside a fixed h-14 squashes the row and icons overflow upward (bad in system WebViews).
+        Structure: full-height bar row, then home-indicator padding only below it.
+      */}
+      <nav
+        data-bottom-nav="true"
+        className={`fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto border-t border-black bg-slate-100/80 pb-safe-bottom backdrop-blur-sm transition-all duration-200 dark:border-black dark:bg-slate-700/80 sm:hidden ${
+          hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+        }`}
+      >
+        <div className="box-border flex h-14 w-full min-w-0 items-center gap-0.5 px-1.5">
           {primaryNavItems.map((item) => {
             const isActive = item.isActive(pathname);
             return (
@@ -575,8 +585,13 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
         </div>
       </nav>
 
-      <nav data-bottom-nav="true" className={`fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto hidden h-[3.75rem] items-center border-t border-black bg-slate-100/80 px-3 pb-safe-bottom backdrop-blur-sm transition-all duration-200 isolate dark:border-black dark:bg-slate-700/80 sm:flex sm:h-16 ${hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
-        <div className="flex w-full items-center gap-1.5">
+      <nav
+        data-bottom-nav="true"
+        className={`fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto hidden border-t border-black bg-slate-100/80 pb-safe-bottom backdrop-blur-sm transition-all duration-200 isolate dark:border-black dark:bg-slate-700/80 sm:flex sm:flex-col ${
+          hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+        }`}
+      >
+        <div className="box-border flex h-16 w-full min-w-0 items-center gap-1.5 px-3">
           {primaryNavItems.map((item) => {
             const isActive = item.isActive(pathname);
             return (
