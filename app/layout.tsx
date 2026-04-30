@@ -1,4 +1,5 @@
 // ✅ NO "use client" here
+import type { Viewport } from 'next';
 import './globals.css';
 import { DarkModeProvider } from '@/context/DarkModeContext';
 import { Toaster } from 'react-hot-toast';
@@ -13,11 +14,13 @@ export const metadata = {
   manifest: '/manifest.json',
 };
 
-export const viewport = {
+/** `viewportFit: cover` is required for `env(safe-area-inset-*)` on notched iOS and many mobile browsers. */
+export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: 'cover',
   /** Mobile browser chrome (Android Chrome, etc.) */
   themeColor: '#ffffff',
 };

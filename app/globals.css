@@ -48,6 +48,17 @@ textarea {
   touch-action: manipulation;
 }
 
+/**
+ * Bottom bar padding above home indicator (notched iPhones, some Androids).
+ * `constant()` covers legacy iOS 11.0–11.2; `env(..., 0px)` is the modern fallback when insets are absent.
+ */
+@layer utilities {
+  .pb-safe-bottom {
+    padding-bottom: max(0px, constant(safe-area-inset-bottom));
+    padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .dark body {
   background-color: #111827 !important;
   color: #f3f4f6 !important;

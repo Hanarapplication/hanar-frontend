@@ -3,14 +3,18 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, MessageCircle, Store, ShoppingCart, CircleUserRound } from 'lucide-react';
+import { Bell, MessageCircle, Building2, ShoppingCart, CircleUserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Avatar } from '@/components/Avatar';
 import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 
-const navLineIconClass = 'h-[1.35rem] w-[1.35rem]';
+/** SVGs: explicit box, no flex shrink, `block` avoids sub-pixel baseline gaps in WebKit/Chrome. */
+const navLineIconClass = 'h-[1.35rem] w-[1.35rem] max-h-[1.35rem] max-w-[1.35rem] shrink-0 block';
+/** Shared bottom tabs — 44px min height on small screens (WCAG), overflow clip for rounded tiles on iOS Safari. */
+const bottomNavLinkBaseClass =
+  'relative inline-flex min-w-0 flex-1 h-11 items-center justify-center overflow-hidden rounded-lg touch-manipulation pointer-events-auto transition-colors [-webkit-tap-highlight-color:transparent] isolate [transform:translateZ(0)] sm:h-10';
 
  type NavbarNotificationRow = {
   id: string;
@@ -496,7 +500,11 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     {
       key: 'home',
       href: '/',
-      icon: <span className="text-[1.08rem] font-semibold lowercase text-blue-700">hanar</span>,
+      icon: (
+        <span className="shrink-0 text-[1.08rem] font-semibold leading-none tracking-normal lowercase text-blue-700">
+          hanar
+        </span>
+      ),
       label: t(effectiveLang, 'Feed'),
       isActive: (path) => path === '/',
     },
@@ -504,7 +512,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       key: 'marketplace',
       href: '/marketplace',
       icon: (
-        <ShoppingCart className={`${navLineIconClass} text-blue-700`} strokeWidth={1.9} />
+        <ShoppingCart className={`${navLineIconClass} text-blue-700`} strokeWidth={1.9} aria-hidden />
       ),
       label: t(effectiveLang, 'Marketplace'),
       isActive: (path) => path.startsWith('/marketplace'),
@@ -513,7 +521,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       key: 'businesses',
       href: '/businesses',
       icon: (
-        <Store className={`${navLineIconClass} text-blue-700`} strokeWidth={1.9} />
+        <Building2 className={`${navLineIconClass} text-blue-700`} strokeWidth={1.9} aria-hidden />
       ),
       label: t(effectiveLang, 'Businesses'),
       isActive: (path) => path.startsWith('/businesses') || path.startsWith('/business/'),
@@ -531,7 +539,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
           />
         </span>
       ) : (
-        <CircleUserRound className={`${navLineIconClass} text-blue-700`} strokeWidth={1.9} />
+        <CircleUserRound className={`${navLineIconClass} text-blue-700`} strokeWidth={1.9} aria-hidden />
       ),
       label: t(effectiveLang, 'Profile'),
       isActive: (path) => path.startsWith('/dashboard') || (!dashboardIdentity.loggedIn && path.startsWith('/login')),
@@ -540,7 +548,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
 
   return (
     <>
-      <nav data-bottom-nav="true" className={`fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto flex h-14 items-center border-t border-black bg-slate-100/80 px-1.5 pb-[max(0px,env(safe-area-inset-bottom))] backdrop-blur-sm transition-all duration-200 dark:border-black dark:bg-slate-700/80 sm:hidden ${hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
+      <nav data-bottom-nav="true" className={`fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto flex h-14 items-center border-t border-black bg-slate-100/80 px-1.5 pb-safe-bottom backdrop-blur-sm transition-all duration-200 dark:border-black dark:bg-slate-700/80 sm:hidden ${hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
         <div className="flex w-full items-center gap-0.5">
           {primaryNavItems.map((item) => {
             const isActive = item.isActive(pathname);
@@ -550,7 +558,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
                 href={item.href}
                 aria-label={item.label}
                 onClick={() => setNotificationsOpen(false)}
-                className={`relative inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-lg touch-manipulation pointer-events-auto transition-colors ${
+                className={`${bottomNavLinkBaseClass} ${
                   isActive ? 'text-black' : 'text-black/70 hover:bg-black/10 hover:text-black'
                 }`}
               >
@@ -567,7 +575,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
         </div>
       </nav>
 
-      <nav data-bottom-nav="true" className={`fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto hidden h-[3.75rem] items-center border-t border-black bg-slate-100/80 px-3 pb-[max(0px,env(safe-area-inset-bottom))] backdrop-blur-sm transition-all duration-200 isolate dark:border-black dark:bg-slate-700/80 sm:flex sm:h-16 ${hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
+      <nav data-bottom-nav="true" className={`fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto hidden h-[3.75rem] items-center border-t border-black bg-slate-100/80 px-3 pb-safe-bottom backdrop-blur-sm transition-all duration-200 isolate dark:border-black dark:bg-slate-700/80 sm:flex sm:h-16 ${hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
         <div className="flex w-full items-center gap-1.5">
           {primaryNavItems.map((item) => {
             const isActive = item.isActive(pathname);
@@ -577,7 +585,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
                 href={item.href}
                 aria-label={item.label}
                 onClick={() => setNotificationsOpen(false)}
-                className={`relative inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-lg touch-manipulation pointer-events-auto transition-colors ${
+                className={`${bottomNavLinkBaseClass} ${
                   isActive ? 'text-black' : 'text-black/70 hover:bg-black/10 hover:text-black'
                 }`}
               >
