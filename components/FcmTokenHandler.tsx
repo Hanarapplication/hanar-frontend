@@ -1,3 +1,8 @@
+/**
+ * Bridge for **native** Hanar apps (iOS / Android) that use a WebView.
+ * Web FCM (service worker + VAPID) usually does not work inside in-app WebViews; the shell
+ * should obtain a device token with Firebase/APNs and call `window.HanarApp.onToken(token)` after the user allows notifications.
+ */
 'use client';
 
 import { useEffect, useRef } from 'react';

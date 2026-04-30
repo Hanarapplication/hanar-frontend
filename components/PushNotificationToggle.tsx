@@ -7,6 +7,8 @@ function statusMessage(status: PushStatus): string {
   switch (status) {
     case 'unsupported':
       return 'Push notifications are not supported in this browser.';
+    case 'fcm-unsupported':
+      return 'Web push is not available in this in-app view. Most app WebViews (especially on iOS) do not run FCM web push—use the installed Hanar app’s notification settings, or open the site in Safari/Chrome. Your native app can also register a device token with Hanar (see app bridge).';
     case 'not-supported':
       return 'Push is not configured for this site.';
     case 'permission-denied':

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, MessageCircle, Building2, ShoppingCart, CircleUserRound } from 'lucide-react';
+import { Bell, MessageCircle, Store, ShoppingCart, CircleUserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Avatar } from '@/components/Avatar';
 import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
@@ -11,10 +11,10 @@ import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 
 /** SVGs: explicit box, no flex shrink, `block` avoids sub-pixel baseline gaps in WebKit/Chrome. */
-const navLineIconClass = 'h-[1.35rem] w-[1.35rem] max-h-[1.35rem] max-w-[1.35rem] shrink-0 block';
-/** Shared bottom tabs — 44px min height on small screens (WCAG), overflow clip for rounded tiles on iOS Safari. */
+const navLineIconClass = 'h-[1.15rem] w-[1.15rem] max-h-[1.15rem] max-w-[1.15rem] shrink-0 block';
+/** Shared bottom tabs — compact tiles; overflow clip for rounded tiles on iOS Safari. */
 const bottomNavLinkBaseClass =
-  'relative inline-flex min-w-0 flex-1 h-11 items-center justify-center overflow-hidden rounded-lg touch-manipulation pointer-events-auto transition-colors [-webkit-tap-highlight-color:transparent] isolate [transform:translateZ(0)] sm:h-10';
+  'relative inline-flex min-w-0 flex-1 h-9 items-center justify-center overflow-hidden rounded-md touch-manipulation pointer-events-auto transition-colors [-webkit-tap-highlight-color:transparent] isolate [transform:translateZ(0)] sm:h-8';
 
  type NavbarNotificationRow = {
   id: string;
@@ -501,7 +501,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       key: 'home',
       href: '/',
       icon: (
-        <span className="shrink-0 text-[1.08rem] font-semibold leading-none tracking-normal lowercase text-blue-700">
+        <span className="shrink-0 text-[0.98rem] font-semibold leading-none tracking-normal lowercase text-black">
           hanar
         </span>
       ),
@@ -512,7 +512,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       key: 'marketplace',
       href: '/marketplace',
       icon: (
-        <ShoppingCart className={`${navLineIconClass} text-blue-700`} strokeWidth={1.9} aria-hidden />
+        <ShoppingCart className={`${navLineIconClass} text-black`} strokeWidth={1.9} aria-hidden />
       ),
       label: t(effectiveLang, 'Marketplace'),
       isActive: (path) => path.startsWith('/marketplace'),
@@ -521,7 +521,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       key: 'businesses',
       href: '/businesses',
       icon: (
-        <Building2 className={`${navLineIconClass} text-blue-700`} strokeWidth={1.9} aria-hidden />
+        <Store className={`${navLineIconClass} text-black`} strokeWidth={1.9} aria-hidden />
       ),
       label: t(effectiveLang, 'Businesses'),
       isActive: (path) => path.startsWith('/businesses') || path.startsWith('/business/'),
@@ -530,7 +530,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       key: 'profile',
       href: dashboardIdentity.loggedIn ? '/dashboard' : '/login?redirect=/dashboard',
       icon: dashboardIdentity.loggedIn ? (
-        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white p-px">
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white p-px">
           <Avatar
             src={dashboardIdentity.avatarUrl}
             alt="Dashboard profile"
@@ -539,7 +539,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
           />
         </span>
       ) : (
-        <CircleUserRound className={`${navLineIconClass} text-blue-700`} strokeWidth={1.9} aria-hidden />
+        <CircleUserRound className={`${navLineIconClass} text-black`} strokeWidth={1.9} aria-hidden />
       ),
       label: t(effectiveLang, 'Profile'),
       isActive: (path) => path.startsWith('/dashboard') || (!dashboardIdentity.loggedIn && path.startsWith('/login')),
@@ -559,7 +559,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
           hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
-        <div className="box-border flex h-14 w-full min-w-0 items-center gap-0.5 px-1.5">
+        <div className="box-border flex h-12 w-full min-w-0 items-center gap-0 px-1">
           {primaryNavItems.map((item) => {
             const isActive = item.isActive(pathname);
             return (
@@ -574,7 +574,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
               >
                 {item.icon}
                 <span
-                  className={`absolute bottom-0 left-2 right-2 h-[3px] origin-center rounded-full transition-all duration-300 ${
+                  className={`absolute bottom-0 left-1.5 right-1.5 h-[2px] origin-center rounded-full transition-all duration-300 ${
                     isActive ? 'bg-pink-500 opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
                   }`}
                   aria-hidden
@@ -591,7 +591,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
           hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
-        <div className="box-border flex h-16 w-full min-w-0 items-center gap-1.5 px-3">
+        <div className="box-border flex h-14 w-full min-w-0 items-center gap-1 px-2.5">
           {primaryNavItems.map((item) => {
             const isActive = item.isActive(pathname);
             return (
@@ -606,7 +606,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
               >
                 {item.icon}
                 <span
-                  className={`absolute bottom-0 left-2 right-2 h-[3px] origin-center rounded-full transition-all duration-300 ${
+                  className={`absolute bottom-0 left-1.5 right-1.5 h-[2px] origin-center rounded-full transition-all duration-300 ${
                     isActive ? 'bg-pink-500 opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
                   }`}
                   aria-hidden
@@ -623,7 +623,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
             ref={notificationsBellRef}
             type="button"
             onClick={toggleNotifications}
-            className="relative inline-flex h-10 w-10 items-center justify-center text-blue-700 transition"
+            className="relative inline-flex h-10 w-10 items-center justify-center text-black transition"
             aria-label="Open notifications"
             title="Notifications"
             aria-expanded={notificationsOpen}
@@ -639,7 +639,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
           <button
             type="button"
             onClick={() => goToQuickAction('/messages?view=inbox')}
-            className="relative inline-flex h-10 w-10 items-center justify-center text-blue-700 transition"
+            className="relative inline-flex h-10 w-10 items-center justify-center text-black transition"
             aria-label="Go to messages"
             title="Messages"
           >

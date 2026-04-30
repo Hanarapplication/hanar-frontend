@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { supportedLanguages } from '@/utils/languages';
+import { graphemeLength, normalizeUserText } from '@/lib/unicodeText';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -67,17 +68,22 @@ function detectLanguageFromText(text: string, fallback: string): string {
 export async function POST(req: Request) {
   try {
     const { title, body, tags, lang, image, video, author, user_id, org_id, author_type, username, visibility } = await req.json();
+    const normalizedTitle = normalizeUserText(title);
+    const normalizedBody = normalizeUserText(body);
+    const normalizedTags = Array.isArray(tags)
+      ? tags.map((tag) => normalizeUserText(tag)).filter(Boolean)
+      : [];
 
     // ✅ Validate required fields
-    if (!title || typeof title !== 'string' || title.trim().length < 3 || title.length > 100) {
+    if (!normalizedTitle || graphemeLength(normalizedTitle) < 3 || graphemeLength(normalizedTitle) > 100) {
       return NextResponse.json({ error: 'Title must be 3–100 characters' }, { status: 400 });
     }
 
-    if (!body || typeof body !== 'string' || body.trim().length < 5 || body.length > 500) {
+    if (!normalizedBody || graphemeLength(normalizedBody) < 5 || graphemeLength(normalizedBody) > 500) {
       return NextResponse.json({ error: 'Body must be 5–500 characters' }, { status: 400 });
     }
 
-    if (!Array.isArray(tags) || tags.some(tag => typeof tag !== 'string' || tag.length > 20)) {
+    if (!Array.isArray(tags) || normalizedTags.some((tag) => graphemeLength(tag) > 20)) {
       return NextResponse.json({ error: 'Tags must be an array of strings (max 20 chars each)' }, { status: 400 });
     }
 
@@ -85,7 +91,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing or invalid user ID' }, { status: 400 });
     }
 
-    if (!author || typeof author !== 'string' || author.trim().toLowerCase() === 'anonymous') {
+    if (!author || typeof author !== 'string' || normalizeUserText(author).toLowerCase() === 'anonymous') {
       return NextResponse.json({ error: 'Anonymous posting is not allowed. Please post as your profile.' }, { status: 400 });
     }
 
@@ -107,7 +113,7 @@ export async function POST(req: Request) {
       author_type === 'business'
         ? (ownedBusiness?.business_name?.trim() || (typeof author === 'string' ? author.trim() : ''))
         : typeof author === 'string'
-          ? author.trim()
+          ? normalizeUserText(author)
           : '';
 
     if (!authorForRow) {
@@ -122,14 +128,14 @@ export async function POST(req: Request) {
           : null;
 
     const fallbackLang = normalizeLangCandidate(lang) || 'en';
-    const detectedLanguage = detectLanguageFromText(`${title}\n${body}`, fallbackLang);
+    const detectedLanguage = detectLanguageFromText(`${normalizedTitle}\n${normalizedBody}`, fallbackLang);
 
     // ✅ Insert into Supabase
     const { error } = await supabaseAdmin.from('community_posts').insert([
       {
-        title: title.trim(),
-        body: body.trim(),
-        tags,
+        title: normalizedTitle,
+        body: normalizedBody,
+        tags: normalizedTags,
         image: image || null,
         video: video || null,
         language: detectedLanguage,
@@ -163,6 +169,11 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     const { post_id, user_id, title, body, tags, image, video, visibility } = await req.json();
+    const normalizedTitle = normalizeUserText(title);
+    const normalizedBody = normalizeUserText(body);
+    const normalizedTags = Array.isArray(tags)
+      ? tags.map((tag) => normalizeUserText(tag)).filter(Boolean)
+      : [];
 
     if (!post_id || typeof post_id !== 'string') {
       return NextResponse.json({ error: 'Missing or invalid post_id' }, { status: 400 });
@@ -170,13 +181,13 @@ export async function PUT(req: Request) {
     if (!user_id || typeof user_id !== 'string') {
       return NextResponse.json({ error: 'Missing or invalid user_id' }, { status: 400 });
     }
-    if (!title || typeof title !== 'string' || title.trim().length < 3 || title.trim().length > 100) {
+    if (!normalizedTitle || graphemeLength(normalizedTitle) < 3 || graphemeLength(normalizedTitle) > 100) {
       return NextResponse.json({ error: 'Title must be 3–100 characters' }, { status: 400 });
     }
-    if (!body || typeof body !== 'string' || body.trim().length < 5 || body.trim().length > 500) {
+    if (!normalizedBody || graphemeLength(normalizedBody) < 5 || graphemeLength(normalizedBody) > 500) {
       return NextResponse.json({ error: 'Body must be 5–500 characters' }, { status: 400 });
     }
-    if (!Array.isArray(tags) || tags.some((tag) => typeof tag !== 'string' || tag.length > 20)) {
+    if (!Array.isArray(tags) || normalizedTags.some((tag) => graphemeLength(tag) > 20)) {
       return NextResponse.json({ error: 'Tags must be an array of strings (max 20 chars each)' }, { status: 400 });
     }
 
@@ -200,9 +211,9 @@ export async function PUT(req: Request) {
     const { error: updateError } = await supabaseAdmin
       .from('community_posts')
       .update({
-        title: title.trim(),
-        body: body.trim(),
-        tags,
+        title: normalizedTitle,
+        body: normalizedBody,
+        tags: normalizedTags,
         image: image || null,
         video: video || null,
         visibility: visibilityValue,

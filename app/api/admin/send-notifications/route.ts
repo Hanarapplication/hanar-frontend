@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { getLatLonFromAddress } from '@/lib/getLatLonFromAddress';
 import { isPushConfigured, sendPushToTokens } from '@/lib/firebaseAdmin';
+import { graphemeLength, normalizeUserText } from '@/lib/unicodeText';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -126,14 +127,14 @@ export async function POST(req: Request) {
     const body = (await req.json().catch(() => null)) as Payload | null;
     if (!body) return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
 
-    const title = String(body.title ?? '').trim();
-    const bodyText = String(body.body ?? '').trim();
+    const title = normalizeUserText(body.title ?? '');
+    const bodyText = normalizeUserText(body.body ?? '');
     const url = body.url ? String(body.url).trim() || null : null;
 
     if (!title || !bodyText) {
       return NextResponse.json({ error: 'Title and body are required' }, { status: 400 });
     }
-    if (title.length > 140 || bodyText.length > 1000) {
+    if (graphemeLength(title) > 140 || graphemeLength(bodyText) > 1000) {
       return NextResponse.json({ error: 'Title max 140 chars, body max 1000 chars' }, { status: 400 });
     }
 

@@ -3,6 +3,7 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { Store } from 'lucide-react';
 
 import { FaHeart, FaRegHeart, FaMapMarkerAlt } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
@@ -1070,13 +1071,14 @@ export default function MarketplacePage() {
                 <span className="text-[10px] text-slate-500">{radius} mi</span>
               )}
             </button>
-            <div className="pointer-events-none rounded-md border border-pink-300 bg-gradient-to-r from-pink-500 to-fuchsia-500 px-3 py-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-white shadow-md">
-              Marketplace ✨
+            <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-md border border-pink-400 bg-gradient-to-r from-pink-500 to-[#0030ff] px-3 py-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-white shadow-md">
+              <Store className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+              <span>Marketplace</span>
             </div>
           </div>
 
-          <div className="flex overflow-hidden rounded-md border border-slate-300 bg-white shadow-sm dark:bg-white">
-              <div className="hidden items-center border-r border-slate-200/90 bg-slate-50/95 px-3 text-[11px] font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200">
+          <div className="flex overflow-hidden rounded-md border border-pink-400 bg-gradient-to-r from-black/70 via-pink-500 to-pink-400 shadow-sm">
+              <div className="hidden items-center border-r border-white/20 bg-black/55 px-3 text-[11px] font-medium text-white sm:flex">
                 {t(effectiveLang, 'All categories')}
             </div>
             <button
@@ -1084,7 +1086,7 @@ export default function MarketplacePage() {
               onClick={() => {
                 if (searchTerm.trim()) void addToRecentSearches(searchTerm);
               }}
-              className="inline-flex items-center justify-center border-r border-slate-200/90 bg-gradient-to-r from-pink-500 to-fuchsia-500 px-4 text-white transition hover:from-pink-400 hover:to-fuchsia-400 dark:border-slate-600 dark:from-pink-500 dark:to-fuchsia-500 dark:hover:from-pink-400 dark:hover:to-fuchsia-400"
+              className="inline-flex items-center justify-center border-r border-white/20 bg-black/55 px-4 text-white transition hover:bg-black/70"
               aria-label={t(effectiveLang, 'Search marketplace')}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

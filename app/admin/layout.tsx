@@ -6,29 +6,68 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { AdminConfirmProvider } from '@/components/AdminConfirmContext';
 
-const ADMIN_NAV = [
-  { label: 'Dashboard', path: '/admin/dashboard' },
-  { label: 'Business Approvals', path: '/admin/approvals' },
-  { label: 'Organizations', path: '/admin/organizations' },
-  { label: 'Create Business / Org', path: '/admin/create' },
-  { label: 'Admins', path: '/admin/admins' },
-  { label: 'Send Emails', path: '/admin/send-emails' },
-  { label: 'Custom Message', path: '/admin/send-emails/custom' },
-  { label: 'Login + OTP', path: '/admin/send-emails/login' },
-  { label: 'Notification Requests', path: '/admin/notification-requests' },
-  { label: 'Send Notifications', path: '/admin/notifications' },
-  { label: 'Feed Banners', path: '/admin/feed-banners' },
-  { label: 'Promotion Requests', path: '/admin/promotion-requests' },
-  { label: 'Create Promotion', path: '/admin/create-promotion' },
-  { label: 'Marketplace Items', path: '/admin/marketplace-items' },
-  { label: 'Marketplace Insights', path: '/admin/marketplace-insights' },
-  { label: 'Reports', path: '/admin/reports' },
-  { label: 'Community Moderation', path: '/admin/community-moderation' },
-  { label: 'Seed Community', path: '/admin/seed-community' },
-  { label: 'Seed Marketplace', path: '/admin/seed-marketplace' },
-  { label: 'Moderation', path: '/admin/moderation' },
-  { label: 'Contact to review', path: '/admin/contact' },
-  { label: 'Owner Panel', path: '/admin/owner' },
+type AdminNavItem = { label: string; path: string };
+type AdminNavGroup = { key: string; title: string; items: AdminNavItem[] };
+
+const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
+  {
+    key: 'overview',
+    title: 'Overview',
+    items: [
+      { label: 'Dashboard', path: '/admin/dashboard' },
+      { label: 'Owner Panel', path: '/admin/owner' },
+    ],
+  },
+  {
+    key: 'accounts',
+    title: 'Accounts & Access',
+    items: [
+      { label: 'Admins', path: '/admin/admins' },
+      { label: 'Organizations', path: '/admin/organizations' },
+      { label: 'Create Business / Org', path: '/admin/create' },
+      { label: 'Business Approvals', path: '/admin/approvals' },
+    ],
+  },
+  {
+    key: 'notifications',
+    title: 'Notifications & Email',
+    items: [
+      { label: 'Send Notifications', path: '/admin/notifications' },
+      { label: 'Notification Requests', path: '/admin/notification-requests' },
+      { label: 'Send Emails', path: '/admin/send-emails' },
+      { label: 'Custom Message', path: '/admin/send-emails/custom' },
+      { label: 'Login + OTP', path: '/admin/send-emails/login' },
+    ],
+  },
+  {
+    key: 'promotions',
+    title: 'Promotions & Banners',
+    items: [
+      { label: 'Feed Banners', path: '/admin/feed-banners' },
+      { label: 'Promotion Requests', path: '/admin/promotion-requests' },
+      { label: 'Create Promotion', path: '/admin/create-promotion' },
+    ],
+  },
+  {
+    key: 'marketplace',
+    title: 'Marketplace',
+    items: [
+      { label: 'Marketplace Items', path: '/admin/marketplace-items' },
+      { label: 'Marketplace Insights', path: '/admin/marketplace-insights' },
+      { label: 'Seed Marketplace', path: '/admin/seed-marketplace' },
+    ],
+  },
+  {
+    key: 'community',
+    title: 'Community & Moderation',
+    items: [
+      { label: 'Community Moderation', path: '/admin/community-moderation' },
+      { label: 'Moderation', path: '/admin/moderation' },
+      { label: 'Reports', path: '/admin/reports' },
+      { label: 'Seed Community', path: '/admin/seed-community' },
+      { label: 'Contact to review', path: '/admin/contact' },
+    ],
+  },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -36,6 +75,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [checking, setChecking] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [adminRole, setAdminRole] = useState<string | null>(null);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(ADMIN_NAV_GROUPS.map((group) => [group.key, false]))
+  );
   const router = useRouter();
   const pathname = usePathname() ?? '';
 
@@ -83,6 +125,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     setMobileMenuOpen(false);
+    setOpenGroups(Object.fromEntries(ADMIN_NAV_GROUPS.map((group) => [group.key, false])));
   }, [pathname]);
 
   useEffect(() => {
@@ -116,6 +159,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   const closeMenu = () => setMobileMenuOpen(false);
+  const toggleGroup = (key: string) =>
+    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const navLinks = (
     <>
@@ -130,22 +175,58 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           )}
         </Link>
       </div>
-      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {ADMIN_NAV.map((item) => {
-          const isActive = pathname === item.path;
+      <nav className="flex-1 p-3 space-y-2 overflow-y-auto">
+        {ADMIN_NAV_GROUPS.map((group) => {
+          const isGroupOpen = openGroups[group.key] ?? true;
+          const groupHasActive = group.items.some((item) => pathname === item.path);
+
           return (
-            <Link
-              key={item.path}
-              href={item.path}
-              onClick={closeMenu}
-              className={`block px-3 py-3 rounded-lg text-sm font-medium transition-colors min-h-[44px] flex items-center touch-manipulation ${
-                isActive
-                  ? 'bg-slate-100 text-slate-900'
-                  : 'text-slate-600 hover:bg-slate-50 active:bg-slate-100'
-              }`}
-            >
-              {item.label}
-            </Link>
+            <section key={group.key} className="rounded-xl border border-slate-200/80 bg-white">
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.key)}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-semibold tracking-wide transition-colors ${
+                  groupHasActive
+                    ? 'bg-slate-100 text-slate-900'
+                    : 'text-slate-600 hover:bg-slate-50 active:bg-slate-100'
+                }`}
+                aria-expanded={isGroupOpen}
+                aria-controls={`admin-group-${group.key}`}
+              >
+                <span>{group.title}</span>
+                <svg
+                  className={`h-4 w-4 transition-transform ${isGroupOpen ? 'rotate-180' : 'rotate-0'}`}
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 8l5 5 5-5" />
+                </svg>
+              </button>
+              {isGroupOpen ? (
+                <div id={`admin-group-${group.key}`} className="px-1.5 pb-1.5">
+                  {group.items.map((item) => {
+                    const isActive = pathname === item.path;
+                    return (
+                      <Link
+                        key={item.path}
+                        href={item.path}
+                        onClick={closeMenu}
+                        className={`mb-0.5 block rounded-lg px-2.5 py-2.5 text-sm font-medium transition-colors min-h-[40px] ${
+                          isActive
+                            ? 'bg-slate-900 text-white'
+                            : 'text-slate-600 hover:bg-slate-50 active:bg-slate-100'
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </section>
           );
         })}
       </nav>

@@ -5,6 +5,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { isPushConfigured, sendPushToTokens } from '@/lib/firebaseAdmin';
+import { getPushTokensForUser } from '@/lib/pushForUsers';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -97,19 +98,6 @@ async function resolveApprovalPayload(
   }
 
   return null;
-}
-
-/**
- * Get push tokens for a user (web + app).
- */
-async function getPushTokensForUser(userId: string): Promise<string[]> {
-  const [appRes, webRes] = await Promise.all([
-    supabaseAdmin.from('user_push_tokens').select('token').eq('user_id', userId),
-    supabaseAdmin.from('push_tokens').select('token').eq('user_id', userId),
-  ]);
-  const appTokens = (appRes.data || []).map((r: { token: string }) => r.token).filter(Boolean);
-  const webTokens = webRes.error ? [] : (webRes.data || []).map((r: { token: string }) => r.token).filter(Boolean);
-  return Array.from(new Set([...appTokens, ...webTokens]));
 }
 
 /**

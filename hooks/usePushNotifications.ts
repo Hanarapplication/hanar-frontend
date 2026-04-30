@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getToken, onMessage, type MessagePayload } from 'firebase/messaging';
+import { getToken, isSupported, onMessage, type MessagePayload } from 'firebase/messaging';
 import { getFirebaseMessaging, getVapidKey, isFirebaseConfigured } from '@/lib/firebaseClient';
 import { upsertPushToken } from '@/lib/pushTokens';
 import { supabase } from '@/lib/supabaseClient';
@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabaseClient';
 export type PushStatus =
   | 'unsupported'
   | 'not-supported'
+  /** FCM + Web Push (Push API) not available: common inside system WebViews (e.g. iOS WKWebView) even when Notification + SW exist. */
+  | 'fcm-unsupported'
   | 'permission-denied'
   | 'disabled'
   | 'enabled'
@@ -36,33 +38,51 @@ export function usePushNotifications(): UsePushNotificationsResult {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    setSupported(
-      'Notification' in window &&
-      'serviceWorker' in navigator &&
-      isFirebaseConfigured()
-    );
-    if (!('Notification' in window)) {
-      setStatus('unsupported');
-      setPermission(null);
-      return;
-    }
-    setPermission(Notification.permission);
-    if (Notification.permission === 'denied') {
-      setStatus('permission-denied');
-      return;
-    }
-    if (!isFirebaseConfigured()) {
-      setStatus('not-supported');
-      return;
-    }
-    if (Notification.permission === 'default') {
-      setStatus('disabled');
-      return;
-    }
-    if (Notification.permission === 'granted') {
-      setStatus('enabled');
-      setToken(null);
-    }
+    let cancelled = false;
+    (async () => {
+      if (!('Notification' in window)) {
+        if (!cancelled) {
+          setSupported(false);
+          setStatus('unsupported');
+          setPermission(null);
+        }
+        return;
+      }
+      if (!isFirebaseConfigured()) {
+        if (!cancelled) {
+          setSupported(false);
+          setStatus('not-supported');
+          setPermission(Notification.permission);
+        }
+        return;
+      }
+      const hasBaseApis = 'serviceWorker' in navigator;
+      const fcmOk = hasBaseApis && (await isSupported());
+      if (cancelled) return;
+      if (!fcmOk) {
+        setSupported(false);
+        setStatus('fcm-unsupported');
+        setPermission(Notification.permission);
+        return;
+      }
+      setSupported(true);
+      setPermission(Notification.permission);
+      if (Notification.permission === 'denied') {
+        setStatus('permission-denied');
+        return;
+      }
+      if (Notification.permission === 'default') {
+        setStatus('disabled');
+        return;
+      }
+      if (Notification.permission === 'granted') {
+        setStatus('enabled');
+        setToken(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const enablePush = useCallback(async () => {

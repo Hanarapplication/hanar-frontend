@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { usersAreMutuallyBlocked } from '@/lib/userBlocksServer';
 import { resolveNotificationActorLabel } from '@/lib/notificationActorLabel';
+import { sendPushToUserIds } from '@/lib/pushForUsers';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -64,14 +65,22 @@ export async function POST(req: Request) {
 
     if (commentAuthorId && commentAuthorId !== user_id) {
       const actor = await resolveNotificationActorLabel(supabaseAdmin, user_id);
+      const nTitle = `${actor.mention} liked your comment`;
+      const nBody = `${actor.mention} liked your comment. Tap to view.`;
+      const nUrl = postId ? `/community/post/${postId}` : '/notifications';
       await supabaseAdmin.from('notifications').insert({
         user_id: commentAuthorId,
         type: 'comment_liked',
-        title: `${actor.mention} liked your comment`,
-        body: `${actor.mention} liked your comment. Tap to view.`,
-        url: postId ? `/community/post/${postId}` : '/notifications',
+        title: nTitle,
+        body: nBody,
+        url: nUrl,
         data: { comment_id, post_id: postId, liked_by: user_id, liker_name: actor.display },
       });
+      try {
+        await sendPushToUserIds([commentAuthorId], nTitle, nBody, nUrl);
+      } catch (pushErr) {
+        console.warn('[comment/like] FCM push:', pushErr);
+      }
     }
 
     return NextResponse.json({ success: true, likes: currentCount + 1 }, { status: 200 });

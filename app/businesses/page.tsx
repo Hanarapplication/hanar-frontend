@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { FaSearch, FaHeart, FaRegHeart, FaMapMarkerAlt } from 'react-icons/fa';
+import { Store } from 'lucide-react';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
@@ -832,7 +833,7 @@ export default function BusinessesPage() {
         className="group flex gap-3 px-3 py-3 transition hover:bg-slate-50"
         data-no-translate
       >
-        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-700 bg-slate-100">
           <img
             src={biz.logo_url || `https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop`}
             alt="Business logo"
@@ -863,7 +864,7 @@ export default function BusinessesPage() {
           </p>
           <div className="mt-1 flex flex-col items-start gap-1.5">
             {displayCategory ? (
-              <span className="block w-fit max-w-full rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium leading-tight text-blue-700 break-words whitespace-normal">
+              <span className="block w-fit max-w-full rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-bold leading-tight text-blue-700 break-words whitespace-normal">
                 {translateUi(displayCategory)}
               </span>
             ) : null}
@@ -911,13 +912,14 @@ export default function BusinessesPage() {
                   <span className="text-[10px] text-slate-500">{radius} {t(effectiveLang, 'miles')}</span>
                 )}
               </button>
-              <div className="pointer-events-none rounded-md border border-blue-300 bg-gradient-to-r from-blue-500 to-cyan-500 px-3 py-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-white shadow-md">
-                Businesses ✨
+              <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-md border border-black bg-black px-3 py-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-white shadow-md">
+                <Store className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                <span>Businesses</span>
               </div>
             </div>
 
-            <div className="flex overflow-hidden rounded-md border border-white/35 bg-slate-100 shadow-inner shadow-black/10 dark:bg-slate-100">
-              <div className="hidden items-center border-r border-slate-200/90 bg-slate-50/95 px-3 text-[11px] font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800/90 dark:text-slate-200 sm:flex">
+            <div className="flex overflow-hidden rounded-md border border-[#0030ff] bg-[#0030ff] shadow-inner shadow-black/20">
+              <div className="hidden items-center border-r border-white/25 bg-[#0030ff] px-3 text-[11px] font-medium text-white sm:flex">
                 {t(effectiveLang, 'All')}
               </div>
               <button
@@ -925,7 +927,7 @@ export default function BusinessesPage() {
                 onClick={() => {
                   if (query.trim()) setVisibleCount(6);
                 }}
-                className="inline-flex items-center justify-center border-r border-slate-200/90 bg-gradient-to-r from-blue-500 to-cyan-500 px-4 text-white transition hover:from-blue-400 hover:to-cyan-400 dark:border-slate-600 dark:from-blue-500 dark:to-cyan-500 dark:hover:from-blue-400 dark:hover:to-cyan-400"
+                className="inline-flex items-center justify-center border-r border-white/25 bg-[#0030ff] px-4 text-white transition hover:bg-[#0027d1]"
                 aria-label={t(effectiveLang, 'Search')}
               >
                 <FaSearch className="h-4 w-4" />
@@ -935,10 +937,10 @@ export default function BusinessesPage() {
                   placeholder={t(effectiveLang, 'Find a restaurant, salon, gym...')}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                className="w-full border-0 bg-white py-2.5 pl-3 pr-14 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none dark:bg-white dark:text-slate-900 dark:placeholder:text-slate-500"
+                className="w-full border-0 bg-white py-2.5 pl-3 pr-14 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none"
                 />
                 {searching && (
-                  <span className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 text-[10px] text-slate-500 dark:text-slate-400">
+                  <span className="pointer-events-none absolute right-11 top-1/2 -translate-y-1/2 text-[10px] text-slate-500">
                     {t(effectiveLang, 'Searching…')}
                   </span>
                 )}
@@ -1110,11 +1112,11 @@ export default function BusinessesPage() {
                 }}
                 className="flex min-h-[4.75rem] flex-col items-center justify-start gap-0.5 text-center"
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-base">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-100 text-base">
                   {item.icon}
                 </span>
                 <span
-                  className={`max-w-[5.5rem] text-xs font-medium leading-tight break-words whitespace-normal ${selectedCategoryFilter === item.key ? 'text-[#d32323]' : 'text-slate-700'}`}
+                  className={`max-w-[5.5rem] text-xs font-bold leading-tight break-words whitespace-normal ${selectedCategoryFilter === item.key ? 'text-[#d32323]' : 'text-slate-700'}`}
                 >
                   {translateUi(item.label)}
                 </span>
@@ -1128,32 +1130,37 @@ export default function BusinessesPage() {
           <h2 className="mb-3 text-base font-semibold text-slate-900 tracking-tight">
             {t(effectiveLang, 'Services & Professionals')}
           </h2>
-          <div
-            ref={servicesCarouselRef}
-            className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {servicesShowcase.map((biz) => (
-              <Link
-                key={`service-${biz.id}`}
-                href={getBusinessHref(biz)}
-                className="group min-w-[10.5rem] max-w-[10.5rem] snap-start"
-                data-service-card="true"
-                data-no-translate
-              >
-                <div className="overflow-hidden rounded-xl bg-slate-100">
-                  <img
-                    src={biz.logo_url || `https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop`}
-                    alt="Business logo"
-                    loading="lazy"
-                    decoding="async"
-                    className="h-28 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                </div>
-                <p className="mt-2 w-full rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium leading-tight text-blue-700 break-words whitespace-normal">
-                  {translateUi(formatBusinessCategory(biz.subcategory || biz.category) || 'Business')}
-                </p>
-              </Link>
-            ))}
+          <div className="rounded-2xl border-2 border-slate-400 bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300 p-3 shadow-[0_10px_30px_-14px_rgba(15,23,42,0.25)] ring-1 ring-slate-400/60">
+            <div
+              ref={servicesCarouselRef}
+              className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {servicesShowcase.map((biz) => (
+                <Link
+                  key={`service-${biz.id}`}
+                  href={getBusinessHref(biz)}
+                  className="group min-w-[10.5rem] max-w-[10.5rem] snap-start rounded-xl border border-black bg-white p-2 shadow-sm transition hover:border-black hover:shadow-md"
+                  data-service-card="true"
+                  data-no-translate
+                >
+                  <div className="overflow-hidden rounded-xl bg-slate-100">
+                    <img
+                      src={biz.logo_url || `https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop`}
+                      alt={biz.business_name || 'Business'}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-28 w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-center text-sm font-semibold leading-snug text-slate-900">
+                    {biz.business_name}
+                  </p>
+                  <p className="mt-1.5 w-full rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-bold leading-tight text-blue-700 break-words whitespace-normal">
+                    {translateUi(formatBusinessCategory(biz.subcategory || biz.category) || 'Business')}
+                  </p>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -1167,7 +1174,7 @@ export default function BusinessesPage() {
               {t(effectiveLang, 'No businesses found in your selected area. Here are similar businesses in nearby cities.')}
             </div>
           )}
-          <div className="divide-y divide-slate-200">
+          <div className="divide-y divide-slate-400">
             {(filtered.length > 0 ? visible : nearbyFallbackBusinesses).map((biz) => renderBusinessRow(biz))}
           </div>
         </section>

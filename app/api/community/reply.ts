@@ -2,6 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sendPushToUserIds } from '@/lib/pushForUsers';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -53,14 +54,22 @@ export async function POST(req: Request) {
       if (postAuthorId && postAuthorId !== data.user_id) {
         const commenterName = data.author || data.username || 'Someone';
         const bodySnippet = body.length > 80 ? `${body.slice(0, 80)}…` : body;
+        const nTitle = 'Your post received a comment';
+        const nBody = `${commenterName}: ${bodySnippet}. Tap to view.`;
+        const nUrl = `/community/post/${data.post_id}`;
         await supabaseAdmin.from('notifications').insert({
           user_id: postAuthorId,
           type: 'comment_on_post',
-          title: 'Your post received a comment',
-          body: `${commenterName}: ${bodySnippet}. Tap to view.`,
-          url: `/community/post/${data.post_id}`,
+          title: nTitle,
+          body: nBody,
+          url: nUrl,
           data: { post_id: data.post_id, comment_id: data.id, commenter_name: commenterName },
         });
+        try {
+          await sendPushToUserIds([postAuthorId], nTitle, nBody, nUrl);
+        } catch (pushErr) {
+          console.warn('[community/reply] FCM push:', pushErr);
+        }
       }
     }
 

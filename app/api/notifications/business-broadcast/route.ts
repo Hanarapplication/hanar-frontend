@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
+import { sendPushToUserIds } from '@/lib/pushForUsers';
 import { getLatLonFromAddress } from '@/lib/getLatLonFromAddress';
+import { graphemeLength, normalizeUserText } from '@/lib/unicodeText';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -62,8 +64,8 @@ export async function POST(req: Request) {
 
     const payload = (await req.json()) as Payload;
     const businessId = (payload.businessId || '').trim();
-    const title = (payload.title || '').trim();
-    const body = (payload.body || '').trim();
+    const title = normalizeUserText(payload.title || '');
+    const body = normalizeUserText(payload.body || '');
     const url = (payload.url || '').trim() || null;
     const type = payload.type === 'area_blast' ? 'area_blast' : 'business_update';
     const radiusMiles = Number(payload.radiusMiles || 3);
@@ -71,7 +73,7 @@ export async function POST(req: Request) {
     if (!businessId || !title || !body) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-    if (title.length > 140 || body.length > 1000) {
+    if (graphemeLength(title) > 140 || graphemeLength(body) > 1000) {
       return NextResponse.json({ error: 'Message too long' }, { status: 400 });
     }
 
@@ -302,6 +304,11 @@ export async function POST(req: Request) {
       const { error: insertError } = await supabaseAdmin.from('notifications').insert(rows);
       if (insertError) {
         return NextResponse.json({ error: insertError.message }, { status: 500 });
+      }
+      try {
+        await sendPushToUserIds(uniqueUserIds, title, body, url || defaultUrl);
+      } catch (pushErr) {
+        console.warn('[business-broadcast] FCM push:', pushErr);
       }
     }
 

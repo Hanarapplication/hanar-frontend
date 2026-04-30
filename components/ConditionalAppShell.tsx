@@ -56,7 +56,7 @@ export default function ConditionalAppShell({
       <ClientRedirectTracker />
       <main
         key={animKey}
-        className="animate-route-swap-soft pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(4rem+env(safe-area-inset-bottom,0px))]"
+        className="animate-route-swap-soft pb-[calc(3rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]"
       >
         {children}
       </main>

@@ -1,6 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
+import {
+  getPinCookieName,
+  getTwoFactorCookieName,
+  validatePinCookie,
+  validateTwoFactorCookie,
+} from '@/lib/adminSecurity';
 
 export const runtime = 'nodejs';
 
@@ -88,7 +94,47 @@ export async function POST(req: Request) {
       return NextResponse.json(genericDeny, { status: 403 });
     }
 
-    return NextResponse.json({ allowed: true, role: data.role });
+    const [twoFaRes, pinRes] = await Promise.all([
+      supabaseAdmin.from('admin_two_factor').select('enabled').eq('user_id', userId).maybeSingle(),
+      supabaseAdmin
+        .from('admin_pin_security')
+        .select('requires_pin, is_on_hold')
+        .eq('user_id', userId)
+        .maybeSingle(),
+    ]);
+    const requires2fa = Boolean(twoFaRes.data?.enabled);
+    const requiresPin = Boolean(pinRes.data?.requires_pin);
+    const pinOnHold = Boolean(pinRes.data?.is_on_hold);
+    if (pinOnHold) {
+      return NextResponse.json(
+        { allowed: false, requiresPin: true, pinOnHold: true, message: 'Account is on hold. Contact owner.' },
+        { status: 423 }
+      );
+    }
+
+    const cookieStore = await cookies();
+    if (requiresPin) {
+      const pinCookie = cookieStore.get(getPinCookieName())?.value;
+      const pinVerified = validatePinCookie(pinCookie, userId, email);
+      if (!pinVerified) {
+        return NextResponse.json(
+          { allowed: false, requiresPin: true, message: '4-digit security PIN is required.' },
+          { status: 401 }
+        );
+      }
+    }
+    if (requires2fa) {
+      const cookieValue = cookieStore.get(getTwoFactorCookieName())?.value;
+      const verified = validateTwoFactorCookie(cookieValue, userId, email);
+      if (!verified) {
+        return NextResponse.json(
+          { allowed: false, requires2fa: true, message: 'Two-factor authentication is required.' },
+          { status: 401 }
+        );
+      }
+    }
+
+    return NextResponse.json({ allowed: true, role: data.role, requires2fa, requiresPin });
   } catch (err) {
     console.error('check-admin error:', err);
     return NextResponse.json(genericDeny, { status: 500 });
