@@ -50,7 +50,6 @@ export default function LoginPage() {
     setClicked(true);
 
     try {
-      // ✅ 1) Sign in
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -67,8 +66,6 @@ export default function LoginPage() {
         return;
       }
 
-      // ✅ 2) Get account type from your table
-      // NOTE: make sure `registeredaccounts.user_id` is the auth user id (uuid)
       const { data: profile, error: profileError } = await supabase
         .from('registeredaccounts')
         .select('business, organization')
@@ -80,25 +77,23 @@ export default function LoginPage() {
         return;
       }
 
-      // ✅ 3) Determine user type and store it
       let userType: 'business' | 'individual' | 'organization' = 'individual';
-      
+
       if (profile?.business === true) {
         userType = 'business';
       } else if (profile?.organization === true) {
         userType = 'organization';
       }
 
-      // Store user type in localStorage so it's available throughout the app
       if (typeof window !== 'undefined') {
         localStorage.setItem('userType', userType);
       }
 
-      // ✅ 4) Redirect everyone to home page
       toast.success(t(effectiveLang, 'Login successful!'));
       router.replace('/');
-    } catch (err: any) {
-      toast.error(err?.message || t(effectiveLang, 'Unexpected login error.'));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t(effectiveLang, 'Unexpected login error.');
+      toast.error(message);
     } finally {
       setClicked(false);
     }

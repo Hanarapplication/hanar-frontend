@@ -579,6 +579,61 @@
     "Choose logo file": "Choose logo file",
     "Choose gallery files": "Choose gallery files",
     "No file chosen": "No file chosen",
-    "files selected": "files selected"
+    "files selected": "files selected",
+    "select a category": "Select a category",
+  "phone number": "Phone number",
+  "spoken languages": "Spoken languages",
+  "select languages spoken at your business. customer searching in these languages may see you at the top (premium)": "Select languages spoken at your business. Customers searching in these languages may see you at the top (Premium).",
+  "address": "Address",
+  "social media": "Social media",
+  "business hours": "Business hours",
+  "business logo": "Business logo",
+  "no file chosen": "No file chosen",
+  "Item views": "Item views",
+  "Sent": "Sent",
+  "View breakdown": "View breakdown",
+  "Profile": "Profile",
+  "Notifications sent over time": "Notifications sent over time",
+  "Blast notifications": "Blast notifications",
+  "Follower notifications": "Follower notifications",
+  "Back to Dashboard": "Back to Dashboard",
+
+  "Where should your banner show?": "Where should your banner appear?",
+  "Select one placement option.": "Select one placement option.",
+  "Home feed": "Home feed",
+  "Banner in the main feed": "Banner in the main feed",
+  "Universal": "Universal",
+  "Everywhere (feed + community)": "Everywhere (Feed + Community)",
+
+  "Next: Creative": "Next: Creative",
+  "Banner & link": "Banner & Link",
+  "Placement": "Placement",
+
+  "Banner image (1200×630 recommended)": "Banner image (1200×630 recommended)",
+  "Upload banner or we can fix it for you": "Upload a banner, or we can adjust it for you",
+
+  "Where should the banner link to?": "Where should the banner link to?",
+  "My business page": "My business page",
+  "External website": "External website",
+  "Links to: /business/usa-dealership": "Links to: /business/usa-dealership",
+
+  "Description / slogan / what to show": "Description / slogan / what to display",
+  "We may adjust the banner design based on this.": "We may adjust the banner design based on this.",
+
+  "Plan & targeting": "Plan & Targeting",
+  "Pick a package. Targeting (who sees it) is set by package—BASIC is everyone; TARGETED and PREMIUM let you choose.": "Pick a package. Targeting (who sees it) is set by package — BASIC shows to everyone; TARGETED and PREMIUM allow custom targeting.",
+
+  "BASIC (Random Feed Rotation)": "BASIC (Random Feed Rotation)",
+  "Everyone in chosen areas · Up to 3 cities (20 mi radius), no demographic targeting": "Everyone in chosen areas · Up to 3 cities (20-mile radius), no demographic targeting",
+
+  "TARGETED (Language OR Geo)\n\nTarget by language and location (up to 10 cities, 20 mi radius)": "TARGETED (Language OR Geo)\n\nTarget by language and location (up to 10 cities, 20-mile radius)",
+
+  "PREMIUM (Language + Geo)\n\nTarget by gender, age, language, and location (unlimited cities, 20 mi radius)": "PREMIUM (Language + Geo)\n\nTarget by gender, age, language, and location (unlimited cities, 20-mile radius)",
+
+  "2 Weeks: $69\n1 Month: $109\n3 Months: $269\n6 Months: $449\n1 Year: $749": "2 Weeks: $69\n1 Month: $109\n3 Months: $269\n6 Months: $449\n1 Year: $749",
+
+  "Show to everyone in these areas (optional). Up to 3 cities, 20 mi radius each. No demographic targeting on BASIC.": "Show to everyone in these areas (optional). Up to 3 cities, 20-mile radius each. No demographic targeting on BASIC.",
+
+  "Total": "Total"
   }
 }

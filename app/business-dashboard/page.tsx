@@ -1,13 +1,22 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
 import { Edit, Eye, Crown, BarChart3, Megaphone, ChevronDown, ChevronUp, X, Image, Bell, Trash2, Download, FileText, Palette, CircleHelp, Phone, Settings, LogOut } from 'lucide-react';
-import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
+import {
+  DashboardInlineActions,
+  dashboardFbOuter,
+  dashboardFbHeader,
+  dashboardFbCanvas,
+  dashboardFbPanelShell,
+  dashboardFbPanelTrigger,
+  dashboardFbIconWrap,
+  dashboardFbPanelTitle,
+} from '@/components/DashboardInlineActions';
 import { isAppIOS, withAppParam } from '@/utils/isAppIOS';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
@@ -230,7 +239,6 @@ function BusinessDashboardContent() {
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
   const [followedOrgs, setFollowedOrgs] = useState<FollowedOrganization[]>([]);
   const [followedOrgsLoading, setFollowedOrgsLoading] = useState(true);
-  const [burgerMenuOpen, setBurgerMenuOpen] = useState(false);
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationBody, setNotificationBody] = useState('');
   const [sendingNotification, setSendingNotification] = useState(false);
@@ -245,6 +253,36 @@ function BusinessDashboardContent() {
   const [promotionRequestsLoading, setPromotionRequestsLoading] = useState(true);
   const [promotionBannersExpanded, setPromotionBannersExpanded] = useState(false);
   const [pageColorsOpen, setPageColorsOpen] = useState(false);
+  const [pageColorsMoreBelow, setPageColorsMoreBelow] = useState(false);
+  const pageColorsScrollRef = useRef<HTMLDivElement>(null);
+
+  const updatePageColorsScrollHint = useCallback(() => {
+    const el = pageColorsScrollRef.current;
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const threshold = 16;
+    const canScrollDown = scrollHeight > clientHeight + 4;
+    const atBottom = scrollTop + clientHeight >= scrollHeight - threshold;
+    setPageColorsMoreBelow(canScrollDown && !atBottom);
+  }, []);
+
+  useEffect(() => {
+    if (!pageColorsOpen) {
+      setPageColorsMoreBelow(false);
+      return;
+    }
+    updatePageColorsScrollHint();
+    const raf = window.requestAnimationFrame(() => {
+      updatePageColorsScrollHint();
+    });
+    const timer = window.setTimeout(updatePageColorsScrollHint, 200);
+    window.addEventListener('resize', updatePageColorsScrollHint);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+      window.removeEventListener('resize', updatePageColorsScrollHint);
+    };
+  }, [pageColorsOpen, updatePageColorsScrollHint]);
   const [savingPageColors, setSavingPageColors] = useState(false);
   const [slugPrimaryColorInput, setSlugPrimaryColorInput] = useState(DEFAULT_SLUG_PRIMARY);
   const [slugSecondaryColorInput, setSlugSecondaryColorInput] = useState(DEFAULT_SLUG_SECONDARY);
@@ -917,11 +955,33 @@ function BusinessDashboardContent() {
     if (notificationToDelete) deleteNotification(notificationToDelete);
   };
 
+  const handleOpenInsights = useCallback(async () => {
+    if (!business?.id) return;
+    setInsightsOpen(true);
+    setInsightsData(null);
+    setInsightsLoading(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const res = await fetch(`/api/business/insights?business_id=${encodeURIComponent(business.id)}`, {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setInsightsData(data);
+      else toast.error(data?.error || 'Failed to load insights');
+    } catch {
+      toast.error(t(effectiveLang, 'Failed to load insights'));
+    } finally {
+      setInsightsLoading(false);
+    }
+  }, [business?.id, effectiveLang]);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 px-4 pt-14 pb-12">
-        <div className="max-w-5xl mx-auto">
-          <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-6 space-y-6">
+      <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 pt-14 pb-12">
+        <div className="w-full px-4 sm:px-5">
+          <div className="w-full bg-white dark:bg-gray-800 p-6 space-y-6">
             <div className="flex items-start gap-4">
               <div className="skeleton h-14 w-14 rounded-xl" />
               <div className="flex-1 space-y-2">
@@ -1012,24 +1072,20 @@ function BusinessDashboardContent() {
   };
 
   const burgerItems = [
-    { label: 'Edit Business', href: `/businesses/edit/${business.slug}`, icon: <Edit className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
-    { label: 'View full insights', href: '/business-dashboard/insights', icon: <BarChart3 className="h-5 w-5 shrink-0" />, color: 'bg-indigo-50 dark:bg-indigo-900/30' },
-    { label: 'Promote your business', href: '/promote', icon: <Megaphone className="h-5 w-5 shrink-0" />, color: 'bg-orange-50 dark:bg-orange-900/30' },
-    { label: 'Download Business QR', onClick: handleDownloadBusinessQr, icon: <Download className="h-5 w-5 shrink-0" />, color: 'bg-sky-50 dark:bg-sky-900/30' },
-    { label: 'Send Notification', onClick: () => { setSendNotificationExpanded(true); setTimeout(() => document.getElementById('send-notification')?.scrollIntoView({ behavior: 'smooth' }), 100); }, icon: <Bell className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
-    { label: 'Business page colors', onClick: () => setPageColorsOpen(true), icon: <Palette className="h-5 w-5 shrink-0" />, color: 'bg-cyan-50 dark:bg-cyan-900/30' },
-    { label: 'My posts', onClick: () => { setMyPostsExpanded(true); setTimeout(() => document.getElementById('my-posts')?.scrollIntoView({ behavior: 'smooth' }), 100); }, icon: <FileText className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
-    { label: 'My banners', onClick: () => { setPromotionBannersExpanded(true); setTimeout(() => document.getElementById('my-banners')?.scrollIntoView({ behavior: 'smooth' }), 100); }, icon: <Image className="h-5 w-5 shrink-0" />, color: 'bg-violet-50 dark:bg-violet-900/30' },
-    { label: 'FAQ', href: '/faq', icon: <CircleHelp className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
-    { label: 'Contact', href: '/contact', icon: <Phone className="h-5 w-5 shrink-0" />, color: 'bg-cyan-50 dark:bg-cyan-900/30' },
-    { label: 'Settings', href: '/settings', icon: <Settings className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-slate-800/80' },
-    { label: business.trial_end && business.plan === 'premium'
-        ? `Premium Trial · ${getDaysRemaining(business.trial_end) > 0 ? `${getDaysRemaining(business.trial_end)} days left` : 'Ended'}`
-        : business.plan_expires_at && !business.trial_end && business.plan && business.plan !== 'free'
-        ? `${String(business.plan).toUpperCase()} Plan · Renews ${formatExpiryDate(business.plan_expires_at)}`
-        : 'Manage Plan',
-      href: appIOS ? withAppParam('/dashboard/account', true) : '/business/plan', icon: <Crown className="h-5 w-5 shrink-0" />, color: 'bg-amber-50 dark:bg-amber-900/30' },
-    { label: 'Logout', onClick: handleHeaderLogout, icon: <LogOut className="h-5 w-5 shrink-0" />, color: 'bg-slate-200 dark:bg-slate-700/80' },
+    { label: 'Edit Business', href: `/businesses/edit/${business.slug}`, icon: <Edit className="h-5 w-5 shrink-0" /> },
+    { label: 'Insights', onClick: handleOpenInsights, icon: <BarChart3 className="h-5 w-5 shrink-0" /> },
+    {
+      label: 'Manage Plan',
+      href: appIOS ? withAppParam('/dashboard/account', true) : '/business/plan',
+      icon: <Crown className="h-5 w-5 shrink-0" />,
+    },
+    { label: 'Promote your business', href: '/promote', icon: <Megaphone className="h-5 w-5 shrink-0" /> },
+    { label: 'Download Business QR', onClick: handleDownloadBusinessQr, icon: <Download className="h-5 w-5 shrink-0" /> },
+    { label: 'Business page colors', onClick: () => setPageColorsOpen(true), icon: <Palette className="h-5 w-5 shrink-0" /> },
+    { label: 'FAQ', href: '/faq', icon: <CircleHelp className="h-5 w-5 shrink-0" /> },
+    { label: 'Contact', href: '/contact', icon: <Phone className="h-5 w-5 shrink-0" /> },
+    { label: 'Settings', href: '/settings', icon: <Settings className="h-5 w-5 shrink-0" /> },
+    { label: 'Logout', onClick: handleHeaderLogout, icon: <LogOut className="h-5 w-5 shrink-0" /> },
   ];
   const pagePreviewBackground = buildBrandBackground(
     sanitizeHexColor(slugPrimaryColorInput, DEFAULT_SLUG_PRIMARY),
@@ -1045,12 +1101,11 @@ function BusinessDashboardContent() {
     : pagePreviewBackground;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 px-4 pt-14 pb-12">
-      <DashboardBurgerMenu open={burgerMenuOpen} onOpen={() => setBurgerMenuOpen(true)} onClose={() => setBurgerMenuOpen(false)} items={burgerItems} />
-      <div className="max-w-5xl mx-auto">
-        <div className="rounded-3xl border-2 border-rose-300 bg-white shadow-lg shadow-slate-100/60">
+    <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-slate-50 pt-14 pb-12 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
+      <div className="w-full space-y-6">
+        <div className="w-full bg-white shadow-none dark:bg-gray-800">
           {/* Header */}
-          <div className="flex flex-col gap-6 border-b border-slate-100 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-6 px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <div className="flex items-start gap-4">
               <div className="h-14 w-14 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm">
                 {business.logo_url ? (
@@ -1109,68 +1164,46 @@ function BusinessDashboardContent() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={async () => {
-                  if (!business?.id) return;
-                  setInsightsOpen(true);
-                  setInsightsData(null);
-                  setInsightsLoading(true);
-                  try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    const res = await fetch(
-                      `/api/business/insights?business_id=${encodeURIComponent(business.id)}`,
-                      { headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {} }
-                    );
-                    const data = await res.json().catch(() => ({}));
-                    if (res.ok) setInsightsData(data);
-                    else toast.error(data?.error || 'Failed to load insights');
-                  } catch {
-                    toast.error(t(effectiveLang, 'Failed to load insights'));
-                  } finally {
-                    setInsightsLoading(false);
-                  }
-                }}
-                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 dark:border-indigo-600 bg-indigo-50 dark:bg-indigo-900/50 px-4 py-2 text-sm font-semibold text-indigo-700 dark:text-gray-100 shadow-sm transition hover:bg-indigo-100 dark:hover:bg-indigo-900/70"
-              >
-                <BarChart3 className="h-4 w-4" />
-                {t(effectiveLang, 'Insights')}
-              </button>
-              <button
-                onClick={() => router.push(`/business/${business.slug}`)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-gray-200 shadow-sm transition hover:bg-slate-50 dark:hover:bg-gray-700"
-              >
-                <Eye className="h-4 w-4" />
-                {t(effectiveLang, 'View public profile')}
-              </button>
-              <button
-                onClick={() => router.push(appIOS ? withAppParam('/dashboard/account', true) : '/business/plan')}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200 transition hover:from-indigo-500 hover:to-rose-500"
-              >
-                <Crown className="h-4 w-4" />
-                Manage Plan
-              </button>
-            </div>
+            {canViewPublicProfile ? (
+              <div className="flex w-full shrink-0 flex-wrap items-stretch gap-2 sm:w-auto sm:items-center sm:justify-end">
+                <Link
+                  href={`/business/${business.slug}`}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/30 transition hover:brightness-110 hover:shadow-lg hover:shadow-violet-500/35 active:scale-[0.98] dark:from-indigo-600 dark:via-violet-600 dark:to-fuchsia-600 dark:shadow-indigo-900/40"
+                >
+                  <Eye className="h-4 w-4 shrink-0 text-white" aria-hidden />
+                  {t(effectiveLang, 'View public profile')}
+                </Link>
+              </div>
+            ) : null}
+
           </div>
 
-          <div className="border-t border-slate-100 px-6 py-6">
+          <div className="px-4 py-6 sm:px-6">
             <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-3">
+                <section className={dashboardFbOuter}>
+                  <div className={dashboardFbHeader}>
+                    <h2 className="text-[17px] font-bold leading-tight text-[#050505] dark:text-gray-100">
+                      {t(effectiveLang, 'Notifications & content')}
+                    </h2>
+                    <p className="mt-1 text-[13px] leading-snug text-[#65676B] dark:text-gray-400">
+                      {t(effectiveLang, 'Alerts, posts, history, and banners.')}
+                    </p>
+                  </div>
+                  <div className={dashboardFbCanvas}>
+                <div className="grid grid-cols-2 gap-2">
                 {planSettings && (
-                  <div id="send-notification" className={`rounded-2xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm ${sendNotificationExpanded ? 'col-span-2' : ''}`}>
+                  <div id="send-notification" className={`relative ${dashboardFbPanelShell} ${sendNotificationExpanded ? 'col-span-2' : ''}`}>
                     <button
                       type="button"
                       onClick={() => setSendNotificationExpanded((prev) => !prev)}
-                      className="w-full flex items-center justify-between gap-2 p-3 text-left hover:bg-slate-50 dark:hover:bg-gray-700/50 rounded-2xl transition"
+                      className={dashboardFbPanelTrigger}
                     >
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                          <Bell className="h-4 w-4" />
-                        </span>
-                        <div className="min-w-0">
-                          <h2 className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">{t(effectiveLang, 'Send Notification')}</h2>
-                        </div>
-                      </div>
+                      <span className={dashboardFbIconWrap}>
+                        <Bell className="h-5 w-5 shrink-0" aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1 text-left">
+                        <span className={dashboardFbPanelTitle}>{t(effectiveLang, 'Send Notification')}</span>
+                      </span>
                       <span className="flex shrink-0 items-center gap-1.5">
                         <span className="hidden text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400 sm:inline">
                           {planSettings.plan?.toString().toUpperCase() || 'PLAN'}
@@ -1320,21 +1353,21 @@ function BusinessDashboardContent() {
                   </div>
                 )}
 
-                <div className={`relative rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 ${myPostsExpanded ? 'col-span-2' : ''}`}>
+                <div className={`relative ${dashboardFbPanelShell} ${myPostsExpanded ? 'col-span-2' : ''}`}>
                   <span className="absolute right-2 top-2 z-10 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
                     {businessPosts.length > 99 ? '99+' : businessPosts.length}
                   </span>
                   <button
                     type="button"
                     onClick={() => setMyPostsExpanded((prev) => !prev)}
-                    className="w-full flex items-center justify-between gap-2 p-3 text-left hover:bg-slate-50 dark:hover:bg-gray-700/50 rounded-2xl transition"
+                    className={dashboardFbPanelTrigger}
                   >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-                        <FileText className="h-4 w-4" />
-                      </span>
-                      <h2 id="my-posts" className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">{t(effectiveLang, 'My Posts')}</h2>
-                    </div>
+                    <span className={dashboardFbIconWrap}>
+                      <FileText className="h-5 w-5 shrink-0" aria-hidden />
+                    </span>
+                    <span id="my-posts" className={`min-w-0 flex-1 text-left ${dashboardFbPanelTitle}`}>
+                      {t(effectiveLang, 'My Posts')}
+                    </span>
                     <span className="flex shrink-0 items-center gap-1.5">
                       {myPostsExpanded ? (
                         <ChevronUp className="h-4 w-4 text-slate-500" />
@@ -1415,21 +1448,19 @@ function BusinessDashboardContent() {
                   )}
                 </div>
 
-                <div className={`relative rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 ${previousNotificationsExpanded ? 'col-span-2' : ''}`}>
+                <div className={`relative ${dashboardFbPanelShell} ${previousNotificationsExpanded ? 'col-span-2' : ''}`}>
                   <span className="absolute right-2 top-2 z-10 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
                     {notificationHistory.length > 99 ? '99+' : notificationHistory.length}
                   </span>
                   <button
                     type="button"
                     onClick={() => setPreviousNotificationsExpanded((prev) => !prev)}
-                    className="w-full flex items-center justify-between gap-2 p-3 text-left hover:bg-slate-50 dark:hover:bg-gray-700/50 rounded-2xl transition"
+                    className={dashboardFbPanelTrigger}
                   >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                        <Bell className="h-4 w-4" />
-                      </span>
-                      <h2 className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">{t(effectiveLang, 'Previous Notifications')}</h2>
-                    </div>
+                    <span className={dashboardFbIconWrap}>
+                      <Bell className="h-5 w-5 shrink-0" aria-hidden />
+                    </span>
+                    <span className={`min-w-0 flex-1 text-left ${dashboardFbPanelTitle}`}>{t(effectiveLang, 'Previous Notifications')}</span>
                     <span className="flex shrink-0 items-center gap-1.5">
                       {previousNotificationsExpanded ? (
                         <ChevronUp className="h-4 w-4 text-slate-500" />
@@ -1507,21 +1538,21 @@ function BusinessDashboardContent() {
                   )}
                 </div>
 
-                <div className={`relative rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800 ${promotionBannersExpanded ? 'col-span-2' : ''}`}>
+                <div className={`relative ${dashboardFbPanelShell} ${promotionBannersExpanded ? 'col-span-2' : ''}`}>
                   <span className="absolute right-2 top-2 z-10 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
                     {promotionRequests.length > 99 ? '99+' : promotionRequests.length}
                   </span>
                   <button
                     type="button"
                     onClick={() => setPromotionBannersExpanded((prev) => !prev)}
-                    className="w-full flex items-center justify-between gap-2 p-3 text-left hover:bg-slate-50 dark:hover:bg-gray-700/50 rounded-2xl transition"
+                    className={dashboardFbPanelTrigger}
                   >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
-                        <Image className="h-4 w-4" />
-                      </span>
-                      <h2 id="my-banners" className="text-xs font-bold leading-tight text-slate-900 dark:text-gray-100">{t(effectiveLang, 'My Banners')}</h2>
-                    </div>
+                    <span className={dashboardFbIconWrap}>
+                      <Image className="h-5 w-5 shrink-0" aria-hidden />
+                    </span>
+                    <span id="my-banners" className={`min-w-0 flex-1 text-left ${dashboardFbPanelTitle}`}>
+                      {t(effectiveLang, 'My Banners')}
+                    </span>
                     <span className="flex shrink-0 items-center gap-1.5">
                       {promotionBannersExpanded ? (
                         <ChevronUp className="h-4 w-4 text-slate-500" />
@@ -1606,6 +1637,15 @@ function BusinessDashboardContent() {
                   )}
                 </div>
                 </div>
+                  </div>
+                </section>
+
+                <DashboardInlineActions
+                  title={t(effectiveLang, 'Quick actions')}
+                  subtitle={t(effectiveLang, 'Edit, promote, QR, colors, help, and account.')}
+                  items={burgerItems}
+                  showLanguage
+                />
 
                 {notificationToDelete && typeof document !== 'undefined' && createPortal(
                   <div
@@ -1787,16 +1827,22 @@ function BusinessDashboardContent() {
 
                 {pageColorsOpen && typeof document !== 'undefined' && createPortal(
                   <div
-                    className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+                    className="fixed inset-0 z-[9999] overflow-y-auto overscroll-contain bg-black/50 p-3 backdrop-blur-sm sm:p-4"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="business-page-colors-title"
                     onClick={() => setPageColorsOpen(false)}
                   >
-                    <div
-                      className="my-8 w-full max-w-2xl shrink-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-gray-600 dark:bg-gray-800"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <div className="flex min-h-[100dvh] items-center justify-center py-4">
+                      <div
+                        className="relative w-full max-w-md shrink-0 rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-gray-600 dark:bg-gray-800 sm:max-w-lg"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                      <div
+                        ref={pageColorsScrollRef}
+                        className="max-h-[min(85dvh,36rem)] overflow-y-auto overflow-x-hidden px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5"
+                        onScroll={updatePageColorsScrollHint}
+                      >
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <h3 id="business-page-colors-title" className="text-lg font-semibold text-slate-900 dark:text-gray-100">{t(effectiveLang, 'Business Page Colors')}</h3>
@@ -1888,7 +1934,7 @@ function BusinessDashboardContent() {
                         Use gradient blend between primary and secondary colors
                       </label>
 
-                      <div className="mt-6 space-y-4 border-t border-slate-200 pt-4 dark:border-gray-600">
+                      <div className="mt-6 space-y-4 pt-4">
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Retail header & search')}</p>
                           <p className="mt-1 text-sm text-slate-600 dark:text-gray-300">
@@ -2068,6 +2114,20 @@ function BusinessDashboardContent() {
                           cursor: pointer;
                         }
                       `}</style>
+                      </div>
+                      {pageColorsMoreBelow ? (
+                        <div
+                          className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center justify-end bg-gradient-to-t from-white from-40% via-white/90 to-transparent pb-2 pt-14 dark:from-gray-800 dark:via-gray-800/90"
+                          role="status"
+                          aria-live="polite"
+                        >
+                          <span className="inline-flex items-center gap-1 rounded-full border border-slate-200/80 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm dark:border-gray-600 dark:bg-gray-800/95 dark:text-gray-300">
+                            <ChevronDown className="h-4 w-4 shrink-0 animate-bounce" aria-hidden />
+                            {t(effectiveLang, 'Scroll for more')}
+                          </span>
+                        </div>
+                      ) : null}
+                      </div>
                     </div>
                   </div>,
                   document.body

@@ -6,8 +6,8 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { User, Users, Globe, Building2, ShoppingBag, PenSquare, Camera, Tag, ImagePlus, Video, X, Ban, CircleHelp, Phone, Settings, LogOut } from 'lucide-react';
-import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
+import { User, Users, Globe, Building2, ShoppingBag, PenSquare, Camera, Tag, ImagePlus, Video, X, Ban, CircleHelp, Phone, Settings, LogOut, Languages } from 'lucide-react';
+import { getNativeLanguageName, supportedLanguages } from '@/utils/languages';
 import { Avatar } from '@/components/Avatar';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
@@ -92,7 +92,7 @@ function getListingExpiryDays(createdAt: string | null): number | null {
 }
 
 function DashboardContent() {
-  const { effectiveLang } = useLanguage();
+  const { effectiveLang, lang, setLang } = useLanguage();
   const [favorites, setFavorites] = useState<FavoriteBusiness[]>([]);
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
   const [followedOrgs, setFollowedOrgs] = useState<FollowedOrg[]>([]);
@@ -122,7 +122,6 @@ function DashboardContent() {
     features: { label: string; enabled: boolean }[];
   }[]>([]);
   const [businessPlansLoading, setBusinessPlansLoading] = useState(false);
-  const [burgerMenuOpen, setBurgerMenuOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [profileMedia, setProfileMedia] = useState<ProfileMediaItem[]>([]);
   const [profileMediaLoading, setProfileMediaLoading] = useState(false);
@@ -153,18 +152,6 @@ function DashboardContent() {
     }
     router.push('/login');
   };
-
-  const burgerItems = [
-    ...(profile?.username ? [{ label: t(effectiveLang, 'View Profile'), href: `/profile/${profile.username}`, icon: <User className="h-5 w-5 shrink-0" />, color: 'bg-indigo-50 dark:bg-indigo-900/30' }] : []),
-    { label: t(effectiveLang, 'Followers only'), subtitle: t(effectiveLang, 'Post to your profile — only followers see it'), href: '/community/post?visibility=profile', icon: <Users className="h-5 w-5 shrink-0" />, color: 'bg-violet-50 dark:bg-violet-900/30' },
-    { label: t(effectiveLang, 'Public (Community)'), subtitle: t(effectiveLang, 'Post to Community feed — everyone can see it'), href: '/community/post?visibility=community', icon: <Globe className="h-5 w-5 shrink-0" />, color: 'bg-rose-50 dark:bg-rose-900/30' },
-    { label: t(effectiveLang, 'Blocked accounts'), subtitle: t(effectiveLang, 'People you blocked or who blocked you'), href: '/dashboard/blocked', icon: <Ban className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-gray-800/80' },
-    { label: t(effectiveLang, 'Sell Item'), href: '/marketplace/post', icon: <Tag className="h-5 w-5 shrink-0" />, color: 'bg-emerald-50 dark:bg-emerald-900/30' },
-    { label: t(effectiveLang, 'faq'), href: '/faq', icon: <CircleHelp className="h-5 w-5 shrink-0" />, color: 'bg-blue-50 dark:bg-blue-900/30' },
-    { label: t(effectiveLang, 'contact'), href: '/contact', icon: <Phone className="h-5 w-5 shrink-0" />, color: 'bg-cyan-50 dark:bg-cyan-900/30' },
-    { label: t(effectiveLang, 'settings'), href: '/settings', icon: <Settings className="h-5 w-5 shrink-0" />, color: 'bg-slate-100 dark:bg-slate-800/80' },
-    { label: t(effectiveLang, 'logout'), onClick: handleHeaderLogout, icon: <LogOut className="h-5 w-5 shrink-0" />, color: 'bg-slate-200 dark:bg-slate-700/80' },
-  ];
 
   useEffect(() => {
     const load = async () => {
@@ -674,9 +661,9 @@ function DashboardContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-gray-900 px-4 pt-14 pb-10">
-        <div className="max-w-5xl mx-auto space-y-6">
-          <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-6 sm:p-8">
+      <div className="flex min-h-screen w-full flex-col bg-[#f0f2f5] pt-14 pb-10 dark:bg-gray-900">
+        <div className="w-full space-y-4 px-4 sm:px-5">
+          <div className="w-full bg-white p-5 dark:bg-gray-800 sm:p-6">
             <div className="flex items-center gap-6">
               <div className="skeleton h-20 w-20 rounded-full" />
               <div className="flex-1 space-y-2">
@@ -690,7 +677,7 @@ function DashboardContent() {
               </div>
             </div>
           </div>
-          <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-6 sm:p-8 space-y-3">
+          <div className="w-full space-y-3 bg-white p-5 dark:bg-gray-800 sm:p-6">
             <div className="skeleton h-3 w-16 rounded" />
             <div className="skeleton h-5 w-32 rounded" />
             <div className="skeleton h-3 w-64 rounded" />
@@ -702,11 +689,10 @@ function DashboardContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-gray-900 px-4 pt-14 pb-10">
-      <DashboardBurgerMenu open={burgerMenuOpen} onOpen={() => setBurgerMenuOpen(true)} onClose={() => setBurgerMenuOpen(false)} items={burgerItems} />
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div className="flex min-h-screen w-full flex-col bg-[#f0f2f5] pt-14 pb-10 dark:bg-gray-900">
+      <div className="w-full flex-1 space-y-0">
         {/* Profile card */}
-        <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg shadow-slate-100/60 dark:shadow-black/20 p-6 sm:p-8">
+        <div className="w-full bg-white px-4 py-5 dark:bg-gray-800 sm:px-5 sm:py-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             <label className="relative block shrink-0 cursor-pointer group">
               <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-[#c41e56]/90 bg-slate-100 ring-2 ring-transparent transition group-hover:ring-indigo-200 dark:border-[#e85085]/65 dark:bg-gray-700 dark:group-hover:ring-indigo-500">
@@ -801,74 +787,167 @@ function DashboardContent() {
                 </button>
               )}
 
-              <div className="mt-4 flex flex-wrap gap-3">
-                {profile?.username && (
+              {profile?.username && (
+                <div className="mt-4">
                   <Link
                     href={`/profile/${profile.username}`}
-                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition"
+                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500"
                   >
+                    <User className="h-4 w-4 shrink-0" aria-hidden />
                     {t(effectiveLang, 'View Profile')}
                   </Link>
-                )}
-                <div className="w-full">
-                  <p className="text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">{t(effectiveLang, 'Create a post')}</p>
-                  <div className="flex flex-wrap items-stretch gap-3">
-                    <Link
-                      href="/community/post?visibility=profile"
-                      className="inline-flex flex-col gap-1 rounded-xl border-2 border-violet-300 dark:border-violet-600 bg-violet-50 dark:bg-violet-900/30 px-4 py-3 text-left text-sm font-semibold text-violet-800 dark:text-violet-200 hover:bg-violet-100 dark:hover:bg-violet-900/50 transition min-w-[140px]"
-                    >
-                      <span className="flex items-center gap-2">
-                        <Users className="h-4 w-4 shrink-0" />
-                        {t(effectiveLang, 'Followers only')}
-                      </span>
-                      <span className="text-xs font-normal text-violet-600 dark:text-violet-300">
-                        {t(effectiveLang, 'Only on your profile')}
-                      </span>
-                    </Link>
-                    <Link
-                      href="/community/post?visibility=community"
-                      className="inline-flex flex-col gap-1 rounded-xl border-2 border-rose-300 dark:border-rose-600 bg-rose-50 dark:bg-rose-900/30 px-4 py-3 text-left text-sm font-semibold text-rose-800 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition min-w-[140px]"
-                    >
-                      <span className="flex items-center gap-2">
-                        <Globe className="h-4 w-4 shrink-0" />
-                        {t(effectiveLang, 'Public (Community)')}
-                      </span>
-                      <span className="text-xs font-normal text-rose-600 dark:text-rose-300">
-                        {t(effectiveLang, 'Everyone can see')}
-                      </span>
-                    </Link>
-                  </div>
                 </div>
-                <Link
-                  href="/marketplace/post"
-                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                    listingLimits != null && !listingLimits.isBusiness && !listingLimits.canAddMore
-                      ? 'border border-slate-300 dark:border-gray-600 bg-slate-100 dark:bg-gray-700 text-slate-500 dark:text-gray-400 cursor-not-allowed'
-                      : 'border border-emerald-300 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
-                  }`}
-                  onClick={(e) => listingLimits != null && !listingLimits.isBusiness && !listingLimits.canAddMore && e.preventDefault()}
-                  title={
-                    listingLimits != null && !listingLimits.isBusiness && !listingLimits.canAddMore
-                      ? t(effectiveLang, 'Listing limit reached. Delete one or get the Casual Seller Pack.')
-                      : t(effectiveLang, 'Sell an item')
-                  }
-                >
-                  <Tag className="h-4 w-4" />
-                  {t(effectiveLang, 'Sell Item')}
-                </Link>
-                <Link
-                  href="/settings"
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-gray-600 px-4 py-2 text-sm text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 transition"
-                >
-                  {t(effectiveLang, 'Settings')}
-                </Link>
-              </div>
+              )}
             </div>
           </div>
         </div>
 
+        {/* Quick actions */}
+        <section className="w-full overflow-hidden bg-white dark:bg-gray-800">
+          <div className="bg-white px-4 py-3 sm:px-5 dark:bg-gray-800">
+            <h2 className="text-[17px] font-bold leading-tight text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Quick actions')}</h2>
+            <p className="mt-1 text-[13px] leading-snug text-[#65676B] dark:text-gray-400">
+              {t(effectiveLang, 'Posts, marketplace links, help, and account tools in one place.')}
+            </p>
+          </div>
+          <div className="space-y-4 bg-[#f0f2f5] p-3 dark:bg-gray-950/40">
+            <div>
+              <h3 className="mb-2 px-0.5 text-[15px] font-semibold text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Create a post')}</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href="/community/post?visibility=profile"
+                  className="flex min-h-[5.25rem] flex-col items-start gap-2 rounded-xl bg-white p-3 text-left shadow-none transition-colors hover:bg-[#f2f3f5] active:bg-[#e4e6eb] dark:bg-gray-800 dark:hover:bg-gray-700 dark:active:bg-gray-600"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f0f2f5] text-[#65676B] dark:bg-gray-700 dark:text-gray-300">
+                    <Users className="h-6 w-6 shrink-0" aria-hidden />
+                  </span>
+                  <span className="text-[15px] font-semibold leading-snug text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Followers only')}</span>
+                  <span className="text-[13px] leading-snug text-[#65676B] dark:text-gray-400">{t(effectiveLang, 'Post to your profile — only followers see it')}</span>
+                </Link>
+                <Link
+                  href="/community/post?visibility=community"
+                  className="flex min-h-[5.25rem] flex-col items-start gap-2 rounded-xl bg-white p-3 text-left shadow-none transition-colors hover:bg-[#f2f3f5] active:bg-[#e4e6eb] dark:bg-gray-800 dark:hover:bg-gray-700 dark:active:bg-gray-600"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f0f2f5] text-[#65676B] dark:bg-gray-700 dark:text-gray-300">
+                    <Globe className="h-6 w-6 shrink-0" aria-hidden />
+                  </span>
+                  <span className="text-[15px] font-semibold leading-snug text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Public (Community)')}</span>
+                  <span className="text-[13px] leading-snug text-[#65676B] dark:text-gray-400">{t(effectiveLang, 'Post to Community feed — everyone can see it')}</span>
+                </Link>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="mb-2 px-0.5 text-[15px] font-semibold text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Marketplace')}</h3>
+              <Link
+                href="/marketplace/post"
+                className={`flex min-h-[5.25rem] flex-col items-start gap-2 rounded-xl bg-white p-3 text-left shadow-none transition-colors sm:flex-row sm:items-center sm:gap-4 ${
+                  listingLimits != null && !listingLimits.isBusiness && !listingLimits.canAddMore
+                    ? 'cursor-not-allowed opacity-70 hover:bg-white dark:hover:bg-gray-800'
+                    : 'hover:bg-[#f2f3f5] active:bg-[#e4e6eb] dark:hover:bg-gray-700 dark:active:bg-gray-600'
+                }`}
+                onClick={(e) => listingLimits != null && !listingLimits.isBusiness && !listingLimits.canAddMore && e.preventDefault()}
+                title={
+                  listingLimits != null && !listingLimits.isBusiness && !listingLimits.canAddMore
+                    ? t(effectiveLang, 'Listing limit reached. Delete one or get the Casual Seller Pack.')
+                    : t(effectiveLang, 'Sell an item')
+                }
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f0f2f5] text-[#65676B] dark:bg-gray-700 dark:text-gray-300">
+                  <Tag className="h-6 w-6" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-semibold text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Sell Item')}</span>
+                  <span className="mt-1 block text-[13px] leading-snug text-[#65676B] dark:text-gray-400">{t(effectiveLang, 'List something on the marketplace')}</span>
+                </span>
+              </Link>
+            </div>
+
+            <div>
+              <h3 className="mb-2 px-0.5 text-[15px] font-semibold text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Account & help')}</h3>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <Link
+                  href="/dashboard/blocked"
+                  className="flex min-h-[5.25rem] flex-col items-start gap-2 rounded-xl bg-white p-3 text-left shadow-none transition-colors hover:bg-[#f2f3f5] dark:bg-gray-800 dark:hover:bg-gray-700"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f0f2f5] text-[#65676B] dark:bg-gray-700 dark:text-gray-300">
+                    <Ban className="h-6 w-6" aria-hidden />
+                  </span>
+                  <span className="text-[15px] font-semibold leading-snug text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Blocked accounts')}</span>
+                </Link>
+                <Link
+                  href="/faq"
+                  className="flex min-h-[5.25rem] flex-col items-start gap-2 rounded-xl bg-white p-3 text-left shadow-none transition-colors hover:bg-[#f2f3f5] dark:bg-gray-800 dark:hover:bg-gray-700"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f0f2f5] text-[#65676B] dark:bg-gray-700 dark:text-gray-300">
+                    <CircleHelp className="h-6 w-6" aria-hidden />
+                  </span>
+                  <span className="text-[15px] font-semibold leading-snug text-[#050505] dark:text-gray-100">{t(effectiveLang, 'FAQ / Help')}</span>
+                </Link>
+                <Link
+                  href="/contact"
+                  className="flex min-h-[5.25rem] flex-col items-start gap-2 rounded-xl bg-white p-3 text-left shadow-none transition-colors hover:bg-[#f2f3f5] dark:bg-gray-800 dark:hover:bg-gray-700"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f0f2f5] text-[#65676B] dark:bg-gray-700 dark:text-gray-300">
+                    <Phone className="h-6 w-6" aria-hidden />
+                  </span>
+                  <span className="text-[15px] font-semibold leading-snug text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Contact Us')}</span>
+                </Link>
+                <Link
+                  href="/settings"
+                  className="flex min-h-[5.25rem] flex-col items-start gap-2 rounded-xl bg-white p-3 text-left shadow-none transition-colors hover:bg-[#f2f3f5] dark:bg-gray-800 dark:hover:bg-gray-700"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f0f2f5] text-[#65676B] dark:bg-gray-700 dark:text-gray-300">
+                    <Settings className="h-6 w-6" aria-hidden />
+                  </span>
+                  <span className="text-[15px] font-semibold leading-snug text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Settings')}</span>
+                </Link>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 dark:bg-gray-800">
+              <label className="mb-2 flex items-center gap-2 text-[13px] font-semibold text-[#050505] dark:text-gray-200">
+                <Languages className="h-4 w-4 text-[#65676B] dark:text-gray-400" aria-hidden />
+                {t(effectiveLang, 'Language')}
+              </label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#65676B]">🌐</span>
+                <select
+                  value={lang}
+                  onChange={(e) => setLang(e.target.value)}
+                  className="w-full cursor-pointer appearance-none rounded-lg border-0 bg-[#f0f2f5] py-2.5 pl-9 pr-10 text-[15px] font-medium text-[#050505] ring-0 transition focus:border-0 focus:outline-none focus:ring-2 focus:ring-[#1877f2]/35 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-[#1877f2]/40"
+                  style={{
+                    backgroundImage:
+                      'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%2365676B\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 0.85rem center',
+                    backgroundSize: '0.85rem',
+                  }}
+                >
+                  {supportedLanguages.map(({ code, name, emoji }) => (
+                    <option key={code} value={code}>
+                      {emoji} {getNativeLanguageName(code, name)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleHeaderLogout}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-[15px] font-semibold text-red-700 shadow-none transition-colors hover:bg-red-50 dark:bg-gray-800 dark:text-red-300 dark:hover:bg-red-950/40"
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f0f2f5] text-[#65676B] dark:bg-gray-700 [&_svg]:h-5 [&_svg]:w-5">
+                <LogOut className="shrink-0" aria-hidden />
+              </span>
+              {t(effectiveLang, 'Log Out')}
+            </button>
+          </div>
+        </section>
+
         {/* Items for sale - individual: free 1 (30d) or pack 5 */}
-        <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg shadow-slate-100/60 dark:shadow-black/20 p-6 sm:p-8">
+        <div className="w-full bg-white px-4 py-6 dark:bg-gray-800 sm:px-5 sm:py-8">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{t(effectiveLang, 'Selling')}</p>
@@ -911,7 +990,7 @@ function DashboardContent() {
           ) : myListings.length > 0 ? (
             <div className="mt-6 space-y-4">
               {myListings.map((listing) => (
-                <div key={listing.id} className="flex gap-4 rounded-2xl border border-emerald-100 dark:border-gray-600 bg-emerald-50/50 dark:bg-gray-700/80 p-4">
+                <div key={listing.id} className="flex gap-4 rounded-2xl bg-emerald-50/50 p-4 dark:bg-gray-700/80">
                   <Link href={`/marketplace/individual-${listing.id}`} className="shrink-0 block h-24 w-24 rounded-xl overflow-hidden bg-slate-100 dark:bg-gray-600">
                     <img src={listing.imageUrls[0] || '/placeholder.jpg'} alt={listing.title} className="h-full w-full object-cover" />
                   </Link>
@@ -950,7 +1029,7 @@ function DashboardContent() {
               ))}
             </div>
           ) : (
-            <div className="mt-6 rounded-2xl border border-dashed border-emerald-200 dark:border-gray-600 p-6 text-center text-slate-500 dark:text-gray-400">
+            <div className="mt-6 rounded-2xl bg-emerald-50/40 p-6 text-center text-slate-500 dark:bg-gray-800/50 dark:text-gray-400">
               {t(effectiveLang, 'No items listed.')}
               <Link href="/marketplace/post" className="mt-3 block text-emerald-600 dark:text-emerald-400 font-semibold hover:underline">{t(effectiveLang, 'Add item for sale')}</Link>
             </div>
@@ -1005,7 +1084,7 @@ function DashboardContent() {
               </div>
 
               {/* Create a business account – business packages */}
-              <div className="mt-8 pt-6 border-t border-slate-200 dark:border-gray-700">
+              <div className="mt-8 pt-6">
                 <div className="flex items-center gap-2 mb-2">
                   <Building2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                   <h4 className="font-semibold text-slate-900 dark:text-white">{t(effectiveLang, 'Create a business account')}</h4>
@@ -1081,7 +1160,7 @@ function DashboardContent() {
         )}
 
         {/* Profile photos & videos (only on profile, not in feed or community) */}
-        <div className="rounded-3xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg shadow-slate-100/60 dark:shadow-black/20 p-6 sm:p-8">
+        <div className="w-full bg-white px-4 py-6 dark:bg-gray-800 sm:px-5 sm:py-8">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{t(effectiveLang, 'Profile')}</p>
@@ -1127,7 +1206,7 @@ function DashboardContent() {
           {profileMediaLoading ? (
             <div className="mt-6 text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading...')}</div>
           ) : profileMedia.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 dark:border-gray-600 p-6 text-center text-slate-500 dark:text-gray-400">
+            <div className="mt-6 rounded-2xl bg-slate-100/80 p-6 text-center text-slate-500 dark:bg-gray-700/50 dark:text-gray-400">
               {t(effectiveLang, 'No photos or videos yet. Add some to show on your profile.')}
             </div>
           ) : (

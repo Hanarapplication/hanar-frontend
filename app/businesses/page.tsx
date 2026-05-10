@@ -1114,9 +1114,11 @@ export default function BusinessesPage() {
         )}
 
         {/* Yelp-style quick actions */}
-        <section className="relative left-1/2 mb-0 w-screen -translate-x-1/2 rounded-none border-y border-[#d4af37] bg-black px-3 py-4">
-          <div className="grid grid-cols-4 gap-y-3 sm:grid-cols-6">
-            {quickFilters.map((item) => (
+        <section className="relative left-1/2 mb-0 w-screen -translate-x-1/2 rounded-none border-y border-slate-200/90 bg-gradient-to-b from-slate-50 via-white to-slate-100 px-3 py-4 dark:border-slate-700 dark:from-gray-950 dark:via-gray-900 dark:to-slate-950">
+          <div className="grid grid-cols-4 gap-2 gap-y-3 sm:grid-cols-6">
+            {quickFilters.map((item) => {
+              const selected = selectedCategoryFilter === item.key;
+              return (
               <button
                 key={item.label}
                 type="button"
@@ -1130,18 +1132,33 @@ export default function BusinessesPage() {
                   }
                   setVisibleCount(6);
                 }}
-                className="flex min-h-[4.75rem] flex-col items-center justify-start gap-0.5 text-center"
+                className={`flex min-h-[4.75rem] flex-col items-center justify-start gap-1 rounded-xl px-1.5 py-1.5 text-center transition-colors ${
+                  selected
+                    ? 'bg-white shadow-sm ring-2 ring-indigo-500/35 dark:bg-gray-800/90 dark:ring-indigo-400/50'
+                    : 'hover:bg-white/80 dark:hover:bg-white/5'
+                }`}
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-100 text-base">
+                <span
+                  className={`flex h-10 w-10 items-center justify-center rounded-full text-lg shadow-sm transition-[box-shadow,background-color] ${
+                    selected
+                      ? 'bg-indigo-50 ring-2 ring-indigo-500/40 dark:bg-indigo-950/60 dark:ring-indigo-400/45'
+                      : 'bg-white ring-1 ring-slate-200/90 dark:bg-gray-800 dark:ring-slate-600'
+                  }`}
+                >
                   {item.icon}
                 </span>
                 <span
-                  className={`max-w-[5.5rem] text-xs font-bold leading-tight break-words whitespace-normal ${selectedCategoryFilter === item.key ? 'text-white' : 'text-white/85'}`}
+                  className={`max-w-[5.5rem] text-xs font-semibold leading-tight break-words whitespace-normal ${
+                    selected
+                      ? 'text-indigo-900 dark:text-indigo-100'
+                      : 'text-slate-600 dark:text-slate-300'
+                  }`}
                 >
                   {translateUi(item.label)}
                 </span>
               </button>
-            ))}
+              );
+            })}
           </div>
         </section>
 

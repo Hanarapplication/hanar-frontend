@@ -1265,29 +1265,38 @@ export default function MarketplacePage() {
           {topCategories.length > 0 && (
             <>
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h2 className="inline-flex items-center rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[16px] font-bold text-slate-900 shadow-sm">
+                <h2 className="inline-flex items-center rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[16px] font-bold text-slate-900 shadow-sm dark:border-slate-600 dark:bg-gray-800 dark:text-gray-100">
                   {t(effectiveLang, 'Categories for you')}
                 </h2>
-                <span className="text-[11px] text-amber-950/80">{t(effectiveLang, 'Tap to filter')}</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">{t(effectiveLang, 'Tap to filter')}</span>
               </div>
-              <section className="relative mb-3 overflow-hidden rounded-xl border border-amber-600/50 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_24px_-10px_rgba(60,40,0,0.45)] ring-1 ring-amber-200/30 [background:linear-gradient(155deg,#4a3608_0%,#8a6b12_18%,#c9a227_42%,#f0d878_52%,#d4af37_68%,#6b4c0a_100%)] before:pointer-events-none before:absolute before:-right-6 before:top-0 before:h-28 before:w-40 before:rotate-12 before:rounded-full before:bg-gradient-to-l before:from-white/40 before:via-white/10 before:to-transparent after:pointer-events-none after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-white/40 after:to-transparent">
+              <section className="relative mb-3 overflow-hidden rounded-xl border border-slate-200/90 bg-gradient-to-b from-slate-50 via-white to-slate-100 p-3 dark:border-slate-700 dark:from-gray-950 dark:via-gray-900 dark:to-slate-950">
               <div className="relative flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={handleAllCategoriesClick}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-900/25 bg-white px-3 py-1 text-[11px] font-semibold text-amber-950 shadow-sm transition hover:border-amber-900/40 hover:bg-[#fefefe]"
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold shadow-sm transition ${
+                    selectedCategoryFilter === null
+                      ? 'border border-indigo-200 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-500/35 dark:border-indigo-700 dark:bg-indigo-950/55 dark:text-indigo-100 dark:ring-indigo-400/45'
+                      : 'border border-slate-200/90 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-gray-700'
+                  }`}
                 >
                   <span aria-hidden>🌐</span>
                   <span>{t(effectiveLang, 'All categories')}</span>
                 </button>
                 {topCategories.map((category) => {
                   const emoji = getMarketplaceCategoryIcon(category);
+                  const selected = selectedCategoryFilter === category;
                   return (
                     <button
                       key={category}
                       type="button"
                       onClick={() => handleCategoryClick(category)}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-amber-900/20 bg-white px-3 py-1 text-[11px] font-semibold text-amber-950 shadow-sm transition hover:border-amber-900/35 hover:bg-[#fefefe]"
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold shadow-sm transition ${
+                        selected
+                          ? 'border border-indigo-200 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-500/35 dark:border-indigo-700 dark:bg-indigo-950/55 dark:text-indigo-100 dark:ring-indigo-400/45'
+                          : 'border border-slate-200/90 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-gray-700'
+                      }`}
                     >
                       <span aria-hidden>{emoji}</span>
                       <span>{t(effectiveLang, category)}</span>
@@ -1298,7 +1307,11 @@ export default function MarketplacePage() {
                   <button
                     type="button"
                     onClick={() => setCategoriesModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-900/20 bg-white px-3 py-1 text-[11px] font-semibold text-amber-950 shadow-sm transition hover:border-amber-900/35 hover:bg-[#fefefe]"
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold shadow-sm transition ${
+                      selectedCategoryFilter && extraCategories.includes(selectedCategoryFilter)
+                        ? 'border border-indigo-200 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-500/35 dark:border-indigo-700 dark:bg-indigo-950/55 dark:text-indigo-100 dark:ring-indigo-400/45'
+                        : 'border border-slate-200/90 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-gray-700'
+                    }`}
                   >
                     <span>{t(effectiveLang, 'See more')}</span>
                     <span aria-hidden>→</span>

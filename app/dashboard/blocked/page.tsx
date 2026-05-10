@@ -5,7 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, User, Users, Globe, Tag, Ban, CircleHelp, Phone, Settings, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
+import { DashboardInlineActions } from '@/components/DashboardInlineActions';
 import { DashboardBlockedAccountsPanel } from '@/components/DashboardBlockedAccountsPanel';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
@@ -15,8 +15,6 @@ function BlockedAccountsContent() {
   const { effectiveLang } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
-  const [burgerMenuOpen, setBurgerMenuOpen] = useState(false);
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -144,9 +142,8 @@ function BlockedAccountsContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-gray-900 px-4 pt-14 pb-10">
-      <DashboardBurgerMenu open={burgerMenuOpen} onOpen={() => setBurgerMenuOpen(true)} onClose={() => setBurgerMenuOpen(false)} items={burgerItems} />
-      <div className="mx-auto max-w-5xl space-y-6">
+    <div className="flex min-h-screen w-full flex-col bg-[#f0f2f5] pt-14 pb-10 dark:bg-gray-900">
+      <div className="w-full space-y-6 px-4 sm:px-5">
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400"
@@ -154,6 +151,13 @@ function BlockedAccountsContent() {
           <ArrowLeft className="h-4 w-4" />
           {t(effectiveLang, 'Back to dashboard')}
         </Link>
+        <DashboardInlineActions
+          title={t(effectiveLang, 'Quick actions')}
+          subtitle={t(effectiveLang, 'Posts, marketplace links, help, and account tools in one place.')}
+          items={burgerItems}
+          showLanguage
+          translateLabels={false}
+        />
         <DashboardBlockedAccountsPanel ready />
       </div>
     </div>

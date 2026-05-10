@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { FaStore, FaShoppingCart, FaUserCircle } from 'react-icons/fa';
 import { useLanguage } from '@/context/LanguageContext';
@@ -20,7 +21,16 @@ export default function MobileTopNav({ hidden = false }: { hidden?: boolean }) {
     {
       key: 'home',
       href: '/',
-      icon: <span className="text-[1.02rem] font-serif font-bold lowercase tracking-[0.015em]">hanar</span>,
+      icon: (
+        <Image
+          src="/hanar.logo.png"
+          alt=""
+          width={26}
+          height={26}
+          className="h-[1.32rem] w-[1.32rem] shrink-0 object-contain"
+          aria-hidden
+        />
+      ),
       label: t(effectiveLang, 'Feed'),
       isActive: (path) => path === '/',
     },

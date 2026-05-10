@@ -5,7 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Ban, Bell, Edit, Megaphone, CircleHelp, Phone, Settings, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
+import { DashboardInlineActions } from '@/components/DashboardInlineActions';
 import { DashboardBlockedAccountsPanel } from '@/components/DashboardBlockedAccountsPanel';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
@@ -15,8 +15,6 @@ function OrganizationBlockedContent() {
   const { effectiveLang } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
-  const [burgerMenuOpen, setBurgerMenuOpen] = useState(false);
-
   const handleHeaderLogout = async () => {
     await supabase.auth.signOut();
     if (typeof window !== 'undefined') {
@@ -84,9 +82,8 @@ function OrganizationBlockedContent() {
   if (!allowed) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-14 pb-10">
-      <DashboardBurgerMenu open={burgerMenuOpen} onOpen={() => setBurgerMenuOpen(true)} onClose={() => setBurgerMenuOpen(false)} items={orgBurgerItems} />
-      <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen w-full bg-[#f0f2f5] pt-14 pb-10 dark:bg-gray-900">
+      <main className="w-full space-y-6 px-4 sm:px-6 lg:px-8">
         <Link
           href="/organization/dashboard"
           className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400"
@@ -94,7 +91,14 @@ function OrganizationBlockedContent() {
           <ArrowLeft className="h-4 w-4" />
           {t(effectiveLang, 'Back to dashboard')}
         </Link>
-        <div className="mt-6">
+        <DashboardInlineActions
+          title={t(effectiveLang, 'Quick actions')}
+          subtitle={t(effectiveLang, 'Posts, marketplace links, help, and account tools in one place.')}
+          items={orgBurgerItems}
+          showLanguage
+          translateLabels={false}
+        />
+        <div>
           <DashboardBlockedAccountsPanel
             ready
             className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"

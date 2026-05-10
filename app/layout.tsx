@@ -1,5 +1,5 @@
 // ✅ NO "use client" here
-import type { Viewport } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { DarkModeProvider } from '@/context/DarkModeContext';
 import { Toaster } from 'react-hot-toast';
@@ -8,10 +8,40 @@ import PwaRegistration from '@/components/PwaRegistration';
 import { LanguageProvider } from '@/context/LanguageContext';
 import FcmTokenHandler from '@/components/FcmTokenHandler';
 
-export const metadata = {
+/** Golden yellow from brand mark — matches favicon / PWA chrome. */
+const BRAND_THEME = '#e8c547';
+
+export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://hanar.net'),
   title: 'Hanar',
   description: 'Connecting immigrant businesses and marketplaces',
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/icons/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/icons/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/hanar.logo.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/icons/apple-touch-icon.png',
+    shortcut: '/hanar.logo.png',
+  },
+  appleWebApp: {
+    title: 'Hanar',
+    capable: true,
+    statusBarStyle: 'default',
+  },
+  openGraph: {
+    type: 'website',
+    title: 'Hanar',
+    description: 'Connecting immigrant businesses and marketplaces',
+    images: [{ url: '/hanar.logo.png', width: 512, height: 512, alt: 'Hanar' }],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Hanar',
+    description: 'Connecting immigrant businesses and marketplaces',
+    images: ['/hanar.logo.png'],
+  },
 };
 
 /** `viewportFit: cover` is required for `env(safe-area-inset-*)` on notched iOS and many mobile browsers. */
@@ -21,8 +51,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  /** Mobile browser chrome (Android Chrome, etc.) */
-  themeColor: '#ffffff',
+  themeColor: BRAND_THEME,
 };
 
 export default function RootLayout({
@@ -33,16 +62,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
-        <meta name="theme-color" content="#ffffff" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Hanar" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){var d=document.documentElement,v=localStorage.getItem('hanar-dark-mode');d.classList.toggle('dark',v==='true');})();`,

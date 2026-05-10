@@ -7,8 +7,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#e8c547",
+  "theme_color": "#e8c547",
   "categories": ["business", "shopping", "social"],
   "icons": [
     {

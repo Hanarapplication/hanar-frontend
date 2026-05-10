@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, MessageCircle, Store, ShoppingCart, CircleUserRound } from 'lucide-react';
+import { Bell, MessageCircle, CircleUserRound } from 'lucide-react';
+import { FaShoppingCart, FaStore } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
 import { Avatar } from '@/components/Avatar';
 import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
@@ -493,15 +494,19 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
   const primaryNavItems: {
     key: string;
     href: string;
-    icon: React.ReactNode;
+    icon: (isActive: boolean) => React.ReactNode;
     label: string;
     isActive: (path: string) => boolean;
   }[] = [
     {
       key: 'home',
       href: '/',
-      icon: (
-        <span className="shrink-0 text-[0.98rem] font-semibold leading-none tracking-normal lowercase text-black">
+      icon: (isActive) => (
+        <span
+          className={`shrink-0 text-[0.98rem] font-semibold leading-none tracking-normal lowercase ${
+            isActive ? 'text-yellow-500' : ''
+          }`}
+        >
           hanar
         </span>
       ),
@@ -511,8 +516,8 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     {
       key: 'marketplace',
       href: '/marketplace',
-      icon: (
-        <ShoppingCart className={`${navLineIconClass} text-black`} strokeWidth={1.9} aria-hidden />
+      icon: (isActive) => (
+        <FaShoppingCart className={`${navLineIconClass} ${isActive ? 'text-yellow-500' : ''}`} aria-hidden />
       ),
       label: t(effectiveLang, 'Marketplace'),
       isActive: (path) => path.startsWith('/marketplace'),
@@ -520,8 +525,8 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     {
       key: 'businesses',
       href: '/businesses',
-      icon: (
-        <Store className={`${navLineIconClass} text-black`} strokeWidth={1.9} aria-hidden />
+      icon: (isActive) => (
+        <FaStore className={`${navLineIconClass} ${isActive ? 'text-yellow-500' : ''}`} aria-hidden />
       ),
       label: t(effectiveLang, 'Businesses'),
       isActive: (path) => path.startsWith('/businesses') || path.startsWith('/business/'),
@@ -529,18 +534,27 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     {
       key: 'profile',
       href: dashboardIdentity.loggedIn ? '/dashboard' : '/login?redirect=/dashboard',
-      icon: dashboardIdentity.loggedIn ? (
-        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white p-px">
-          <Avatar
-            src={dashboardIdentity.avatarUrl}
-            alt="Dashboard profile"
-            className="m-0 block h-full w-full rounded-full"
-            unframed
+      icon: (isActive) =>
+        dashboardIdentity.loggedIn ? (
+          <span
+            className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border bg-white p-px ${
+              isActive ? 'border-yellow-500 ring-2 ring-yellow-500 ring-offset-1 ring-offset-slate-100 dark:ring-offset-slate-700' : 'border-slate-300'
+            }`}
+          >
+            <Avatar
+              src={dashboardIdentity.avatarUrl}
+              alt="Dashboard profile"
+              className="m-0 block h-full w-full rounded-full"
+              unframed
+            />
+          </span>
+        ) : (
+          <CircleUserRound
+            className={`${navLineIconClass} ${isActive ? 'text-yellow-500' : ''}`}
+            strokeWidth={1.9}
+            aria-hidden
           />
-        </span>
-      ) : (
-        <CircleUserRound className={`${navLineIconClass} text-black`} strokeWidth={1.9} aria-hidden />
-      ),
+        ),
       label: t(effectiveLang, 'Profile'),
       isActive: (path) => path.startsWith('/dashboard') || (!dashboardIdentity.loggedIn && path.startsWith('/login')),
     },
@@ -572,13 +586,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
                   isActive ? 'text-black' : 'text-black/70 hover:bg-black/10 hover:text-black'
                 }`}
               >
-                {item.icon}
-                <span
-                  className={`absolute bottom-0 left-1.5 right-1.5 h-[2px] origin-center rounded-full transition-all duration-300 ${
-                    isActive ? 'bg-pink-500 opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
-                  }`}
-                  aria-hidden
-                />
+                {item.icon(isActive)}
               </Link>
             );
           })}
@@ -604,13 +612,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
                   isActive ? 'text-black' : 'text-black/70 hover:bg-black/10 hover:text-black'
                 }`}
               >
-                {item.icon}
-                <span
-                  className={`absolute bottom-0 left-1.5 right-1.5 h-[2px] origin-center rounded-full transition-all duration-300 ${
-                    isActive ? 'bg-pink-500 opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
-                  }`}
-                  aria-hidden
-                />
+                {item.icon(isActive)}
               </Link>
             );
           })}

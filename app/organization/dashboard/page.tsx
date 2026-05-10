@@ -3,12 +3,14 @@
 import { createPortal } from 'react-dom';
 import { Suspense, useEffect, useState, useRef, ChangeEvent, FormEvent, FC } from 'react';
 import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Calendar, Eye, Megaphone, User, Building2, Ban, CircleHelp, Settings, LogOut } from 'lucide-react';
-import { DashboardBurgerMenu } from '@/components/DashboardBurgerMenu';
+import { DashboardInlineActions } from '@/components/DashboardInlineActions';
 import { Avatar } from '@/components/Avatar';
 import { supabase } from '@/lib/supabaseClient';
 import { compressImage } from '@/lib/imageCompression';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 
@@ -161,6 +163,7 @@ const Card: FC<{ children: React.ReactNode; className?: string; id?: string }> =
 );
 
 function OrganizationDashboardContent() {
+  const { effectiveLang } = useLanguage();
   const [profile, setProfile] = useState<OrgProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -225,7 +228,6 @@ function OrganizationDashboardContent() {
     logo_url?: string | null;
   }>>([]);
   const [followedOrgsLoading, setFollowedOrgsLoading] = useState(true);
-  const [burgerMenuOpen, setBurgerMenuOpen] = useState(false);
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
   const [notificationModalOpen, setNotificationModalOpen] = useState(false);
   const [notificationTitle, setNotificationTitle] = useState('');
@@ -1448,16 +1450,14 @@ function OrganizationDashboardContent() {
   ];
 
   return (
-    <div className="bg-slate-50 min-h-screen font-sans pt-14">
-        <DashboardBurgerMenu open={burgerMenuOpen} onOpen={() => setBurgerMenuOpen(true)} onClose={() => setBurgerMenuOpen(false)} items={burgerItems} />
+    <div className="min-h-screen w-full bg-[#f0f2f5] pt-14 font-sans dark:bg-gray-900">
         <div className="fixed top-5 right-5 z-50 space-y-3">
             {notifications.map(n => (
                 <Notification key={n.id} {...n} onDismiss={() => dismissNotification(n.id)} />
             ))}
         </div>
 
-      <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-        
+      <main className="w-full p-4 sm:p-6 lg:p-8">
         {/* --- Header Section --- */}
         <div className="relative mb-10">
             <div className="w-full h-48 md:h-64 bg-slate-200 dark:bg-slate-700 rounded-xl shadow-inner overflow-hidden">
@@ -1510,6 +1510,15 @@ function OrganizationDashboardContent() {
                     </p>
                 </div>
             </div>
+        </div>
+
+        <div className="mb-10">
+          <DashboardInlineActions
+            title={t(effectiveLang, 'Quick actions')}
+            subtitle={t(effectiveLang, 'Posts, marketplace links, help, and account tools in one place.')}
+            items={burgerItems}
+            showLanguage
+          />
         </div>
 
         <div className="mb-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
