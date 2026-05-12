@@ -19,6 +19,7 @@ const bottomNavLinkBaseClass =
 
 type NavbarNotificationRow = {
   id: string;
+  type?: string | null;
   title: string;
   body: string;
   url?: string | null;
@@ -248,21 +249,24 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       const ownedIds = await fetchOwnedBusinessIds(user.id);
       const { data, error } = await supabase
         .from('notifications')
-        .select('id, title, body, url, created_at, read_at, data')
+        .select('id, type, title, body, url, created_at, read_at, data')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(8);
+        .limit(30);
       if (error) {
         setNotifications([]);
         return;
       }
       const rows = (data || []) as NavbarNotificationRow[];
       setNotifications(
-        rows.filter((row) => {
-          const businessId = row.data?.business_id;
-          if (businessId && ownedIds.has(String(businessId))) return false;
-          return true;
-        })
+        rows
+          .filter((row) => row.type !== 'direct_message')
+          .filter((row) => {
+            const businessId = row.data?.business_id;
+            if (businessId && ownedIds.has(String(businessId))) return false;
+            return true;
+          })
+          .slice(0, 8)
       );
     } finally {
       setNotificationsLoading(false);
@@ -283,7 +287,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
 
       const { data, error } = await supabase
         .from('notifications')
-        .select('id, data')
+        .select('id, type, data')
         .eq('user_id', user.id)
         .is('read_at', null);
 
@@ -292,8 +296,9 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
         return;
       }
 
-      const rows = (data || []) as Array<{ id: string; data?: { business_id?: string } }>;
+      const rows = (data || []) as Array<{ id: string; type?: string | null; data?: { business_id?: string } }>;
       const visible = rows.filter((row) => {
+        if (row.type === 'direct_message') return false;
         const businessId = row.data?.business_id;
         if (businessId && ownedIds.has(String(businessId))) return false;
         return true;
@@ -322,8 +327,12 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
+            const eventType = (payload as { eventType?: string }).eventType;
+            const row = (payload as { new?: { type?: string | null } }).new;
+            const isDirectMessageNotif = row?.type === 'direct_message';
             loadUnreadCount();
-            if (payload && 'eventType' in payload && (payload as { eventType: string }).eventType === 'INSERT') {
+            if (isDirectMessageNotif) return;
+            if (eventType === 'INSERT') {
               setNotificationsOpen(true);
               void loadNotificationItems();
             }
