@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { getLatLonFromAddress } from '@/lib/getLatLonFromAddress';
-import { isPushConfigured, sendPushToTokens } from '@/lib/firebaseAdmin';
+import { isPushConfigured, sendPushToTokensBuilt, truncateForPushBody, type HanarPushBuilt } from '@/lib/firebaseAdmin';
 import { graphemeLength, normalizeUserText } from '@/lib/unicodeText';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -301,7 +301,13 @@ export async function POST(req: Request) {
       const webTokens = webTokensRes.error ? [] : (webTokensRes.data || []).map((r: { token: string }) => r.token).filter(Boolean);
       const tokens = Array.from(new Set([...appTokens, ...webTokens]));
       if (tokens.length > 0) {
-        const { successCount } = await sendPushToTokens(title, bodyText, url, tokens);
+        const push: HanarPushBuilt = {
+          title: truncateForPushBody(title, 140),
+          body: truncateForPushBody(bodyText, 1000),
+          linkPath: url,
+          type: 'admin_notification',
+        };
+        const { successCount } = await sendPushToTokensBuilt(push, tokens);
         pushSent = successCount;
       }
     }

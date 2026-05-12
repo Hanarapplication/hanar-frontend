@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
 import { sendPushToUserIds } from '@/lib/pushForUsers';
+import { truncateForPushBody, type HanarPushBuilt } from '@/lib/firebaseAdmin';
 import { getLatLonFromAddress } from '@/lib/getLatLonFromAddress';
 import { graphemeLength, normalizeUserText } from '@/lib/unicodeText';
 
@@ -306,7 +307,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: insertError.message }, { status: 500 });
       }
       try {
-        await sendPushToUserIds(uniqueUserIds, title, body, url || defaultUrl);
+        const push: HanarPushBuilt = {
+          title: truncateForPushBody(title, 140),
+          body: truncateForPushBody(body, 1000),
+          linkPath: url || defaultUrl,
+          type,
+          senderId: business.owner_id,
+        };
+        await sendPushToUserIds(uniqueUserIds, push);
       } catch (pushErr) {
         console.warn('[business-broadcast] FCM push:', pushErr);
       }

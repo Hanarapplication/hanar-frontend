@@ -475,9 +475,18 @@ function MessagesPageContent() {
 
   useEffect(() => {
     if (!userId || conversations.length === 0) return;
+    const queryPeer =
+      searchParams.get('conversation_id')?.trim() ||
+      searchParams.get('targetId')?.trim() ||
+      '';
+    if (queryPeer && conversations.some((c) => c.peerId === queryPeer)) {
+      if (selectedPeerId !== queryPeer) setSelectedPeerId(queryPeer);
+      return;
+    }
     if (selectedPeerId && conversations.some((c) => c.peerId === selectedPeerId)) return;
+    if (queryPeer) return;
     setSelectedPeerId(conversations[0].peerId);
-  }, [conversations, selectedPeerId, userId]);
+  }, [conversations, selectedPeerId, userId, searchParams]);
 
   useEffect(() => {
     const view = (searchParams.get('view') || '').toLowerCase();
@@ -1039,18 +1048,38 @@ function MessagesPageContent() {
     if (insertError) {
       setError(insertError.message || 'Failed to send message');
     } else {
+      setError(null);
       if (insertedRow?.id) {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(await getAuthHeader()) };
-        void fetch('/api/messages/notify-incoming', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ messageId: insertedRow.id }),
-        }).catch(() => {});
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          ...(await getAuthHeader()),
+        };
+        try {
+          const res = await fetch('/api/messages/notify-incoming', {
+            method: 'POST',
+            credentials: 'include',
+            headers,
+            body: JSON.stringify({ messageId: insertedRow.id }),
+          });
+          const payload = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            setError(
+              typeof payload?.error === 'string'
+                ? payload.error
+                : 'Message sent but notifications could not be delivered. Try again from the chat.',
+            );
+          } else {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('notifications:updated'));
+            }
+          }
+        } catch {
+          setError('Message sent but notifications could not be delivered (network).');
+        }
       }
       setDraft('');
       setSelectedAttachment(null);
       if (activeItemPreview) setPendingItemPreview(null);
-      setError(null);
       await loadMessages(userId);
       scheduleScrollThreadToBottom();
     }
@@ -1191,7 +1220,7 @@ function MessagesPageContent() {
             <div
               ref={threadScrollRef}
               onScroll={handleThreadScroll}
-              className="flex-1 min-h-0 space-y-3 overflow-y-auto overscroll-y-contain bg-slate-50 px-3 py-3 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] touch-pan-y sm:px-5 sm:py-4 sm:pb-6"
+              className="flex-1 min-h-0 space-y-3 overflow-y-auto overscroll-y-contain bg-slate-50 px-3 py-3 pb-[calc(env(safe-area-inset-bottom)+7rem)] touch-pan-y sm:px-5 sm:py-4 sm:pb-6"
               style={{
                 paddingBottom: `calc(env(safe-area-inset-bottom) + ${composerHeight + 16}px)`,
                 scrollPaddingBottom: `calc(env(safe-area-inset-bottom) + ${composerHeight + 16}px)`,

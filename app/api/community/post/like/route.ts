@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthenticatedUserId } from '@/lib/authApi';
 import { usersAreMutuallyBlocked } from '@/lib/userBlocksServer';
+import { buildPostLikedPushContent } from '@/lib/firebaseAdmin';
 import { resolveNotificationActorLabel } from '@/lib/notificationActorLabel';
 import { sendPushToUserIds } from '@/lib/pushForUsers';
 
@@ -69,13 +70,18 @@ export async function POST(req: Request) {
     if (authorId && authorId !== userId) {
       const actor = await resolveNotificationActorLabel(supabaseAdmin, userId);
       const postMeta = (postRow || {}) as { image?: string | null; video?: string | null; title?: string | null };
-      const targetLabel = postMeta.video ? 'video post' : postMeta.image ? 'photo post' : 'post';
       const postTitle = (postMeta.title || '').trim();
-      const bodyTail = postTitle ? `: "${postTitle.length > 70 ? `${postTitle.slice(0, 70)}...` : postTitle}"` : '';
-
-      const nTitle = `${actor.mention} liked your ${targetLabel}`;
-      const nBody = `${actor.mention} liked your ${targetLabel}${bodyTail}. Tap to view.`;
-      const nUrl = `/community/post/${post_id}`;
+      const fallback =
+        postMeta.video ? 'Video post' : postMeta.image ? 'Photo post' : 'Your post';
+      const push = buildPostLikedPushContent({
+        senderHandle: actor.mention,
+        postTitleOrPreview: postTitle || fallback,
+        postId: String(post_id),
+        senderUserId: userId,
+      });
+      const nTitle = push.title;
+      const nBody = `${actor.mention} liked your ${postMeta.video ? 'video post' : postMeta.image ? 'photo post' : 'post'}${postTitle ? `: "${postTitle.length > 70 ? `${postTitle.slice(0, 70)}...` : postTitle}"` : ''}. Tap to view.`;
+      const nUrl = push.linkPath;
       await supabaseAdmin.from('notifications').insert({
         user_id: authorId,
         type: 'post_liked',
@@ -85,7 +91,7 @@ export async function POST(req: Request) {
         data: { post_id, liked_by: userId, liker_name: actor.display },
       });
       try {
-        await sendPushToUserIds([authorId], nTitle, nBody, nUrl);
+        await sendPushToUserIds([authorId], push);
       } catch (pushErr) {
         console.warn('[post/like] FCM push:', pushErr);
       }

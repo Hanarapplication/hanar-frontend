@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { usersAreMutuallyBlocked } from '@/lib/userBlocksServer';
+import { buildCommentLikedPushContent } from '@/lib/firebaseAdmin';
 import { resolveNotificationActorLabel } from '@/lib/notificationActorLabel';
 import { sendPushToUserIds } from '@/lib/pushForUsers';
 
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
 
     const { data: commentRow } = await supabaseAdmin
       .from('community_comments')
-      .select('user_id, post_id')
+      .select('user_id, post_id, body')
       .eq('id', comment_id)
       .maybeSingle();
     const commentMeta = (commentRow as { user_id?: string | null; post_id?: string | null } | null) || null;
@@ -63,11 +64,22 @@ export async function POST(req: Request) {
       .update({ likes: currentCount + 1 })
       .eq('id', comment_id);
 
+    const commentBody =
+      typeof (commentRow as { body?: string | null } | null)?.body === 'string'
+        ? String((commentRow as { body?: string | null }).body).trim()
+        : '';
+
     if (commentAuthorId && commentAuthorId !== user_id) {
       const actor = await resolveNotificationActorLabel(supabaseAdmin, user_id);
-      const nTitle = `${actor.mention} liked your comment`;
+      const push = buildCommentLikedPushContent({
+        senderHandle: actor.mention,
+        commentPreview: commentBody,
+        postId: postId,
+        senderUserId: user_id,
+      });
+      const nTitle = push.title;
       const nBody = `${actor.mention} liked your comment. Tap to view.`;
-      const nUrl = postId ? `/community/post/${postId}` : '/notifications';
+      const nUrl = push.linkPath;
       await supabaseAdmin.from('notifications').insert({
         user_id: commentAuthorId,
         type: 'comment_liked',
@@ -77,7 +89,7 @@ export async function POST(req: Request) {
         data: { comment_id, post_id: postId, liked_by: user_id, liker_name: actor.display },
       });
       try {
-        await sendPushToUserIds([commentAuthorId], nTitle, nBody, nUrl);
+        await sendPushToUserIds([commentAuthorId], push);
       } catch (pushErr) {
         console.warn('[comment/like] FCM push:', pushErr);
       }

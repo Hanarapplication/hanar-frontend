@@ -2,6 +2,8 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { buildCommunityReplyPushContent } from '@/lib/firebaseAdmin';
+import { resolveNotificationActorLabel } from '@/lib/notificationActorLabel';
 import { sendPushToUserIds } from '@/lib/pushForUsers';
 
 const supabaseAdmin = createClient(
@@ -52,21 +54,26 @@ export async function POST(req: Request) {
         .maybeSingle();
       const postAuthorId = (post as { user_id?: string } | null)?.user_id;
       if (postAuthorId && postAuthorId !== data.user_id) {
-        const commenterName = data.author || data.username || 'Someone';
-        const bodySnippet = body.length > 80 ? `${body.slice(0, 80)}…` : body;
-        const nTitle = 'Your post received a comment';
-        const nBody = `${commenterName}: ${bodySnippet}. Tap to view.`;
-        const nUrl = `/community/post/${data.post_id}`;
+        const actor = await resolveNotificationActorLabel(supabaseAdmin, data.user_id);
+        const push = buildCommunityReplyPushContent({
+          senderHandle: actor.mention,
+          replyPreview: body,
+          postId: String(data.post_id),
+          senderUserId: data.user_id,
+        });
+        const nTitle = push.title;
+        const nBody = `${actor.display}: ${push.body}. Tap to view.`;
+        const nUrl = push.linkPath;
         await supabaseAdmin.from('notifications').insert({
           user_id: postAuthorId,
           type: 'comment_on_post',
           title: nTitle,
           body: nBody,
           url: nUrl,
-          data: { post_id: data.post_id, comment_id: data.id, commenter_name: commenterName },
+          data: { post_id: data.post_id, comment_id: data.id, commenter_name: actor.display },
         });
         try {
-          await sendPushToUserIds([postAuthorId], nTitle, nBody, nUrl);
+          await sendPushToUserIds([postAuthorId], push);
         } catch (pushErr) {
           console.warn('[community/reply] FCM push:', pushErr);
         }

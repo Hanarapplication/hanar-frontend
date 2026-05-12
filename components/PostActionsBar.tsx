@@ -29,14 +29,14 @@ export default function PostActionsBar({
   className = '',
 }: Props) {
   return (
-    <div className={cn('mt-2 flex flex-wrap items-center gap-2 text-sm', className)}>
+    <div className={cn('mt-2 flex flex-wrap items-center gap-2 text-base', className)}>
       <button
         type="button"
         onClick={onLike}
         disabled={!canLike || !onLike}
         aria-label={liked ? 'Unlike' : 'Like'}
         aria-pressed={liked}
-        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-semibold transition ${
           liked ? 'bg-blue-200 text-blue-900 dark:bg-blue-900/55 dark:text-blue-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500'
         } ${
           !canLike || !onLike ? 'cursor-not-allowed opacity-60' : ''
@@ -50,11 +50,11 @@ export default function PostActionsBar({
         onClick={onComment}
         disabled={!onComment}
         aria-label="Comments"
-        className={`inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500 ${
+        className={`inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500 ${
           !onComment ? 'cursor-not-allowed opacity-60' : ''
         }`}
       >
-        <span aria-hidden className="text-sm">💬</span>
+        <span aria-hidden className="text-base">💬</span>
         <span className="tabular-nums font-semibold">{commentCount}</span>
       </button>
       <button
@@ -62,7 +62,7 @@ export default function PostActionsBar({
         onClick={onShare}
         disabled={!onShare}
         aria-label="Share"
-        className={`inline-flex items-center justify-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 ${
+        className={`inline-flex items-center justify-center rounded-full bg-slate-100 px-2.5 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 ${
           !onShare ? 'cursor-not-allowed opacity-60' : ''
         }`}
       >

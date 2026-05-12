@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getMutuallyBlockedUserIds, usersAreMutuallyBlocked } from '@/lib/userBlocksServer';
+import { buildCommunityReplyPushContent } from '@/lib/firebaseAdmin';
 import { resolveNotificationActorLabel } from '@/lib/notificationActorLabel';
 import { sendPushToUserIds } from '@/lib/pushForUsers';
 
@@ -241,10 +242,15 @@ export async function POST(req: Request) {
       const postAuthorId = (post as { user_id?: string } | null)?.user_id;
       if (postAuthorId && postAuthorId !== inserted.user_id) {
         const actor = await resolveNotificationActorLabel(supabaseAdmin, inserted.user_id);
-        const bodySnippet = body.length > 80 ? `${body.slice(0, 80)}…` : body;
-        const nTitle = `${actor.mention} commented on your post`;
-        const nBody = `${actor.mention}: ${bodySnippet}. Tap to view.`;
-        const nUrl = `/community/post/${inserted.post_id}`;
+        const push = buildCommunityReplyPushContent({
+          senderHandle: actor.mention,
+          replyPreview: body,
+          postId: String(inserted.post_id),
+          senderUserId: inserted.user_id,
+        });
+        const nTitle = push.title;
+        const nBody = `${actor.display}: ${push.body}. Tap to view.`;
+        const nUrl = push.linkPath;
         await supabaseAdmin.from('notifications').insert({
           user_id: postAuthorId,
           type: 'comment_on_post',
@@ -254,7 +260,7 @@ export async function POST(req: Request) {
           data: { post_id: inserted.post_id, comment_id: inserted.id, commenter_name: actor.display },
         });
         try {
-          await sendPushToUserIds([postAuthorId], nTitle, nBody, nUrl);
+          await sendPushToUserIds([postAuthorId], push);
         } catch (pushErr) {
           console.warn('[community/comments] FCM push:', pushErr);
         }

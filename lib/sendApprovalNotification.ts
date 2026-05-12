@@ -4,7 +4,13 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { isPushConfigured, sendPushToTokens } from '@/lib/firebaseAdmin';
+import {
+  buildBusinessApprovedPushContent,
+  isPushConfigured,
+  sendPushToTokensBuilt,
+  truncateForPushBody,
+  type HanarPushBuilt,
+} from '@/lib/firebaseAdmin';
 import { getPushTokensForUser } from '@/lib/pushForUsers';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -24,14 +30,14 @@ export interface SendApprovalOptions {
 }
 
 /**
- * Resolve recipient user_id and message content for the given approval type and id.
+ * Resolve recipient user_id and FCM payload for the given approval type and id.
  * Returns null if not found or no recipient.
  */
 async function resolveApprovalPayload(
   type: ApprovalType,
   id: string,
   options?: SendApprovalOptions
-): Promise<{ user_id: string; title: string; body: string; url: string | null } | null> {
+): Promise<{ user_id: string; push: HanarPushBuilt } | null> {
   if (type === 'business') {
     const { data: biz, error } = await supabaseAdmin
       .from('businesses')
@@ -39,12 +45,12 @@ async function resolveApprovalPayload(
       .eq('id', id)
       .single();
     if (error || !biz?.owner_id) return null;
-    const slug = biz.slug || '';
     return {
       user_id: biz.owner_id,
-      title: 'Your business is approved',
-      body: "Your business is approved and it's live on Hanar. View your page.",
-      url: slug ? `/business/${slug}` : '/business-dashboard',
+      push: buildBusinessApprovedPushContent({
+        businessName: biz.business_name,
+        slug: biz.slug,
+      }),
     };
   }
 
@@ -61,12 +67,16 @@ async function resolveApprovalPayload(
       .eq('id', reqRow.business_id)
       .single();
     if (bizErr || !biz?.owner_id) return null;
-    const slug = biz.slug || '';
+    const slug = (biz.slug || '').trim();
+    const linkPath = slug ? `/business/${slug}` : '/business-dashboard';
     return {
       user_id: biz.owner_id,
-      title: 'Your promotion is live',
-      body: 'Your advertisement banner is now live in the feed.',
-      url: slug ? `/business/${slug}` : '/business-dashboard',
+      push: {
+        title: truncateForPushBody('Your promotion is live', 140),
+        body: truncateForPushBody('Your advertisement banner is now live in the feed.', 1000),
+        linkPath,
+        type: 'promotion_approved',
+      },
     };
   }
 
@@ -84,16 +94,20 @@ async function resolveApprovalPayload(
       .single();
     if (bizErr || !biz?.owner_id) return null;
     const sentCount = options?.sentCount ?? 0;
-    const body =
+    const bodyText =
       sentCount > 0
         ? `Your area blast was approved and sent to ${sentCount} user${sentCount === 1 ? '' : 's'}.`
         : 'Your area blast was approved and sent.';
-    const slug = biz.slug || '';
+    const slug = (biz.slug || '').trim();
+    const linkPath = slug ? `/business/${slug}` : '/business-dashboard';
     return {
       user_id: biz.owner_id,
-      title: 'Your area blast is live',
-      body,
-      url: slug ? `/business/${slug}` : '/business-dashboard',
+      push: {
+        title: truncateForPushBody('Your area blast is live', 140),
+        body: truncateForPushBody(bodyText, 1000),
+        linkPath,
+        type: 'area_blast_approved',
+      },
     };
   }
 
@@ -115,12 +129,13 @@ export async function sendApprovalNotification(
       return { sent: false, error: 'Recipient or entity not found' };
     }
 
+    const { push } = payload;
     const row = {
       user_id: payload.user_id,
       type: 'approval',
-      title: payload.title,
-      body: payload.body,
-      url: payload.url,
+      title: push.title,
+      body: push.body,
+      url: push.linkPath,
       data: { approval_type: type, approval_id: id },
     };
 
@@ -131,7 +146,7 @@ export async function sendApprovalNotification(
 
     const tokens = await getPushTokensForUser(payload.user_id);
     if (tokens.length > 0 && isPushConfigured()) {
-      await sendPushToTokens(payload.title, payload.body, payload.url, tokens);
+      await sendPushToTokensBuilt(push, tokens);
     }
 
     return { sent: true };

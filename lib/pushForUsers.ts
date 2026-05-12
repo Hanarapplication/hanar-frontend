@@ -5,7 +5,12 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { isPushConfigured, sendPushToTokens } from '@/lib/firebaseAdmin';
+import {
+  isPushConfigured,
+  sendPushToTokensBuilt,
+  type HanarPushBuilt,
+  type PushFcmExtras,
+} from '@/lib/firebaseAdmin';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -36,12 +41,25 @@ export async function getPushTokensForUser(userId: string): Promise<string[]> {
 
 /**
  * Send the same FCM notification to all devices for the given user ids.
+ * Prefer passing a {@link HanarPushBuilt} from a `build*PushContent` helper.
  */
+export async function sendPushToUserIds(userIds: string[], push: HanarPushBuilt): Promise<{
+  successCount: number;
+  failureCount: number;
+}>;
 export async function sendPushToUserIds(
   userIds: string[],
   title: string,
   body: string,
-  url: string | null
+  url: string | null,
+  fcmExtras?: PushFcmExtras
+): Promise<{ successCount: number; failureCount: number }>;
+export async function sendPushToUserIds(
+  userIds: string[],
+  titleOrPush: string | HanarPushBuilt,
+  body?: string,
+  url?: string | null,
+  fcmExtras?: PushFcmExtras
 ): Promise<{ successCount: number; failureCount: number }> {
   if (!isPushConfigured() || userIds.length === 0) {
     return { successCount: 0, failureCount: 0 };
@@ -50,5 +68,20 @@ export async function sendPushToUserIds(
   if (tokens.length === 0) {
     return { successCount: 0, failureCount: 0 };
   }
-  return sendPushToTokens(title, body, url, tokens);
+
+  const push: HanarPushBuilt =
+    typeof titleOrPush === 'object'
+      ? titleOrPush
+      : {
+          title: titleOrPush,
+          body: body ?? '',
+          linkPath: url ?? null,
+          type: fcmExtras?.type ?? 'hanar',
+          senderId:
+            fcmExtras?.senderId != null && String(fcmExtras.senderId).trim()
+              ? String(fcmExtras.senderId).trim()
+              : undefined,
+        };
+
+  return sendPushToTokensBuilt(push, tokens);
 }

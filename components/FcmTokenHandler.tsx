@@ -1,17 +1,25 @@
 /**
  * Bridge for **native** Hanar apps (iOS / Android) that use a WebView.
  * Web FCM (service worker + VAPID) usually does not work inside in-app WebViews; the shell
- * should obtain a device token with Firebase/APNs and call `window.HanarApp.onToken(token)` after the user allows notifications.
+ * should obtain a device token with Firebase/APNs and call
+ * `window.HanarApp.onToken(token, 'ios' | 'android')` after the user allows notifications.
+ * The second argument defaults to `'android'` when omitted (legacy callers).
  */
 'use client';
 
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
+export type HanarNativePushPlatform = 'ios' | 'android';
+
+function resolveNativePlatform(platform: unknown): HanarNativePushPlatform {
+  return platform === 'ios' || platform === 'android' ? platform : 'android';
+}
+
 declare global {
   interface Window {
     HanarApp?: {
-      onToken?: (token: string) => Promise<void>;
+      onToken?: (token: string, platform?: HanarNativePushPlatform) => Promise<void>;
     };
   }
 }
@@ -24,8 +32,9 @@ export default function FcmTokenHandler() {
     initialized.current = true;
 
     window.HanarApp = window.HanarApp || {};
-    window.HanarApp.onToken = async (token: string) => {
+    window.HanarApp.onToken = async (token: string, platform?: HanarNativePushPlatform) => {
       try {
+        const nativePlatform = resolveNativePlatform(platform);
         const {
           data: { user },
           error: userError,
@@ -42,7 +51,7 @@ export default function FcmTokenHandler() {
           {
             user_id: user.id,
             token,
-            platform: 'android',
+            platform: nativePlatform,
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'token' }

@@ -367,8 +367,8 @@ const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
   return (
     <section className="rounded-none bg-white shadow-sm p-4 dark:bg-gray-800">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-slate-700">{t(effectiveLang, 'Featured businesses')}</h2>
-        <Link href="/businesses" className="text-xs text-rose-600 hover:underline">{t(effectiveLang, 'View all')}</Link>
+        <h2 className="text-base font-semibold text-slate-700">{t(effectiveLang, 'Featured businesses')}</h2>
+        <Link href="/businesses" className="text-sm text-rose-600 hover:underline">{t(effectiveLang, 'View all')}</Link>
       </div>
       <div ref={sliderRef} className="keen-slider overflow-hidden rounded-none">
         {items.map((biz) => (
@@ -387,15 +387,15 @@ const BusinessSliderCard = ({ items }: { items: SliderBusiness[] }) => {
                 className="aspect-square h-auto w-full object-cover"
               />
               {(biz.plan || '').toLowerCase() === 'premium' && (
-                <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-amber-500/90 backdrop-blur-sm px-1 py-[1px] text-[8px] font-bold text-white shadow-sm">
+                <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-amber-500/90 backdrop-blur-sm px-1 py-[1px] text-[9px] font-bold text-white shadow-sm">
                   <svg className="h-2 w-2" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.39c-.833.068-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.494c.714.437 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.583-.536-1.65l-4.752-.391-1.831-4.401z" clipRule="evenodd" /></svg>
                   {t(effectiveLang, 'Premium')}
                 </span>
               )}
             </div>
             <div className="p-2">
-              <p className="text-xs font-semibold text-slate-800 truncate">{biz.name}</p>
-              <p className="text-[11px] text-slate-500">{t(effectiveLang, biz.category)}</p>
+              <p className="text-sm font-semibold text-slate-800 truncate">{biz.name}</p>
+              <p className="text-sm text-slate-500">{t(effectiveLang, biz.category)}</p>
             </div>
           </Link>
         ))}
@@ -436,8 +436,8 @@ const MarketplaceCategorySliderCard = ({
   return (
     <section className="rounded-none bg-white shadow-sm p-4 dark:bg-gray-800">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="min-w-0 truncate text-sm font-semibold text-slate-700 dark:text-gray-200">{t(effectiveLang, categoryLabel)}</h2>
-        <Link href="/marketplace" className="shrink-0 text-xs text-rose-600 hover:underline dark:text-rose-400">
+        <h2 className="min-w-0 truncate text-base font-semibold text-slate-700 dark:text-gray-200">{t(effectiveLang, categoryLabel)}</h2>
+        <Link href="/marketplace" className="shrink-0 text-sm text-rose-600 hover:underline dark:text-rose-400">
           {t(effectiveLang, 'Browse')}
         </Link>
       </div>
@@ -459,7 +459,7 @@ const MarketplaceCategorySliderCard = ({
               />
               {item.business_id &&
                 (item.business_verified ? (
-                  <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-emerald-500/90 px-1 py-[1px] text-[8px] font-bold text-white shadow-sm backdrop-blur-sm">
+                  <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-emerald-500/90 px-1 py-[1px] text-[9px] font-bold text-white shadow-sm backdrop-blur-sm">
                     <svg className="h-2 w-2" fill="currentColor" viewBox="0 0 20 20">
                       <path
                         fillRule="evenodd"
@@ -470,7 +470,7 @@ const MarketplaceCategorySliderCard = ({
                     {t(effectiveLang, 'Verified')}
                   </span>
                 ) : (
-                  <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-indigo-500/90 px-1 py-[1px] text-[8px] font-bold text-white shadow-sm backdrop-blur-sm">
+                  <span className="absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded-md bg-indigo-500/90 px-1 py-[1px] text-[9px] font-bold text-white shadow-sm backdrop-blur-sm">
                     <svg className="h-2 w-2" fill="currentColor" viewBox="0 0 20 20">
                       <path
                         fillRule="evenodd"
@@ -483,8 +483,8 @@ const MarketplaceCategorySliderCard = ({
                 ))}
             </div>
             <div className="p-2">
-              <p className="truncate text-xs font-semibold text-slate-800 dark:text-gray-100">{item.title}</p>
-              <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{formatPrice(item.price)}</p>
+              <p className="truncate text-sm font-semibold text-slate-800 dark:text-gray-100">{item.title}</p>
+              <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{formatPrice(item.price)}</p>
             </div>
           </Link>
         ))}
@@ -588,19 +588,19 @@ function FeedBusinessCardWithTrack({
           <div className="flex flex-wrap items-center gap-1.5">
             <Link
               href={`/business/${business.slug}`}
-              className="text-sm font-semibold text-slate-900 transition-colors hover:text-blue-800 hover:underline dark:text-slate-900"
+              className="text-base font-semibold text-slate-900 transition-colors hover:text-blue-800 hover:underline dark:text-slate-900"
             >
               {business.business_name}
             </Link>
             {(business.plan || '').toLowerCase() === 'premium' && (
-              <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/90 px-1.5 py-[2px] text-[9px] font-bold text-white">
+              <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500/90 px-1.5 py-[2px] text-[10px] font-bold text-white">
                 <svg className="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.39c-.833.068-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.494c.714.437 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.583-.536-1.65l-4.752-.391-1.831-4.401z" clipRule="evenodd" /></svg>
                 Premium
               </span>
             )}
           </div>
-          <p className="text-xs italic text-slate-600 dark:text-slate-600">{business.subcategory || business.category || 'Business'}</p>
-          <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-700">
+          <p className="text-sm italic text-slate-600 dark:text-slate-600">{business.subcategory || business.category || 'Business'}</p>
+          <p className="mt-1 text-sm font-semibold text-emerald-700 dark:text-emerald-700">
             {typeof business.distance === 'number' ? (
               getBusinessMessage(business)
             ) : (
@@ -608,7 +608,7 @@ function FeedBusinessCardWithTrack({
             )}
           </p>
           {business.created_at && (
-            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-500">Joined {formatDateLabel(business.created_at)}</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-500">Joined {formatDateLabel(business.created_at)}</p>
           )}
         </div>
       </div>
@@ -1866,8 +1866,10 @@ const formatDateLabel = (value?: string | null) => {
   const feedItems = useMemo<FeedItem[]>(() => {
     const mixDiscovery = homeFeedTab !== 'news';
     const postLangKey = postFeedLang.trim().toLowerCase();
-    const preservePostLanguageOrder =
+    const hasExplicitFeedLang =
       Boolean(postLangKey) && supportedLanguages.some((l) => l.code === postLangKey && l.code !== 'auto');
+    /** Preserve API post order when "All languages" (default / first visit) so English-first ranking from the server is not shuffled away; also preserve when a specific post language is selected. */
+    const preservePostLanguageOrder = !postLangKey || hasExplicitFeedLang;
 
     let ordered: FeedItem[] = [];
 
@@ -2084,14 +2086,14 @@ const formatDateLabel = (value?: string | null) => {
         <div className="flex flex-wrap items-center gap-2 border-b border-black dark:border-gray-500 bg-white px-3 py-2.5 pr-24 shadow-sm dark:bg-gray-800 sm:px-4 sm:pr-28">
           <Link
             href="/"
-            className="shrink-0 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 transition-all hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+            className="shrink-0 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-all hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
           >
             {t(effectiveLang, 'Community')}
           </Link>
           <button
             type="button"
             onClick={() => setHomeFeedTab('for_you')}
-            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
               homeFeedTab === 'for_you'
                 ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
@@ -2102,7 +2104,7 @@ const formatDateLabel = (value?: string | null) => {
           <button
             type="button"
             onClick={() => setHomeFeedTab('popular')}
-            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
               homeFeedTab === 'popular'
                 ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
@@ -2113,7 +2115,7 @@ const formatDateLabel = (value?: string | null) => {
           <button
             type="button"
             onClick={() => setHomeFeedTab('news')}
-            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
               homeFeedTab === 'news'
                 ? 'bg-blue-100 text-blue-800'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
@@ -2124,7 +2126,7 @@ const formatDateLabel = (value?: string | null) => {
           <button
             type="button"
             onClick={() => setFeedSearchOpen((v) => !v)}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
               feedSearchOpen ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
             aria-expanded={feedSearchOpen}
@@ -2134,12 +2136,12 @@ const formatDateLabel = (value?: string | null) => {
             Search
           </button>
           <div className="relative h-9 min-w-[11rem] shrink-0 rounded-lg border border-slate-300 bg-white">
-            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500">🌐</span>
+            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">🌐</span>
             <select
               id="home-feed-language-filter"
               value={postFeedLang}
               onChange={(e) => setPostFeedLang(e.target.value)}
-              className="h-full w-full cursor-pointer appearance-none rounded-lg border-0 bg-transparent py-1.5 pl-7 pr-8 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/25 dark:text-gray-200"
+              className="h-full w-full cursor-pointer appearance-none rounded-lg border-0 bg-transparent py-1.5 pl-7 pr-8 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/25 dark:text-gray-200"
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
                 backgroundRepeat: 'no-repeat',
@@ -2170,7 +2172,7 @@ const formatDateLabel = (value?: string | null) => {
                 value={feedSearchQuery}
                 onChange={(e) => setFeedSearchQuery(e.target.value)}
                 placeholder="Search words, phrases, or similar terms..."
-                className="h-10 w-full rounded-full border-2 border-[#4a0a14]/55 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 placeholder:text-slate-500 shadow-sm shadow-[#4a0a14]/15 focus:border-[#0b2a66] focus:outline-none focus:ring-2 focus:ring-[#0b2a66]/25"
+                className="h-10 w-full rounded-full border-2 border-[#4a0a14]/55 bg-white pl-9 pr-3 text-base font-medium text-slate-900 placeholder:text-slate-500 shadow-sm shadow-[#4a0a14]/15 focus:border-[#0b2a66] focus:outline-none focus:ring-2 focus:ring-[#0b2a66]/25"
                 aria-label="Search feed"
               />
             </label>
@@ -2208,7 +2210,7 @@ const formatDateLabel = (value?: string | null) => {
                   />
                 </span>
                 <div className="pointer-events-none min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <span className="block truncate text-sm font-medium text-slate-600">{t(effectiveLang, 'Ask the community...')}</span>
+                  <span className="block truncate text-base font-medium text-slate-600">{t(effectiveLang, 'Ask the community...')}</span>
                 </div>
               </button>
             </div>
@@ -2230,7 +2232,7 @@ const formatDateLabel = (value?: string | null) => {
             <div className="mx-2 mt-1 flex items-center justify-between gap-2 rounded-t-2xl border border-slate-200 border-b-0 bg-white px-3 py-2 shadow-sm sm:mx-3">
               <span
                 id="home-compose-post-title"
-                className="text-sm font-bold tracking-wide text-slate-700"
+                className="text-base font-bold tracking-wide text-slate-700"
               >
                 {t(effectiveLang, 'Ask')}
               </span>
@@ -2246,7 +2248,7 @@ const formatDateLabel = (value?: string | null) => {
             <div className="mx-2 max-h-[min(85dvh,880px)] overflow-y-auto overscroll-contain rounded-b-2xl border border-slate-200 border-t-0 bg-white px-1 pb-2 shadow-sm sm:mx-3 sm:px-2 sm:pb-2 dark:bg-white">
               <Suspense
                 fallback={
-                  <div className="flex justify-center py-12 text-sm text-slate-500 dark:text-gray-400">
+                  <div className="flex justify-center py-12 text-base text-slate-500 dark:text-gray-400">
                     {t(effectiveLang, 'Loading...')}
                   </div>
                 }
@@ -2270,7 +2272,7 @@ const formatDateLabel = (value?: string | null) => {
             <button
               type="button"
               onClick={refreshFeed}
-              className="w-full rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 px-4 py-3 text-sm font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors shadow-sm flex items-center justify-center gap-2"
+              className="w-full rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 px-4 py-3 text-base font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors shadow-sm flex items-center justify-center gap-2"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
@@ -2324,7 +2326,7 @@ const formatDateLabel = (value?: string | null) => {
               <Fragment key={`post-${item.post.id}-${index}`}>
                 {index > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
                 <article className="rounded-none border-0 bg-white p-4 shadow-sm ring-0 dark:bg-gray-800 sm:p-5">
-                <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-gray-400">
+                <div className="flex items-center justify-between gap-2 text-sm text-slate-500 dark:text-gray-400">
                   <div className="flex items-center gap-2 min-w-0">
                     <Avatar
                       src={item.post.logo_url || item.post.profile_pic_url}
@@ -2354,7 +2356,7 @@ const formatDateLabel = (value?: string | null) => {
                     ref={(node) => {
                       postTextRefs.current[item.post.id] = node;
                     }}
-                    className={`mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800 dark:text-gray-100 ${isExpanded ? '' : 'line-clamp-3'}`}
+                    className={`mt-2 whitespace-pre-wrap text-base leading-7 text-slate-800 dark:text-gray-100 ${isExpanded ? '' : 'line-clamp-3'}`}
                   >
                     {postText}
                   </p>
@@ -2363,7 +2365,7 @@ const formatDateLabel = (value?: string | null) => {
                   <button
                     type="button"
                     onClick={() => toggleExpandedPostText(item.post.id)}
-                    className="mt-1 text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-300"
+                    className="mt-1 text-sm font-semibold text-indigo-600 hover:underline dark:text-indigo-300"
                   >
                     {isExpanded ? 'See less' : 'See more'}
                   </button>
@@ -2395,18 +2397,18 @@ const formatDateLabel = (value?: string | null) => {
                   postTitle={item.post.title}
                 />
                 {currentUser.id && item.post.user_id === currentUser.id && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-3 text-sm">
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-3 text-base">
                     <button
                       onClick={() => handleDeletePost(item.post.id)}
                       disabled={deletingPost === item.post.id}
-                      className="flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/40 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-300 transition hover:bg-red-200 dark:hover:bg-red-900/60 disabled:opacity-50"
+                      className="flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/40 px-3 py-1.5 text-sm font-semibold text-red-600 dark:text-red-300 transition hover:bg-red-200 dark:hover:bg-red-900/60 disabled:opacity-50"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       {t(effectiveLang, 'Delete')}
                     </button>
                     <button
                       onClick={handlePromotePost}
-                      className="flex items-center gap-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-300 transition hover:bg-indigo-200 dark:hover:bg-indigo-900/60"
+                      className="flex items-center gap-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 px-3 py-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-300 transition hover:bg-indigo-200 dark:hover:bg-indigo-900/60"
                     >
                       <Megaphone className="h-3.5 w-3.5" />
                       {t(effectiveLang, 'Promote')}
@@ -2417,14 +2419,14 @@ const formatDateLabel = (value?: string | null) => {
                 {isCommentsOpen && (
                   <div className="mt-4 border-t border-slate-100 dark:border-gray-600 pt-4">
                     {commentLoading[item.post.id] ? (
-                      <p className="text-xs text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading comments...')}</p>
+                      <p className="text-sm text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading comments...')}</p>
                     ) : (
                       <div className="space-y-3">
                         {comments.length === 0 && (
-                          <p className="text-xs text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Be the first to comment.')}</p>
+                          <p className="text-sm text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Be the first to comment.')}</p>
                         )}
                         {comments.map((comment) => (
-                          <div key={comment.id} className="rounded-none bg-slate-100 px-3 py-2 text-sm flex gap-2 dark:bg-gray-700/80">
+                          <div key={comment.id} className="rounded-none bg-slate-100 px-3 py-2 text-base flex gap-2 dark:bg-gray-700/80">
                             <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                               <Avatar
                                 src={comment.avatar_url || null}
@@ -2433,11 +2435,11 @@ const formatDateLabel = (value?: string | null) => {
                               />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
+                              <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">
                                 {comment.author || comment.username || 'User'}
                               </p>
                               <div data-no-translate>
-                                <p className="text-sm leading-6 text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
+                                <p className="text-base leading-7 text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
                               </div>
                               <div className="flex items-center gap-2 mt-1">
                                 {currentUser.id && (
@@ -2446,7 +2448,7 @@ const formatDateLabel = (value?: string | null) => {
                                     onClick={() => handleCommentLike(item.post.id, comment.id)}
                                     aria-label={comment.user_liked ? t(effectiveLang, 'Unlike comment') : t(effectiveLang, 'Like comment')}
                                     aria-pressed={!!comment.user_liked}
-                                    className={`inline-flex items-center gap-1 text-xs font-medium transition ${
+                                    className={`inline-flex items-center gap-1 text-sm font-medium transition ${
                                       comment.user_liked ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-gray-500 hover:text-rose-500 dark:hover:text-rose-400'
                                     }`}
                                   >
@@ -2457,7 +2459,7 @@ const formatDateLabel = (value?: string | null) => {
                                   </button>
                                 )}
                                 {!currentUser.id && (
-                                  <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-gray-500">
+                                  <span className="inline-flex items-center gap-1 text-sm text-slate-400 dark:text-gray-500">
                                     <ThumbsUp className="h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={2} aria-hidden />
                                     <span className="tabular-nums">{comment.likes ?? comment.likes_comment ?? 0}</span>
                                   </span>
@@ -2479,7 +2481,7 @@ const formatDateLabel = (value?: string | null) => {
                         }}
                         placeholder={currentUser.id ? t(effectiveLang, 'Write a comment...') : t(effectiveLang, 'Log in to write a comment')}
                         disabled={!currentUser.id}
-                        className="flex-1 rounded-full border border-sky-300 px-4 py-2 text-sm focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-400 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-sky-300 dark:focus:ring-sky-400/45 dark:placeholder-gray-400"
+                        className="flex-1 rounded-full border border-sky-300 px-4 py-2 text-base focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-200/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-400 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-sky-300 dark:focus:ring-sky-400/45 dark:placeholder-gray-400"
                       />
                       <button
                         type="button"
@@ -2525,10 +2527,10 @@ const formatDateLabel = (value?: string | null) => {
                     className="h-14 w-14 rounded-none object-cover border border-[#c41e56]/85 dark:border-[#e85085]/65"
                   />
                   <div>
-                    <Link href={`/organization/${item.organization.username}`} className="text-sm font-semibold text-slate-800 dark:text-gray-100 hover:underline">
+                    <Link href={`/organization/${item.organization.username}`} className="text-base font-semibold text-slate-800 dark:text-gray-100 hover:underline">
                       {item.organization.full_name}
                     </Link>
-                    <p className="text-xs leading-5 text-slate-500 dark:text-gray-400 line-clamp-2">{item.organization.mission || t(effectiveLang, 'Organization update')}</p>
+                    <p className="text-sm leading-6 text-slate-500 dark:text-gray-400 line-clamp-2">{item.organization.mission || t(effectiveLang, 'Organization update')}</p>
                   </div>
                 </div>
               </article>
@@ -2573,7 +2575,7 @@ const formatDateLabel = (value?: string | null) => {
         )}
 
         {!loading && !filteredFeedItems.length && (
-          <div className="rounded-none border border-slate-200 bg-white p-6 text-sm text-slate-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+          <div className="rounded-none border border-slate-200 bg-white p-6 text-base text-slate-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
             {feedSearchQuery.trim() ? 'No results for your search yet.' : 'No posts yet. Check back soon.'}
           </div>
         )}
@@ -2581,7 +2583,7 @@ const formatDateLabel = (value?: string | null) => {
         {!loading && filteredFeedItems.length > visibleCount && (
           <div
             ref={bottomRef}
-            className="rounded-none border border-slate-200 border-t border-t-black bg-white p-4 text-center text-xs text-slate-500 dark:border-t-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+            className="rounded-none border border-slate-200 border-t border-t-black bg-white p-4 text-center text-sm text-slate-500 dark:border-t-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
           >
             Loading more...
           </div>

@@ -12,12 +12,12 @@ import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 
 /** SVGs: explicit box, no flex shrink, `block` avoids sub-pixel baseline gaps in WebKit/Chrome. */
-const navLineIconClass = 'h-[1.15rem] w-[1.15rem] max-h-[1.15rem] max-w-[1.15rem] shrink-0 block';
+const navLineIconClass = 'h-[1.45rem] w-[1.45rem] max-h-[1.45rem] max-w-[1.45rem] shrink-0 block';
 /** Shared bottom tabs — compact tiles; overflow clip for rounded tiles on iOS Safari. */
 const bottomNavLinkBaseClass =
-  'relative inline-flex min-w-0 flex-1 h-9 items-center justify-center overflow-hidden rounded-md touch-manipulation pointer-events-auto transition-colors [-webkit-tap-highlight-color:transparent] isolate [transform:translateZ(0)] sm:h-8';
+  'relative inline-flex min-w-0 flex-1 h-10 items-center justify-center overflow-hidden rounded-md touch-manipulation pointer-events-auto transition-colors [-webkit-tap-highlight-color:transparent] isolate [transform:translateZ(0)] sm:h-9';
 
- type NavbarNotificationRow = {
+type NavbarNotificationRow = {
   id: string;
   title: string;
   body: string;
@@ -90,15 +90,6 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       if (base) return `${base}/storage/v1/object/public/${bucket}/${normalizedPath}`;
     }
     return trimmed;
-  }, []);
-
-  const fetchOwnedBusinessIds = useCallback(async (userId: string) => {
-    const { data: businesses, error } = await supabase
-      .from('businesses')
-      .select('id')
-      .eq('owner_id', userId);
-    if (error) return new Set<string>();
-    return new Set((businesses || []).map((row) => String((row as any).id)));
   }, []);
 
   const toAtLabel = useCallback((value: string) => {
@@ -235,6 +226,15 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     };
   }, [normalizeAvatarUrl]);
 
+  const fetchOwnedBusinessIds = useCallback(async (userId: string) => {
+    const { data: businesses, error } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('owner_id', userId);
+    if (error) return new Set<string>();
+    return new Set((businesses || []).map((row) => String((row as any).id)));
+  }, []);
+
   const loadNotificationItems = useCallback(async () => {
     setNotificationsLoading(true);
     try {
@@ -271,7 +271,9 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
 
   useEffect(() => {
     const loadUnreadCount = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         setUnreadCount(0);
         return;
@@ -305,7 +307,9 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     let activeChannel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
     const initRealtime = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user || cancelled) return;
       activeChannel = supabase
         .channel(`navbar-notifications-${user.id}`)
@@ -503,7 +507,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       href: '/',
       icon: (isActive) => (
         <span
-          className={`shrink-0 text-[0.98rem] font-semibold leading-none tracking-normal lowercase ${
+          className={`shrink-0 text-[1.14rem] font-semibold leading-none tracking-normal lowercase ${
             isActive ? 'text-yellow-500' : ''
           }`}
         >
@@ -537,7 +541,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       icon: (isActive) =>
         dashboardIdentity.loggedIn ? (
           <span
-            className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border bg-white p-px ${
+            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-white p-px ${
               isActive ? 'border-yellow-500 ring-2 ring-yellow-500 ring-offset-1 ring-offset-slate-100 dark:ring-offset-slate-700' : 'border-slate-300'
             }`}
           >
@@ -564,7 +568,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     <>
       {/*
         Safe area must not share the same height as the tab row: with border-box, pb-safe-bottom
-        inside a fixed h-14 squashes the row and icons overflow upward (bad in system WebViews).
+        inside a fixed bar squashes the row and icons overflow upward (bad in system WebViews).
         Structure: full-height bar row, then home-indicator padding only below it.
       */}
       <nav
@@ -573,7 +577,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
           hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
-        <div className="box-border flex h-12 w-full min-w-0 items-center gap-0 px-1">
+        <div className="box-border flex h-14 w-full min-w-0 items-center gap-0 px-1">
           {primaryNavItems.map((item) => {
             const isActive = item.isActive(pathname);
             return (
@@ -599,7 +603,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
           hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
-        <div className="box-border flex h-14 w-full min-w-0 items-center gap-1 px-2.5">
+        <div className="box-border flex h-16 w-full min-w-0 items-center gap-1 px-2.5">
           {primaryNavItems.map((item) => {
             const isActive = item.isActive(pathname);
             return (
@@ -625,13 +629,13 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
             ref={notificationsBellRef}
             type="button"
             onClick={toggleNotifications}
-            className="relative inline-flex h-10 w-10 items-center justify-center text-black transition"
+            className="relative inline-flex h-11 w-11 items-center justify-center text-black transition"
             aria-label="Open notifications"
             title="Notifications"
             aria-expanded={notificationsOpen}
             aria-haspopup="dialog"
           >
-            <Bell className="h-[1.58rem] w-[1.58rem]" strokeWidth={2} aria-hidden />
+            <Bell className="h-[1.9rem] w-[1.9rem]" strokeWidth={2} aria-hidden />
             {unreadCount > 0 ? (
               <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-semibold leading-none text-white">
                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -641,11 +645,11 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
           <button
             type="button"
             onClick={() => goToQuickAction('/messages?view=inbox')}
-            className="relative inline-flex h-10 w-10 items-center justify-center text-black transition"
+            className="relative inline-flex h-11 w-11 items-center justify-center text-black transition"
             aria-label="Go to messages"
             title="Messages"
           >
-            <MessageCircle className="h-[1.58rem] w-[1.58rem]" strokeWidth={2} aria-hidden />
+            <MessageCircle className="h-[1.9rem] w-[1.9rem]" strokeWidth={2} aria-hidden />
             {unreadMessageCount > 0 ? (
               <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-semibold leading-none text-white">
                 {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
@@ -707,7 +711,9 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
           type="button"
           onClick={() => {
             setIncomingToastVisible(false);
-            router.push(`/messages?targetType=user&targetId=${encodeURIComponent(incomingMessageToast.senderId)}`);
+            router.push(
+              `/messages?targetType=user&targetId=${encodeURIComponent(incomingMessageToast.senderId)}&conversation_id=${encodeURIComponent(incomingMessageToast.senderId)}`,
+            );
           }}
           className={`fixed left-3 right-3 top-[calc(env(safe-area-inset-top)+3.5rem)] z-[80] w-auto rounded-2xl border border-indigo-200 bg-white/95 px-4 py-3 text-left shadow-2xl backdrop-blur transition-all duration-300 sm:left-auto sm:right-4 sm:top-20 sm:w-[min(21rem,calc(100vw-1.25rem))] ${
             incomingToastVisible

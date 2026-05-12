@@ -194,7 +194,7 @@ export default function ReportButton({
           type="button"
           onClick={handleButtonClick}
           style={style}
-          className={`flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-red-100 hover:text-red-600 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-red-900/40 dark:hover:text-red-300 ${className}`}
+          className={`flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600 transition hover:bg-red-100 hover:text-red-600 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-red-900/40 dark:hover:text-red-300 ${className}`}
         >
           <Flag className="h-3.5 w-3.5" />
           Report

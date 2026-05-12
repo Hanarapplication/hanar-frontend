@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getLatLonFromAddress } from '@/lib/getLatLonFromAddress';
 import { sendApprovalNotification } from '@/lib/sendApprovalNotification';
 import { sendPushToUserIds } from '@/lib/pushForUsers';
+import { truncateForPushBody, type HanarPushBuilt } from '@/lib/firebaseAdmin';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -234,7 +235,14 @@ export async function POST(req: Request) {
       }
       try {
         const link = pending.url || defaultUrl;
-        await sendPushToUserIds(recipients, pending.title, pending.body, link);
+        const push: HanarPushBuilt = {
+          title: truncateForPushBody(String(pending.title || '').trim() || 'Hanar', 140),
+          body: truncateForPushBody(String(pending.body || '').trim() || 'Open to view.', 1000),
+          linkPath: link,
+          type: 'area_blast',
+          senderId: business.owner_id,
+        };
+        await sendPushToUserIds(recipients, push);
       } catch (pushErr) {
         console.warn('[area-blasts] FCM push:', pushErr);
       }

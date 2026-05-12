@@ -137,6 +137,25 @@ function postLangCode(p: PostRow): string | null {
   return primary.length >= 2 ? primary.slice(0, 2) : primary;
 }
 
+/** English + unknown-language posts first (newest within each group), then other locales. Used when no feed language is chosen or feed is explicitly English. */
+function orderPostsEnglishFirst(posts: PostRow[]): PostRow[] {
+  const byDate = (a: PostRow, b: PostRow) =>
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  const english = posts
+    .filter((p) => {
+      const c = postLangCode(p);
+      return c === 'en' || c == null;
+    })
+    .sort(byDate);
+  const other = posts
+    .filter((p) => {
+      const c = postLangCode(p);
+      return c != null && c !== 'en';
+    })
+    .sort(byDate);
+  return [...english, ...other];
+}
+
 /** Buckets for a feed language: matching posts, English or unset, then other languages (newest first within each). */
 function bucketPostsForFeedLang(posts: PostRow[], want: string): { match: PostRow[]; english: PostRow[]; other: PostRow[] } {
   if (!want || want === 'en') {
@@ -226,14 +245,16 @@ function shuffleInPlace<T>(arr: T[]) {
 }
 
 /** Random draw from the candidate pool, while periodically surfacing the newest posts. */
-function pickExplorePosts(posts: PostRow[], limit: number): PostRow[] {
-  if (posts.length === 0) return [];
-  const ts = (iso: string) => new Date(iso || 0).getTime();
+/**
+ * Same spirit as the old global explore shuffle, but the "fresh" slice is taken from the **start** of `prioritized`
+ * (e.g. already English-first) so new/shuffled slots do not bury English posts when no feed language is set.
+ */
+function pickExplorePostsFromPrioritized(prioritized: PostRow[], limit: number): PostRow[] {
+  if (prioritized.length === 0) return [];
   const freshN = Math.min(14, Math.max(4, Math.ceil(limit * 0.22)));
-  const byDate = [...posts].sort((a, b) => ts(b.created_at) - ts(a.created_at));
-  const fresh = byDate.slice(0, freshN);
+  const fresh = prioritized.slice(0, freshN);
   const freshIds = new Set(fresh.map((p) => p.id));
-  const pool = posts.filter((p) => !freshIds.has(p.id));
+  const pool = prioritized.filter((p) => !freshIds.has(p.id));
   shuffleInPlace(pool);
   const take = pool.slice(0, Math.max(0, limit - fresh.length));
   const merged: PostRow[] = [];
@@ -249,6 +270,26 @@ function pickExplorePosts(posts: PostRow[], limit: number): PostRow[] {
     }
   }
   return merged.slice(0, limit);
+}
+
+function pickPopularEnglishFirst(
+  posts: PostRow[],
+  likeCounts: Record<string, number>,
+  limit: number
+): PostRow[] {
+  const eng = posts.filter((p) => {
+    const c = postLangCode(p);
+    return c === 'en' || c == null;
+  });
+  const oth = posts.filter((p) => {
+    const c = postLangCode(p);
+    return c != null && c !== 'en';
+  });
+  const ordered = [
+    ...sortRowsByLikeCountDesc(eng, likeCounts),
+    ...sortRowsByLikeCountDesc(oth, likeCounts),
+  ];
+  return ordered.slice(0, limit);
 }
 
 export async function POST(req: Request) {
@@ -296,6 +337,9 @@ export async function POST(req: Request) {
     const feedLangNorm = normalizeFeedLang(body.feedLang ?? null);
     if (feedLangNorm && feedLangNorm !== 'en') {
       posts = orderPostsForFeedLang(posts, feedLangNorm);
+    } else {
+      // No language filter (first visit / "All languages") or explicit English: surface English + unset first.
+      posts = orderPostsEnglishFirst(posts);
     }
 
     const feedSort: 'for_you' | 'popular' = body.feedSort === 'popular' ? 'popular' : 'for_you';
@@ -318,13 +362,15 @@ export async function POST(req: Request) {
             likeCounts[r.post_id] = (likeCounts[r.post_id] ?? 0) + 1;
           });
         }
-        chosen = pickPopularPostsRespectingFeedLang(posts, feedLangNorm, likeCounts, limit);
-      } else {
-        // pickExplorePosts shuffles the pool and would undo language ordering — keep bucket order when a feed language is set.
         chosen =
           feedLangNorm && feedLangNorm !== 'en'
-            ? posts.slice(0, limit)
-            : pickExplorePosts(posts, limit);
+            ? pickPopularPostsRespectingFeedLang(posts, feedLangNorm, likeCounts, limit)
+            : pickPopularEnglishFirst(posts, likeCounts, limit);
+      } else {
+        // When a feed language is explicitly set (including English), keep strict bucket order from
+        // orderPostsForFeedLang / orderPostsEnglishFirst — do not interleave shuffled "tail" early.
+        // Unset feedLang ("All languages"): explore mix whose "fresh" slice still favors English-first head.
+        chosen = feedLangNorm ? posts.slice(0, limit) : pickExplorePostsFromPrioritized(posts, limit);
         const exploreIds = chosen.map((p) => p.id);
         exploreIds.forEach((id) => {
           likeCounts[id] = 0;
