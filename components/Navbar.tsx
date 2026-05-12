@@ -273,6 +273,18 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     }
   }, [fetchOwnedBusinessIds]);
 
+  /** Flutter WebView: native code runs fetch + dispatches this so badges stay correct without relying on Realtime alone. */
+  useEffect(() => {
+    const onHanarUnreadFromApp = (e: Event) => {
+      const d = (e as CustomEvent<{ directMessagesUnread?: number; bellNotificationsUnread?: number }>).detail;
+      if (!d) return;
+      if (typeof d.directMessagesUnread === 'number') setUnreadMessageCount(d.directMessagesUnread);
+      if (typeof d.bellNotificationsUnread === 'number') setUnreadCount(d.bellNotificationsUnread);
+    };
+    window.addEventListener('hanar:unread-counts', onHanarUnreadFromApp as EventListener);
+    return () => window.removeEventListener('hanar:unread-counts', onHanarUnreadFromApp as EventListener);
+  }, []);
+
   useEffect(() => {
     const loadUnreadCount = async () => {
       const {

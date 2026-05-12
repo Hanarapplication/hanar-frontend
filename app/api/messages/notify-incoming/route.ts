@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
-import { buildDirectMessagePushContent } from '@/lib/firebaseAdmin';
-import { sendPushToUserIds } from '@/lib/pushForUsers';
+import { buildDirectMessagePushContent, truncateForPushBody } from '@/lib/firebaseAdmin';
+import { sendDmNativePushToRecipient } from '@/lib/pushForUsers';
 import { graphemeLength, truncateGraphemes } from '@/lib/unicodeText';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -25,28 +25,30 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 
 /** @username for title; prefers profiles.username, then registeredaccounts.username */
 async function resolveSenderAtHandle(senderUserId: string): Promise<string> {
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('username')
-    .eq('id', senderUserId)
-    .maybeSingle();
-  const fromProfile = (profile as { username?: string | null } | null)?.username?.trim();
+  const [profileRes, accountRes] = await Promise.all([
+    supabaseAdmin.from('profiles').select('username').eq('id', senderUserId).maybeSingle(),
+    supabaseAdmin.from('registeredaccounts').select('username').eq('user_id', senderUserId).maybeSingle(),
+  ]);
+  const fromProfile = (profileRes.data as { username?: string | null } | null)?.username?.trim();
   if (fromProfile) {
     const h = fromProfile.replace(/^@+/, '');
     return h ? `@${h}` : '@user';
   }
-  const { data: account } = await supabaseAdmin
-    .from('registeredaccounts')
-    .select('username')
-    .eq('user_id', senderUserId)
-    .maybeSingle();
-  const fromAccount = (account as { username?: string | null } | null)?.username?.trim();
+  const fromAccount = (accountRes.data as { username?: string | null } | null)?.username?.trim();
   if (fromAccount) {
     const h = fromAccount.replace(/^@+/, '');
     return h ? `@${h}` : '@user';
   }
   return '@user';
 }
+
+type NotifyBody = {
+  messageId?: string;
+  senderUserId?: string;
+  recipientUserId?: string;
+  conversationId?: string;
+  messagePreview?: string;
+};
 
 export async function POST(req: Request) {
   try {
@@ -68,41 +70,79 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = (await req.json()) as { messageId?: string };
+    const body = (await req.json()) as NotifyBody;
     const messageId = (body.messageId || '').trim();
-    if (!messageId) {
-      return NextResponse.json({ error: 'Missing messageId' }, { status: 400 });
+    const senderUserIdBody = (body.senderUserId || '').trim();
+    const recipientUserIdBody = (body.recipientUserId || '').trim();
+    const conversationIdBody = (body.conversationId || '').trim();
+    const messagePreviewBody = typeof body.messagePreview === 'string' ? body.messagePreview.trim() : '';
+
+    if (!messageId || !senderUserIdBody || !recipientUserIdBody || !conversationIdBody) {
+      return NextResponse.json(
+        { error: 'Missing messageId, senderUserId, recipientUserId, or conversationId' },
+        { status: 400 },
+      );
+    }
+
+    if (senderUserIdBody === recipientUserIdBody) {
+      return NextResponse.json({ error: 'Invalid participants' }, { status: 400 });
+    }
+
+    if (senderUserIdBody !== authedUser.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (conversationIdBody !== senderUserIdBody) {
+      return NextResponse.json({ error: 'conversationId must match senderUserId' }, { status: 400 });
     }
 
     const { data: row, error: rowError } = await supabaseAdmin
       .from('direct_messages')
-      .select('id, sender_user_id, recipient_user_id, body, attachment_url')
+      .select('id, sender_user_id, recipient_user_id, body, attachment_url, dm_push_sent_at')
       .eq('id', messageId)
       .maybeSingle();
 
     if (rowError || !row) {
       return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     }
-    if (row.sender_user_id !== authedUser.id) {
+
+    if (row.sender_user_id !== authedUser.id || row.sender_user_id !== senderUserIdBody) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (row.recipient_user_id !== recipientUserIdBody) {
+      return NextResponse.json({ error: 'Message does not match recipient' }, { status: 400 });
     }
 
     const recipientUserId = row.recipient_user_id as string;
     const senderUserId = row.sender_user_id as string;
-    if (!recipientUserId || !senderUserId || recipientUserId === senderUserId) {
-      return NextResponse.json({ error: 'Invalid message participants' }, { status: 400 });
-    }
 
-    console.log('[notify-incoming] loaded message', {
-      messageId: row.id,
-      sender_user_id: senderUserId,
-      recipient_user_id: recipientUserId,
-    });
-    console.log('[notify-incoming] recipient id', recipientUserId);
+    if (row.dm_push_sent_at) {
+      const skipLog = {
+        messageId: row.id,
+        senderUserId,
+        recipientUserId,
+        tokenCount: 0,
+        latestTokenUpdatedAt: null as string | null,
+        firebaseSuccessCount: 0,
+        firebaseFailureCount: 0,
+        firebaseErrors: [] as { code?: string; message: string }[],
+        skipped: true,
+        reason: 'dm_push_already_sent',
+      };
+      console.log('[notify-incoming] DM push attempt', skipLog);
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        reason: 'dm_push_already_sent',
+        push: { successCount: 0, failureCount: 0 },
+        log: skipLog,
+      });
+    }
 
     const rawBody = typeof row.body === 'string' ? row.body.trim() : '';
     const hasAttachment = Boolean(row.attachment_url);
-    const previewBody =
+    const previewFromDb =
       hasAttachment && !rawBody
         ? 'Sent an attachment'
         : rawBody
@@ -110,6 +150,11 @@ export async function POST(req: Request) {
             ? `${truncateGraphemes(rawBody, 120)}…`
             : rawBody
         : '';
+
+    const previewForPush = truncateForPushBody(
+      messagePreviewBody || previewFromDb || 'New message',
+      80,
+    );
 
     const atHandle = await resolveSenderAtHandle(senderUserId);
     const title = `${atHandle} sent you a message`;
@@ -119,7 +164,7 @@ export async function POST(req: Request) {
       user_id: recipientUserId,
       type: 'direct_message',
       title,
-      body: previewBody,
+      body: previewForPush || 'New message',
       url: link,
       read_at: null,
       created_at: new Date().toISOString(),
@@ -130,34 +175,83 @@ export async function POST(req: Request) {
       },
     });
 
+    let notificationInserted = true;
     if (notifErr) {
-      console.error('[notify-incoming] notification insert failed', notifErr);
-      return NextResponse.json(
-        { success: false, error: 'Failed to insert notification', details: notifErr.message },
-        { status: 500 },
-      );
+      notificationInserted = false;
+      console.error('[notify-incoming] notification insert failed (still sending DM FCM)', {
+        message: notifErr.message,
+        code: notifErr.code,
+        recipient_user_id: recipientUserId,
+        message_id: row.id,
+      });
     }
 
-    console.log('[notify-incoming] notification inserted', {
-      recipient_user_id: recipientUserId,
-      sender_user_id: senderUserId,
-      message_id: row.id,
+    const pushBuilt = buildDirectMessagePushContent({
+      senderHandle: atHandle,
+      messagePreview: previewForPush || 'New message',
+      senderUserId,
+      messageId: row.id as string,
     });
 
-    const push = buildDirectMessagePushContent({
-      senderHandle: atHandle,
-      messagePreview: previewBody || 'New message',
-      senderUserId,
-    });
+    let tokenCount = 0;
+    let latestTokenUpdatedAt: string | null = null;
+    let firebaseSuccessCount = 0;
+    let firebaseFailureCount = 0;
+    let firebaseErrors: { code?: string; message: string }[] = [];
 
     try {
-      const pushResult = await sendPushToUserIds([recipientUserId], push);
-      console.log('[notify-incoming] push sent', pushResult);
+      const dmSend = await sendDmNativePushToRecipient(recipientUserId, pushBuilt);
+      tokenCount = dmSend.tokenCount;
+      latestTokenUpdatedAt = dmSend.latestTokenUpdatedAt;
+      firebaseSuccessCount = dmSend.result.successCount;
+      firebaseFailureCount = dmSend.result.failureCount;
+      firebaseErrors = dmSend.result.errors;
+
+      if (firebaseSuccessCount > 0) {
+        const now = new Date().toISOString();
+        const { data: updated, error: markErr } = await supabaseAdmin
+          .from('direct_messages')
+          .update({ dm_push_sent_at: now })
+          .eq('id', messageId)
+          .is('dm_push_sent_at', null)
+          .select('id')
+          .maybeSingle();
+
+        if (markErr) {
+          console.error('[notify-incoming] failed to mark dm_push_sent_at', {
+            message: markErr.message,
+            messageId,
+          });
+        } else if (!updated) {
+          console.warn('[notify-incoming] dm_push_sent_at race — another worker may have marked', {
+            messageId,
+          });
+        }
+      }
     } catch (pushErr) {
+      const msg = pushErr instanceof Error ? pushErr.message : String(pushErr);
+      firebaseErrors = [{ message: msg }];
       console.error('[notify-incoming] push failure', pushErr);
     }
 
-    return NextResponse.json({ success: true });
+    const attemptLog = {
+      messageId: row.id,
+      senderUserId,
+      recipientUserId,
+      tokenCount,
+      latestTokenUpdatedAt,
+      firebaseSuccessCount,
+      firebaseFailureCount,
+      firebaseErrors,
+    };
+    console.log('[notify-incoming] DM push attempt', attemptLog);
+
+    return NextResponse.json({
+      success: true,
+      notificationInserted,
+      push: { successCount: firebaseSuccessCount, failureCount: firebaseFailureCount },
+      log: attemptLog,
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Unexpected error';
     console.error('[notify-incoming] unexpected', e);

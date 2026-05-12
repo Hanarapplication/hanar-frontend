@@ -36,31 +36,32 @@ export default function FcmTokenHandler() {
       try {
         const nativePlatform = resolveNativePlatform(platform);
         const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-        if (userError) {
-          console.warn('[HanarApp.onToken] getUser error:', userError.message);
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.warn('[HanarApp.onToken] getSession error:', sessionError.message);
           return;
         }
-        if (!user) {
-          console.warn('[HanarApp.onToken] No user, skip saving token');
+        if (!session?.user || !session.access_token) {
+          console.warn('[HanarApp.onToken] No session, skip saving token');
           return;
         }
-        const { error } = await supabase.from('user_push_tokens').upsert(
-          {
-            user_id: user.id,
-            token,
-            platform: nativePlatform,
-            updated_at: new Date().toISOString(),
+        const res = await fetch('/api/push/register-token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
           },
-          { onConflict: 'token' }
-        );
-        if (error) {
-          console.warn('[HanarApp.onToken] upsert error:', error.message);
+          credentials: 'include',
+          body: JSON.stringify({ token, platform: nativePlatform }),
+        });
+        if (!res.ok) {
+          const detail = await res.text().catch(() => '');
+          console.warn('[HanarApp.onToken] register-token failed', res.status, detail);
           return;
         }
-        console.log('[HanarApp.onToken] Token saved');
+        console.log('[HanarApp.onToken] Token saved for user', session.user.id);
       } catch (err) {
         console.warn('[HanarApp.onToken] Error:', err);
       }

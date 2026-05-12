@@ -1054,12 +1054,26 @@ function MessagesPageContent() {
           'Content-Type': 'application/json',
           ...(await getAuthHeader()),
         };
+        const messagePreviewForPush =
+          trimmed.length > 0
+            ? trimmed.length > 200
+              ? `${trimmed.slice(0, 200)}…`
+              : trimmed
+            : selectedAttachment || attachmentUrl
+              ? 'Sent an attachment'
+              : '';
         try {
           const res = await fetch('/api/messages/notify-incoming', {
             method: 'POST',
             credentials: 'include',
             headers,
-            body: JSON.stringify({ messageId: insertedRow.id }),
+            body: JSON.stringify({
+              messageId: insertedRow.id,
+              senderUserId: userId,
+              recipientUserId: selectedPeerId,
+              conversationId: userId,
+              messagePreview: messagePreviewForPush,
+            }),
           });
           const payload = await res.json().catch(() => ({}));
           if (!res.ok) {
@@ -1071,6 +1085,13 @@ function MessagesPageContent() {
           } else {
             if (typeof window !== 'undefined') {
               window.dispatchEvent(new CustomEvent('notifications:updated'));
+              window.dispatchEvent(new CustomEvent('messages:updated'));
+            }
+            const push = payload?.push as { successCount?: number; failureCount?: number } | undefined;
+            if (push && typeof push.successCount === 'number' && push.successCount === 0) {
+              console.warn(
+                '[messages] notify-incoming: no FCM device reached (recipient should open the app while logged in to register push).',
+              );
             }
           }
         } catch {

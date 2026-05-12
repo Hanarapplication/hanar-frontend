@@ -5,18 +5,23 @@
  * Set FIREBASE_SERVICE_ACCOUNT_JSON (full JSON string) to enable sending.
  */
 
-let messaging: import('firebase-admin').messaging.Messaging | null = null;
+/** `undefined` = not yet initialized; `null` = init failed or missing env; otherwise Firebase Messaging. */
+let messaging: import('firebase-admin').messaging.Messaging | null | undefined = undefined;
 
 function getMessaging(): import('firebase-admin').messaging.Messaging | null {
   if (messaging !== undefined) return messaging;
   const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!json || typeof json !== 'string') {
+    console.warn('[push] FIREBASE_SERVICE_ACCOUNT_JSON is missing or not a string — server pushes disabled');
     messaging = null;
     return null;
   }
   try {
     const credential = JSON.parse(json);
     if (!credential.project_id || !credential.private_key || !credential.client_email) {
+      console.warn(
+        '[push] FIREBASE_SERVICE_ACCOUNT_JSON parsed but missing project_id, private_key, or client_email',
+      );
       messaging = null;
       return null;
     }
@@ -25,7 +30,10 @@ function getMessaging(): import('firebase-admin').messaging.Messaging | null {
       admin.initializeApp({ credential: admin.credential.cert(credential) });
     }
     messaging = admin.messaging();
-  } catch {
+    console.log('[push] Firebase Admin messaging initialized', { projectId: credential.project_id });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[push] FIREBASE_SERVICE_ACCOUNT_JSON parse or Admin init failed:', msg);
     messaging = null;
   }
   return messaging;
@@ -46,6 +54,10 @@ export type PushFcmExtras = {
   type?: string;
   /** Sent as `data.senderId` when the acting user is known. */
   senderId?: string | null;
+  /** DM idempotency / deep-link (native `type: dm`). */
+  messageId?: string;
+  /** Peer user id for 1:1 threads (same as sender for recipient). */
+  conversationId?: string;
 };
 
 /** Trims and caps display length for notification body lines (Unicode-aware spread). */
@@ -89,19 +101,40 @@ export type HanarPushBuilt = {
   linkPath: string | null;
   type: string;
   senderId?: string;
+  messageId?: string;
+  conversationId?: string;
 };
+
+/** Outcome of {@link sendPushToTokens} / {@link sendPushToTokensBuilt}. */
+export type FcmSendResult = {
+  successCount: number;
+  failureCount: number;
+  /** Tokens FCM marked as invalid — remove from `user_push_tokens` and `push_tokens`. */
+  invalidTokens: string[];
+  /** Per-token failure details (codes/messages only; never raw tokens). */
+  errors: { code?: string; message: string }[];
+};
+
+function isPermanentInvalidFcmToken(code: string | undefined): boolean {
+  return (
+    code === 'messaging/invalid-registration-token' ||
+    code === 'messaging/registration-token-not-registered'
+  );
+}
 
 /**
  * Send FCM with both `notification` and `data` (not data-only). Prefer this over calling
- * {@link sendPushToTokens} with loose strings so every push uses the same shape.
+ * {@link sendPushToTokensBuilt} from feature code when you already have a {@link HanarPushBuilt}.
  */
 export async function sendPushToTokensBuilt(
   push: HanarPushBuilt,
   tokens: string[]
-): Promise<{ successCount: number; failureCount: number }> {
+): Promise<FcmSendResult> {
   return sendPushToTokens(push.title, push.body, push.linkPath, tokens, {
     type: push.type,
     senderId: push.senderId,
+    messageId: push.messageId,
+    conversationId: push.conversationId,
   });
 }
 
@@ -116,10 +149,22 @@ export async function sendPushToTokens(
   urlOrPath: string | null,
   tokens: string[],
   extras?: PushFcmExtras
-): Promise<{ successCount: number; failureCount: number }> {
+): Promise<FcmSendResult> {
+  const invalidTokens: string[] = [];
+  const errors: { code?: string; message: string }[] = [];
   const m = getMessaging();
   if (!m || !tokens.length) {
-    return { successCount: 0, failureCount: tokens.length ? tokens.length : 0 };
+    if (tokens.length > 0 && !m) {
+      console.warn('[push] sendPushToTokens skipped: Firebase Admin not available', {
+        tokenCount: tokens.length,
+      });
+    }
+    return {
+      successCount: 0,
+      failureCount: tokens.length ? tokens.length : 0,
+      invalidTokens,
+      errors,
+    };
   }
 
   const { title: safeTitle, body: safeBody } = safeNotificationTitleBody(title, body);
@@ -128,13 +173,31 @@ export async function sendPushToTokens(
   const data: Record<string, string> = {
     type: (extras?.type ?? 'hanar').trim() || 'hanar',
   };
-  if (linkAbs) {
+  const isDm = data.type === 'dm';
+  if (!isDm && linkAbs) {
     data.link = linkAbs;
     data.url = linkAbs;
   }
   const sid = extras?.senderId != null ? String(extras.senderId).trim() : '';
   if (sid) {
     data.senderId = sid;
+  }
+  const mid = extras?.messageId != null ? String(extras.messageId).trim() : '';
+  if (mid) {
+    data.messageId = mid;
+  }
+  const conv = extras?.conversationId != null ? String(extras.conversationId).trim() : '';
+  if (conv) {
+    data.conversationId = conv;
+  }
+  // DM: `path` for app-relative routing; absolute `url`/`link` so clients that only read
+  // `url` still deep-link, and tray delivery matches other notification types.
+  if (isDm && urlOrPath && String(urlOrPath).trim().startsWith('/')) {
+    data.path = String(urlOrPath).trim();
+    if (linkAbs) {
+      data.link = linkAbs;
+      data.url = linkAbs;
+    }
   }
 
   const batchSize = 500;
@@ -149,17 +212,63 @@ export async function sendPushToTokens(
       tokens: chunk,
       android: {
         priority: 'high',
+        // Keep message eligible for prompt delivery after short offline / Doze windows.
+        ttl: 86_400_000,
         notification: {
           channelId: ANDROID_FCM_HIGH_CHANNEL_ID,
           title: safeTitle,
           body: safeBody,
+          defaultSound: true,
+          defaultVibrateTimings: true,
+          visibility: 'public',
+          // Client-side priority: heads-up / lock screen (channel must also be high importance in the app).
+          priority: 'max',
+        },
+      },
+      // Full alert + alert push type so iOS presents on lock screen / screen off (not only data-silent).
+      apns: {
+        headers: {
+          'apns-priority': '10',
+          'apns-push-type': 'alert',
+        },
+        payload: {
+          aps: {
+            alert: {
+              title: safeTitle,
+              body: safeBody,
+            },
+            sound: 'default',
+          },
         },
       },
     });
     successCount += result.successCount;
     failureCount += result.failureCount;
+
+    console.log('[push] FCM multicast batch', {
+      tokenCount: chunk.length,
+      successCount: result.successCount,
+      failureCount: result.failureCount,
+    });
+    if (result.failureCount > 0) {
+      result.responses.forEach((r, idx) => {
+        if (!r.success && r.error) {
+          const code = r.error.code;
+          errors.push({ code, message: r.error.message });
+          console.error('[push] FCM per-token failure', {
+            batchIndex: idx,
+            code,
+            message: r.error.message,
+          });
+          if (isPermanentInvalidFcmToken(code)) {
+            const t = chunk[idx];
+            if (t) invalidTokens.push(t);
+          }
+        }
+      });
+    }
   }
-  return { successCount, failureCount };
+  return { successCount, failureCount, invalidTokens, errors };
 }
 
 // --- Typed copy helpers (call sites pass results into sendPushToTokens / sendPushToUserIds) ---
@@ -168,17 +277,18 @@ export function buildDirectMessagePushContent(args: {
   senderHandle: string;
   messagePreview: string;
   senderUserId: string;
+  messageId: string;
 }): HanarPushBuilt {
   const mention = formatAtHandle(args.senderHandle);
-  const peer = encodeURIComponent(args.senderUserId);
+  const peerEnc = encodeURIComponent(args.senderUserId);
   return {
     title: `${mention} sent you a message`,
     body: truncateForPushBody(args.messagePreview, 80),
-    // Matches /messages deep-link resolution (resolveIntentFromQuery). Also include
-    // conversation_id for older app links and Flutter WebView payloads.
-    linkPath: `/messages?targetType=user&targetId=${peer}&conversation_id=${peer}`,
-    type: 'direct_message',
+    linkPath: `/messages?conversation_id=${peerEnc}`,
+    type: 'dm',
     senderId: args.senderUserId,
+    messageId: args.messageId,
+    conversationId: args.senderUserId,
   };
 }
 
