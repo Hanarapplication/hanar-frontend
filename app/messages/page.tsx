@@ -1028,81 +1028,63 @@ function MessagesPageContent() {
       attachmentSize = selectedAttachment.size || null;
     }
 
-    const payload = {
-      sender_user_id: userId,
-      recipient_user_id: selectedPeerId,
-      body: activeItemPreview ? encodeBodyWithItemReference(activeItemPreview, trimmed) : trimmed,
-      attachment_url: attachmentUrl,
-      attachment_name: attachmentName,
-      attachment_mime: attachmentMime,
-      attachment_size: attachmentSize,
-      recipient_entity_type: activeIntentMeta?.entityType || null,
-      recipient_entity_id: activeIntentMeta?.entityId || null,
-      recipient_entity_label: activeIntentMeta?.entityLabel || null,
+    const messagePreviewForPush =
+      trimmed.length > 0
+        ? trimmed.length > 200
+          ? `${trimmed.slice(0, 200)}…`
+          : trimmed
+        : selectedAttachment || attachmentUrl
+          ? 'Sent an attachment'
+          : '';
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(await getAuthHeader()),
     };
-    const { data: insertedRow, error: insertError } = await supabase
-      .from('direct_messages')
-      .insert(payload)
-      .select('id')
-      .single();
-    if (insertError) {
-      setError(insertError.message || 'Failed to send message');
-    } else {
-      setError(null);
-      if (insertedRow?.id) {
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          ...(await getAuthHeader()),
-        };
-        const messagePreviewForPush =
-          trimmed.length > 0
-            ? trimmed.length > 200
-              ? `${trimmed.slice(0, 200)}…`
-              : trimmed
-            : selectedAttachment || attachmentUrl
-              ? 'Sent an attachment'
-              : '';
-        try {
-          const res = await fetch('/api/messages/notify-incoming', {
-            method: 'POST',
-            credentials: 'include',
-            headers,
-            body: JSON.stringify({
-              messageId: insertedRow.id,
-              senderUserId: userId,
-              recipientUserId: selectedPeerId,
-              conversationId: userId,
-              messagePreview: messagePreviewForPush,
-            }),
-          });
-          const payload = await res.json().catch(() => ({}));
-          if (!res.ok) {
-            setError(
-              typeof payload?.error === 'string'
-                ? payload.error
-                : 'Message sent but notifications could not be delivered. Try again from the chat.',
-            );
-          } else {
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('notifications:updated'));
-              window.dispatchEvent(new CustomEvent('messages:updated'));
-            }
-            const push = payload?.push as { successCount?: number; failureCount?: number } | undefined;
-            if (push && typeof push.successCount === 'number' && push.successCount === 0) {
-              console.warn(
-                '[messages] notify-incoming: no FCM device reached (recipient should open the app while logged in to register push).',
-              );
-            }
-          }
-        } catch {
-          setError('Message sent but notifications could not be delivered (network).');
+    try {
+      const res = await fetch('/api/messages/send-direct', {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify({
+          recipient_user_id: selectedPeerId,
+          body: activeItemPreview ? encodeBodyWithItemReference(activeItemPreview, trimmed) : trimmed,
+          attachment_url: attachmentUrl,
+          attachment_name: attachmentName,
+          attachment_mime: attachmentMime,
+          attachment_size: attachmentSize,
+          recipient_entity_type: activeIntentMeta?.entityType || null,
+          recipient_entity_id: activeIntentMeta?.entityId || null,
+          recipient_entity_label: activeIntentMeta?.entityLabel || null,
+          message_preview: messagePreviewForPush,
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(
+          typeof payload?.error === 'string'
+            ? payload.error
+            : 'Failed to send message',
+        );
+      } else {
+        setError(null);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('notifications:updated'));
+          window.dispatchEvent(new CustomEvent('messages:updated'));
         }
+        const push = payload?.push as { successCount?: number; failureCount?: number } | undefined;
+        if (push && typeof push.successCount === 'number' && push.successCount === 0) {
+          console.warn(
+            '[messages] send-direct: no FCM device reached (recipient should open the app while logged in to register push).',
+          );
+        }
+        setDraft('');
+        setSelectedAttachment(null);
+        if (activeItemPreview) setPendingItemPreview(null);
+        await loadMessages(userId);
+        scheduleScrollThreadToBottom();
       }
-      setDraft('');
-      setSelectedAttachment(null);
-      if (activeItemPreview) setPendingItemPreview(null);
-      await loadMessages(userId);
-      scheduleScrollThreadToBottom();
+    } catch {
+      setError('Failed to send message (network).');
     }
     setSending(false);
   };

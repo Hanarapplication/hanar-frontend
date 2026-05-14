@@ -4,6 +4,10 @@
  * should obtain a device token with Firebase/APNs and call
  * `window.HanarApp.onToken(token, 'ios' | 'android')` after the user allows notifications.
  * The second argument defaults to `'android'` when omitted (legacy callers).
+ *
+ * Tokens are stored on the logged-in user via `POST /api/push/register-token` (Bearer session).
+ * A pure Flutter shell (no WebView) should call that same endpoint after login with the
+ * Supabase access token and `{ "token": "<fcm>", "platform": "ios" | "android" }`.
  */
 'use client';
 

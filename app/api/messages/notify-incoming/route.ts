@@ -2,9 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
-import { buildDirectMessagePushContent, truncateForPushBody } from '@/lib/firebaseAdmin';
-import { sendDmNativePushToRecipient } from '@/lib/pushForUsers';
-import { graphemeLength, truncateGraphemes } from '@/lib/unicodeText';
+import { runDmIncomingPushForMessage, type DmNotifyRow } from '@/lib/dmIncomingNotify';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -22,25 +20,6 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
  * - Recipients: SELECT on notifications where user_id = auth.uid() (or equivalent) so the bell loads.
  * - Server: this route uses the service role key, so INSERT bypasses RLS; app users never call INSERT directly.
  */
-
-/** @username for title; prefers profiles.username, then registeredaccounts.username */
-async function resolveSenderAtHandle(senderUserId: string): Promise<string> {
-  const [profileRes, accountRes] = await Promise.all([
-    supabaseAdmin.from('profiles').select('username').eq('id', senderUserId).maybeSingle(),
-    supabaseAdmin.from('registeredaccounts').select('username').eq('user_id', senderUserId).maybeSingle(),
-  ]);
-  const fromProfile = (profileRes.data as { username?: string | null } | null)?.username?.trim();
-  if (fromProfile) {
-    const h = fromProfile.replace(/^@+/, '');
-    return h ? `@${h}` : '@user';
-  }
-  const fromAccount = (accountRes.data as { username?: string | null } | null)?.username?.trim();
-  if (fromAccount) {
-    const h = fromAccount.replace(/^@+/, '');
-    return h ? `@${h}` : '@user';
-  }
-  return '@user';
-}
 
 type NotifyBody = {
   messageId?: string;
@@ -114,143 +93,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Message does not match recipient' }, { status: 400 });
     }
 
-    const recipientUserId = row.recipient_user_id as string;
-    const senderUserId = row.sender_user_id as string;
+    const dmRow: DmNotifyRow = {
+      id: row.id as string,
+      sender_user_id: row.sender_user_id as string,
+      recipient_user_id: row.recipient_user_id as string,
+      body: (row.body as string | null) ?? null,
+      attachment_url: (row.attachment_url as string | null) ?? null,
+      dm_push_sent_at: (row.dm_push_sent_at as string | null) ?? null,
+    };
 
-    if (row.dm_push_sent_at) {
-      const skipLog = {
-        messageId: row.id,
-        senderUserId,
-        recipientUserId,
-        tokenCount: 0,
-        latestTokenUpdatedAt: null as string | null,
-        firebaseSuccessCount: 0,
-        firebaseFailureCount: 0,
-        firebaseErrors: [] as { code?: string; message: string }[],
-        skipped: true,
-        reason: 'dm_push_already_sent',
-      };
-      console.log('[notify-incoming] DM push attempt', skipLog);
+    const result = await runDmIncomingPushForMessage(supabaseAdmin, {
+      row: dmRow,
+      authedSenderId: authedUser.id,
+      messagePreview: messagePreviewBody,
+    });
+
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+
+    if (result.skipped) {
       return NextResponse.json({
         success: true,
         skipped: true,
-        reason: 'dm_push_already_sent',
-        push: { successCount: 0, failureCount: 0 },
-        log: skipLog,
+        reason: result.reason,
+        push: result.push,
+        log: result.log,
       });
     }
-
-    const rawBody = typeof row.body === 'string' ? row.body.trim() : '';
-    const hasAttachment = Boolean(row.attachment_url);
-    const previewFromDb =
-      hasAttachment && !rawBody
-        ? 'Sent an attachment'
-        : rawBody
-          ? graphemeLength(rawBody) > 120
-            ? `${truncateGraphemes(rawBody, 120)}…`
-            : rawBody
-        : '';
-
-    const previewForPush = truncateForPushBody(
-      messagePreviewBody || previewFromDb || 'New message',
-      80,
-    );
-
-    const atHandle = await resolveSenderAtHandle(senderUserId);
-    const title = `${atHandle} sent you a message`;
-    const link = `/messages?conversation_id=${encodeURIComponent(senderUserId)}`;
-
-    const { error: notifErr } = await supabaseAdmin.from('notifications').insert({
-      user_id: recipientUserId,
-      type: 'direct_message',
-      title,
-      body: previewForPush || 'New message',
-      url: link,
-      read_at: null,
-      created_at: new Date().toISOString(),
-      data: {
-        recipient_user_id: recipientUserId,
-        sender_user_id: senderUserId,
-        message_id: row.id,
-      },
-    });
-
-    let notificationInserted = true;
-    if (notifErr) {
-      notificationInserted = false;
-      console.error('[notify-incoming] notification insert failed (still sending DM FCM)', {
-        message: notifErr.message,
-        code: notifErr.code,
-        recipient_user_id: recipientUserId,
-        message_id: row.id,
-      });
-    }
-
-    const pushBuilt = buildDirectMessagePushContent({
-      senderHandle: atHandle,
-      messagePreview: previewForPush || 'New message',
-      senderUserId,
-      messageId: row.id as string,
-    });
-
-    let tokenCount = 0;
-    let latestTokenUpdatedAt: string | null = null;
-    let firebaseSuccessCount = 0;
-    let firebaseFailureCount = 0;
-    let firebaseErrors: { code?: string; message: string }[] = [];
-
-    try {
-      const dmSend = await sendDmNativePushToRecipient(recipientUserId, pushBuilt);
-      tokenCount = dmSend.tokenCount;
-      latestTokenUpdatedAt = dmSend.latestTokenUpdatedAt;
-      firebaseSuccessCount = dmSend.result.successCount;
-      firebaseFailureCount = dmSend.result.failureCount;
-      firebaseErrors = dmSend.result.errors;
-
-      if (firebaseSuccessCount > 0) {
-        const now = new Date().toISOString();
-        const { data: updated, error: markErr } = await supabaseAdmin
-          .from('direct_messages')
-          .update({ dm_push_sent_at: now })
-          .eq('id', messageId)
-          .is('dm_push_sent_at', null)
-          .select('id')
-          .maybeSingle();
-
-        if (markErr) {
-          console.error('[notify-incoming] failed to mark dm_push_sent_at', {
-            message: markErr.message,
-            messageId,
-          });
-        } else if (!updated) {
-          console.warn('[notify-incoming] dm_push_sent_at race — another worker may have marked', {
-            messageId,
-          });
-        }
-      }
-    } catch (pushErr) {
-      const msg = pushErr instanceof Error ? pushErr.message : String(pushErr);
-      firebaseErrors = [{ message: msg }];
-      console.error('[notify-incoming] push failure', pushErr);
-    }
-
-    const attemptLog = {
-      messageId: row.id,
-      senderUserId,
-      recipientUserId,
-      tokenCount,
-      latestTokenUpdatedAt,
-      firebaseSuccessCount,
-      firebaseFailureCount,
-      firebaseErrors,
-    };
-    console.log('[notify-incoming] DM push attempt', attemptLog);
 
     return NextResponse.json({
       success: true,
-      notificationInserted,
-      push: { successCount: firebaseSuccessCount, failureCount: firebaseFailureCount },
-      log: attemptLog,
+      notificationInserted: result.notificationInserted,
+      push: result.push,
+      log: result.log,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Unexpected error';
