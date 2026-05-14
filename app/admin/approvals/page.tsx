@@ -145,47 +145,40 @@ export default function AdminApprovalsPage() {
     'verified_info', 'admin_note', 'note_history', 'updated_at',
   ] as const;
 
-  // ✅ Notes logic preserved (same behavior): note saved only on action; note_history appended
+  // ✅ Notes logic preserved: server route merges note_history when noteToSave is set.
   async function saveBusinessUpdates(id: string, updates: Partial<Business>, noteToSave?: string) {
-    let finalUpdates: Record<string, unknown> = {};
+    const updatesPayload: Record<string, unknown> = {};
     for (const key of ALLOWED_BUSINESS_UPDATE_KEYS) {
       if (key in updates && (updates as Record<string, unknown>)[key] !== undefined) {
-        finalUpdates[key] = (updates as Record<string, unknown>)[key];
+        updatesPayload[key] = (updates as Record<string, unknown>)[key];
       }
     }
 
-    if (noteToSave !== undefined && noteToSave.trim() !== '') {
-      finalUpdates.admin_note = noteToSave.trim();
-
-      const { data: current, error: currentErr } = await supabase
-        .from('businesses')
-        .select('note_history')
-        .eq('id', id)
-        .single();
-
-      if (currentErr) {
-        console.error('Failed to fetch note_history:', currentErr);
-        toast.error(`Save failed: ${currentErr.message}`);
-        return false;
-      }
-
-      const currentHistory = (current?.note_history as NoteEntry[] | null) ?? [];
-      const newEntry: NoteEntry = { note: noteToSave.trim(), timestamp: new Date().toISOString() };
-      finalUpdates.note_history = [...currentHistory, newEntry];
+    const trimmedNote = noteToSave !== undefined ? noteToSave.trim() : '';
+    if (Object.keys(updatesPayload).length === 0 && !trimmedNote) {
+      return true;
     }
 
-    if (Object.keys(finalUpdates).length === 0) return true;
+    const res = await fetch(`/api/admin/businesses/${encodeURIComponent(id)}/moderation`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        updates: updatesPayload,
+        ...(trimmedNote ? { noteToSave: trimmedNote } : {}),
+      }),
+    });
 
-    const { error } = await supabase
-      .from('businesses')
-      .update(finalUpdates)
-      .eq('id', id)
-      .select('id')
-      .single();
+    let payload: { error?: string } = {};
+    try {
+      payload = await res.json();
+    } catch {
+      payload = {};
+    }
 
-    if (error) {
-      console.error('Update error:', error);
-      toast.error(`Save failed: ${error.message}`);
+    if (!res.ok) {
+      console.error('Update error:', payload?.error || res.status);
+      toast.error(`Save failed: ${payload?.error || res.status}`);
       return false;
     }
 

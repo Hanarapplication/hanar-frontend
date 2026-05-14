@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { sendStripeCheckoutReceiptEmailSafe } from '@/lib/email/stripeCheckoutReceipt';
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -11,6 +12,15 @@ const stripe = stripeSecret ? new Stripe(stripeSecret) : null;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } });
 
 const PACK_DAYS = 40;
+
+function metaRecord(meta: Stripe.Metadata | null): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = {};
+  if (!meta) return out;
+  for (const [k, v] of Object.entries(meta)) {
+    out[k] = v == null ? undefined : String(v);
+  }
+  return out;
+}
 
 export async function POST(req: Request) {
   if (!stripeSecret || !webhookSecret || !stripe) {
@@ -31,15 +41,18 @@ export async function POST(req: Request) {
   try {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
-      const meta = session.metadata || {};
-      const type = meta.type as string;
+      const meta = metaRecord(session.metadata);
+      const type = meta.type;
+
+      /** When set, send a deduped receipt after DB work (non-blocking for overall handler). */
+      let receiptType: string | null = null;
 
       if (type === 'business_plan') {
         const businessId = meta.business_id as string;
         const plan = meta.plan as string;
         if (!businessId || !plan) {
           console.error('[stripe-webhook] Missing business_id or plan');
-          return NextResponse.json({ ok: true });
+          return NextResponse.json({ received: true });
         }
 
         const { error: rpcErr } = await supabaseAdmin.rpc('apply_business_plan', {
@@ -49,7 +62,7 @@ export async function POST(req: Request) {
         });
         if (rpcErr) {
           console.error('[stripe-webhook] apply_business_plan failed:', rpcErr);
-          return NextResponse.json({ ok: true });
+          return NextResponse.json({ received: true });
         }
 
         const nowIso = new Date().toISOString();
@@ -66,11 +79,13 @@ export async function POST(req: Request) {
             ...(isPremiumTrial ? { trial_start: nowIso, trial_end: trialEnd } : {}),
           })
           .eq('id', businessId);
+
+        receiptType = 'business_plan';
       } else if (type === 'casual_pack') {
         const userId = meta.user_id as string;
         if (!userId) {
           console.error('[stripe-webhook] Missing user_id for casual_pack');
-          return NextResponse.json({ ok: true });
+          return NextResponse.json({ received: true });
         }
 
         const { data: existing } = await supabaseAdmin
@@ -87,18 +102,19 @@ export async function POST(req: Request) {
         const newExpires = new Date(baseExpiry);
         newExpires.setDate(newExpires.getDate() + PACK_DAYS);
 
-        await supabaseAdmin
-          .from('individual_listing_packs')
-          .upsert(
-            {
-              user_id: userId,
-              pack_expires_at: newExpires.toISOString(),
-              updated_at: now.toISOString(),
-            },
-            { onConflict: 'user_id' }
-          );
+        await supabaseAdmin.from('individual_listing_packs').upsert(
+          {
+            user_id: userId,
+            pack_expires_at: newExpires.toISOString(),
+            updated_at: now.toISOString(),
+          },
+          { onConflict: 'user_id' }
+        );
+
+        receiptType = 'casual_pack';
       } else if (type === 'promotion') {
         const requestId = (meta.promotion_request_id ?? meta.promotionRequestId) as string | undefined;
+        let promotionRecorded = false;
         if (requestId) {
           const { data: updated, error: upErr } = await supabaseAdmin
             .from('business_promotion_requests')
@@ -106,19 +122,81 @@ export async function POST(req: Request) {
             .eq('id', requestId)
             .eq('status', 'pending_payment')
             .select('id');
-          if (upErr) console.error('[stripe-webhook] business promotion status update failed:', upErr);
-          else console.log('[stripe-webhook] promotion updated to pending_review:', requestId, 'rows:', updated?.length ?? 0);
+          if (upErr) {
+            console.error('[stripe-webhook] business promotion status update failed:', upErr);
+          } else {
+            const rows = updated?.length ?? 0;
+            console.log(
+              '[stripe-webhook] promotion updated to pending_review:',
+              requestId,
+              'rows:',
+              rows
+            );
+            if (rows > 0) promotionRecorded = true;
+            else
+              console.warn(
+                '[stripe-webhook] promotion update matched 0 rows (wrong id or not pending_payment):',
+                requestId
+              );
+          }
         } else {
-          console.warn('[stripe-webhook] promotion event but no promotion_request_id in metadata:', JSON.stringify(meta));
+          console.warn(
+            '[stripe-webhook] promotion event but no promotion_request_id in metadata:',
+            JSON.stringify(meta)
+          );
+        }
+        if (promotionRecorded) {
+          receiptType = 'promotion';
         }
       } else if (type === 'org_promotion') {
         const requestId = (meta.org_promotion_request_id ?? meta.orgPromotionRequestId) as string | undefined;
+        let orgPromotionRecorded = false;
         if (requestId) {
-          await supabaseAdmin
+          const { data: updated, error: upErr } = await supabaseAdmin
             .from('organization_promotion_requests')
             .update({ status: 'pending_review', updated_at: new Date().toISOString() })
             .eq('id', requestId)
-            .eq('status', 'pending_payment');
+            .eq('status', 'pending_payment')
+            .select('id');
+          if (upErr) {
+            console.error('[stripe-webhook] organization promotion status update failed:', upErr);
+          } else {
+            const rows = updated?.length ?? 0;
+            console.log(
+              '[stripe-webhook] org promotion updated to pending_review:',
+              requestId,
+              'rows:',
+              rows
+            );
+            if (rows > 0) orgPromotionRecorded = true;
+            else
+              console.warn(
+                '[stripe-webhook] org promotion update matched 0 rows (wrong id or not pending_payment):',
+                requestId
+              );
+          }
+        } else {
+          console.warn(
+            '[stripe-webhook] org_promotion event but no org_promotion_request_id in metadata:',
+            JSON.stringify(meta)
+          );
+        }
+        if (orgPromotionRecorded) {
+          receiptType = 'org_promotion';
+        }
+      }
+
+      if (receiptType) {
+        try {
+          await sendStripeCheckoutReceiptEmailSafe({
+            supabase: supabaseAdmin,
+            stripeEventId: event.id,
+            session,
+            checkoutType: receiptType,
+            meta,
+          });
+        } catch {
+          console.warn('[stripe-receipt] helper failed after checkout');
         }
       }
     }
