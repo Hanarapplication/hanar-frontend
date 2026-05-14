@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/daily-business?key=${CRON_SECRET}",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/send-expiration-emails",
+      "schedule": "0 10 * * *"
     }
   ]
 }
