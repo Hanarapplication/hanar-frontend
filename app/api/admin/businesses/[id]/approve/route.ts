@@ -64,6 +64,9 @@ export async function POST(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const body = (await req.json().catch(() => ({}))) as { skipEmails?: boolean };
+    const skipEmails = body.skipEmails === true;
+
     const { id } = await context.params;
     const businessId = (id || '').trim();
     if (!businessId) {
@@ -94,7 +97,7 @@ export async function POST(req: Request, context: RouteContext) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
 
-    if (String(previousModeration) !== 'active') {
+    if (String(previousModeration) !== 'active' && !skipEmails) {
       try {
         await notifyBusinessModerationTransition(supabaseAdmin, {
           fromModeration: previousModeration,
@@ -103,7 +106,6 @@ export async function POST(req: Request, context: RouteContext) {
           slug: business.slug,
           ownerId: business.owner_id,
           rowEmail: business.email,
-          reason: null,
         });
       } catch {
         console.warn('[approve business] moderation email failed');

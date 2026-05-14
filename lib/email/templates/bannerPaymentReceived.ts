@@ -7,15 +7,16 @@ export type BannerPaymentReceivedTemplateProps = {
   entityDisplayName: string | null;
   /** Optional formatted amount e.g. "$49.00". */
   amountLabel?: string | null;
+  /** @deprecated No longer used in email copy; kept for call-site compatibility. */
   dashboardPath?: string | null;
   origin?: string | null;
 };
 
-function absoluteHref(origin: string | null | undefined, path: string): string {
-  const base = (origin ?? '').trim().replace(/\/$/, '');
-  const p = path.startsWith('/') ? path : `/${path}`;
-  return base ? `${base}${p}` : p;
-}
+const APP_WEB_CTA_HTML =
+  '<p>Open the <strong>Hanar</strong> mobile app or our website while signed in to watch review progress and any messages about your banner.</p>';
+
+const APP_WEB_CTA_TEXT =
+  'Open the Hanar mobile app or our website while signed in to watch review progress and any messages about your banner.';
 
 export function buildBannerPaymentReceivedEmail(props: BannerPaymentReceivedTemplateProps): {
   subject: string;
@@ -27,7 +28,6 @@ export function buildBannerPaymentReceivedEmail(props: BannerPaymentReceivedTemp
   const amt = (props.amountLabel ?? '').trim();
   const amtHtml = amt ? `<p><strong>Payment:</strong> ${escapeHtml(amt)}</p>` : '';
   const subject = 'Payment received — your Hanar banner is in review';
-  const dash = absoluteHref(props.origin, props.dashboardPath?.trim() || '/');
 
   const html = `
 <!DOCTYPE html>
@@ -35,11 +35,13 @@ export function buildBannerPaymentReceivedEmail(props: BannerPaymentReceivedTemp
   <p>Hi,</p>
   <p>We received payment for <strong>${title}</strong> (${who}). Your banner is now <strong>in review</strong>.</p>
   ${amtHtml}
-  <p><a href="${dash}">Open your dashboard</a></p>
+  ${APP_WEB_CTA_HTML}
   <p style="color:#666;font-size:12px;">This is an automated message from Hanar.</p>
 </body></html>`.trim();
 
-  const text = `Payment received for "${props.campaignTitle.trim() || 'Your promotion'}" (${(props.entityDisplayName ?? '').trim() || 'your account'}). Your banner is in review.${amt ? ` ${amt}` : ''}\n${dash}\n`;
+  const plainTitle = props.campaignTitle.trim() || 'Your promotion';
+  const plainWho = (props.entityDisplayName ?? '').trim() || 'your account';
+  const text = `Payment received for "${plainTitle}" (${plainWho}). Your banner is in review.${amt ? ` ${amt}` : ''}\n\n${APP_WEB_CTA_TEXT}\n`;
 
   return { subject, html, text };
 }

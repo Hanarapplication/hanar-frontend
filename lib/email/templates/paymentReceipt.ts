@@ -1,5 +1,5 @@
 /**
- * Placeholder content for Stripe / checkout payment receipt email.
+ * Stripe / checkout payment receipt email.
  */
 
 export type PaymentReceiptTemplateProps = {
@@ -13,9 +13,15 @@ export type PaymentReceiptTemplateProps = {
   amountDisplay: string;
   /** Optional line, e.g. "Business: Acme Co" */
   detailLine?: string | null;
-  /** Optional absolute URL (e.g. dashboard) */
+  /** @deprecated Receipt no longer links here; use app/website CTA instead. */
   dashboardUrl?: string | null;
 };
+
+const APP_WEB_CTA_HTML =
+  '<p>Open the <strong>Hanar</strong> mobile app or our website while signed in to view your purchase, plan, and account details.</p>';
+
+const APP_WEB_CTA_TEXT =
+  'Open the Hanar mobile app or our website while signed in to view your purchase, plan, and account details.';
 
 export function buildPaymentReceiptEmail(props: PaymentReceiptTemplateProps): {
   subject: string;
@@ -28,10 +34,6 @@ export function buildPaymentReceiptEmail(props: PaymentReceiptTemplateProps): {
   const cur = (props.currency ?? 'USD').toUpperCase();
   const detailRaw = (props.detailLine ?? '').trim();
   const detailHtml = detailRaw ? `<p>${escapeHtml(detailRaw)}</p>` : '';
-  const dashRaw = (props.dashboardUrl ?? '').trim();
-  const dashHtml = dashRaw
-    ? `<p><a href="${escapeHtml(dashRaw)}">Open your Hanar dashboard</a></p>`
-    : '';
 
   const html = `
 <!DOCTYPE html>
@@ -40,11 +42,11 @@ export function buildPaymentReceiptEmail(props: PaymentReceiptTemplateProps): {
   <p>Thank you — we received your payment for <strong>${label}</strong>.</p>
   <p>Type: ${type} · Amount: ${escapeHtml(props.amountDisplay)} ${cur}</p>
   ${detailHtml}
-  ${dashHtml}
+  ${APP_WEB_CTA_HTML}
   <p style="color:#666;font-size:12px;">This is an automated receipt from Hanar.</p>
 </body></html>`.trim();
 
-  const text = `Hanar payment received: ${props.productLabel} (${props.productType}). Amount: ${props.amountDisplay} ${cur}.${detailRaw ? ` ${detailRaw}` : ''}${dashRaw ? ` ${dashRaw}` : ''}\n`;
+  const text = `Hanar payment received: ${props.productLabel} (${props.productType}). Amount: ${props.amountDisplay} ${cur}.${detailRaw ? ` ${detailRaw}` : ''}\n\n${APP_WEB_CTA_TEXT}\n`;
 
   return { subject, html, text };
 }

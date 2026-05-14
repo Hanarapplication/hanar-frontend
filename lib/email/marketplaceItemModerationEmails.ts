@@ -62,18 +62,16 @@ export async function notifyMarketplaceItemSubmitted(
 
 /**
  * After admin PATCH — sends only when `is_on_hold` / `is_reviewed` actually change.
- * Rejected = reviewed → not reviewed (see admin “Unreview”); optional `moderation_note` on the request body is included for rejected and on-hold.
+ * Rejected = reviewed → not reviewed (see admin “Unreview”).
  */
 export async function notifyMarketplaceItemModerationTransitions(
   supabaseAdmin: SupabaseClient,
   args: {
     before: MarketplaceItemModerationRow;
     after: MarketplaceItemModerationRow;
-    moderationNote?: string | null;
   }
 ): Promise<void> {
   const { before, after } = args;
-  const note = (args.moderationNote ?? '').trim() || null;
   if (before.id !== after.id) return;
 
   const holdWas = Boolean(before.is_on_hold);
@@ -119,7 +117,6 @@ export async function notifyMarketplaceItemModerationTransitions(
     await safeSend('on_hold', () =>
       sendMarketplaceOnHoldEmail(toEmail!, {
         listingTitle: title,
-        reason: note,
         origin: origin ?? null,
         tags: tagId,
       })
@@ -141,7 +138,6 @@ export async function notifyMarketplaceItemModerationTransitions(
     await safeSend('rejected', () =>
       sendMarketplaceRejectedEmail(toEmail!, {
         listingTitle: title,
-        reason: note,
         origin: origin ?? null,
         tags: tagId,
       })

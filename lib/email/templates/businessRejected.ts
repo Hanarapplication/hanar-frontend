@@ -1,19 +1,17 @@
 /**
- * Placeholder content for “business rejected / needs changes” email.
+ * “Business rejected / needs changes” email.
  */
 
 export type BusinessRejectedTemplateProps = {
   businessName: string;
-  /** Optional short reason shown to the owner (avoid internal admin jargon). */
-  reason?: string | null;
   origin?: string | null;
 };
 
-function absoluteHref(origin: string | null | undefined, path: string): string {
-  const base = (origin ?? '').trim().replace(/\/$/, '');
-  const p = path.startsWith('/') ? path : `/${path}`;
-  return base ? `${base}${p}` : p;
-}
+const APP_WEB_CTA_HTML =
+  '<p>Open the <strong>Hanar</strong> mobile app or our website, sign in, and review your business profile. You can also reach out to support from there if you have questions.</p>';
+
+const APP_WEB_CTA_TEXT =
+  'Open the Hanar mobile app or our website, sign in, and review your business profile. Contact support from the app or site if you have questions.';
 
 export function buildBusinessRejectedEmail(props: BusinessRejectedTemplateProps): {
   subject: string;
@@ -21,22 +19,19 @@ export function buildBusinessRejectedEmail(props: BusinessRejectedTemplateProps)
   text: string;
 } {
   const name = escapeHtml(props.businessName.trim() || 'Your business');
-  const reasonRaw = (props.reason ?? '').trim();
-  const reasonHtml = reasonRaw ? `<p><strong>Note:</strong> ${escapeHtml(reasonRaw)}</p>` : '';
   const subject = 'Update on your Hanar business application';
 
-  const signIn = absoluteHref(props.origin, '/login');
   const html = `
 <!DOCTYPE html>
 <html><body style="font-family: system-ui, sans-serif; line-height: 1.5; color: #111;">
   <p>Hi,</p>
   <p>We reviewed <strong>${name}</strong> on Hanar and it was not approved at this time.</p>
-  ${reasonHtml}
-  <p>You can <a href="${signIn}">sign in to Hanar</a> to review your profile and contact support if you have questions.</p>
+  ${APP_WEB_CTA_HTML}
   <p style="color:#666;font-size:12px;">This is an automated message from Hanar.</p>
 </body></html>`.trim();
 
-  const text = `Update on Hanar: "${props.businessName.trim() || 'Your business'}" was not approved.${reasonRaw ? ` Note: ${reasonRaw}` : ''}\nSign in: ${signIn}\n`;
+  const plain = props.businessName.trim() || 'Your business';
+  const text = `Update on Hanar: "${plain}" was not approved.\n\n${APP_WEB_CTA_TEXT}\n`;
 
   return { subject, html, text };
 }

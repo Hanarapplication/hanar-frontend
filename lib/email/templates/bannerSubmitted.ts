@@ -5,16 +5,16 @@
 export type BannerSubmittedTemplateProps = {
   campaignTitle: string;
   entityDisplayName: string | null;
-  /** Path to seller dashboard (e.g. /business-dashboard). */
+  /** @deprecated No longer used in email copy; kept for call-site compatibility. */
   dashboardPath?: string | null;
   origin?: string | null;
 };
 
-function absoluteHref(origin: string | null | undefined, path: string): string {
-  const base = (origin ?? '').trim().replace(/\/$/, '');
-  const p = path.startsWith('/') ? path : `/${path}`;
-  return base ? `${base}${p}` : p;
-}
+const APP_WEB_CTA_HTML =
+  '<p>Open the <strong>Hanar</strong> mobile app or our website while signed in to finish payment (if needed), upload assets, and follow review status.</p>';
+
+const APP_WEB_CTA_TEXT =
+  'Open the Hanar mobile app or our website while signed in to finish payment if needed, upload assets, and follow review status.';
 
 export function buildBannerSubmittedEmail(props: BannerSubmittedTemplateProps): {
   subject: string;
@@ -24,7 +24,6 @@ export function buildBannerSubmittedEmail(props: BannerSubmittedTemplateProps): 
   const title = escapeHtml(props.campaignTitle.trim() || 'Your promotion');
   const who = escapeHtml((props.entityDisplayName ?? '').trim() || 'your account');
   const subject = 'We received your Hanar banner promotion request';
-  const dash = absoluteHref(props.origin, props.dashboardPath?.trim() || '/');
 
   const html = `
 <!DOCTYPE html>
@@ -32,11 +31,13 @@ export function buildBannerSubmittedEmail(props: BannerSubmittedTemplateProps): 
   <p>Hi,</p>
   <p>Thanks for submitting <strong>${title}</strong> for <strong>${who}</strong>.</p>
   <p>Complete payment if you have not already, then our team will review your creative.</p>
-  <p><a href="${dash}">Open your dashboard</a></p>
+  ${APP_WEB_CTA_HTML}
   <p style="color:#666;font-size:12px;">This is an automated message from Hanar.</p>
 </body></html>`.trim();
 
-  const text = `We received your Hanar banner promotion request "${props.campaignTitle.trim() || 'Your promotion'}" for ${(props.entityDisplayName ?? '').trim() || 'your account'}.\n${dash}\n`;
+  const plainTitle = props.campaignTitle.trim() || 'Your promotion';
+  const plainWho = (props.entityDisplayName ?? '').trim() || 'your account';
+  const text = `We received your Hanar banner promotion request "${plainTitle}" for ${plainWho}.\n\n${APP_WEB_CTA_TEXT}\n`;
 
   return { subject, html, text };
 }

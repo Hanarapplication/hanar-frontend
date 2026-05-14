@@ -204,7 +204,7 @@ export async function PATCH(req: Request) {
     if (!body?.id || !body?.action) {
       return NextResponse.json({ error: 'id and action (approve|reject|update) required' }, { status: 400 });
     }
-    const { id, action, source = 'business', link_url_override, placement, link_type, link_value, description, moderation_note } = body as {
+    const { id, action, source = 'business', link_url_override, placement, link_type, link_value, description } = body as {
       id: string;
       action: 'approve' | 'reject' | 'update';
       source?: 'business' | 'organization';
@@ -213,10 +213,7 @@ export async function PATCH(req: Request) {
       link_type?: string;
       link_value?: string;
       description?: string;
-      moderation_note?: string;
     };
-    const rejectReason =
-      typeof moderation_note === 'string' ? moderation_note.trim() || null : null;
     if (!['approve', 'reject', 'update'].includes(action)) {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
@@ -288,7 +285,6 @@ export async function PATCH(req: Request) {
         void notifyBannerPromotionRejected(supabaseAdmin, {
           source: 'organization',
           requestId: id,
-          reason: rejectReason,
         }).catch(() => {
           console.warn('[banner-promotion-email] rejected notify rejected');
         });
@@ -388,7 +384,6 @@ export async function PATCH(req: Request) {
       void notifyBannerPromotionRejected(supabaseAdmin, {
         source: 'business',
         requestId: id,
-        reason: rejectReason,
       }).catch(() => {
         console.warn('[banner-promotion-email] rejected notify rejected');
       });

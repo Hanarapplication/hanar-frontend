@@ -33,6 +33,7 @@ interface Business {
   phone?: string | null;
   email?: string | null;
   whatsapp?: string | null;
+  owner_id?: string | null;
 
   moderation_status: ModerationStatus;
   lifecycle_status: LifecycleStatus;
@@ -117,7 +118,7 @@ export default function AdminApprovalsPage() {
       .from('businesses')
       .select(
         `
-        id, business_name, slug, phone, email, whatsapp,
+        id, business_name, slug, phone, email, whatsapp, owner_id,
         moderation_status, lifecycle_status, is_archived, verified_info,
         admin_note, note_history, updated_at,
         plan, plan_expires_at,
@@ -146,7 +147,12 @@ export default function AdminApprovalsPage() {
   ] as const;
 
   // ✅ Notes logic preserved: server route merges note_history when noteToSave is set.
-  async function saveBusinessUpdates(id: string, updates: Partial<Business>, noteToSave?: string) {
+  async function saveBusinessUpdates(
+    id: string,
+    updates: Partial<Business>,
+    noteToSave?: string,
+    skipEmails?: boolean
+  ) {
     const updatesPayload: Record<string, unknown> = {};
     for (const key of ALLOWED_BUSINESS_UPDATE_KEYS) {
       if (key in updates && (updates as Record<string, unknown>)[key] !== undefined) {
@@ -159,13 +165,20 @@ export default function AdminApprovalsPage() {
       return true;
     }
 
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+
     const res = await fetch(`/api/admin/businesses/${encodeURIComponent(id)}/moderation`, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({
         updates: updatesPayload,
         ...(trimmedNote ? { noteToSave: trimmedNote } : {}),
+        ...(skipEmails ? { skipEmails: true } : {}),
       }),
     });
 
@@ -266,8 +279,8 @@ export default function AdminApprovalsPage() {
               key={biz.id}
               biz={biz}
               showConfirm={showConfirm}
-              saveUpdates={async (upd, note) => {
-                const ok = await saveBusinessUpdates(biz.id, upd, note);
+              saveUpdates={async (upd, note, skipEmails) => {
+                const ok = await saveBusinessUpdates(biz.id, upd, note, skipEmails);
                 if (ok) await fetchBusinesses();
                 return ok;
               }}
@@ -304,7 +317,8 @@ function BusinessCard({
 }: {
   biz: Business;
   showConfirm: ShowConfirmFn;
-  saveUpdates: (updates: Partial<Business>, note?: string) => Promise<boolean>;
+  /** Third argument: when true, moderation emails (and approval ping) are skipped for this save. */
+  saveUpdates: (updates: Partial<Business>, note?: string, skipEmails?: boolean) => Promise<boolean>;
   deleteBusiness: (id: string) => Promise<void>;
   applyPlan: (plan: PlanName, years: number) => Promise<boolean>;
 }) {
@@ -328,6 +342,11 @@ function BusinessCard({
   const [planYears, setPlanYears] = useState<number>(1);
   const [planLoading, setPlanLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [suppressStatusEmails, setSuppressStatusEmails] = useState(false);
+
+  const [supportSubject, setSupportSubject] = useState('');
+  const [supportMessage, setSupportMessage] = useState('');
+  const [supportSending, setSupportSending] = useState(false);
 
   useEffect(() => {
     setVerified({
@@ -343,6 +362,8 @@ function BusinessCard({
     setEditingSentId(null);
     setEditTitle('');
     setEditBody('');
+    setSupportSubject('');
+    setSupportMessage('');
   }, [biz.id, biz.verified_info, biz.admin_note, biz.plan]);
 
   const canApprove = Object.values(verified).every(Boolean);
@@ -376,18 +397,15 @@ function BusinessCard({
           updates.is_archived = false;
         } else if (newStatus === 'hold' || newStatus === 'pending') {
           updates.moderation_status = 'on_hold';
-          updates.status = 'inactive';
         } else if (newStatus === 'rejected') {
           updates.moderation_status = 'rejected';
-          updates.status = 'inactive';
         } else if (newStatus === 'archived') {
           updates.lifecycle_status = 'archived';
           updates.is_archived = true;
-          updates.status = 'inactive';
         }
-        const success = await saveUpdates(updates, hasNote ? noteText : undefined);
+        const success = await saveUpdates(updates, hasNote ? noteText : undefined, suppressStatusEmails);
         if (success) {
-          if (newStatus === 'approved') {
+          if (newStatus === 'approved' && !suppressStatusEmails) {
             try {
               await fetch('/api/admin/send-approval-notification', {
                 method: 'POST',
@@ -525,6 +543,44 @@ function BusinessCard({
 
   const historyCount = biz.note_history?.length || 0;
 
+  const sendSupportEmail = async () => {
+    const sub = supportSubject.trim();
+    const msg = supportMessage.trim();
+    if (!sub || !msg) {
+      toast.error('Subject and message are required');
+      return;
+    }
+    setSupportSending(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch(`/api/admin/businesses/${encodeURIComponent(biz.id)}/send-email`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ subject: sub, message: msg }),
+      });
+      let payload: { error?: string } = {};
+      try {
+        payload = await res.json();
+      } catch {
+        payload = {};
+      }
+      if (!res.ok) {
+        toast.error(payload?.error || `Send failed (${res.status})`);
+        return;
+      }
+      toast.success('Email sent from support@hanar.net');
+      setSupportSubject('');
+      setSupportMessage('');
+    } finally {
+      setSupportSending(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow text-sm border border-gray-200 overflow-hidden">
       <button
@@ -574,6 +630,43 @@ function BusinessCard({
         {biz.email && <p>✉️ {biz.email}</p>}
         <p>Visibility: <span className="font-medium">{getUiStatus(biz)}</span></p>
         <p>Limits: Gallery {biz.max_gallery_images ?? 0} · Menu {biz.max_menu_items ?? 0} · Retail {biz.max_retail_items ?? 0} · Cars {biz.max_car_listings ?? 0} · Real estate {biz.max_real_estate_listings ?? biz.max_car_listings ?? 0}</p>
+      </div>
+
+      <div className="rounded-lg border border-sky-200 bg-sky-50/90 p-4 space-y-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-900">Email this business</p>
+          <p className="text-xs text-gray-600 mt-0.5">
+            Message is sent from{' '}
+            <span className="font-medium text-gray-800">support@hanar.net</span>
+            {' '}to the listing email on file, or the owner&apos;s account email if the listing has no email.
+          </p>
+        </div>
+        <input
+          type="text"
+          value={supportSubject}
+          onChange={(e) => setSupportSubject(e.target.value)}
+          placeholder="Subject line"
+          className="w-full border border-sky-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400"
+          disabled={supportSending}
+        />
+        <textarea
+          value={supportMessage}
+          onChange={(e) => setSupportMessage(e.target.value)}
+          rows={5}
+          placeholder="Write your message to the business…"
+          className="w-full border border-sky-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-sky-400 resize-y"
+          disabled={supportSending}
+        />
+        <button
+          type="button"
+          onClick={sendSupportEmail}
+          disabled={supportSending}
+          className={`inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold text-white ${
+            supportSending ? 'bg-sky-300 cursor-not-allowed' : 'bg-sky-600 hover:bg-sky-700'
+          }`}
+        >
+          {supportSending ? 'Sending…' : 'Send email'}
+        </button>
       </div>
 
       {/* PLAN CONTROL */}
@@ -669,6 +762,24 @@ function BusinessCard({
           className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-400 resize-y"
           placeholder="Write notes here — they will be saved automatically when you take an action"
         />
+      </div>
+
+      <div className="rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5">
+        <label className="flex items-start gap-2.5 cursor-pointer text-xs text-gray-800">
+          <input
+            type="checkbox"
+            checked={suppressStatusEmails}
+            onChange={(e) => setSuppressStatusEmails(e.target.checked)}
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+          />
+          <span>
+            <span className="font-semibold text-gray-900">Quiet for this business</span>
+            <span className="text-gray-600">
+              {' '}
+              — While checked, approve / hold / reject / archive saves normally but does not email this business or trigger the approval notification.
+            </span>
+          </span>
+        </label>
       </div>
 
       <div className="flex flex-wrap gap-2.5 pt-2">

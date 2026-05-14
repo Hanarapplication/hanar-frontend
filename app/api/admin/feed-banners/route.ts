@@ -320,7 +320,7 @@ export async function PATCH(req: Request) {
     if (prevStatusForEmail === 'active' && nextStatus === 'on_hold') {
       const note =
         typeof moderation_note === 'string' ? moderation_note.trim() || null : null;
-      void notifyLinkedBannerOnHold(supabaseAdmin, { feedBannerId: id, reason: note }).catch(() => {
+      void notifyLinkedBannerOnHold(supabaseAdmin, { feedBannerId: id }).catch(() => {
         console.warn('[banner-promotion-email] linked on_hold notify rejected');
       });
     }

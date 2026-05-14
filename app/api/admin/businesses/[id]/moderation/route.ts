@@ -72,7 +72,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 /**
  * Admin: update business moderation-related fields (same whitelist as approvals UI).
- * Sends transactional email only when `moderation_status` actually changes.
+ * Sends transactional email when `moderation_status` actually changes, unless `skipEmails` is true.
  */
 export async function POST(req: Request, context: RouteContext) {
   try {
@@ -89,6 +89,8 @@ export async function POST(req: Request, context: RouteContext) {
     const body = (await req.json().catch(() => null)) as {
       updates?: Record<string, unknown>;
       noteToSave?: string;
+      /** When true, do not send moderation transactional emails (approve / hold / reject). */
+      skipEmails?: boolean;
     } | null;
     if (!body || typeof body.updates !== 'object' || body.updates === null) {
       return NextResponse.json({ error: 'Invalid body: updates object required' }, { status: 400 });
@@ -96,6 +98,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     const updatesPayload = body.updates;
     const noteToSave = typeof body.noteToSave === 'string' ? body.noteToSave.trim() : '';
+    const skipEmails = body.skipEmails === true;
 
     const hasKeyedUpdates = ALLOWED_BUSINESS_UPDATE_KEYS.some(
       (key) => key !== 'updated_at' && key in updatesPayload && updatesPayload[key] !== undefined
@@ -144,10 +147,8 @@ export async function POST(req: Request, context: RouteContext) {
       typeof finalUpdates.moderation_status === 'string' &&
       String(finalUpdates.moderation_status) !== String(oldModeration);
 
-    if (moderationChanged) {
+    if (moderationChanged && !skipEmails) {
       const nextMod = String(finalUpdates.moderation_status);
-      const reasonForEmail =
-        nextMod === 'rejected' || nextMod === 'on_hold' ? (noteToSave || null) : null;
 
       try {
         await notifyBusinessModerationTransition(supabaseAdmin, {
@@ -157,7 +158,6 @@ export async function POST(req: Request, context: RouteContext) {
           slug: row.slug,
           ownerId: row.owner_id,
           rowEmail: row.email,
-          reason: reasonForEmail,
         });
       } catch {
         console.warn('[admin/businesses/moderation] moderation email helper failed');

@@ -247,7 +247,6 @@ export async function notifyBannerPromotionRejected(
   args: {
     source: 'business' | 'organization';
     requestId: string;
-    reason?: string | null;
   }
 ): Promise<void> {
   const table = args.source === 'business' ? 'business_promotion_requests' : 'organization_promotion_requests';
@@ -270,12 +269,10 @@ export async function notifyBannerPromotionRejected(
   const title = campaignTitleFromRequestRow(row);
   const origin = defaultOrigin();
   const dash = dashboardPathForSource(args.source);
-  const reason = (args.reason ?? '').trim() || null;
   try {
     const result = await sendBannerRejectedEmail(ctx.email, {
       campaignTitle: title,
       entityDisplayName: ctx.entityDisplayName,
-      reason,
       dashboardPath: dash,
       origin: origin ?? null,
       tags: [
@@ -296,7 +293,6 @@ export async function notifyLinkedBannerOnHold(
   supabaseAdmin: SupabaseClient,
   args: {
     feedBannerId: string;
-    reason?: string | null;
   }
 ): Promise<void> {
   const { data: bizReq } = await supabaseAdmin
@@ -313,7 +309,6 @@ export async function notifyLinkedBannerOnHold(
       await sendBannerOnHoldEmail(ctx.email, {
         campaignTitle: title,
         entityDisplayName: ctx.entityDisplayName,
-        reason: (args.reason ?? '').trim() || null,
         dashboardPath: '/business-dashboard',
         origin: origin ?? null,
         tags: [
@@ -342,7 +337,6 @@ export async function notifyLinkedBannerOnHold(
       await sendBannerOnHoldEmail(ctx.email, {
         campaignTitle: title,
         entityDisplayName: ctx.entityDisplayName,
-        reason: (args.reason ?? '').trim() || null,
         dashboardPath: '/organization/dashboard',
         origin: origin ?? null,
         tags: [

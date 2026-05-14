@@ -13,6 +13,11 @@ export type SendHanarEmailParams = {
   tags?: HanarEmailTag[];
   /** Optional Supabase Auth user id (UUID) stored on email_logs.user_id. */
   logUserId?: string | null;
+  /**
+   * Override Resend `from` (must be allowed for your domain in Resend).
+   * When omitted, uses EMAIL_FROM or the default noreply address.
+   */
+  from?: string | null;
 };
 
 export type SendHanarEmailResult =
@@ -217,7 +222,7 @@ export async function sendHanarEmail(params: SendHanarEmailParams): Promise<Send
     });
   }
 
-  const from = getFromAddress();
+  const from = (params.from ?? '').trim() || getFromAddress();
   const resend = new Resend(apiKey);
 
   try {

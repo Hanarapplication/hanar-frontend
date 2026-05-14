@@ -32,10 +32,11 @@ export function buildMarketplaceSubmittedEmail(props: MarketplaceSubmittedTempla
   <p>Hi,</p>
   <p>Thanks for posting <strong>${title}</strong> on Hanar. Our team may review it before it appears to everyone.</p>
   <p><a href="${href}">View your listing</a></p>
+  <p>Open the <strong>Hanar</strong> mobile app or our website while signed in to track status and make edits.</p>
   <p style="color:#666;font-size:12px;">This is an automated message from Hanar.</p>
 </body></html>`.trim();
 
-  const text = `We received your Hanar marketplace listing "${props.listingTitle.trim() || 'Your listing'}".\n${href}\n`;
+  const text = `We received your Hanar marketplace listing "${props.listingTitle.trim() || 'Your listing'}".\n${href}\n\nOpen the Hanar app or our website while signed in to track status and make edits.\n`;
 
   return { subject, html, text };
 }

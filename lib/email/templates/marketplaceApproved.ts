@@ -32,10 +32,11 @@ export function buildMarketplaceApprovedEmail(props: MarketplaceApprovedTemplate
   <p>Hi,</p>
   <p>Your listing <strong>${title}</strong> is now visible on Hanar.</p>
   <p><a href="${href}">View listing</a></p>
+  <p>Open the <strong>Hanar</strong> mobile app or our website while signed in to manage your listing and see updates.</p>
   <p style="color:#666;font-size:12px;">This is an automated message from Hanar.</p>
 </body></html>`.trim();
 
-  const text = `Your Hanar listing "${props.listingTitle.trim() || 'Your listing'}" is live.\n${href}\n`;
+  const text = `Your Hanar listing "${props.listingTitle.trim() || 'Your listing'}" is live.\n${href}\n\nOpen the Hanar app or our website while signed in to manage your listing and see updates.\n`;
 
   return { subject, html, text };
 }

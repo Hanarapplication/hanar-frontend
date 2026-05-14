@@ -26,8 +26,6 @@ export async function notifyBusinessModerationTransition(
     slug: string | null | undefined;
     ownerId: string | null | undefined;
     rowEmail: string | null | undefined;
-    /** Admin note / note-to-save when rejecting or placing on hold. */
-    reason?: string | null;
   }
 ): Promise<void> {
   const from = normalizeModeration(args.fromModeration);
@@ -51,12 +49,10 @@ export async function notifyBusinessModerationTransition(
   }
 
   const name = args.businessName?.trim() || 'Your business';
-  const slug = args.slug?.trim() || null;
-  const reason = args.reason?.trim() || null;
 
   try {
     if (to === 'active') {
-      const result = await sendBusinessApprovedEmail(toEmail, { businessName: name, slug });
+      const result = await sendBusinessApprovedEmail(toEmail, { businessName: name, slug: args.slug });
       if (!result.success) {
         console.warn('[business-moderation-email] approved send failed', { hasError: true });
       }
@@ -65,7 +61,6 @@ export async function notifyBusinessModerationTransition(
     if (to === 'rejected') {
       const result = await sendBusinessRejectedEmail(toEmail, {
         businessName: name,
-        reason,
       });
       if (!result.success) {
         console.warn('[business-moderation-email] rejected send failed', { hasError: true });
@@ -75,7 +70,6 @@ export async function notifyBusinessModerationTransition(
     if (to === 'on_hold') {
       const result = await sendBusinessOnHoldEmail(toEmail, {
         businessName: name,
-        reason,
       });
       if (!result.success) {
         console.warn('[business-moderation-email] on_hold send failed', { hasError: true });

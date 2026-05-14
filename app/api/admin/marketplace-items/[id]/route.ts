@@ -45,8 +45,6 @@ export async function PATCH(
     }
 
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const moderationNote =
-      typeof body.moderation_note === 'string' ? body.moderation_note.trim() || null : null;
 
     const payload: Record<string, unknown> = {};
 
@@ -114,7 +112,6 @@ export async function PATCH(
         is_on_hold: Boolean(data.is_on_hold),
         is_reviewed: Boolean(data.is_reviewed),
       },
-      moderationNote,
     }).catch(() => {
       console.warn('[marketplace-item-email] moderation notify rejected');
     });
