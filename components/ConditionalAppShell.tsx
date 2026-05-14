@@ -6,6 +6,7 @@ import Navbar from '@/components/Navbar';
 import LocationPromptModal from '@/components/LocationPrompt';
 import ClientRedirectTracker from '@/components/ClientRedirectTracker';
 import HanarAIWidget from '@/components/HanarAIWidget';
+import HanarAppIntentSync from '@/components/HanarAppIntentSync';
 
 /**
  * On /business/[slug] and /admin/* we render only the page (no Hanar nav, location, notifications, AI).
@@ -48,14 +49,18 @@ export default function ConditionalAppShell({
         ? 'pt-2 sm:pt-3'
         : 'animate-route-swap-soft pt-2 sm:pt-3';
     return (
-      <main key={animKey} className={shellClass}>
-        {children}
-      </main>
+      <>
+        <HanarAppIntentSync />
+        <main key={animKey} className={shellClass}>
+          {children}
+        </main>
+      </>
     );
   }
 
   return (
     <>
+      <HanarAppIntentSync />
       <LocationPromptModal />
       <Navbar hidden={isChromeHidden} />
       <ClientRedirectTracker />

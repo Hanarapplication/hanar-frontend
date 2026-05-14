@@ -6,8 +6,8 @@ import { supabase } from '@/lib/supabaseClient'
 import toast from 'react-hot-toast'
 import {
   hasHanarAppLoginIntent,
-  markHanarAppLoginIntent,
   redirectToHanarAppWithSession,
+  syncHanarAppIntentFromBrowser,
 } from '@/lib/hanarAppAuthRedirect'
 
 export default function AuthCallback() {
@@ -15,10 +15,7 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleRedirect = async () => {
-      if (typeof window !== 'undefined') {
-        const p = new URLSearchParams(window.location.search)
-        if (p.get('from') === 'app') markHanarAppLoginIntent()
-      }
+      syncHanarAppIntentFromBrowser()
 
       const { data, error } = await supabase.auth.getSession()
 

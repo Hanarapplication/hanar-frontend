@@ -4,6 +4,22 @@ import type { Session } from '@supabase/supabase-js';
 export const HANAR_LOGIN_FROM_APP_KEY = 'hanar_login_from_app';
 
 /**
+ * Flutter can append this substring to the WebView user agent so any route
+ * (including `/login?redirect=/`) triggers post-login `hanar://auth` without query params.
+ * Example (dart): `..setUserAgent('${await controller.getUserAgent()} HanarNativeApp')`
+ */
+const HANAR_APP_USER_AGENT = /HanarNativeApp/i;
+
+function urlSearchIndicatesHanarApp(params: URLSearchParams): boolean {
+  if (params.get('from') === 'app') return true;
+  const app = params.get('app');
+  if (app === '1' || app === 'true') return true;
+  if (params.get('hanar_client') === 'app') return true;
+  if (params.get('hanar_app') === '1') return true;
+  return false;
+}
+
+/**
  * Deep link consumed by the Flutter shell (_parseAuthUri): scheme hanar, host auth,
  * query must include access_token; refresh_token and expires_in are included for Supabase.
  */
@@ -29,10 +45,23 @@ export function markHanarAppLoginIntent(): void {
   sessionStorage.setItem(HANAR_LOGIN_FROM_APP_KEY, '1');
 }
 
+/** Call on load and on client navigations so `?from=app` on home persists across in-app links to `/login`. */
+export function syncHanarAppIntentFromBrowser(): void {
+  if (typeof window === 'undefined') return;
+  const params = new URLSearchParams(window.location.search);
+  if (urlSearchIndicatesHanarApp(params)) {
+    markHanarAppLoginIntent();
+    return;
+  }
+  if (typeof navigator !== 'undefined' && HANAR_APP_USER_AGENT.test(navigator.userAgent)) {
+    markHanarAppLoginIntent();
+  }
+}
+
 export function hasHanarAppLoginIntent(): boolean {
   if (typeof window === 'undefined') return false;
   if (sessionStorage.getItem(HANAR_LOGIN_FROM_APP_KEY) === '1') return true;
-  return new URLSearchParams(window.location.search).get('from') === 'app';
+  return urlSearchIndicatesHanarApp(new URLSearchParams(window.location.search));
 }
 
 export function clearHanarAppLoginIntent(): void {
@@ -42,5 +71,6 @@ export function clearHanarAppLoginIntent(): void {
 
 export function redirectToHanarAppWithSession(session: Session): void {
   clearHanarAppLoginIntent();
-  window.location.replace(buildHanarAuthDeepLink(session));
+  // `href` assignment tends to be more reliable than `replace` for custom schemes from Android WebView.
+  window.location.href = buildHanarAuthDeepLink(session);
 }

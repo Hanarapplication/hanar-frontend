@@ -9,7 +9,6 @@ import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 import {
   hasHanarAppLoginIntent,
-  markHanarAppLoginIntent,
   redirectToHanarAppWithSession,
 } from '@/lib/hanarAppAuthRedirect';
 
@@ -20,13 +19,6 @@ export default function LoginPage() {
   const [clicked, setClicked] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const router = useRouter();
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const p = new URLSearchParams(window.location.search);
-      if (p.get('from') === 'app') markHanarAppLoginIntent();
-    }
-  }, []);
 
   useEffect(() => {
     const redirectIfLoggedIn = async () => {
