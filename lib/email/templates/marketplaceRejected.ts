@@ -8,10 +8,10 @@ export type MarketplaceRejectedTemplateProps = {
 };
 
 const APP_WEB_CTA_HTML =
-  '<p>Open the <strong>Hanar</strong> mobile app or our website, sign in, and review your marketplace listing. Contact support from the app or site if you have questions.</p>';
+  '<p>Open the <strong>Hanar</strong> mobile app or our website, sign in, and review your marketplace listing. Contact support from the app or site if you have questions.</p><p>Watch <strong>this inbox</strong> if our team needs further information.</p>';
 
 const APP_WEB_CTA_TEXT =
-  'Open the Hanar mobile app or our website, sign in, and review your marketplace listing. Contact support from the app or site if you have questions.';
+  'Open the Hanar mobile app or our website, sign in, and review your marketplace listing. Contact support from the app or site if you have questions. Watch this inbox if our team needs further information.';
 
 export function buildMarketplaceRejectedEmail(props: MarketplaceRejectedTemplateProps): {
   subject: string;

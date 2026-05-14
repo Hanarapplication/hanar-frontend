@@ -58,7 +58,7 @@ export async function POST(req: Request) {
       const cutoff = thirtyDaysAgo.toISOString();
       const [packRes, itemsRes] = await Promise.all([
         supabaseAdmin.from('individual_listing_packs').select('pack_expires_at').eq('user_id', user.id).maybeSingle(),
-        supabaseAdmin.from('marketplace_items').select('id, created_at').eq('user_id', user.id),
+        supabaseAdmin.from('marketplace_items').select('id, created_at').eq('user_id', user.id).is('archived_at', null),
       ]);
       const pack = packRes.data;
       const items = (itemsRes.data || []) as { id: string; created_at: string | null }[];
@@ -83,6 +83,8 @@ export async function POST(req: Request) {
     delete insertPayload.is_on_hold;
     delete insertPayload.is_reviewed;
     delete insertPayload.moderation_note;
+    insertPayload.is_on_hold = true;
+    insertPayload.is_reviewed = false;
 
     const { data: inserted, error } = await supabaseAdmin
       .from('marketplace_items')

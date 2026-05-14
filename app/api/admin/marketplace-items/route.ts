@@ -38,13 +38,22 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const q = (searchParams.get('q') || '').trim();
     const status = (searchParams.get('status') || 'all').trim().toLowerCase();
+    const archive = (searchParams.get('archive') || 'active').trim().toLowerCase();
     const limit = normalizeLimit(searchParams.get('limit'));
     const effectiveLimit = q ? Math.max(limit, 500) : limit;
     let query = supabaseAdmin
       .from('marketplace_items')
-      .select('id, user_id, title, price, location, category, condition, description, external_buy_url, image_urls, created_at, expires_at, is_on_hold, is_reviewed')
+      .select(
+        'id, user_id, title, price, location, category, condition, description, external_buy_url, image_urls, created_at, expires_at, is_on_hold, is_reviewed, archived_at, archive_source'
+      )
       .order('created_at', { ascending: false })
       .limit(effectiveLimit);
+
+    if (archive === 'active') {
+      query = query.is('archived_at', null);
+    } else if (archive === 'archived') {
+      query = query.not('archived_at', 'is', null);
+    }
 
     if (q) {
       const escaped = escapeLike(q);
@@ -92,13 +101,13 @@ export async function GET(req: Request) {
     if (status === 'on_hold') {
       items = items.filter((item) => Boolean(item.is_on_hold));
     } else if (status === 'active') {
-      items = items.filter((item) => !item.is_on_hold && !item.is_expired);
+      items = items.filter((item) => !item.is_on_hold && !item.is_expired && !item.archived_at);
     } else if (status === 'expired') {
       items = items.filter((item) => item.is_expired);
     } else if (status === 'reviewed') {
-      items = items.filter((item) => Boolean(item.is_reviewed));
+      items = items.filter((item) => item.is_reviewed === true);
     } else if (status === 'unreviewed') {
-      items = items.filter((item) => !item.is_reviewed);
+      items = items.filter((item) => item.is_reviewed === false);
     }
 
     if (q) {

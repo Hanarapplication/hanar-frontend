@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
-import { notifyMarketplaceItemModerationTransitions } from '@/lib/email/marketplaceItemModerationEmails';
+import {
+  notifyMarketplaceItemDeleted,
+  notifyMarketplaceItemModerationTransitions,
+} from '@/lib/email/marketplaceItemModerationEmails';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -18,6 +21,11 @@ async function isAdmin(): Promise<boolean> {
   const cookieStore = await cookies();
   const role = cookieStore.get('adminRole')?.value;
   return !!role && allowedRoles.includes(role);
+}
+
+function normalizeReviewedFlag(value: unknown): boolean | null {
+  if (value === null || value === undefined) return null;
+  return Boolean(value);
 }
 
 function normalizeDate(value: unknown): string | null | undefined {
@@ -72,7 +80,7 @@ export async function PATCH(
 
     const { data: beforeRow, error: beforeError } = await supabaseAdmin
       .from('marketplace_items')
-      .select('id, user_id, title, is_on_hold, is_reviewed')
+      .select('id, user_id, title, is_on_hold, is_reviewed, archived_at')
       .eq('id', id)
       .maybeSingle();
 
@@ -82,12 +90,17 @@ export async function PATCH(
     if (!beforeRow) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 });
     }
+    if (beforeRow.archived_at) {
+      return NextResponse.json({ error: 'Archived listings cannot be edited' }, { status: 400 });
+    }
 
     const { data, error } = await supabaseAdmin
       .from('marketplace_items')
       .update(payload)
       .eq('id', id)
-      .select('id, title, price, location, category, condition, description, external_buy_url, image_urls, created_at, expires_at, is_on_hold, is_reviewed, user_id')
+      .select(
+        'id, title, price, location, category, condition, description, external_buy_url, image_urls, created_at, expires_at, is_on_hold, is_reviewed, user_id, archived_at, archive_source'
+      )
       .maybeSingle();
 
     if (error) {
@@ -97,24 +110,27 @@ export async function PATCH(
       return NextResponse.json({ error: 'Item not found' }, { status: 404 });
     }
 
-    void notifyMarketplaceItemModerationTransitions(supabaseAdmin, {
-      before: {
-        id: String(beforeRow.id),
-        user_id: (beforeRow.user_id as string | null) ?? null,
-        title: (beforeRow.title as string | null) ?? null,
-        is_on_hold: Boolean(beforeRow.is_on_hold),
-        is_reviewed: Boolean(beforeRow.is_reviewed),
-      },
-      after: {
-        id: String(data.id),
-        user_id: (data.user_id as string | null) ?? null,
-        title: (data.title as string | null) ?? null,
-        is_on_hold: Boolean(data.is_on_hold),
-        is_reviewed: Boolean(data.is_reviewed),
-      },
-    }).catch(() => {
-      console.warn('[marketplace-item-email] moderation notify rejected');
-    });
+    const beforeArchived = Boolean(beforeRow.archived_at);
+    if (!beforeArchived) {
+      void notifyMarketplaceItemModerationTransitions(supabaseAdmin, {
+        before: {
+          id: String(beforeRow.id),
+          user_id: (beforeRow.user_id as string | null) ?? null,
+          title: (beforeRow.title as string | null) ?? null,
+          is_on_hold: Boolean(beforeRow.is_on_hold),
+          is_reviewed: normalizeReviewedFlag(beforeRow.is_reviewed),
+        },
+        after: {
+          id: String(data.id),
+          user_id: (data.user_id as string | null) ?? null,
+          title: (data.title as string | null) ?? null,
+          is_on_hold: Boolean(data.is_on_hold),
+          is_reviewed: normalizeReviewedFlag(data.is_reviewed),
+        },
+      }).catch(() => {
+        console.warn('[marketplace-item-email] moderation notify rejected');
+      });
+    }
 
     return NextResponse.json({ item: data });
   } catch (err: unknown) {
@@ -137,16 +153,43 @@ export async function DELETE(
       return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     }
 
+    const { data: row, error: fetchErr } = await supabaseAdmin
+      .from('marketplace_items')
+      .select('id, user_id, title, archived_at')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchErr) {
+      return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+    }
+    if (!row) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+    }
+    if (row.archived_at) {
+      return NextResponse.json({ error: 'Item is already archived' }, { status: 400 });
+    }
+
+    const now = new Date().toISOString();
     const { error } = await supabaseAdmin
       .from('marketplace_items')
-      .delete()
-      .eq('id', id);
+      .update({ archived_at: now, archive_source: 'admin' })
+      .eq('id', id)
+      .is('archived_at', null);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    void notifyMarketplaceItemDeleted(supabaseAdmin, {
+      userId: (row.user_id as string | null) ?? null,
+      itemId: String(row.id),
+      listingTitle: String(row.title ?? ''),
+      source: 'admin',
+    }).catch(() => {
+      console.warn('[marketplace-item-email] admin archive notify rejected');
+    });
+
+    return NextResponse.json({ success: true, archived: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected error';
     return NextResponse.json({ error: message }, { status: 500 });

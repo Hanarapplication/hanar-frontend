@@ -291,10 +291,11 @@ export default function ItemDetailClient() {
       const individualId = parseIdFromSlug('individual-');
       if (individualId) {
         const { data: individualRow, error: indErr } = await supabase
-          .from('marketplace_items')
-          .select('*')
-          .eq('id', individualId)
-          .maybeSingle();
+        .from('marketplace_items')
+        .select('*')
+        .eq('id', individualId)
+        .is('archived_at', null)
+        .maybeSingle();
 
         if (indErr || !individualRow) {
           if (!cancelled) setError('Item not found.');
@@ -302,6 +303,7 @@ export default function ItemDetailClient() {
         }
         if (
           individualRow.is_on_hold ||
+          individualRow.is_reviewed === false ||
           (individualRow.expires_at && new Date(individualRow.expires_at).getTime() < Date.now())
         ) {
           if (!cancelled) setError('Item not found.');

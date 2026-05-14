@@ -678,6 +678,11 @@ export default function Home() {
   postFeedLangsRef.current = postFeedLangs;
   homeFeedTabRef.current = homeFeedTab;
 
+  /** News tab control removed from toolbar; avoid stuck "news" mode from cache or old state. */
+  useEffect(() => {
+    if (homeFeedTab === 'news') setHomeFeedTab('for_you');
+  }, [homeFeedTab]);
+
   const setPostFeedLangs = useCallback((next: string[] | ((prev: string[]) => string[])) => {
     setPostFeedLangsState((prev) => {
       const resolved = typeof next === 'function' ? (next as (p: string[]) => string[])(prev) : next;
@@ -935,6 +940,7 @@ export default function Home() {
       supabase
         .from('marketplace_items')
         .select('*')
+        .is('archived_at', null)
         .order('created_at', { ascending: false })
         .limit(120),
     ]);
@@ -987,26 +993,34 @@ export default function Home() {
       business_id: row.business_id || null,
     }));
 
-    const normalizedIndividual = (individualRes.data || []).map((row: any) => {
-      const raw = row.image_urls ?? row.imageUrls;
-      const urls = normalizeImages(raw, 'marketplace-images');
-      return {
-        id: String(row.id),
-        title: row.title || 'Listing',
-        price: row.price ?? '',
-        description: row.description || null,
-        imageUrls: urls,
-        condition: row.condition || null,
-        location: row.location || '',
-        lat: null,
-        lon: null,
-        created_at: row.created_at || null,
-        slug: `individual-${row.id}`,
-        source: 'individual' as const,
-        business_id: null,
-        user_id: row.user_id || null,
-      };
-    });
+    const nowIsoHome = new Date().toISOString();
+    const normalizedIndividual = (individualRes.data || [])
+      .filter((row: any) => {
+        if (row.is_on_hold) return false;
+        if (row.is_reviewed === false) return false;
+        if (row.expires_at && String(row.expires_at) < nowIsoHome) return false;
+        return true;
+      })
+      .map((row: any) => {
+        const raw = row.image_urls ?? row.imageUrls;
+        const urls = normalizeImages(raw, 'marketplace-images');
+        return {
+          id: String(row.id),
+          title: row.title || 'Listing',
+          price: row.price ?? '',
+          description: row.description || null,
+          imageUrls: urls,
+          condition: row.condition || null,
+          location: row.location || '',
+          lat: null,
+          lon: null,
+          created_at: row.created_at || null,
+          slug: `individual-${row.id}`,
+          source: 'individual' as const,
+          business_id: null,
+          user_id: row.user_id || null,
+        };
+      });
 
     const { data: homeSession } = await supabase.auth.getSession();
     const deviceLang =
@@ -2091,140 +2105,125 @@ const formatDateLabel = (value?: string | null) => {
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 border-b border-black dark:border-gray-500 bg-white px-3 py-2.5 pr-24 shadow-sm dark:bg-gray-800 sm:px-4 sm:pr-28">
-          <Link
-            href="/"
-            className="shrink-0 rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-all hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-          >
-            {t(effectiveLang, 'Community')}
-          </Link>
-          <button
-            type="button"
-            onClick={() => setHomeFeedTab('for_you')}
-            className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
-              homeFeedTab === 'for_you'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-            }`}
-          >
-            {t(effectiveLang, 'For you')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setHomeFeedTab('popular')}
-            className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
-              homeFeedTab === 'popular'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-            }`}
-          >
-            {t(effectiveLang, 'Most Popular')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setHomeFeedTab('news')}
-            className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
-              homeFeedTab === 'news'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-            }`}
-          >
-            {t(effectiveLang, 'News')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setFeedSearchOpen((v) => !v)}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-              feedSearchOpen ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-            aria-expanded={feedSearchOpen}
-            aria-controls="home-feed-search"
-          >
-            <Search className="h-3.5 w-3.5" />
-            Search
-          </button>
-          <details
-            id="home-feed-language-filter"
-            className="group relative h-9 min-w-[11rem] shrink-0 rounded-lg border border-slate-300 bg-white dark:border-gray-600 dark:bg-gray-800"
-          >
-            <summary className="flex h-9 cursor-pointer list-none items-center rounded-lg py-1.5 pl-7 pr-8 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/25 dark:text-gray-200 [&::-webkit-details-marker]:hidden">
-              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">
-                🌐
-              </span>
-              <span
-                className="truncate pl-0.5"
-                title={
-                  postFeedLangs.length > 0
-                    ? t(effectiveLang, 'Posts in selected languages')
-                    : t(effectiveLang, 'All languages')
-                }
-              >
-                {homeFeedLangSummary}
-              </span>
-              <span
-                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-500"
-                aria-hidden
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </span>
-            </summary>
-            <div className="absolute left-0 top-full z-50 mt-1 max-h-64 min-w-[15rem] overflow-y-auto rounded-lg border border-slate-200 bg-white py-1.5 text-sm shadow-lg dark:border-gray-600 dark:bg-gray-800">
-              <label className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-700">
-                <input
-                  type="checkbox"
-                  checked={postFeedLangs.length === 0}
-                  onChange={() => setPostFeedLangs([])}
-                  className="rounded border-slate-300"
-                />
-                <span>🌐 {t(effectiveLang, 'All languages')}</span>
-              </label>
-              <div className="my-1 border-t border-slate-100 dark:border-gray-700" />
-              {supportedLanguages
-                .filter((l) => l.code !== 'auto')
-                .map((l) => (
-                  <label
-                    key={l.code}
-                    className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-700"
+        <div className="border-b border-black dark:border-gray-500 bg-white shadow-sm dark:bg-gray-800">
+          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto overscroll-x-contain px-3 py-2.5 pr-24 [-webkit-overflow-scrolling:touch] sm:px-4 sm:pr-28">
+            <button
+              type="button"
+              onClick={() => setHomeFeedTab('for_you')}
+              className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+                homeFeedTab === 'for_you'
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              {t(effectiveLang, 'For you')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setHomeFeedTab('popular')}
+              className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+                homeFeedTab === 'popular'
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              {t(effectiveLang, 'Most Popular')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFeedSearchOpen((v) => !v)}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                feedSearchOpen ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+              }`}
+              aria-expanded={feedSearchOpen}
+              aria-controls="home-feed-search"
+            >
+              <Search className="h-3.5 w-3.5 shrink-0" />
+              {t(effectiveLang, 'Search')}
+            </button>
+            <details
+              id="home-feed-language-filter"
+              className="group relative min-w-0 max-w-[12rem] shrink-0 rounded-lg border border-slate-200 bg-gray-100 dark:border-gray-600 dark:bg-gray-700 sm:max-w-[20rem]"
+            >
+              <summary className="flex h-9 w-full min-w-0 cursor-pointer list-none items-center gap-1.5 rounded-lg py-0 pl-2.5 pr-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-rose-500/25 dark:text-gray-200 sm:pl-3 sm:pr-2.5 [&::-webkit-details-marker]:hidden">
+                <span className="shrink-0 text-base leading-none" aria-hidden>
+                  🌐
+                </span>
+                <span className="min-w-0 flex-1 truncate text-left">
+                  <span className="font-semibold text-slate-600 dark:text-slate-300">{t(effectiveLang, 'Languages')}</span>
+                  <span className="text-slate-400 dark:text-slate-500"> · </span>
+                  <span
+                    title={
+                      postFeedLangs.length > 0
+                        ? t(effectiveLang, 'Posts in selected languages')
+                        : t(effectiveLang, 'All languages')
+                    }
                   >
-                    <input
-                      type="checkbox"
-                      checked={postFeedLangs.includes(l.code)}
-                      onChange={() =>
-                        setPostFeedLangs((prev) => {
-                          const s = new Set(prev);
-                          if (s.has(l.code)) s.delete(l.code);
-                          else s.add(l.code);
-                          return [...s];
-                        })
-                      }
-                      className="rounded border-slate-300"
-                    />
-                    <span>
-                      {l.emoji} {getNativeLanguageName(l.code, l.name)}
-                    </span>
-                  </label>
-                ))}
-            </div>
-          </details>
-          {feedSearchOpen && (
-          <div id="home-feed-search" className="w-full pt-1">
-            <label className="relative block">
-              <Search
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4a0a14]"
-                aria-hidden
-              />
-              <input
-                type="search"
-                value={feedSearchQuery}
-                onChange={(e) => setFeedSearchQuery(e.target.value)}
-                placeholder="Search words, phrases, or similar terms..."
-                className="h-10 w-full rounded-full border-2 border-[#4a0a14]/55 bg-white pl-9 pr-3 text-base font-medium text-slate-900 placeholder:text-slate-500 shadow-sm shadow-[#4a0a14]/15 focus:border-[#0b2a66] focus:outline-none focus:ring-2 focus:ring-[#0b2a66]/25"
-                aria-label="Search feed"
-              />
-            </label>
+                    {homeFeedLangSummary}
+                  </span>
+                </span>
+                <span className="shrink-0 text-slate-500 dark:text-slate-400" aria-hidden>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
+              </summary>
+              <div className="absolute left-0 top-full z-50 mt-1 max-h-64 min-w-[15rem] overflow-y-auto rounded-lg border border-slate-200 bg-white py-1.5 text-sm shadow-lg dark:border-gray-600 dark:bg-gray-800">
+                <label className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={postFeedLangs.length === 0}
+                    onChange={() => setPostFeedLangs([])}
+                    className="rounded border-slate-300"
+                  />
+                  <span>🌐 {t(effectiveLang, 'All languages')}</span>
+                </label>
+                <div className="my-1 border-t border-slate-100 dark:border-gray-700" />
+                {supportedLanguages
+                  .filter((l) => l.code !== 'auto')
+                  .map((l) => (
+                    <label
+                      key={l.code}
+                      className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-700"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={postFeedLangs.includes(l.code)}
+                        onChange={() =>
+                          setPostFeedLangs((prev) => {
+                            const s = new Set(prev);
+                            if (s.has(l.code)) s.delete(l.code);
+                            else s.add(l.code);
+                            return [...s];
+                          })
+                        }
+                        className="rounded border-slate-300"
+                      />
+                      <span>
+                        {l.emoji} {getNativeLanguageName(l.code, l.name)}
+                      </span>
+                    </label>
+                  ))}
+              </div>
+            </details>
           </div>
+          {feedSearchOpen && (
+            <div id="home-feed-search" className="border-t border-slate-200/80 bg-white px-3 pb-2.5 pt-2 dark:border-gray-700 dark:bg-gray-800 sm:px-4">
+              <label className="relative block">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4a0a14]"
+                  aria-hidden
+                />
+                <input
+                  type="search"
+                  value={feedSearchQuery}
+                  onChange={(e) => setFeedSearchQuery(e.target.value)}
+                  placeholder="Search words, phrases, or similar terms..."
+                  className="h-10 w-full rounded-full border-2 border-[#4a0a14]/55 bg-white pl-9 pr-3 text-base font-medium text-slate-900 placeholder:text-slate-500 shadow-sm shadow-[#4a0a14]/15 focus:border-[#0b2a66] focus:outline-none focus:ring-2 focus:ring-[#0b2a66]/25"
+                  aria-label="Search feed"
+                />
+              </label>
+            </div>
           )}
         </div>
 

@@ -349,6 +349,7 @@ function DashboardContent() {
           .from('marketplace_items')
           .select('id, title, price, location, image_urls, created_at')
           .eq('user_id', currentUserId)
+          .is('archived_at', null)
           .order('created_at', { ascending: false })
           .limit(5);
         if (cancelled) return;

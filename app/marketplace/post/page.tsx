@@ -74,7 +74,11 @@ export default function PostItemPage() {
         if (bizAccount?.id) {
           setUsedSlots(0);
         } else {
-          const { count } = await supabase.from('marketplace_items').select('id', { count: 'exact', head: true }).eq('user_id', user.id);
+          const { count } = await supabase
+            .from('marketplace_items')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .is('archived_at', null);
           setUsedSlots(count || 0);
           setLimitReached((count || 0) >= 1);
         }

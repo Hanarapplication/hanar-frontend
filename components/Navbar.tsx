@@ -3,8 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, MessageCircle, CircleUserRound } from 'lucide-react';
-import { FaShoppingCart, FaStore } from 'react-icons/fa';
+import { Bell, MessageCircle, CircleUserRound, ShoppingCart, Store, UserRound } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Avatar } from '@/components/Avatar';
 import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
@@ -12,10 +11,10 @@ import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 
 /** SVGs: explicit box, no flex shrink, `block` avoids sub-pixel baseline gaps in WebKit/Chrome. */
-const navLineIconClass = 'h-[1.45rem] w-[1.45rem] max-h-[1.45rem] max-w-[1.45rem] shrink-0 block';
-/** Shared bottom tabs — compact tiles; overflow clip for rounded tiles on iOS Safari. */
-const bottomNavLinkBaseClass =
-  'relative inline-flex min-w-0 flex-1 h-10 items-center justify-center overflow-hidden rounded-md touch-manipulation pointer-events-auto transition-colors [-webkit-tap-highlight-color:transparent] isolate [transform:translateZ(0)] sm:h-9';
+const navLineIconClass = 'h-[1.7rem] w-[1.7rem] max-h-[1.7rem] max-w-[1.7rem] shrink-0 block';
+/** Facebook-style top bar icon hit target */
+const topNavIconBtn =
+  'relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[#65676B] transition-colors hover:bg-[#f2f2f2] active:scale-[0.97] dark:text-[#e4e6eb] dark:hover:bg-white/10 [-webkit-tap-highlight-color:transparent]';
 
 type NavbarNotificationRow = {
   id: string;
@@ -40,23 +39,11 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     if (parts[1] === 'post' || parts[1] === 'edit') return false;
     return true;
   }, [pathname]);
-  /** Main home feed: bell + message icons only here; notifications panel still opens globally on new alerts. */
-  const isHomeFeed = useMemo(() => pathname === '/' || pathname === '/home-feed', [pathname]);
   useEffect(() => {
     if (isMarketplaceItemDetailPage) {
       setNotificationsOpen(false);
     }
   }, [isMarketplaceItemDetailPage]);
-  useEffect(() => {
-    const prev = prevPathnameForNotifRef.current;
-    prevPathnameForNotifRef.current = pathname;
-    if (prev == null) return;
-    const wasHomeFeed = prev === '/' || prev === '/home-feed';
-    const isNowHomeFeed = pathname === '/' || pathname === '/home-feed';
-    if (wasHomeFeed && !isNowHomeFeed) {
-      setNotificationsOpen(false);
-    }
-  }, [pathname]);
   const { effectiveLang } = useLanguage();
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
@@ -65,13 +52,20 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
   const [notifications, setNotifications] = useState<NavbarNotificationRow[]>([]);
   const [incomingMessageToast, setIncomingMessageToast] = useState<{ messageId: string; senderId: string; label: string } | null>(null);
   const [incomingToastVisible, setIncomingToastVisible] = useState(false);
-  const [dashboardIdentity, setDashboardIdentity] = useState<{ loggedIn: boolean; avatarUrl: string | null }>({
+  const [dashboardIdentity, setDashboardIdentity] = useState<{
+    loggedIn: boolean;
+    avatarUrl: string | null;
+    /** Public business /profile /organization URL only; null when logged out or not yet available */
+    publicProfileHref: string | null;
+    accountKind: 'business' | 'organization' | 'individual' | null;
+  }>({
     loggedIn: false,
     avatarUrl: null,
+    publicProfileHref: null,
+    accountKind: null,
   });
   const notificationsPanelRef = useRef<HTMLDivElement | null>(null);
   const notificationsBellRef = useRef<HTMLButtonElement | null>(null);
-  const prevPathnameForNotifRef = useRef<string | null>(null);
   const incomingToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasInitializedIncomingRef = useRef(false);
   const lastIncomingMessageIdRef = useRef<string | null>(null);
@@ -192,15 +186,22 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
-        if (!cancelled) setDashboardIdentity({ loggedIn: false, avatarUrl: null });
+        if (!cancelled)
+          setDashboardIdentity({
+            loggedIn: false,
+            avatarUrl: null,
+            publicProfileHref: null,
+            accountKind: null,
+          });
         return;
       }
-      const [profileRes, orgRes, businessRes] = await Promise.all([
-        supabase.from('profiles').select('profile_pic_url').eq('id', user.id).maybeSingle(),
-        supabase.from('organizations').select('logo_url').eq('user_id', user.id).maybeSingle(),
+      const [regRes, profileRes, orgRes, businessRes] = await Promise.all([
+        supabase.from('registeredaccounts').select('business, organization, username').eq('user_id', user.id).maybeSingle(),
+        supabase.from('profiles').select('profile_pic_url, username').eq('id', user.id).maybeSingle(),
+        supabase.from('organizations').select('logo_url, username').eq('user_id', user.id).maybeSingle(),
         supabase
           .from('businesses')
-          .select('logo_url, created_at')
+          .select('logo_url, slug, created_at')
           .eq('owner_id', user.id)
           .order('created_at', { ascending: false })
           .limit(1)
@@ -208,12 +209,34 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       ]);
 
       if (cancelled) return;
+
+      const reg = regRes.data;
+      let publicProfileHref: string | null = null;
+      let accountKind: 'business' | 'organization' | 'individual';
+
+      if (reg?.business === true) {
+        accountKind = 'business';
+        const slug = (businessRes.data?.slug && String(businessRes.data.slug).trim()) || '';
+        publicProfileHref = slug ? `/business/${encodeURIComponent(slug)}` : '/business-dashboard';
+      } else if (reg?.organization === true) {
+        accountKind = 'organization';
+        const orgUsername = (orgRes.data?.username && String(orgRes.data.username).trim()) || '';
+        publicProfileHref = orgUsername ? `/organization/${encodeURIComponent(orgUsername)}` : null;
+      } else {
+        accountKind = 'individual';
+        const username =
+          (profileRes.data?.username && String(profileRes.data.username).trim()) ||
+          (reg?.username && String(reg.username).trim()) ||
+          '';
+        publicProfileHref = username ? `/profile/${encodeURIComponent(username)}` : null;
+      }
+
       const avatarUrl =
         normalizeAvatarUrl(profileRes.data?.profile_pic_url, ['avatars']) ||
         normalizeAvatarUrl(orgRes.data?.logo_url, ['organizations', 'organization-uploads']) ||
         normalizeAvatarUrl(businessRes.data?.logo_url, ['business-uploads']) ||
         null;
-      setDashboardIdentity({ loggedIn: true, avatarUrl });
+      setDashboardIdentity({ loggedIn: true, avatarUrl, publicProfileHref, accountKind });
     };
 
     hydrateDashboardIdentity();
@@ -498,10 +521,14 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     const target = dashboardIdentity.loggedIn ? '/dashboard' : '/login?redirect=/dashboard';
     try {
       router.prefetch(target);
+      const pub = dashboardIdentity.publicProfileHref;
+      if (dashboardIdentity.loggedIn && pub && !pub.includes('login')) {
+        router.prefetch(pub);
+      }
     } catch {
       // ignore prefetch errors
     }
-  }, [dashboardIdentity.loggedIn, router]);
+  }, [dashboardIdentity.loggedIn, dashboardIdentity.publicProfileHref, router]);
 
   const goToQuickAction = (href: string) => {
     setNotificationsOpen(false);
@@ -528,21 +555,25 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       href: '/',
       icon: (isActive) => (
         <span
-          className={`shrink-0 text-[1.14rem] font-semibold leading-none tracking-normal lowercase ${
-            isActive ? 'text-yellow-500' : ''
+          className={`shrink-0 text-[1.25rem] font-semibold leading-none tracking-normal lowercase text-[#1877F2] ${
+            isActive ? 'opacity-100' : 'opacity-80 hover:opacity-100'
           }`}
         >
           hanar
         </span>
       ),
       label: t(effectiveLang, 'Feed'),
-      isActive: (path) => path === '/',
+      isActive: (path) => path === '/' || path === '/home-feed',
     },
     {
       key: 'marketplace',
       href: '/marketplace',
       icon: (isActive) => (
-        <FaShoppingCart className={`${navLineIconClass} ${isActive ? 'text-yellow-500' : ''}`} aria-hidden />
+        <ShoppingCart
+          className={`${navLineIconClass} ${isActive ? 'text-[#1877F2]' : ''}`}
+          strokeWidth={2}
+          aria-hidden
+        />
       ),
       label: t(effectiveLang, 'Marketplace'),
       isActive: (path) => path.startsWith('/marketplace'),
@@ -551,7 +582,11 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       key: 'businesses',
       href: '/businesses',
       icon: (isActive) => (
-        <FaStore className={`${navLineIconClass} ${isActive ? 'text-yellow-500' : ''}`} aria-hidden />
+        <Store
+          className={`${navLineIconClass} ${isActive ? 'text-[#1877F2]' : ''}`}
+          strokeWidth={2}
+          aria-hidden
+        />
       ),
       label: t(effectiveLang, 'Businesses'),
       isActive: (path) => path.startsWith('/businesses') || path.startsWith('/business/'),
@@ -562,8 +597,8 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       icon: (isActive) =>
         dashboardIdentity.loggedIn ? (
           <span
-            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-white p-px ${
-              isActive ? 'border-yellow-500 ring-2 ring-yellow-500 ring-offset-1 ring-offset-slate-100 dark:ring-offset-slate-700' : 'border-slate-300'
+            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white p-px ${
+              isActive ? 'border-[#1877F2] ring-2 ring-[#1877F2] ring-offset-1 ring-offset-white dark:bg-[#3a3b3c] dark:ring-offset-[#242526]' : 'border-[#e4e6eb] dark:border-[#3e4042]'
             }`}
           >
             <Avatar
@@ -575,137 +610,156 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
           </span>
         ) : (
           <CircleUserRound
-            className={`${navLineIconClass} ${isActive ? 'text-yellow-500' : ''}`}
+            className={`${navLineIconClass} ${isActive ? 'text-[#1877F2]' : ''}`}
             strokeWidth={1.9}
             aria-hidden
           />
         ),
-      label: t(effectiveLang, 'Profile'),
+      label: t(effectiveLang, 'Dashboard'),
       isActive: (path) => path.startsWith('/dashboard') || (!dashboardIdentity.loggedIn && path.startsWith('/login')),
     },
   ];
 
+  const homeNav = primaryNavItems[0]!;
+  const midNavItems = primaryNavItems.slice(1, 3);
+  const profileNav = primaryNavItems[3]!;
+
+  const profileIconHref = useMemo(() => {
+    const d = dashboardIdentity;
+    if (!d.loggedIn) return '/login?redirect=/dashboard';
+    if (d.publicProfileHref) return d.publicProfileHref;
+    if (d.accountKind === 'organization') return '/organization/dashboard';
+    if (d.accountKind === 'individual') return '/dashboard/account';
+    if (d.accountKind === 'business') return '/business-dashboard';
+    return '/login?redirect=/dashboard';
+  }, [dashboardIdentity]);
+
+  const myPublicPageActive = useMemo(() => {
+    const href = dashboardIdentity.publicProfileHref;
+    if (!href || !dashboardIdentity.loggedIn) return false;
+    const path = (pathname || '').split('?')[0];
+    if (path === href) return true;
+    return path.startsWith(`${href}/`);
+  }, [dashboardIdentity.loggedIn, dashboardIdentity.publicProfileHref, pathname]);
+
   return (
     <>
-      {/*
-        Safe area must not share the same height as the tab row: with border-box, pb-safe-bottom
-        inside a fixed bar squashes the row and icons overflow upward (bad in system WebViews).
-        Structure: full-height bar row, then home-indicator padding only below it.
-      */}
       <nav
-        data-bottom-nav="true"
-        className={`fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto border-t border-black bg-slate-100/80 pb-safe-bottom backdrop-blur-sm transition-all duration-200 dark:border-black dark:bg-slate-700/80 sm:hidden ${
-          hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
+        data-top-nav="true"
+        className={`fixed top-0 left-0 right-0 z-[120] border-b border-[#e4e6eb] bg-white pt-[env(safe-area-inset-top,0px)] shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-200 dark:border-[#3e4042] dark:bg-[#242526] dark:shadow-[0_1px_0_rgba(0,0,0,0.35)] ${
+          hidden ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
-        <div className="box-border flex h-14 w-full min-w-0 items-center gap-0 px-1">
-          {primaryNavItems.map((item) => {
-            const isActive = item.isActive(pathname);
-            return (
-              <Link
-                key={item.key}
-                href={item.href}
-                aria-label={item.label}
-                onClick={() => setNotificationsOpen(false)}
-                className={`${bottomNavLinkBaseClass} ${
-                  isActive ? 'text-black' : 'text-black/70 hover:bg-black/10 hover:text-black'
-                }`}
-              >
-                {item.icon(isActive)}
-              </Link>
-            );
-          })}
+        <div className="mx-auto flex h-14 min-h-14 max-w-[1920px] items-center gap-1 px-2 sm:gap-2 sm:px-3">
+          <div className="flex min-w-0 shrink-0 items-center gap-2">
+            <Link
+              href={homeNav.href}
+              aria-label={homeNav.label}
+              onClick={() => setNotificationsOpen(false)}
+              className="flex shrink-0 items-center rounded-md px-1.5 py-2 transition hover:bg-[#f2f2f2] dark:hover:bg-white/10"
+            >
+              {homeNav.icon(homeNav.isActive(pathname))}
+            </Link>
+            {midNavItems.map((item) => {
+              const isActive = item.isActive(pathname);
+              return (
+                <Link
+                  key={item.key}
+                  href={item.href}
+                  aria-label={item.label}
+                  onClick={() => setNotificationsOpen(false)}
+                  className={`${topNavIconBtn} ${isActive ? 'text-[#1877F2] dark:text-[#4599ff]' : ''}`}
+                >
+                  {item.icon(isActive)}
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-1 px-1 sm:gap-2 sm:px-2">
+            <Link
+              href={profileNav.href}
+              aria-label={t(effectiveLang, 'Dashboard')}
+              title={t(effectiveLang, 'Dashboard')}
+              onClick={() => setNotificationsOpen(false)}
+              className={`${topNavIconBtn} p-0.5 ${profileNav.isActive(pathname) ? 'ring-2 ring-[#1877F2] ring-offset-1 ring-offset-white dark:ring-offset-[#242526]' : ''}`}
+            >
+              {profileNav.icon(profileNav.isActive(pathname))}
+            </Link>
+            <Link
+              href={profileIconHref}
+              onClick={() => setNotificationsOpen(false)}
+              className={`${topNavIconBtn} ${myPublicPageActive ? 'text-[#1877F2] dark:text-[#4599ff]' : ''}`}
+              aria-label={t(effectiveLang, 'Profile')}
+              title={t(effectiveLang, 'Profile')}
+            >
+              <UserRound className="h-7 w-7" strokeWidth={2} aria-hidden />
+            </Link>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => goToQuickAction('/messages?view=inbox')}
+              className={topNavIconBtn}
+              aria-label="Go to messages"
+              title="Messages"
+            >
+              <MessageCircle className="h-6 w-6" strokeWidth={2} aria-hidden />
+              {unreadMessageCount > 0 ? (
+                <span className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[#e41e3f] px-0.5 text-[10px] font-semibold leading-none text-white">
+                  {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                </span>
+              ) : null}
+            </button>
+
+            <button
+              ref={notificationsBellRef}
+              type="button"
+              onClick={toggleNotifications}
+              className={topNavIconBtn}
+              aria-label="Open notifications"
+              title="Notifications"
+              aria-expanded={notificationsOpen}
+              aria-haspopup="dialog"
+            >
+              <Bell className="h-6 w-6" strokeWidth={2} aria-hidden />
+              {unreadCount > 0 ? (
+                <span className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[#e41e3f] px-0.5 text-[10px] font-semibold leading-none text-white">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              ) : null}
+            </button>
+          </div>
         </div>
       </nav>
-
-      <nav
-        data-bottom-nav="true"
-        className={`fixed bottom-0 left-0 right-0 z-[120] pointer-events-auto hidden border-t border-black bg-slate-100/80 pb-safe-bottom backdrop-blur-sm transition-all duration-200 isolate dark:border-black dark:bg-slate-700/80 sm:flex sm:flex-col ${
-          hidden ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
-        }`}
-      >
-        <div className="box-border flex h-16 w-full min-w-0 items-center gap-1 px-2.5">
-          {primaryNavItems.map((item) => {
-            const isActive = item.isActive(pathname);
-            return (
-              <Link
-                key={`desktop-${item.key}`}
-                href={item.href}
-                aria-label={item.label}
-                onClick={() => setNotificationsOpen(false)}
-                className={`${bottomNavLinkBaseClass} ${
-                  isActive ? 'text-black' : 'text-black/70 hover:bg-black/10 hover:text-black'
-                }`}
-              >
-                {item.icon(isActive)}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-
-      {isHomeFeed && (
-        <div className={`fixed right-3 top-1 z-[70] flex items-center gap-2 transition-all duration-200 sm:right-4 sm:top-1 ${hidden ? 'translate-y-[-10px] opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
-          <button
-            ref={notificationsBellRef}
-            type="button"
-            onClick={toggleNotifications}
-            className="relative inline-flex h-11 w-11 items-center justify-center text-black transition"
-            aria-label="Open notifications"
-            title="Notifications"
-            aria-expanded={notificationsOpen}
-            aria-haspopup="dialog"
-          >
-            <Bell className="h-[1.9rem] w-[1.9rem]" strokeWidth={2} aria-hidden />
-            {unreadCount > 0 ? (
-              <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-semibold leading-none text-white">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            ) : null}
-          </button>
-          <button
-            type="button"
-            onClick={() => goToQuickAction('/messages?view=inbox')}
-            className="relative inline-flex h-11 w-11 items-center justify-center text-black transition"
-            aria-label="Go to messages"
-            title="Messages"
-          >
-            <MessageCircle className="h-[1.9rem] w-[1.9rem]" strokeWidth={2} aria-hidden />
-            {unreadMessageCount > 0 ? (
-              <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-0.5 text-[10px] font-semibold leading-none text-white">
-                {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
-              </span>
-            ) : null}
-          </button>
-        </div>
-      )}
 
       <div
         ref={notificationsPanelRef}
         role="dialog"
         aria-label="Notifications"
         aria-hidden={!notificationsOpen}
-        className={`fixed right-3 top-12 z-[75] w-[min(19rem,calc(100vw-1.5rem))] origin-top-right rounded-xl border border-blue-200 bg-blue-50/95 shadow-2xl transition-all duration-200 sm:right-4 sm:top-12 ${
+        className={`fixed right-2 z-[125] w-[min(19rem,calc(100vw-1rem))] origin-top-right rounded-xl border border-[#e4e6eb] bg-white shadow-2xl transition-all duration-200 dark:border-[#3e4042] dark:bg-[#242526] sm:right-3 ${
           notificationsOpen
             ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
             : 'pointer-events-none -translate-y-2 scale-95 opacity-0'
-        }`}
+        } top-[calc(env(safe-area-inset-top,0px)+3.5rem+2px)]`}
       >
-        <div className="flex items-center justify-between border-b border-blue-200 px-2.5 py-2">
-          <p className="text-sm font-semibold text-slate-900">Notifications</p>
+        <div className="flex items-center justify-between border-b border-[#e4e6eb] px-2.5 py-2 dark:border-[#3e4042]">
+          <p className="text-sm font-semibold text-[#050505] dark:text-[#e4e6eb]">Notifications</p>
           <button
             type="button"
             onClick={() => goToQuickAction('/notifications')}
-            className="rounded-md px-2 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-50"
+            className="rounded-md px-2 py-1 text-xs font-medium text-[#1877F2] transition hover:bg-[#f0f2f5] dark:hover:bg-white/10"
           >
             View all
           </button>
         </div>
         <div className="max-h-[18rem] overflow-y-auto p-1.5">
           {notificationsLoading ? (
-            <p className="px-2 py-4 text-center text-sm text-slate-500">Loading...</p>
+            <p className="px-2 py-4 text-center text-sm text-[#65676B] dark:text-[#b0b3b8]">Loading...</p>
           ) : notifications.length === 0 ? (
-            <p className="px-2 py-4 text-center text-sm text-slate-500">No notifications yet.</p>
+            <p className="px-2 py-4 text-center text-sm text-[#65676B] dark:text-[#b0b3b8]">No notifications yet.</p>
           ) : (
             <ul className="space-y-1">
               {notifications.map((item) => (
@@ -713,12 +767,16 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
                   <button
                     type="button"
                     onClick={() => goToQuickAction(item.url || '/notifications')}
-                    className={`w-full rounded-lg border px-2.5 py-1.5 text-left transition hover:bg-slate-50 ${
-                      item.read_at ? 'border-slate-200 bg-white' : 'border-blue-300 bg-white'
+                    className={`w-full rounded-lg border px-2.5 py-1.5 text-left transition hover:bg-[#f2f2f2] dark:hover:bg-white/5 ${
+                      item.read_at ? 'border-[#e4e6eb] bg-white dark:border-[#3e4042] dark:bg-[#242526]' : 'border-[#1877F2]/40 bg-[#f0f7ff] dark:border-[#4599ff]/35 dark:bg-[#2d3748]'
                     }`}
                   >
-                    <p className="line-clamp-1 text-sm font-semibold text-slate-900">{item.title || 'Notification'}</p>
-                    <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">{item.body || 'Open to view details.'}</p>
+                    <p className="line-clamp-1 text-sm font-semibold text-[#050505] dark:text-[#e4e6eb]">
+                      {item.title || 'Notification'}
+                    </p>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-[#65676B] dark:text-[#b0b3b8]">
+                      {item.body || 'Open to view details.'}
+                    </p>
                   </button>
                 </li>
               ))}
@@ -736,16 +794,18 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
               `/messages?targetType=user&targetId=${encodeURIComponent(incomingMessageToast.senderId)}&conversation_id=${encodeURIComponent(incomingMessageToast.senderId)}`,
             );
           }}
-          className={`fixed left-3 right-3 top-[calc(env(safe-area-inset-top)+3.5rem)] z-[80] w-auto rounded-2xl border border-indigo-200 bg-white/95 px-4 py-3 text-left shadow-2xl backdrop-blur transition-all duration-300 sm:left-auto sm:right-4 sm:top-20 sm:w-[min(21rem,calc(100vw-1.25rem))] ${
+          className={`fixed left-3 right-3 z-[80] w-auto rounded-2xl border border-[#e4e6eb] bg-white px-4 py-3 text-left shadow-2xl transition-all duration-300 dark:border-[#3e4042] dark:bg-[#242526] sm:left-auto sm:right-4 sm:w-[min(21rem,calc(100vw-1.25rem))] ${
             incomingToastVisible
               ? 'translate-y-0 opacity-100 scale-100'
               : 'pointer-events-none -translate-y-3 opacity-0 scale-95'
-          }`}
+          } top-[calc(env(safe-area-inset-top,0px)+3.5rem+0.75rem)]`}
           aria-label="Open new message"
         >
-          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600">New message</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{incomingMessageToast.label} sent you a message</p>
-          <p className="mt-1 text-xs text-slate-500">Tap to open conversation</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#1877F2]">New message</p>
+          <p className="mt-1 text-sm font-semibold text-[#050505] dark:text-[#e4e6eb]">
+            {incomingMessageToast.label} sent you a message
+          </p>
+          <p className="mt-1 text-xs text-[#65676B] dark:text-[#b0b3b8]">Tap to open conversation</p>
         </button>
       )}
     </>

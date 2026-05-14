@@ -23,7 +23,7 @@ export default function PullToRefresh({ onRefresh, children, className = '' }: P
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     const target = e.target as Element | null;
-    if (target?.closest('[data-bottom-nav="true"]')) return;
+    if (target?.closest('[data-top-nav="true"]')) return;
     // Ignore normal taps/clicks on interactive elements (links, buttons, inputs, etc.)
     if (
       target?.closest(

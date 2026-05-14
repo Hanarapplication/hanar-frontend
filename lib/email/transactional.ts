@@ -3,9 +3,11 @@ import { buildBusinessApprovedEmail } from './templates/businessApproved';
 import { buildBusinessRejectedEmail } from './templates/businessRejected';
 import { buildBusinessOnHoldEmail } from './templates/businessOnHold';
 import { buildMarketplaceApprovedEmail } from './templates/marketplaceApproved';
+import { buildMarketplaceApprovedNotVisibleEmail } from './templates/marketplaceApprovedNotVisible';
 import { buildMarketplaceOnHoldEmail } from './templates/marketplaceOnHold';
 import { buildMarketplaceRejectedEmail } from './templates/marketplaceRejected';
 import { buildMarketplaceSubmittedEmail } from './templates/marketplaceSubmitted';
+import { buildMarketplaceItemDeletedEmail } from './templates/marketplaceItemDeleted';
 import { buildPaymentReceiptEmail } from './templates/paymentReceipt';
 import { buildBannerApprovedEmail } from './templates/bannerApproved';
 import { buildBannerOnHoldEmail } from './templates/bannerOnHold';
@@ -88,8 +90,7 @@ export async function sendMarketplaceApprovedEmail(
   props: Parameters<typeof buildMarketplaceApprovedEmail>[0] & { tags?: HanarEmailTag[] }
 ): Promise<SendHanarEmailResult> {
   const { tags: extraTags, ...rest } = props;
-  const origin = rest.origin ?? defaultOrigin();
-  const body = buildMarketplaceApprovedEmail({ ...rest, origin });
+  const body = buildMarketplaceApprovedEmail(rest);
   return sendHanarEmail({
     to,
     subject: body.subject,
@@ -99,19 +100,53 @@ export async function sendMarketplaceApprovedEmail(
   });
 }
 
+/** Approved by moderation but not yet publicly visible (e.g. still on hold). */
+export async function sendMarketplaceApprovedNotVisibleEmail(
+  to: string,
+  props: Parameters<typeof buildMarketplaceApprovedNotVisibleEmail>[0] & { tags?: HanarEmailTag[] }
+): Promise<SendHanarEmailResult> {
+  const { tags: extraTags, ...rest } = props;
+  const body = buildMarketplaceApprovedNotVisibleEmail(rest);
+  return sendHanarEmail({
+    to,
+    subject: body.subject,
+    html: body.html,
+    text: body.text,
+    tags: [...tag('template', 'marketplace_approved_not_visible'), ...(extraTags ?? [])],
+  });
+}
+
 export async function sendMarketplaceSubmittedEmail(
   to: string,
   props: Parameters<typeof buildMarketplaceSubmittedEmail>[0] & { tags?: HanarEmailTag[] }
 ): Promise<SendHanarEmailResult> {
   const { tags: extraTags, ...rest } = props;
-  const origin = rest.origin ?? defaultOrigin();
-  const body = buildMarketplaceSubmittedEmail({ ...rest, origin });
+  const body = buildMarketplaceSubmittedEmail(rest);
   return sendHanarEmail({
     to,
     subject: body.subject,
     html: body.html,
     text: body.text,
     tags: [...tag('template', 'marketplace_submitted'), ...(extraTags ?? [])],
+  });
+}
+
+export async function sendMarketplaceItemDeletedEmail(
+  to: string,
+  props: Parameters<typeof buildMarketplaceItemDeletedEmail>[0] & {
+    tags?: HanarEmailTag[];
+    logUserId?: string | null;
+  }
+): Promise<SendHanarEmailResult> {
+  const { tags: extraTags, logUserId, ...rest } = props;
+  const body = buildMarketplaceItemDeletedEmail(rest);
+  return sendHanarEmail({
+    to,
+    subject: body.subject,
+    html: body.html,
+    text: body.text,
+    tags: [...tag('template', 'marketplace_item_deleted'), ...(extraTags ?? [])],
+    logUserId: logUserId ?? undefined,
   });
 }
 

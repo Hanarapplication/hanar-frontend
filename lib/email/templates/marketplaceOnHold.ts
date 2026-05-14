@@ -21,7 +21,8 @@ export function buildMarketplaceOnHoldEmail(props: MarketplaceOnHoldTemplateProp
   <p>Hi,</p>
   <p><strong>${title}</strong> is <strong>on hold</strong> on Hanar and is hidden from the public marketplace while we review or await updates.</p>
   <p>This often means we need to verify something about the listing—details, policy fit, or a routine review. It does not always mean you did something wrong.</p>
-  <p>Open the <strong>Hanar</strong> mobile app or our website, sign in, and check your marketplace activity for updates. Watch <strong>this inbox</strong> for follow-up email if we need anything else.</p>
+  <p>If our team needs clarification or updates regarding your listing, we may follow up by email.</p>
+  <p>Open the <strong>Hanar</strong> mobile app or our website, sign in, and check your marketplace activity for updates. Watch <strong>this inbox</strong> for follow-up messages if we need anything else.</p>
   <p style="color:#666;font-size:12px;">This is an automated message from Hanar.</p>
 </body></html>`.trim();
 
@@ -31,7 +32,9 @@ export function buildMarketplaceOnHoldEmail(props: MarketplaceOnHoldTemplateProp
     '',
     'We may need to verify details or policy fit; that does not always mean you did something wrong.',
     '',
-    'Open the Hanar app or our website, sign in, and check your marketplace activity for updates. Watch this inbox for follow-up messages.',
+    'If our team needs clarification or updates regarding your listing, we may follow up by email.',
+    '',
+    'Open the Hanar app or our website, sign in, and check your marketplace activity for updates. Watch this inbox for follow-up messages if we need anything else.',
   ].join('\n');
 
   return { subject, html, text };

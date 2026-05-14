@@ -35,22 +35,31 @@ export async function GET(req: Request) {
 
     const { data, error } = await supabaseAdmin
       .from('marketplace_items')
-      .select('id, title, price, location, image_urls, created_at')
+      .select('id, title, price, location, image_urls, created_at, expires_at, is_on_hold, is_reviewed')
       .eq('user_id', userId)
+      .is('archived_at', null)
       .order('created_at', { ascending: false });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const listings = (data || []).map((row: any) => ({
-      id: row.id,
-      title: row.title || 'Item',
-      price: row.price ?? '',
-      location: row.location || '',
-      imageUrls: resolveImageUrls(row.image_urls ?? row.imageUrls),
-      created_at: row.created_at ?? null,
-    }));
+    const nowIso = new Date().toISOString();
+    const listings = (data || [])
+      .filter((row: any) => {
+        if (row.is_on_hold) return false;
+        if (row.is_reviewed === false) return false;
+        if (row.expires_at && String(row.expires_at) < nowIso) return false;
+        return true;
+      })
+      .map((row: any) => ({
+        id: row.id,
+        title: row.title || 'Item',
+        price: row.price ?? '',
+        location: row.location || '',
+        imageUrls: resolveImageUrls(row.image_urls ?? row.imageUrls),
+        created_at: row.created_at ?? null,
+      }));
 
     return NextResponse.json({ listings });
   } catch (err) {

@@ -54,7 +54,8 @@ export async function GET(req: Request) {
       const { count } = await supabaseAdmin
         .from('marketplace_items')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .is('archived_at', null);
       return NextResponse.json({
         isBusiness: true,
         activeCount: count ?? 0,
@@ -78,7 +79,8 @@ export async function GET(req: Request) {
       supabaseAdmin
         .from('marketplace_items')
         .select('id, created_at')
-        .eq('user_id', user.id),
+        .eq('user_id', user.id)
+        .is('archived_at', null),
     ]);
 
     const pack = packRes.data;

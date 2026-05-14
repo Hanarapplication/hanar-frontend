@@ -668,7 +668,7 @@ export default function MarketplacePage() {
       supabase.from('retail_items').select('*').order('created_at', { ascending: false }),
       supabase.from('dealerships').select('*').order('created_at', { ascending: false }),
       supabase.from('real_estate_listings').select('*').order('created_at', { ascending: false }),
-      supabase.from('marketplace_items').select('*').order('created_at', { ascending: false }),
+      supabase.from('marketplace_items').select('*').is('archived_at', null).order('created_at', { ascending: false }),
     ]);
 
     if (retailRes.error || dealershipRes.error) {
@@ -682,8 +682,15 @@ export default function MarketplacePage() {
     const realEstate = (realEstateRes.data || []).map((row: Record<string, unknown>) => normalizeRealEstateItem(row));
     const nowIso = new Date().toISOString();
     const individual = (individualRes.data || [])
-      .filter((row: { expires_at?: string | null; is_on_hold?: boolean | null }) =>
-        (!row.expires_at || row.expires_at >= nowIso) && !row.is_on_hold
+      .filter(
+        (row: {
+          expires_at?: string | null;
+          is_on_hold?: boolean | null;
+          is_reviewed?: boolean | null;
+        }) =>
+          (!row.expires_at || row.expires_at >= nowIso) &&
+          !row.is_on_hold &&
+          row.is_reviewed !== false
       )
       .map(normalizeIndividualItem);
     const combined = [...retail, ...dealership, ...realEstate, ...individual].sort(sortByCreatedAt);

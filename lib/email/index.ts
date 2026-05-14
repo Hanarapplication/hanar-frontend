@@ -14,6 +14,8 @@ export {
   sendBusinessRejectedEmail,
   sendBusinessOnHoldEmail,
   sendMarketplaceApprovedEmail,
+  sendMarketplaceApprovedNotVisibleEmail,
+  sendMarketplaceItemDeletedEmail,
   sendMarketplaceOnHoldEmail,
   sendMarketplaceRejectedEmail,
   sendMarketplaceSubmittedEmail,
@@ -32,6 +34,10 @@ export {
   buildMarketplaceApprovedEmail,
   type MarketplaceApprovedTemplateProps,
 } from './templates/marketplaceApproved';
+export {
+  buildMarketplaceApprovedNotVisibleEmail,
+  type MarketplaceApprovedNotVisibleTemplateProps,
+} from './templates/marketplaceApprovedNotVisible';
 export { buildMarketplaceOnHoldEmail, type MarketplaceOnHoldTemplateProps } from './templates/marketplaceOnHold';
 export { buildMarketplaceRejectedEmail, type MarketplaceRejectedTemplateProps } from './templates/marketplaceRejected';
 export {

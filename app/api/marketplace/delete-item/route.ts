@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
+import { notifyMarketplaceItemDeleted } from '@/lib/email/marketplaceItemModerationEmails';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
 
     const { data: item, error: fetchError } = await supabaseAdmin
       .from('marketplace_items')
-      .select('id, user_id')
+      .select('id, user_id, title, archived_at')
       .eq('id', itemId)
       .maybeSingle();
 
@@ -59,19 +60,36 @@ export async function POST(req: Request) {
     if (item.user_id !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-
-    const { error: deleteError } = await supabaseAdmin
-      .from('marketplace_items')
-      .delete()
-      .eq('id', itemId)
-      .eq('user_id', user.id);
-
-    if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    if (item.archived_at) {
+      return NextResponse.json({ error: 'Item already removed' }, { status: 400 });
     }
 
+    const now = new Date().toISOString();
+    const title = String(item.title ?? '');
+
+    const { error: updateError } = await supabaseAdmin
+      .from('marketplace_items')
+      .update({ archived_at: now, archive_source: 'user' })
+      .eq('id', itemId)
+      .eq('user_id', user.id)
+      .is('archived_at', null);
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    void notifyMarketplaceItemDeleted(supabaseAdmin, {
+      userId: user.id,
+      itemId: String(item.id),
+      listingTitle: title,
+      source: 'user',
+    }).catch(() => {
+      console.warn('[marketplace delete-item] deletion email notify rejected');
+    });
+
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Unexpected error' }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unexpected error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

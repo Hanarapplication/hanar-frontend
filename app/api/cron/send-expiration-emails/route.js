@@ -289,7 +289,8 @@ async function handleCron(request) {
   const { data: items, error: itemErr } = await supabaseAdmin
     .from('marketplace_items')
     .select('id, title, user_id, expires_at, reminder_7_sent, reminder_3_sent, expired_email_sent')
-    .not('expires_at', 'is', null);
+    .not('expires_at', 'is', null)
+    .is('archived_at', null);
 
   if (itemErr) {
     summary.errors.push({ scope: 'marketplace_items', stage: 'select', message: itemErr.message });

@@ -1,21 +1,10 @@
 /**
- * Placeholder content for “marketplace listing approved / live” email.
+ * Marketplace listing is approved and visible (not on hold).
  */
 
 export type MarketplaceApprovedTemplateProps = {
   listingTitle: string;
-  /** Path (e.g. /marketplace/my-item-slug) or full URL to the listing. */
-  listingPath?: string | null;
-  origin?: string | null;
 };
-
-function listingHref(origin: string | null | undefined, listingPath: string): string {
-  const raw = listingPath.trim();
-  if (/^https?:\/\//i.test(raw)) return raw;
-  const path = raw.startsWith('/') ? raw : `/${raw}`;
-  const base = (origin ?? '').trim().replace(/\/$/, '');
-  return base ? `${base}${path}` : path;
-}
 
 export function buildMarketplaceApprovedEmail(props: MarketplaceApprovedTemplateProps): {
   subject: string;
@@ -23,20 +12,23 @@ export function buildMarketplaceApprovedEmail(props: MarketplaceApprovedTemplate
   text: string;
 } {
   const title = escapeHtml(props.listingTitle.trim() || 'Your listing');
-  const subject = 'Your Hanar marketplace listing is live';
-  const href = listingHref(props.origin, props.listingPath?.trim() || '/marketplace');
+  const subject = 'Your Hanar marketplace listing is now visible';
 
   const html = `
 <!DOCTYPE html>
 <html><body style="font-family: system-ui, sans-serif; line-height: 1.5; color: #111;">
   <p>Hi,</p>
-  <p>Your listing <strong>${title}</strong> is now visible on Hanar.</p>
-  <p><a href="${href}">View listing</a></p>
-  <p>Open the <strong>Hanar</strong> mobile app or our website while signed in to manage your listing and see updates.</p>
+  <p>Good news: <strong>${title}</strong> is <strong>approved</strong> and <strong>visible on Hanar</strong> for other members to discover.</p>
+  <p>Open the <strong>Hanar</strong> mobile app or sign in on our website to view or manage your listing. We do not include listing links in these messages.</p>
   <p style="color:#666;font-size:12px;">This is an automated message from Hanar.</p>
 </body></html>`.trim();
 
-  const text = `Your Hanar listing "${props.listingTitle.trim() || 'Your listing'}" is live.\n${href}\n\nOpen the Hanar app or our website while signed in to manage your listing and see updates.\n`;
+  const plain = props.listingTitle.trim() || 'Your listing';
+  const text = [
+    `Hanar: "${plain}" is approved and visible on the marketplace.`,
+    '',
+    'Open the Hanar mobile app or sign in on our website to view or manage your listing. We do not include listing links in these emails.',
+  ].join('\n');
 
   return { subject, html, text };
 }
