@@ -4,18 +4,32 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import toast from 'react-hot-toast'
+import {
+  hasHanarAppLoginIntent,
+  markHanarAppLoginIntent,
+  redirectToHanarAppWithSession,
+} from '@/lib/hanarAppAuthRedirect'
 
 export default function AuthCallback() {
   const router = useRouter()
 
   useEffect(() => {
     const handleRedirect = async () => {
+      if (typeof window !== 'undefined') {
+        const p = new URLSearchParams(window.location.search)
+        if (p.get('from') === 'app') markHanarAppLoginIntent()
+      }
+
       const { data, error } = await supabase.auth.getSession()
 
       if (error || !data?.session) {
         toast.error('Login failed. Please try again.')
         router.push('/login')
       } else {
+        if (typeof window !== 'undefined' && hasHanarAppLoginIntent()) {
+          redirectToHanarAppWithSession(data.session)
+          return
+        }
         // Get user type and store it
         const userId = data.session.user?.id
         if (userId) {

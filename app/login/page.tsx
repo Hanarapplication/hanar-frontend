@@ -7,6 +7,11 @@ import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
+import {
+  hasHanarAppLoginIntent,
+  markHanarAppLoginIntent,
+  redirectToHanarAppWithSession,
+} from '@/lib/hanarAppAuthRedirect';
 
 export default function LoginPage() {
   const { effectiveLang } = useLanguage();
@@ -17,11 +22,22 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('from') === 'app') markHanarAppLoginIntent();
+    }
+  }, []);
+
+  useEffect(() => {
     const redirectIfLoggedIn = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
       if (!user) {
         setCheckingAuth(false);
+        return;
+      }
+      if (typeof window !== 'undefined' && session && hasHanarAppLoginIntent()) {
+        redirectToHanarAppWithSession(session);
         return;
       }
       const { data: profile } = await supabase
@@ -86,6 +102,12 @@ export default function LoginPage() {
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('userType', userType);
+      }
+
+      const session = signInData.session;
+      if (typeof window !== 'undefined' && session && hasHanarAppLoginIntent()) {
+        redirectToHanarAppWithSession(session);
+        return;
       }
 
       toast.success(t(effectiveLang, 'Login successful!'));
