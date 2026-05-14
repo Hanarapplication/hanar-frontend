@@ -12,6 +12,8 @@ const HANAR_APP_USER_AGENT = /HanarNativeApp/i;
 
 function urlSearchIndicatesHanarApp(params: URLSearchParams): boolean {
   if (params.get('from') === 'app') return true;
+  // Flutter initial URL often uses ?platform=app (see HanarWebViewScreen _startUri).
+  if (params.get('platform') === 'app') return true;
   const app = params.get('app');
   if (app === '1' || app === 'true') return true;
   if (params.get('hanar_client') === 'app') return true;

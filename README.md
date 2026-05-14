@@ -74,6 +74,12 @@ To send push from the admin panel (blast), set:
 
 - `FIREBASE_SERVICE_ACCOUNT_JSON`: full JSON string of the Firebase service account key (from Firebase Console → Project settings → Service accounts).
 
+### Native Flutter shell (WebView + FCM)
+
+- **Login handoff:** When the embedded WebView is detected (`User-Agent` contains `HanarNativeApp` and/or query flags such as `from=app`, `platform=app` — see `lib/hanarAppAuthRedirect.ts`), after a successful Supabase login the site redirects to `hanar://auth?access_token=...&refresh_token=...&expires_in=...` (URL-encoded). The native app intercepts this, stores tokens, and continues without leaving the app.
+- **Register device:** `POST /api/push/register-token` accepts `Authorization: Bearer <supabase_jwt>` (native) in addition to cookie session (browser). Persisted in `user_push_tokens`.
+- **Outbound FCM:** Pushes that must appear in the system tray when backgrounded or killed must include a `notification` object plus a `data` map for routing. Android channel id must be `hanar_high_importance_channel` (see `lib/firebaseAdmin.ts`). `POST /api/push/test-self` uses the same credentials as production sends; without `FIREBASE_SERVICE_ACCOUNT_JSON` it returns **503** with a clear message.
+
 ## Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)

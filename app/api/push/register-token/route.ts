@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type User } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -17,34 +17,48 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 /**
  * POST /api/push/register-token
  *
- * Binds one FCM device token to the **currently authenticated** user only:
- * cookie session or `Authorization: Bearer` JWT. Any prior row with the same
- * `token` (another user or stale install) is removed first, then we upsert on
- * `UNIQUE(token)` so `sendPushToUserIds` resolves the correct `user_id` without
- * requiring an extra composite migration.
+ * Native WebView contract (Hanar Flutter shell):
+ * - After login the site redirects to `hanar://auth?access_token=...` when the shell is detected
+ *   (User-Agent `HanarNativeApp` and/or query `from=app`, `platform=app`, etc. — see `lib/hanarAppAuthRedirect.ts`).
+ * - The app stores the Supabase JWT and calls this route with `Authorization: Bearer <jwt>`.
+ * - Outbound FCM uses `lib/firebaseAdmin.ts` + `sendPushToUserIds` / `user_push_tokens`; tray delivery
+ *   requires a `notification` block + Android channel `hanar_high_importance_channel`.
+ *
+ * Auth: prefer Bearer when present (native), else cookie session (browser).
+ * Body: `{ "token": string, "platform"?: "android" | "ios" }` — platform defaults to `android`.
+ * Persists to `user_push_tokens`; deletes any prior row with the same `token` then upserts so one
+ * token maps to one user.
  */
 export async function POST(req: Request) {
   try {
-    const supabaseServer = createRouteHandlerClient({ cookies });
-    let {
-      data: { user: authedUser },
-    } = await supabaseServer.auth.getUser();
+    let authedUser: User | null = null;
 
-    if (!authedUser) {
-      const authHeader = req.headers.get('authorization') || '';
-      const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-      if (bearer) {
-        const { data, error } = await supabaseAdmin.auth.getUser(bearer);
-        if (!error && data.user) authedUser = data.user;
-      }
+    const authHeader = req.headers.get('authorization') || '';
+    const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    if (bearer) {
+      const { data, error } = await supabaseAdmin.auth.getUser(bearer);
+      if (!error && data.user) authedUser = data.user;
     }
 
     if (!authedUser) {
-      console.warn('[push/register-token] unauthorized (no cookie session or valid Bearer)');
+      const supabaseServer = createRouteHandlerClient({ cookies });
+      const {
+        data: { user },
+      } = await supabaseServer.auth.getUser();
+      authedUser = user ?? null;
+    }
+
+    if (!authedUser) {
+      console.warn('[push/register-token] unauthorized (no valid Bearer or cookie session)');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = (await req.json()) as { token?: string; platform?: string };
+    let body: { token?: string; platform?: string };
+    try {
+      body = (await req.json()) as { token?: string; platform?: string };
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
     const rawToken = (body.token || '').trim();
     if (!rawToken) {
       console.warn('[push/register-token] missing FCM token body', { userId: authedUser.id });

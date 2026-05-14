@@ -3,6 +3,15 @@
  * high priority, Hanar channel, and data keys (type, link, senderId) for the native app.
  *
  * Set FIREBASE_SERVICE_ACCOUNT_JSON (full JSON string) to enable sending.
+ *
+ * Native shell contract (Flutter WebView):
+ * - After login the web app redirects to `hanar://auth?...` when the shell is detected; the app
+ *   stores the Supabase JWT and registers FCM via `POST /api/push/register-token` with Bearer auth.
+ * - Tray delivery when backgrounded/killed requires a `notification` object (not data-only),
+ *   plus `data` for routing. Android uses `android.notification.channel_id` =
+ *   `hanar_high_importance_channel` (must match the Flutter default channel).
+ * - We do not set a global `collapse_key` for distinct DMs/alerts so FCM does not replace
+ *   unrelated messages; omit per-message collapse unless product explicitly wants collapsing.
  */
 
 /** `undefined` = not yet initialized; `null` = init failed or missing env; otherwise Firebase Messaging. */
