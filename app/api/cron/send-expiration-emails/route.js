@@ -1,17 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
+import { sendHanarEmail } from '@/lib/email/sendHanarEmail';
 
 /**
  * Vercel Cron / scheduled job entrypoint for Hanar expiration reminder emails.
  *
  * Security: requires header `Authorization: Bearer ${CRON_SECRET}`.
- * Uses Supabase service role + Resend only on the server.
+ * Uses Supabase service role + centralized sendHanarEmail (Resend + email_logs).
  */
 
 export const dynamic = 'force-dynamic';
 
-const FROM = 'Hanar <noreply@hanar.net>';
 const MS_PER_DAY = 86400000;
 
 function getEnv(name) {
@@ -49,6 +48,26 @@ function classifyReminderWindow(exp, now) {
   if (daysUntil <= 3) return 'reminder_3';
   if (daysUntil <= 7) return 'reminder_7';
   return null;
+}
+
+/**
+ * @param {'business' | 'marketplace'} entity
+ * @param {'expired' | 'reminder_3' | 'reminder_7'} windowKind
+ */
+function expirationTemplateTag(entity, windowKind) {
+  const prefix = entity === 'business' ? 'expiration_business' : 'expiration_marketplace';
+  if (windowKind === 'expired') return `${prefix}_expired`;
+  if (windowKind === 'reminder_3') return `${prefix}_3`;
+  return `${prefix}_7`;
+}
+
+/**
+ * @param {'business' | 'marketplace'} entity
+ * @param {'expired' | 'reminder_3' | 'reminder_7'} windowKind
+ */
+function expirationEmailTags(entity, windowKind) {
+  const template = expirationTemplateTag(entity, windowKind);
+  return [{ name: 'template', value: template }];
 }
 
 async function resolveBusinessRecipientEmail(supabaseAdmin, row) {
@@ -103,19 +122,19 @@ function recordSkip(summary, entity, reason) {
 }
 
 /**
- * @param {import('resend').Resend} resend
- * @param {string} to
- * @param {string} subject
- * @param {string} html
+ * @param {{ to: string; subject: string; html: string; tags: { name: string; value: string }[]; logUserId?: string | null }} args
+ * @returns {Promise<{ success: boolean; error?: string }>}
  */
-async function sendEmail(resend, to, subject, html) {
-  const { error } = await resend.emails.send({
-    from: FROM,
-    to: [to],
-    subject,
-    html,
+async function sendExpirationEmail(args) {
+  const result = await sendHanarEmail({
+    to: args.to,
+    subject: args.subject,
+    html: args.html,
+    tags: args.tags,
+    ...(args.logUserId ? { logUserId: args.logUserId } : {}),
   });
-  if (error) throw new Error(error.message || String(error));
+  if (result.success) return { success: true };
+  return { success: false, error: result.error || 'sendHanarEmail failed' };
 }
 
 export async function GET(request) {
@@ -161,7 +180,6 @@ async function handleCron(request) {
   const supabaseAdmin = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const resend = new Resend(resendKey);
   const now = new Date();
 
   // --- Businesses ---
@@ -237,7 +255,22 @@ async function handleCron(request) {
           continue;
         }
 
-        await sendEmail(resend, to, subject, html);
+        const sendResult = await sendExpirationEmail({
+          to,
+          subject,
+          html,
+          tags: expirationEmailTags('business', windowKind),
+          logUserId: row.owner_id,
+        });
+        if (!sendResult.success) {
+          summary.errors.push({
+            scope: 'business',
+            id: row.id,
+            stage: 'send',
+            message: sendResult.error || 'send failed',
+          });
+          continue;
+        }
 
         const { error: upErr } = await supabaseAdmin.from('businesses').update({ [flagToSet]: true }).eq('id', row.id);
         if (upErr) {
@@ -319,7 +352,22 @@ async function handleCron(request) {
           continue;
         }
 
-        await sendEmail(resend, to, subject, html);
+        const sendResult = await sendExpirationEmail({
+          to,
+          subject,
+          html,
+          tags: expirationEmailTags('marketplace', windowKind),
+          logUserId: row.user_id,
+        });
+        if (!sendResult.success) {
+          summary.errors.push({
+            scope: 'marketplace_item',
+            id: row.id,
+            stage: 'send',
+            message: sendResult.error || 'send failed',
+          });
+          continue;
+        }
 
         const { error: upErr } = await supabaseAdmin.from('marketplace_items').update({ [flagToSet]: true }).eq('id', row.id);
         if (upErr) {

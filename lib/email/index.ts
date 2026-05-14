@@ -14,6 +14,14 @@ export {
   sendBusinessRejectedEmail,
   sendBusinessOnHoldEmail,
   sendMarketplaceApprovedEmail,
+  sendMarketplaceOnHoldEmail,
+  sendMarketplaceRejectedEmail,
+  sendMarketplaceSubmittedEmail,
+  sendBannerApprovedEmail,
+  sendBannerOnHoldEmail,
+  sendBannerPaymentReceivedEmail,
+  sendBannerRejectedEmail,
+  sendBannerSubmittedEmail,
   sendPaymentReceiptEmail,
 } from './transactional';
 
@@ -24,4 +32,18 @@ export {
   buildMarketplaceApprovedEmail,
   type MarketplaceApprovedTemplateProps,
 } from './templates/marketplaceApproved';
+export { buildMarketplaceOnHoldEmail, type MarketplaceOnHoldTemplateProps } from './templates/marketplaceOnHold';
+export { buildMarketplaceRejectedEmail, type MarketplaceRejectedTemplateProps } from './templates/marketplaceRejected';
+export {
+  buildMarketplaceSubmittedEmail,
+  type MarketplaceSubmittedTemplateProps,
+} from './templates/marketplaceSubmitted';
+export { buildBannerApprovedEmail, type BannerApprovedTemplateProps } from './templates/bannerApproved';
+export { buildBannerOnHoldEmail, type BannerOnHoldTemplateProps } from './templates/bannerOnHold';
+export {
+  buildBannerPaymentReceivedEmail,
+  type BannerPaymentReceivedTemplateProps,
+} from './templates/bannerPaymentReceived';
+export { buildBannerRejectedEmail, type BannerRejectedTemplateProps } from './templates/bannerRejected';
+export { buildBannerSubmittedEmail, type BannerSubmittedTemplateProps } from './templates/bannerSubmitted';
 export { buildPaymentReceiptEmail, type PaymentReceiptTemplateProps } from './templates/paymentReceipt';

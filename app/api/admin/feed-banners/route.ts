@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
+import { notifyLinkedBannerOnHold } from '@/lib/email/bannerPromotionEmails';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -267,16 +268,27 @@ export async function PATCH(req: Request) {
     if (!body || !body.id) {
       return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     }
-    const { id, status, extend_days, expires_at: newExpiresAt, link_url: linkUrl, alt: altText } = body as {
+    const { id, status, extend_days, expires_at: newExpiresAt, link_url: linkUrl, alt: altText, moderation_note } = body as {
       id: string;
       status?: 'active' | 'on_hold' | 'archived';
       extend_days?: number;
       expires_at?: string;
       link_url?: string;
       alt?: string;
+      moderation_note?: string;
     };
     const updates: Record<string, unknown> = {};
+    let prevStatusForEmail: string | null = null;
     if (status && ['active', 'on_hold', 'archived'].includes(status)) {
+      const { data: existingStatusRow, error: statusFetchErr } = await supabaseAdmin
+        .from('feed_banners')
+        .select('id, status')
+        .eq('id', id)
+        .single();
+      if (statusFetchErr || !existingStatusRow) {
+        return NextResponse.json({ error: 'Banner not found' }, { status: 404 });
+      }
+      prevStatusForEmail = String(existingStatusRow.status || '');
       updates.status = status;
     }
     if (extend_days != null && extend_days > 0) {
@@ -303,6 +315,16 @@ export async function PATCH(req: Request) {
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const nextStatus = String((data as { status?: string }).status || '');
+    if (prevStatusForEmail === 'active' && nextStatus === 'on_hold') {
+      const note =
+        typeof moderation_note === 'string' ? moderation_note.trim() || null : null;
+      void notifyLinkedBannerOnHold(supabaseAdmin, { feedBannerId: id, reason: note }).catch(() => {
+        console.warn('[banner-promotion-email] linked on_hold notify rejected');
+      });
+    }
+
     return NextResponse.json({ success: true, banner: data });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected error';

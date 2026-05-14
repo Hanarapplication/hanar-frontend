@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { sendStripeCheckoutReceiptEmailSafe } from '@/lib/email/stripeCheckoutReceipt';
+import { notifyBannerPromotionPaymentReceived } from '@/lib/email/bannerPromotionEmails';
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -138,6 +139,15 @@ export async function POST(req: Request) {
                 '[stripe-webhook] promotion update matched 0 rows (wrong id or not pending_payment):',
                 requestId
               );
+            if (rows > 0 && requestId) {
+              void notifyBannerPromotionPaymentReceived(supabaseAdmin, {
+                source: 'business',
+                requestId,
+                sessionAmountCents: session.amount_total ?? null,
+              }).catch(() => {
+                console.warn('[stripe-webhook] banner payment-received email failed');
+              });
+            }
           }
         } else {
           console.warn(
@@ -174,6 +184,15 @@ export async function POST(req: Request) {
                 '[stripe-webhook] org promotion update matched 0 rows (wrong id or not pending_payment):',
                 requestId
               );
+            if (rows > 0 && requestId) {
+              void notifyBannerPromotionPaymentReceived(supabaseAdmin, {
+                source: 'organization',
+                requestId,
+                sessionAmountCents: session.amount_total ?? null,
+              }).catch(() => {
+                console.warn('[stripe-webhook] org banner payment-received email failed');
+              });
+            }
           }
         } else {
           console.warn(

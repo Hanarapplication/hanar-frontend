@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
+import { notifyMarketplaceItemModerationTransitions } from '@/lib/email/marketplaceItemModerationEmails';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -43,7 +44,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     }
 
-    const body = await req.json().catch(() => ({}));
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const moderationNote =
+      typeof body.moderation_note === 'string' ? body.moderation_note.trim() || null : null;
+
     const payload: Record<string, unknown> = {};
 
     if (typeof body.title === 'string') payload.title = body.title.trim();
@@ -68,6 +72,19 @@ export async function PATCH(
       return NextResponse.json({ error: 'No changes provided' }, { status: 400 });
     }
 
+    const { data: beforeRow, error: beforeError } = await supabaseAdmin
+      .from('marketplace_items')
+      .select('id, user_id, title, is_on_hold, is_reviewed')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (beforeError) {
+      return NextResponse.json({ error: beforeError.message }, { status: 500 });
+    }
+    if (!beforeRow) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+    }
+
     const { data, error } = await supabaseAdmin
       .from('marketplace_items')
       .update(payload)
@@ -81,6 +98,26 @@ export async function PATCH(
     if (!data) {
       return NextResponse.json({ error: 'Item not found' }, { status: 404 });
     }
+
+    void notifyMarketplaceItemModerationTransitions(supabaseAdmin, {
+      before: {
+        id: String(beforeRow.id),
+        user_id: (beforeRow.user_id as string | null) ?? null,
+        title: (beforeRow.title as string | null) ?? null,
+        is_on_hold: Boolean(beforeRow.is_on_hold),
+        is_reviewed: Boolean(beforeRow.is_reviewed),
+      },
+      after: {
+        id: String(data.id),
+        user_id: (data.user_id as string | null) ?? null,
+        title: (data.title as string | null) ?? null,
+        is_on_hold: Boolean(data.is_on_hold),
+        is_reviewed: Boolean(data.is_reviewed),
+      },
+      moderationNote,
+    }).catch(() => {
+      console.warn('[marketplace-item-email] moderation notify rejected');
+    });
 
     return NextResponse.json({ item: data });
   } catch (err: unknown) {

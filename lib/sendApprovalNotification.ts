@@ -59,25 +59,53 @@ async function resolveApprovalPayload(
       .from('business_promotion_requests')
       .select('business_id')
       .eq('id', id)
-      .single();
-    if (reqErr || !reqRow?.business_id) return null;
-    const { data: biz, error: bizErr } = await supabaseAdmin
-      .from('businesses')
-      .select('owner_id, slug')
-      .eq('id', reqRow.business_id)
-      .single();
-    if (bizErr || !biz?.owner_id) return null;
-    const slug = (biz.slug || '').trim();
-    const linkPath = slug ? `/business/${slug}` : '/business-dashboard';
-    return {
-      user_id: biz.owner_id,
-      push: {
-        title: truncateForPushBody('Your promotion is live', 140),
-        body: truncateForPushBody('Your advertisement banner is now live in the feed.', 1000),
-        linkPath,
-        type: 'promotion_approved',
-      },
-    };
+      .maybeSingle();
+    if (!reqErr && reqRow?.business_id) {
+      const { data: biz, error: bizErr } = await supabaseAdmin
+        .from('businesses')
+        .select('owner_id, slug')
+        .eq('id', reqRow.business_id)
+        .single();
+      if (bizErr || !biz?.owner_id) return null;
+      const slug = (biz.slug || '').trim();
+      const linkPath = slug ? `/business/${slug}` : '/business-dashboard';
+      return {
+        user_id: biz.owner_id,
+        push: {
+          title: truncateForPushBody('Your promotion is live', 140),
+          body: truncateForPushBody('Your advertisement banner is now live in the feed.', 1000),
+          linkPath,
+          type: 'promotion_approved',
+        },
+      };
+    }
+
+    const { data: orgReqRow, error: orgReqErr } = await supabaseAdmin
+      .from('organization_promotion_requests')
+      .select('organization_id')
+      .eq('id', id)
+      .maybeSingle();
+    if (!orgReqErr && orgReqRow?.organization_id) {
+      const { data: org, error: orgErr } = await supabaseAdmin
+        .from('organizations')
+        .select('user_id, username')
+        .eq('id', orgReqRow.organization_id)
+        .single();
+      if (orgErr || !org?.user_id) return null;
+      const username = (org.username || '').trim();
+      const linkPath = username ? `/organization/${username}` : '/organization/dashboard';
+      return {
+        user_id: org.user_id,
+        push: {
+          title: truncateForPushBody('Your promotion is live', 140),
+          body: truncateForPushBody('Your organization banner is now live in the feed.', 1000),
+          linkPath,
+          type: 'promotion_approved',
+        },
+      };
+    }
+
+    return null;
   }
 
   if (type === 'area_blast') {
