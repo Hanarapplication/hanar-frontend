@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
 import { HeartIcon, ChatBubbleLeftIcon, MagnifyingGlassIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid';
 import { Trash2, Megaphone, SendHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -10,6 +10,12 @@ import toast from 'react-hot-toast';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase } from '@/lib/supabaseClient';
 import { supportedLanguages } from '@/utils/languages';
+import {
+  feedLangsCacheKey,
+  normalizeFeedLangsList,
+  parseStoredFeedLangs,
+  serializeFeedLangsForStorage,
+} from '@/lib/communityPostFeedLangs';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
@@ -31,8 +37,8 @@ const COMMUNITY_CACHE_PREFIX = 'hanar_community_cache_';
 const COMMUNITY_FEED_LANG_KEY = 'hanar_community_feed_lang';
 const COMMUNITY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-const communityCacheKey = (userKey: string, lang: string, sortMode: 'latest' | 'popular') =>
-  `${COMMUNITY_CACHE_PREFIX}${userKey}::${lang || 'all'}::${sortMode}`;
+const communityCacheKey = (userKey: string, langKey: string, sortMode: 'latest' | 'popular') =>
+  `${COMMUNITY_CACHE_PREFIX}${userKey}::${langKey}::${sortMode}`;
 
 type CommunityCache = {
   ts: number;
@@ -96,30 +102,28 @@ function CommunityFeedPage() {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [sortMode, setSortMode] = useState<'latest' | 'popular'>('latest');
-  const [feedLang, setFeedLangState] = useState<string>('');
+  const [feedLangs, setFeedLangsState] = useState<string[]>([]);
   const [feedLangReady, setFeedLangReady] = useState(false);
   const requestSeqRef = useRef(0);
-  const normalizeFeedLang = useCallback((value: string) => {
-    const v = String(value || '').trim().toLowerCase();
-    if (!v || v === 'all' || v === 'auto') return '';
-    return supportedLanguages.some((l) => l.code === v) ? v : '';
+  const setFeedLangs = useCallback((next: string[] | ((prev: string[]) => string[])) => {
+    setFeedLangsState((prev) => {
+      const resolved = typeof next === 'function' ? (next as (p: string[]) => string[])(prev) : next;
+      const cleaned = normalizeFeedLangsList(resolved);
+      try {
+        localStorage.setItem(COMMUNITY_FEED_LANG_KEY, serializeFeedLangsForStorage(cleaned));
+      } catch {}
+      return cleaned;
+    });
   }, []);
-  const setFeedLang = useCallback((value: string) => {
-    const next = normalizeFeedLang(value);
-    setFeedLangState(next);
-    try {
-      localStorage.setItem(COMMUNITY_FEED_LANG_KEY, next);
-    } catch {}
-  }, [normalizeFeedLang]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const stored = localStorage.getItem(COMMUNITY_FEED_LANG_KEY);
-      if (stored !== null) setFeedLangState(normalizeFeedLang(stored));
+      if (stored !== null) setFeedLangsState(parseStoredFeedLangs(stored));
     } catch {}
     setFeedLangReady(true);
-  }, [normalizeFeedLang]);
+  }, []);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const { effectiveLang } = useLanguage();
@@ -244,7 +248,7 @@ function CommunityFeedPage() {
         body: JSON.stringify({
           search: debouncedSearch,
           offset,
-          lang: feedLang,
+          langs: normalizeFeedLangsList(feedLangs),
           sortMode,
           userId: currentUser.id || undefined,
           primaryLang: null,
@@ -265,7 +269,7 @@ function CommunityFeedPage() {
       }
       setHasMore(newPosts.length === 10);
 
-      const cacheKey = communityCacheKey(currentUser.id || 'anon', feedLang, sortMode);
+      const cacheKey = communityCacheKey(currentUser.id || 'anon', feedLangsCacheKey(feedLangs), sortMode);
       if (offset === 0 && !debouncedSearch) {
         writeCommunityCache(cacheKey, ordered, communityBanner);
       }
@@ -281,7 +285,7 @@ function CommunityFeedPage() {
     if (!feedLangReady || hasFetchedRef.current) return;
     hasFetchedRef.current = true;
 
-    const cacheKey = communityCacheKey(currentUser.id || 'anon', feedLang, sortMode);
+    const cacheKey = communityCacheKey(currentUser.id || 'anon', feedLangsCacheKey(feedLangs), sortMode);
     const cache = readCommunityCache(cacheKey);
     if (cache && !debouncedSearch) {
       setVisiblePosts(cache.posts);
@@ -292,7 +296,7 @@ function CommunityFeedPage() {
       loadBanner();
       loadMorePosts(0);
     }
-  }, [feedLangReady, feedLang, sortMode, currentUser.id, debouncedSearch]);
+  }, [feedLangReady, feedLangs, sortMode, currentUser.id, debouncedSearch]);
 
   // Reload when debounced search / sort / lang / user changes (not on the same tick as the initial load effect)
   useEffect(() => {
@@ -305,7 +309,7 @@ function CommunityFeedPage() {
     setVisiblePosts([]);
     setHasMore(true);
     loadMorePosts(0);
-  }, [debouncedSearch, feedLang, sortMode, currentUser.id, feedLangReady]);
+  }, [debouncedSearch, feedLangs, sortMode, currentUser.id, feedLangReady]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -572,7 +576,7 @@ function CommunityFeedPage() {
     audienceCacheRef.current = null;
     audienceFetchRef.current = null;
     try {
-      sessionStorage.removeItem(communityCacheKey(currentUser.id || 'anon', feedLang, sortMode));
+      sessionStorage.removeItem(communityCacheKey(currentUser.id || 'anon', feedLangsCacheKey(feedLangs), sortMode));
     } catch {}
     setVisiblePosts([]);
     setHasMore(true);
@@ -588,7 +592,7 @@ function CommunityFeedPage() {
         body: JSON.stringify({
           search,
           offset: 0,
-          lang: feedLang,
+          langs: normalizeFeedLangsList(feedLangs),
           sortMode,
           userId: currentUser.id || undefined,
           primaryLang: null,
@@ -601,7 +605,7 @@ function CommunityFeedPage() {
       setVisiblePosts(ordered);
       setHasMore(newPosts.length === 10);
       writeCommunityCache(
-        communityCacheKey(currentUser.id || 'anon', feedLang, sortMode),
+        communityCacheKey(currentUser.id || 'anon', feedLangsCacheKey(feedLangs), sortMode),
         ordered,
         banner || communityBanner
       );
@@ -610,12 +614,17 @@ function CommunityFeedPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, feedLang, sortMode, currentUser.id, communityBanner, getAudienceForFeed, loadBanner]);
+  }, [search, feedLangs, sortMode, currentUser.id, communityBanner, getAudienceForFeed, loadBanner]);
 
-  const feedLangOptions: { value: string; label: string; emoji?: string }[] = [
-    { value: '', label: t(effectiveLang, 'All languages'), emoji: '🌐' },
-    ...supportedLanguages.filter((l) => l.code !== 'auto').map((l) => ({ value: l.code, label: t(effectiveLang, l.name), emoji: l.emoji })),
-  ];
+  const feedLangSummary = useMemo(() => {
+    if (feedLangs.length === 0) return t(effectiveLang, 'All languages');
+    const labels = feedLangs.map((code) => {
+      const entry = supportedLanguages.find((l) => l.code === code);
+      return entry ? `${entry.emoji ? `${entry.emoji} ` : ''}${t(effectiveLang, entry.name)}` : code;
+    });
+    if (labels.join(', ').length <= 36) return labels.join(', ');
+    return `${labels.slice(0, 2).join(', ')} +${feedLangs.length - 2}`;
+  }, [feedLangs, effectiveLang]);
 
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
@@ -638,19 +647,53 @@ function CommunityFeedPage() {
         >
           {t(effectiveLang, 'Most Popular')}
         </button>
-        <select
-          value={feedLang}
-          onChange={(e) => setFeedLang(e.target.value)}
-          className="shrink-0 h-8 min-w-[7rem] rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-medium pl-2 pr-6 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 dark:focus:ring-emerald-500/40 appearance-none cursor-pointer bg-[length:12px] bg-[right_0.35rem_center] bg-no-repeat"
-          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")` }}
-          title={feedLang ? t(effectiveLang, 'Posts in this language first') : t(effectiveLang, 'All languages')}
-        >
-          {feedLangOptions.map((opt) => (
-            <option key={opt.value || 'all'} value={opt.value}>
-              {opt.emoji ? `${opt.emoji} ${opt.label}` : opt.label}
-            </option>
-          ))}
-        </select>
+        <details className="group relative shrink-0 min-w-[9rem] rounded-lg border border-gray-200 bg-white dark:border-gray-600 dark:bg-gray-800">
+          <summary className="flex h-8 cursor-pointer list-none items-center rounded-lg px-2 py-1 text-xs font-medium text-gray-800 dark:text-gray-200 [&::-webkit-details-marker]:hidden">
+            <span className="truncate pr-1">{feedLangSummary}</span>
+            <span className="ml-auto text-slate-500" aria-hidden>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </span>
+          </summary>
+          <div className="absolute left-0 top-full z-50 mt-1 max-h-64 min-w-[14rem] overflow-y-auto rounded-lg border border-gray-200 bg-white py-1.5 text-xs shadow-lg dark:border-gray-600 dark:bg-gray-800">
+            <label className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-700">
+              <input
+                type="checkbox"
+                checked={feedLangs.length === 0}
+                onChange={() => setFeedLangs([])}
+                className="rounded border-slate-300"
+              />
+              <span>🌐 {t(effectiveLang, 'All languages')}</span>
+            </label>
+            <div className="my-1 border-t border-slate-100 dark:border-gray-700" />
+            {supportedLanguages
+              .filter((l) => l.code !== 'auto')
+              .map((l) => (
+                <label
+                  key={l.code}
+                  className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={feedLangs.includes(l.code)}
+                    onChange={() =>
+                      setFeedLangs((prev) => {
+                        const s = new Set(prev);
+                        if (s.has(l.code)) s.delete(l.code);
+                        else s.add(l.code);
+                        return [...s];
+                      })
+                    }
+                    className="rounded border-slate-300"
+                  />
+                  <span>
+                    {l.emoji} {t(effectiveLang, l.name)}
+                  </span>
+                </label>
+              ))}
+          </div>
+        </details>
       </div>
 
       <div className="flex items-center mb-6 gap-4 px-4">

@@ -15,6 +15,13 @@ import CreateCommunityPostClient from '@/app/community/post/CreateCommunityPostC
 import { useLanguage } from '@/context/LanguageContext';
 import { getNativeLanguageName, supportedLanguages } from '@/utils/languages';
 import { t } from '@/utils/translations';
+import {
+  feedLangsCacheKey,
+  normalizeFeedLangsList,
+  parseStoredFeedLangs,
+  postMatchesFeedLangs,
+  serializeFeedLangsForStorage,
+} from '@/lib/communityPostFeedLangs';
 
 type SliderBusiness = {
   id: string;
@@ -627,8 +634,8 @@ type HomeFeedTab = 'for_you' | 'popular' | 'news';
 
 type FeedCache = {
   ts: number;
-  /** Post language filter (home / community dropdown). */
-  postFeedLang: string;
+  /** Stable key from `feedLangsCacheKey` for selected post languages. */
+  postFeedLangKey: string;
   homeFeedTab: HomeFeedTab;
   communityPosts: CommunityPost[];
   businesses: Business[];
@@ -637,13 +644,14 @@ type FeedCache = {
   feedBanners: AdBanner[];
 };
 
-function readFeedCache(expectedPostFeedLang: string, expectedTab: HomeFeedTab): FeedCache | null {
+function readFeedCache(expectedPostFeedLangKey: string, expectedTab: HomeFeedTab): FeedCache | null {
   try {
     const raw = sessionStorage.getItem(FEED_CACHE_KEY);
     if (!raw) return null;
-    const cache = JSON.parse(raw) as FeedCache;
+    const cache = JSON.parse(raw) as FeedCache & { postFeedLang?: string };
     if (Date.now() - cache.ts > FEED_CACHE_TTL) return null;
-    if (cache.postFeedLang !== expectedPostFeedLang) return null;
+    const langKey = cache.postFeedLangKey ?? feedLangsCacheKey(parseStoredFeedLangs(cache.postFeedLang ?? ''));
+    if (langKey !== expectedPostFeedLangKey) return null;
     if (!cache.homeFeedTab || cache.homeFeedTab !== expectedTab) return null;
     return cache;
   } catch {
@@ -663,59 +671,60 @@ export default function Home() {
   const { effectiveLang } = useLanguage();
 
   const [homeFeedTab, setHomeFeedTab] = useState<HomeFeedTab>('for_you');
-  const [postFeedLang, setPostFeedLangState] = useState('');
+  const [postFeedLangs, setPostFeedLangsState] = useState<string[]>([]);
   const [postFeedLangReady, setPostFeedLangReady] = useState(false);
-  const postFeedLangRef = useRef('');
+  const postFeedLangsRef = useRef<string[]>([]);
   const homeFeedTabRef = useRef<HomeFeedTab>('for_you');
-  postFeedLangRef.current = postFeedLang;
+  postFeedLangsRef.current = postFeedLangs;
   homeFeedTabRef.current = homeFeedTab;
 
-  const normalizePostFeedLang = useCallback((value: string) => {
-    const v = String(value || '').trim().toLowerCase();
-    if (!v || v === 'all' || v === 'auto') return '';
-    return supportedLanguages.some((l) => l.code === v) ? v : '';
-  }, []);
-
-  const setPostFeedLang = useCallback(
-    (value: string) => {
-      const next = normalizePostFeedLang(value);
-      setPostFeedLangState(next);
+  const setPostFeedLangs = useCallback((next: string[] | ((prev: string[]) => string[])) => {
+    setPostFeedLangsState((prev) => {
+      const resolved = typeof next === 'function' ? (next as (p: string[]) => string[])(prev) : next;
+      const cleaned = normalizeFeedLangsList(resolved);
       try {
-        localStorage.setItem(HOME_POST_FEED_LANG_KEY, next);
+        localStorage.setItem(HOME_POST_FEED_LANG_KEY, serializeFeedLangsForStorage(cleaned));
       } catch {
         /* ignore */
       }
-    },
-    [normalizePostFeedLang]
-  );
+      return cleaned;
+    });
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const stored = localStorage.getItem(HOME_POST_FEED_LANG_KEY);
-      if (stored !== null) setPostFeedLangState(normalizePostFeedLang(stored));
+      if (stored !== null) setPostFeedLangsState(parseStoredFeedLangs(stored));
     } catch {
       /* ignore */
     }
     setPostFeedLangReady(true);
-  }, [normalizePostFeedLang]);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const applySyncedLang = (value: string | null | undefined) => {
-      if (!value) return;
-      setPostFeedLang(value);
+    const applySyncedLangs = (detail?: { langs?: string[]; lang?: string } | null) => {
+      if (detail?.langs && Array.isArray(detail.langs)) {
+        setPostFeedLangs(normalizeFeedLangsList(detail.langs));
+        return;
+      }
+      if (detail?.lang) {
+        const one = String(detail.lang).trim().toLowerCase();
+        if (!one || one === 'all' || one === 'auto') setPostFeedLangs([]);
+        else if (supportedLanguages.some((l) => l.code === one && l.code !== 'auto')) setPostFeedLangs([one]);
+      }
     };
 
     const handleFeedLangSync = (event: Event) => {
-      const custom = event as CustomEvent<{ lang?: string }>;
-      applySyncedLang(custom.detail?.lang);
+      const custom = event as CustomEvent<{ langs?: string[]; lang?: string }>;
+      applySyncedLangs(custom.detail);
     };
 
     const handleStorage = (event: StorageEvent) => {
       if (event.key !== HOME_POST_FEED_LANG_KEY) return;
-      applySyncedLang(event.newValue);
+      setPostFeedLangsState(parseStoredFeedLangs(event.newValue ?? ''));
     };
 
     window.addEventListener(FEED_LANG_SYNC_EVENT, handleFeedLangSync as EventListener);
@@ -724,7 +733,7 @@ export default function Home() {
       window.removeEventListener(FEED_LANG_SYNC_EVENT, handleFeedLangSync as EventListener);
       window.removeEventListener('storage', handleStorage);
     };
-  }, [setPostFeedLang]);
+  }, [setPostFeedLangs]);
 
   const [communityPosts, setCommunityPosts] = useState<CommunityPost[]>([]);
   const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -888,8 +897,7 @@ export default function Home() {
   }, []);
 
   const loadHomeFeed = async () => {
-    const feedLangRaw = postFeedLangRef.current.trim().toLowerCase();
-    const feedLangForRequest = feedLangRaw && supportedLanguages.some((l) => l.code === feedLangRaw) ? feedLangRaw : '';
+    const feedLangsForRequest = normalizeFeedLangsList(postFeedLangsRef.current);
     const tab = homeFeedTabRef.current;
     const [audienceJson, businessRes, orgRes, retailRes, dealershipRes, realEstateRes, individualRes] = await Promise.all([
       fetch('/api/user/audience-segment')
@@ -1023,7 +1031,7 @@ export default function Home() {
           primaryLang: null,
           spokenLanguages: Array.isArray(audienceJson?.spoken_languages) ? audienceJson.spoken_languages : [],
           deviceLang: deviceLang || null,
-          feedLang: feedLangForRequest || null,
+          ...(feedLangsForRequest.length > 0 ? { feedLangs: feedLangsForRequest } : {}),
           feedSort: tab === 'popular' ? 'popular' : 'for_you',
           tag: tab === 'news' ? 'news' : null,
         }),
@@ -1047,6 +1055,9 @@ export default function Home() {
         .order('created_at', { ascending: false })
         .limit(48);
       rawPosts = (fb.data || []) as CommunityPost[];
+      if (postFeedLangsRef.current.length > 0) {
+        rawPosts = rawPosts.filter((p) => postMatchesFeedLangs(p, normalizeFeedLangsList(postFeedLangsRef.current)));
+      }
     }
 
     // Ranked API may return like count under different keys; normalize once for UI consistency.
@@ -1253,7 +1264,7 @@ export default function Home() {
   const applyFeedData = (
     data: { rawPosts: CommunityPost[]; businesses: Business[]; organizations: Organization[]; marketplaceItems: MarketplaceItem[] },
     banners: AdBanner[],
-    cachePostFeedLang: string,
+    cachePostFeedLangKey: string,
     cacheHomeFeedTab: HomeFeedTab
   ) => {
     setCommunityPosts(data.rawPosts);
@@ -1269,7 +1280,7 @@ export default function Home() {
       latestPostDateRef.current = newest.iso;
     }
     writeFeedCache({
-      postFeedLang: cachePostFeedLang,
+      postFeedLangKey: cachePostFeedLangKey,
       homeFeedTab: cacheHomeFeedTab,
       communityPosts: data.rawPosts,
       businesses: data.businesses,
@@ -1280,13 +1291,13 @@ export default function Home() {
   };
 
   const refreshFeed = async () => {
-    const cacheLang = postFeedLangRef.current;
+    const cacheLangKey = feedLangsCacheKey(postFeedLangsRef.current);
     const cacheTab = homeFeedTabRef.current;
     setRefreshing(true);
     setHasNewContent(false);
     try {
       const [data, banners] = await Promise.all([loadHomeFeed(), loadBanners()]);
-      applyFeedData(data, banners, cacheLang, cacheTab);
+      applyFeedData(data, banners, cacheLangKey, cacheTab);
       setVisibleCount(12);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
@@ -1301,7 +1312,7 @@ export default function Home() {
 
     const init = async () => {
       setVisibleCount(12);
-      const cache = readFeedCache(postFeedLang, homeFeedTab);
+      const cache = readFeedCache(feedLangsCacheKey(postFeedLangs), homeFeedTab);
       if (cache) {
         setCommunityPosts(cache.communityPosts);
         setBusinesses(cache.businesses);
@@ -1326,7 +1337,7 @@ export default function Home() {
       try {
         const [data, banners] = await Promise.all([loadHomeFeed(), loadBanners()]);
         if (cancelled) return;
-        applyFeedData(data, banners, postFeedLang, homeFeedTab);
+        applyFeedData(data, banners, feedLangsCacheKey(postFeedLangs), homeFeedTab);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -1336,7 +1347,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, [postFeedLang, homeFeedTab, postFeedLangReady]);
+  }, [postFeedLangs, homeFeedTab, postFeedLangReady]);
 
   // When user location becomes available, refetch banners so city-targeted ones (20 mi radius) appear
   useEffect(() => {
@@ -1865,11 +1876,8 @@ const formatDateLabel = (value?: string | null) => {
   // Mixed feed: random order with some newest cards sprinkled in; sliders + ads layered after.
   const feedItems = useMemo<FeedItem[]>(() => {
     const mixDiscovery = homeFeedTab !== 'news';
-    const postLangKey = postFeedLang.trim().toLowerCase();
-    const hasExplicitFeedLang =
-      Boolean(postLangKey) && supportedLanguages.some((l) => l.code === postLangKey && l.code !== 'auto');
-    /** Preserve API post order when "All languages" (default / first visit) so English-first ranking from the server is not shuffled away; also preserve when a specific post language is selected. */
-    const preservePostLanguageOrder = !postLangKey || hasExplicitFeedLang;
+    /** Preserve API post order (English-first or language-filtered ranking from the server). */
+    const preservePostLanguageOrder = true;
 
     let ordered: FeedItem[] = [];
 
@@ -1979,7 +1987,7 @@ const formatDateLabel = (value?: string | null) => {
     organizations,
     marketplaceCategoryFeedBuckets,
     homeFeedTab,
-    postFeedLang,
+    postFeedLangs,
   ]);
 
   const filteredFeedItems = useMemo(() => {
@@ -2062,15 +2070,15 @@ const formatDateLabel = (value?: string | null) => {
     await refreshFeed();
   }, [refreshFeed]);
 
-  const homeFeedLangSelectOptions = useMemo(
-    () => [
-      { value: '', label: t(effectiveLang, 'All languages'), emoji: '🌐' },
-      ...supportedLanguages
-        .filter((l) => l.code !== 'auto')
-        .map((l) => ({ value: l.code, label: getNativeLanguageName(l.code, l.name), emoji: l.emoji })),
-    ],
-    [effectiveLang]
-  );
+  const homeFeedLangSummary = useMemo(() => {
+    if (postFeedLangs.length === 0) return t(effectiveLang, 'All languages');
+    const labels = postFeedLangs.map((code) => {
+      const entry = supportedLanguages.find((l) => l.code === code);
+      return entry ? `${entry.emoji ? `${entry.emoji} ` : ''}${getNativeLanguageName(code, entry.name)}` : code;
+    });
+    if (labels.join(', ').length <= 44) return labels.join(', ');
+    return `${labels.slice(0, 2).join(', ')} +${postFeedLangs.length - 2}`;
+  }, [postFeedLangs, effectiveLang]);
 
   return (
     <>
@@ -2135,31 +2143,71 @@ const formatDateLabel = (value?: string | null) => {
             <Search className="h-3.5 w-3.5" />
             Search
           </button>
-          <div className="relative h-9 min-w-[11rem] shrink-0 rounded-lg border border-slate-300 bg-white">
-            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">🌐</span>
-            <select
-              id="home-feed-language-filter"
-              value={postFeedLang}
-              onChange={(e) => setPostFeedLang(e.target.value)}
-              className="h-full w-full cursor-pointer appearance-none rounded-lg border-0 bg-transparent py-1.5 pl-7 pr-8 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/25 dark:text-gray-200"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 0.55rem center',
-                backgroundSize: '0.8rem',
-              }}
-              title={
-                postFeedLang ? t(effectiveLang, 'Posts in this language first') : t(effectiveLang, 'All languages')
-              }
-              aria-label={t(effectiveLang, 'All languages')}
-            >
-              {homeFeedLangSelectOptions.map((opt) => (
-                <option key={opt.value || 'all'} value={opt.value}>
-                  {opt.emoji ? `${opt.emoji} ${opt.label}` : opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <details
+            id="home-feed-language-filter"
+            className="group relative h-9 min-w-[11rem] shrink-0 rounded-lg border border-slate-300 bg-white dark:border-gray-600 dark:bg-gray-800"
+          >
+            <summary className="flex h-9 cursor-pointer list-none items-center rounded-lg py-1.5 pl-7 pr-8 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/25 dark:text-gray-200 [&::-webkit-details-marker]:hidden">
+              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+                🌐
+              </span>
+              <span
+                className="truncate pl-0.5"
+                title={
+                  postFeedLangs.length > 0
+                    ? t(effectiveLang, 'Posts in selected languages')
+                    : t(effectiveLang, 'All languages')
+                }
+              >
+                {homeFeedLangSummary}
+              </span>
+              <span
+                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-500"
+                aria-hidden
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </span>
+            </summary>
+            <div className="absolute left-0 top-full z-50 mt-1 max-h-64 min-w-[15rem] overflow-y-auto rounded-lg border border-slate-200 bg-white py-1.5 text-sm shadow-lg dark:border-gray-600 dark:bg-gray-800">
+              <label className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-700">
+                <input
+                  type="checkbox"
+                  checked={postFeedLangs.length === 0}
+                  onChange={() => setPostFeedLangs([])}
+                  className="rounded border-slate-300"
+                />
+                <span>🌐 {t(effectiveLang, 'All languages')}</span>
+              </label>
+              <div className="my-1 border-t border-slate-100 dark:border-gray-700" />
+              {supportedLanguages
+                .filter((l) => l.code !== 'auto')
+                .map((l) => (
+                  <label
+                    key={l.code}
+                    className="flex cursor-pointer items-center gap-2 px-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={postFeedLangs.includes(l.code)}
+                      onChange={() =>
+                        setPostFeedLangs((prev) => {
+                          const s = new Set(prev);
+                          if (s.has(l.code)) s.delete(l.code);
+                          else s.add(l.code);
+                          return [...s];
+                        })
+                      }
+                      className="rounded border-slate-300"
+                    />
+                    <span>
+                      {l.emoji} {getNativeLanguageName(l.code, l.name)}
+                    </span>
+                  </label>
+                ))}
+            </div>
+          </details>
           {feedSearchOpen && (
           <div id="home-feed-search" className="w-full pt-1">
             <label className="relative block">

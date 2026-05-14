@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getMutuallyBlockedUserIds } from '@/lib/userBlocksServer';
 import { getHomeRankContext } from '@/lib/communityFeedPersonalize';
 import { scoreHomePost, scoresToRank0to100 } from '@/lib/homeFeedRank';
+import { postMatchesFeedLangs, resolveFeedLangsFromListBody } from '@/lib/communityPostFeedLangs';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -101,6 +102,7 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const {
       lang = '',
+      langs: langsRaw,
       tags = [],
       search = '',
       offset: rawOffset = 0,
@@ -111,6 +113,7 @@ export async function POST(req: Request) {
       deviceLang: bodyDeviceLang,
     } = body as {
       lang?: string;
+      langs?: string[];
       tags?: string[];
       search?: string;
       offset?: number;
@@ -122,8 +125,10 @@ export async function POST(req: Request) {
     };
     const offset = Math.max(0, Number(rawOffset) || 0);
     const limit = 10;
+    const feedLangs = resolveFeedLangsFromListBody({ langs: langsRaw, lang });
+    const useMultiLangFilter = feedLangs.length > 0;
     const feedLang = (lang && String(lang).toLowerCase()) || '';
-    const useLangPriority = feedLang && feedLang !== 'all';
+    const useLangPriority = Boolean(feedLang && feedLang !== 'all' && !useMultiLangFilter);
     const hasSearch = String(search || '').trim() !== '';
 
     const base = () =>
@@ -135,9 +140,10 @@ export async function POST(req: Request) {
 
     let posts: unknown[] = [];
     let usedPersonalizedRanking = false;
+    let usedMultiLangFilter = false;
 
     // Personalized ranking loads a large pool + like counts + rank — skip when searching for fast results
-    const usePersonalizedLatest = sortMode === 'latest' && !useLangPriority && !hasSearch;
+    const usePersonalizedLatest = sortMode === 'latest' && !useLangPriority && !useMultiLangFilter && !hasSearch;
 
     if (usePersonalizedLatest) {
       usedPersonalizedRanking = true;
@@ -205,6 +211,21 @@ export async function POST(req: Request) {
         home_rank_score: row.home_rank_score,
       }));
       posts = slice;
+    } else if (useMultiLangFilter) {
+      usedMultiLangFilter = true;
+      const poolSize = Math.min(800, Math.max(120, offset + limit + 120));
+      let query = applyBaseFilters(base(), String(search || ''), Array.isArray(tags) ? tags : []);
+      const orderCol = sortMode === 'popular' ? 'likes_post' : 'created_at';
+      const { data, error } = await query.order(orderCol, { ascending: false }).limit(poolSize);
+      if (error) throw error;
+      let pool = (data || []) as Array<Record<string, unknown> & { id: string; created_at: string }>;
+      pool = pool.filter((p) => postMatchesFeedLangs(p as { language?: string | null }, feedLangs));
+      const uid = typeof userId === 'string' && userId.trim() ? userId.trim() : null;
+      if (uid) {
+        const blocked = await getMutuallyBlockedUserIds(supabaseAdmin, uid);
+        pool = pool.filter((p) => !p.user_id || !blocked.has(p.user_id as string));
+      }
+      posts = pool.slice(offset, offset + limit);
     } else if (useLangPriority) {
       // Order: selected language first, then English, then others. If no posts in selected lang, English then others.
       const orderOpt = sortMode === 'popular' ? { ascending: false } : { ascending: false };
@@ -295,10 +316,10 @@ export async function POST(req: Request) {
 
     // When we already applied language-priority order (selected → en → others), keep it; otherwise rank by relevance then sort
     let result: unknown[];
-    if (useLangPriority || usedPersonalizedRanking) {
+    if (useLangPriority || usedPersonalizedRanking || usedMultiLangFilter) {
       result = enriched;
     } else {
-      const currentLang = (feedLang && String(feedLang)) || 'en';
+      const currentLang = (feedLangs[0] && String(feedLangs[0])) || (feedLang && String(feedLang)) || 'en';
       const searchWords = searchTopicWords(search || '');
       let userLangs = new Set<string>();
       let userTags = new Set<string>();

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { t as tFromTranslations } from '@/utils/translations';
 import { setRuntimeTranslations, getRuntimeTranslations } from '@/utils/runtimeTranslations';
 import { supportedLanguages } from '@/utils/languages';
+import { serializeFeedLangsForStorage } from '@/lib/communityPostFeedLangs';
 
 const SUPPORTED_CODES = new Set(
   supportedLanguages
@@ -448,12 +449,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     // Feed language controls remain independent and never change app UI language.
     if (normalized !== 'auto') {
       try {
-        localStorage.setItem(HOME_POST_FEED_LANG_KEY, normalized);
+        localStorage.setItem(HOME_POST_FEED_LANG_KEY, serializeFeedLangsForStorage([normalized]));
       } catch {
         // Ignore storage access errors.
       }
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent(FEED_LANG_SYNC_EVENT, { detail: { lang: normalized } }));
+        window.dispatchEvent(new CustomEvent(FEED_LANG_SYNC_EVENT, { detail: { langs: [normalized] } }));
       }
     }
   }, []);

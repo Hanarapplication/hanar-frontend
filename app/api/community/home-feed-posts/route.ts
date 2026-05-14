@@ -3,6 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 import { getMutuallyBlockedUserIds } from '@/lib/userBlocksServer';
 import { getHomeRankContext } from '@/lib/communityFeedPersonalize';
 import { scoreHomePost, scoresToRank0to100 } from '@/lib/homeFeedRank';
+import {
+  postMatchesFeedLangs,
+  primaryPostLangCode,
+  resolveFeedLangsFromHomeBody,
+} from '@/lib/communityPostFeedLangs';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,8 +40,10 @@ type Body = {
   spokenLanguages?: string[];
   /** e.g. navigator.language */
   deviceLang?: string | null;
-  /** Prefer posts in this language (dropdown / UI), then English if none / to fill. */
+  /** @deprecated Prefer `feedLangs`; single code for older clients. */
   feedLang?: string | null;
+  /** Selected UI languages (2-letter codes); empty = all languages. */
+  feedLangs?: string[];
   /** Home tabs: discovery mix vs strictly by likes. */
   feedSort?: 'for_you' | 'popular';
   /** If set (e.g. `news`), only posts whose tags include this token (case-insensitive). */
@@ -111,13 +118,6 @@ async function enrichPostAvatars(posts: PostRow[]): Promise<PostRow[]> {
   });
 }
 
-function normalizeFeedLang(raw: string | null | undefined): string | null {
-  if (raw == null || typeof raw !== 'string') return null;
-  const t = raw.trim().toLowerCase();
-  if (!t || t === 'auto') return null;
-  return t.length >= 2 ? t.slice(0, 2) : t;
-}
-
 function postHasTag(p: PostRow, tag: string): boolean {
   const want = tag.trim().toLowerCase();
   if (!want) return true;
@@ -126,115 +126,51 @@ function postHasTag(p: PostRow, tag: string): boolean {
   return tags.some((x) => String(x).toLowerCase().trim() === want);
 }
 
-function postLangCode(p: PostRow): string | null {
-  const v = p.language;
-  if (v == null || v === '') return null;
-  const s = String(v).trim().toLowerCase();
-  if (!s) return null;
-  // BCP-47 / common DB forms: fa-IR, en_US → compare on 2-letter primary subtag
-  const primary = (s.split(/[-_]/)[0] || s).trim();
-  if (!primary) return null;
-  return primary.length >= 2 ? primary.slice(0, 2) : primary;
-}
-
-/** English + unknown-language posts first (newest within each group), then other locales. Used when no feed language is chosen or feed is explicitly English. */
+/** English + unknown-language posts first (newest within each group), then other locales. Used when no feed language is chosen. */
 function orderPostsEnglishFirst(posts: PostRow[]): PostRow[] {
   const byDate = (a: PostRow, b: PostRow) =>
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   const english = posts
     .filter((p) => {
-      const c = postLangCode(p);
+      const c = primaryPostLangCode(p);
       return c === 'en' || c == null;
     })
     .sort(byDate);
   const other = posts
     .filter((p) => {
-      const c = postLangCode(p);
+      const c = primaryPostLangCode(p);
       return c != null && c !== 'en';
     })
     .sort(byDate);
   return [...english, ...other];
 }
 
-/** Buckets for a feed language: matching posts, English or unset, then other languages (newest first within each). */
-function bucketPostsForFeedLang(posts: PostRow[], want: string): { match: PostRow[]; english: PostRow[]; other: PostRow[] } {
-  if (!want || want === 'en') {
-    return { match: [], english: posts, other: [] };
-  }
+/** Newest first within each selected language bucket, in UI selection order (`en` bucket includes unknown language). */
+function orderPostsForFeedLangsMulti(posts: PostRow[], langs: string[]): PostRow[] {
   const byDate = (a: PostRow, b: PostRow) =>
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-
-  const match = posts.filter((p) => postLangCode(p) === want).sort(byDate);
-  const english = posts
-    .filter((p) => {
-      const c = postLangCode(p);
-      return c === 'en' || c == null;
-    })
-    .sort(byDate);
-  const other = posts
-    .filter((p) => {
-      const c = postLangCode(p);
-      return c != null && c !== 'en' && c !== want;
-    })
-    .sort(byDate);
-  return { match, english, other };
-}
-
-/** Prefer `want` language first; if none, English + unset language; then other languages. Newest first within each bucket. */
-function orderPostsForFeedLang(posts: PostRow[], want: string): PostRow[] {
-  if (!want || want === 'en') return posts;
-  const { match, english, other } = bucketPostsForFeedLang(posts, want);
-
   const seen = new Set<string>();
-  const pushUnique = (arr: PostRow[], out: PostRow[]) => {
-    for (const p of arr) {
+  const out: PostRow[] = [];
+  for (const lang of langs) {
+    const bucket = posts
+      .filter((p) => {
+        const c = primaryPostLangCode(p);
+        if (lang === 'en') return c === 'en' || c == null;
+        return c === lang;
+      })
+      .sort(byDate);
+    for (const p of bucket) {
       if (!seen.has(p.id)) {
         seen.add(p.id);
         out.push(p);
       }
     }
-  };
-  const out: PostRow[] = [];
-  if (match.length === 0) {
-    pushUnique(english, out);
-    pushUnique(other, out);
-  } else {
-    pushUnique(match, out);
-    pushUnique(english, out);
-    pushUnique(other, out);
   }
   return out;
 }
 
 function sortRowsByLikeCountDesc(rows: PostRow[], likeCounts: Record<string, number>): PostRow[] {
   return [...rows].sort((a, b) => (likeCounts[b.id] ?? 0) - (likeCounts[a.id] ?? 0));
-}
-
-/** Popular order that still prefers feed language, then English/null, then others. */
-function pickPopularPostsRespectingFeedLang(
-  posts: PostRow[],
-  want: string | null,
-  likeCounts: Record<string, number>,
-  limit: number
-): PostRow[] {
-  if (!want || want === 'en') {
-    return sortRowsByLikeCountDesc(posts, likeCounts).slice(0, limit);
-  }
-  const { match, english, other } = bucketPostsForFeedLang(posts, want);
-  const ordered = [
-    ...sortRowsByLikeCountDesc(match, likeCounts),
-    ...sortRowsByLikeCountDesc(english, likeCounts),
-    ...sortRowsByLikeCountDesc(other, likeCounts),
-  ];
-  const seen = new Set<string>();
-  const out: PostRow[] = [];
-  for (const p of ordered) {
-    if (seen.has(p.id)) continue;
-    seen.add(p.id);
-    out.push(p);
-    if (out.length >= limit) break;
-  }
-  return out;
 }
 
 function shuffleInPlace<T>(arr: T[]) {
@@ -272,17 +208,33 @@ function pickExplorePostsFromPrioritized(prioritized: PostRow[], limit: number):
   return merged.slice(0, limit);
 }
 
+/**
+ * No feed language chosen ("All languages"): keep the top of the feed in strict English-first
+ * order, then apply the explore mix below so variety does not push non-English above English.
+ */
+function pickExplorePostsWithEnglishHead(prioritized: PostRow[], limit: number): PostRow[] {
+  if (prioritized.length === 0) return [];
+  const headN = Math.min(limit, Math.max(6, Math.ceil(limit * 0.2)), prioritized.length);
+  const head = prioritized.slice(0, headN);
+  const headIds = new Set(head.map((p) => p.id));
+  const rest = prioritized.filter((p) => !headIds.has(p.id));
+  const tailLimit = limit - head.length;
+  if (tailLimit <= 0 || rest.length === 0) return head.slice(0, limit);
+  const tail = pickExplorePostsFromPrioritized(rest, tailLimit);
+  return [...head, ...tail].slice(0, limit);
+}
+
 function pickPopularEnglishFirst(
   posts: PostRow[],
   likeCounts: Record<string, number>,
   limit: number
 ): PostRow[] {
   const eng = posts.filter((p) => {
-    const c = postLangCode(p);
+    const c = primaryPostLangCode(p);
     return c === 'en' || c == null;
   });
   const oth = posts.filter((p) => {
-    const c = postLangCode(p);
+    const c = primaryPostLangCode(p);
     return c != null && c !== 'en';
   });
   const ordered = [
@@ -334,12 +286,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ posts: [] });
     }
 
-    const feedLangNorm = normalizeFeedLang(body.feedLang ?? null);
-    if (feedLangNorm && feedLangNorm !== 'en') {
-      posts = orderPostsForFeedLang(posts, feedLangNorm);
-    } else {
-      // No language filter (first visit / "All languages") or explicit English: surface English + unset first.
+    const feedLangs = resolveFeedLangsFromHomeBody(body);
+    const hasLangFilter = feedLangs.length > 0;
+    if (hasLangFilter) {
+      posts = posts.filter((p) => postMatchesFeedLangs(p, feedLangs));
+    }
+    if (posts.length === 0) {
+      return NextResponse.json({ posts: [] });
+    }
+
+    if (!hasLangFilter) {
       posts = orderPostsEnglishFirst(posts);
+    } else {
+      posts = orderPostsForFeedLangsMulti(posts, feedLangs);
     }
 
     const feedSort: 'for_you' | 'popular' = body.feedSort === 'popular' ? 'popular' : 'for_you';
@@ -362,15 +321,11 @@ export async function POST(req: Request) {
             likeCounts[r.post_id] = (likeCounts[r.post_id] ?? 0) + 1;
           });
         }
-        chosen =
-          feedLangNorm && feedLangNorm !== 'en'
-            ? pickPopularPostsRespectingFeedLang(posts, feedLangNorm, likeCounts, limit)
-            : pickPopularEnglishFirst(posts, likeCounts, limit);
+        chosen = !hasLangFilter
+          ? pickPopularEnglishFirst(posts, likeCounts, limit)
+          : sortRowsByLikeCountDesc(posts, likeCounts).slice(0, limit);
       } else {
-        // When a feed language is explicitly set (including English), keep strict bucket order from
-        // orderPostsForFeedLang / orderPostsEnglishFirst — do not interleave shuffled "tail" early.
-        // Unset feedLang ("All languages"): explore mix whose "fresh" slice still favors English-first head.
-        chosen = feedLangNorm ? posts.slice(0, limit) : pickExplorePostsFromPrioritized(posts, limit);
+        chosen = !hasLangFilter ? pickExplorePostsWithEnglishHead(posts, limit) : posts.slice(0, limit);
         const exploreIds = chosen.map((p) => p.id);
         exploreIds.forEach((id) => {
           likeCounts[id] = 0;
