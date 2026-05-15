@@ -8,6 +8,7 @@ import {
   primaryPostLangCode,
   resolveFeedLangsFromHomeBody,
 } from '@/lib/communityPostFeedLangs';
+import { patchPostsWithActiveCommentCounts } from '@/lib/communityActiveCommentCounts';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -300,6 +301,8 @@ export async function POST(req: Request) {
     } else {
       posts = orderPostsForFeedLangsMulti(posts, feedLangs);
     }
+
+    posts = await patchPostsWithActiveCommentCounts(supabaseAdmin, posts);
 
     const feedSort: 'for_you' | 'popular' = body.feedSort === 'popular' ? 'popular' : 'for_you';
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { usersAreMutuallyBlocked } from '@/lib/userBlocksServer';
+import { getActiveCommentCountsByPostId, getLikeCountsByPostId } from '@/lib/communityActiveCommentCounts';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,19 +16,12 @@ async function enrichPostsWithCommentAndLikeCounts(
   let likeCounts: Record<string, number> = {};
 
   if (postIds.length > 0) {
-    const [commentsRes, likesRes] = await Promise.all([
-      supabaseAdmin.from('community_comments').select('id, post_id').in('post_id', postIds),
-      supabaseAdmin.from('community_post_likes').select('post_id').in('post_id', postIds),
+    const [cc, lc] = await Promise.all([
+      getActiveCommentCountsByPostId(supabaseAdmin, postIds),
+      getLikeCountsByPostId(supabaseAdmin, postIds),
     ]);
-
-    commentCounts = (commentsRes.data || []).reduce<Record<string, number>>((acc, comment) => {
-      acc[comment.post_id] = (acc[comment.post_id] || 0) + 1;
-      return acc;
-    }, {});
-
-    (likesRes.data || []).forEach((row) => {
-      likeCounts[row.post_id] = (likeCounts[row.post_id] ?? 0) + 1;
-    });
+    commentCounts = cc;
+    likeCounts = lc;
   }
 
   const enrichedPosts = posts.map((post) => ({

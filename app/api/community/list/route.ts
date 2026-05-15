@@ -4,6 +4,7 @@ import { getMutuallyBlockedUserIds } from '@/lib/userBlocksServer';
 import { getHomeRankContext } from '@/lib/communityFeedPersonalize';
 import { scoreHomePost, scoresToRank0to100 } from '@/lib/homeFeedRank';
 import { postMatchesFeedLangs, resolveFeedLangsFromListBody } from '@/lib/communityPostFeedLangs';
+import { patchPostsWithActiveCommentCounts } from '@/lib/communityActiveCommentCounts';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -160,6 +161,8 @@ export async function POST(req: Request) {
         pool = pool.filter((p) => !p.user_id || !blocked.has(p.user_id as string));
       }
 
+      pool = await patchPostsWithActiveCommentCounts(supabaseAdmin, pool);
+
       const postIds = pool.map((p) => p.id);
       const likeCounts: Record<string, number> = {};
       postIds.forEach((id) => {
@@ -225,6 +228,7 @@ export async function POST(req: Request) {
         const blocked = await getMutuallyBlockedUserIds(supabaseAdmin, uid);
         pool = pool.filter((p) => !p.user_id || !blocked.has(p.user_id as string));
       }
+      pool = await patchPostsWithActiveCommentCounts(supabaseAdmin, pool);
       posts = pool.slice(offset, offset + limit);
     } else if (useLangPriority) {
       // Order: selected language first, then English, then others. If no posts in selected lang, English then others.
@@ -253,7 +257,11 @@ export async function POST(req: Request) {
       const b = (feedLang === 'en' ? [] : (r2?.data || [])) as unknown[];
       const c = (r3.data || []) as unknown[];
       const merged = [...a, ...b, ...c];
-      posts = merged.slice(offset, offset + limit);
+      const mergedPatched = await patchPostsWithActiveCommentCounts(
+        supabaseAdmin,
+        merged as Array<Record<string, unknown> & { id: string }>
+      );
+      posts = mergedPatched.slice(offset, offset + limit);
     } else {
       // No language priority: single query, all languages
       let query = applyBaseFilters(base(), search, tags);
@@ -264,7 +272,10 @@ export async function POST(req: Request) {
       }
       const { data, error } = await query.range(offset, offset + limit - 1);
       if (error) throw error;
-      posts = data || [];
+      posts = await patchPostsWithActiveCommentCounts(
+        supabaseAdmin,
+        (data || []) as Array<Record<string, unknown> & { id: string }>
+      );
     }
 
     type PostRow = { id: string; likes_post?: number; [k: string]: unknown };

@@ -21,6 +21,8 @@ import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
 import { Avatar } from '@/components/Avatar';
 import { t } from '@/utils/translations';
+import { coerceLikeCount } from '@/lib/coerceLikeCount';
+import { postIdEquals } from '@/lib/postIdEquals';
 
 const COMMUNITY_SEARCH_FRAME =
   'border border-blue-800/65 dark:border-emerald-700/60 focus:ring-2 focus:ring-blue-500/35 dark:focus:ring-emerald-500/30 focus:border-blue-700';
@@ -258,12 +260,15 @@ function CommunityFeedPage() {
       });
       const newPosts: Post[] = await response.json();
       if (requestId !== requestSeqRef.current) return;
-      const ordered = sortMode === 'popular' ? sortPosts(newPosts) : newPosts;
+      const ordered = (sortMode === 'popular' ? sortPosts(newPosts) : newPosts).map((p) => ({
+        ...p,
+        id: String(p.id),
+      }));
       if (offset === 0) {
         setVisiblePosts(ordered);
       } else {
         setVisiblePosts((prev) => {
-          const unique = [...new Map([...prev, ...ordered].map((p) => [p.id, p])).values()];
+          const unique = [...new Map([...prev, ...ordered].map((p) => [String(p.id), p])).values()];
           return unique;
         });
       }
@@ -288,7 +293,7 @@ function CommunityFeedPage() {
     const cacheKey = communityCacheKey(currentUser.id || 'anon', feedLangsCacheKey(feedLangs), sortMode);
     const cache = readCommunityCache(cacheKey);
     if (cache && !debouncedSearch) {
-      setVisiblePosts(cache.posts);
+      setVisiblePosts(cache.posts.map((p) => ({ ...p, id: String(p.id) })));
       if (cache.banner) setCommunityBanner(cache.banner);
       setHasMore(cache.posts.length >= 10);
       setLoading(false);
@@ -328,7 +333,7 @@ function CommunityFeedPage() {
       const res = await fetch(`/api/community/post/liked?userId=${encodeURIComponent(userId)}`, { credentials: 'include' });
       const data = await res.json();
       if (res.ok && Array.isArray(data.likedPostIds)) {
-        setLikedPosts(new Set(data.likedPostIds));
+        setLikedPosts(new Set(data.likedPostIds.map((x: unknown) => String(x))));
       }
     } catch {
       setLikedPosts(new Set());
@@ -388,36 +393,37 @@ function CommunityFeedPage() {
   const handleLikePost = async (postId: string) => {
     if (!requireLogin()) return;
 
-    const currentlyLiked = likedPosts.has(postId);
+    const key = String(postId);
+    const currentlyLiked = likedPosts.has(key);
     const delta = currentlyLiked ? -1 : 1;
 
     // Optimistic update: show new count and liked state immediately
     setVisiblePosts((prev) =>
       prev.map((post) =>
-        post.id === postId
-          ? { ...post, likes_post: Math.max(0, (post.likes_post || 0) + delta) }
+        postIdEquals(post.id, key)
+          ? { ...post, likes_post: Math.max(0, coerceLikeCount(post.likes_post) + delta) }
           : post
       )
     );
     setLikedPosts((prev) => {
       const next = new Set(prev);
-      if (currentlyLiked) next.delete(postId);
-      else next.add(postId);
+      if (currentlyLiked) next.delete(key);
+      else next.add(key);
       return next;
     });
 
     const revert = () => {
       setVisiblePosts((prev) =>
         prev.map((post) =>
-          post.id === postId
-            ? { ...post, likes_post: Math.max(0, (post.likes_post || 0) - delta) }
+          postIdEquals(post.id, key)
+            ? { ...post, likes_post: Math.max(0, coerceLikeCount(post.likes_post) - delta) }
             : post
         )
       );
       setLikedPosts((prev) => {
         const next = new Set(prev);
-        if (currentlyLiked) next.add(postId);
-        else next.delete(postId);
+        if (currentlyLiked) next.add(key);
+        else next.delete(key);
         return next;
       });
     };
@@ -425,7 +431,7 @@ function CommunityFeedPage() {
     const method = currentlyLiked ? 'DELETE' : 'POST';
     const url =
       method === 'DELETE'
-        ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}`
+        ? `/api/community/post/like?post_id=${encodeURIComponent(key)}`
         : '/api/community/post/like';
 
     try {
@@ -437,7 +443,7 @@ function CommunityFeedPage() {
       const res = await fetch(url, {
         method,
         headers,
-        body: method === 'POST' ? JSON.stringify({ post_id: postId }) : undefined,
+        body: method === 'POST' ? JSON.stringify({ post_id: key }) : undefined,
         credentials: 'include',
       });
 
@@ -448,14 +454,25 @@ function CommunityFeedPage() {
         return;
       }
 
-      // Sync with server response for accurate count
-      const data = await res.json().catch(() => ({}));
-      if (typeof data.likes === 'number') {
+      // Sync with server response for accurate count (POST / DELETE / 409)
+      const data = (await res.json().catch(() => ({}))) as { likes?: unknown };
+      if (data.likes !== undefined && data.likes !== null) {
+        const likes = coerceLikeCount(data.likes);
         setVisiblePosts((prev) =>
           prev.map((post) =>
-            post.id === postId ? { ...post, likes_post: data.likes } : post
+            postIdEquals(post.id, key) ? { ...post, likes_post: likes } : post
           )
         );
+      }
+      if (res.status === 409 && method === 'POST') {
+        setLikedPosts((prev) => new Set(prev).add(key));
+      }
+      if (res.ok && method === 'DELETE') {
+        setLikedPosts((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
       }
     } catch (err) {
       revert();
@@ -464,40 +481,42 @@ function CommunityFeedPage() {
   };
 
   const toggleComments = async (postId: string) => {
+    const key = String(postId);
     setCommentsOpen((prev) => {
       const next = new Set(prev);
-      if (next.has(postId)) {
-        next.delete(postId);
+      if (next.has(key)) {
+        next.delete(key);
       } else {
-        next.add(postId);
+        next.add(key);
       }
       return next;
     });
 
-    if (!commentsByPost[postId] && !commentLoading[postId]) {
-      setCommentLoading((prev) => ({ ...prev, [postId]: true }));
+    if (!commentsByPost[key] && !commentLoading[key]) {
+      setCommentLoading((prev) => ({ ...prev, [key]: true }));
       try {
-        const params = new URLSearchParams({ postId });
+        const params = new URLSearchParams({ postId: key });
         if (currentUser.id) params.set('userId', currentUser.id);
         const res = await fetch(`/api/community/comments?${params.toString()}`);
         const data = await res.json();
-        setCommentsByPost((prev) => ({ ...prev, [postId]: data.comments || [] }));
+        setCommentsByPost((prev) => ({ ...prev, [key]: data.comments || [] }));
       } finally {
-        setCommentLoading((prev) => ({ ...prev, [postId]: false }));
+        setCommentLoading((prev) => ({ ...prev, [key]: false }));
       }
     }
   };
 
   const submitComment = async (postId: string) => {
     if (!requireLogin()) return;
-    const text = commentInputs[postId]?.trim();
+    const key = String(postId);
+    const text = commentInputs[key]?.trim();
     if (!text) return;
 
     const res = await fetch('/api/community/comments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        post_id: postId,
+        post_id: key,
         text,
         user_id: currentUser.id,
         username: currentUser.username,
@@ -510,12 +529,12 @@ function CommunityFeedPage() {
 
     setCommentsByPost((prev) => ({
       ...prev,
-      [postId]: [data.comment, ...(prev[postId] || [])],
+      [key]: [data.comment, ...(prev[key] || [])],
     }));
-    setCommentInputs((prev) => ({ ...prev, [postId]: '' }));
+    setCommentInputs((prev) => ({ ...prev, [key]: '' }));
     setVisiblePosts((prev) =>
       prev.map((post) => {
-        if (post.id !== postId) return post;
+        if (!postIdEquals(post.id, key)) return post;
         const currentCount = post.community_comments?.[0]?.count || 0;
         return { ...post, community_comments: [{ count: currentCount + 1 }] };
       })
@@ -525,16 +544,17 @@ function CommunityFeedPage() {
   const handleDeletePost = async (postId: string) => {
     if (!requireLogin()) return;
     if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) return;
-    setDeletingPost(postId);
+    const key = String(postId);
+    setDeletingPost(key);
     try {
       const { error } = await supabase
         .from('community_posts')
         .update({ deleted: true })
-        .eq('id', postId)
+        .eq('id', key)
         .eq('user_id', currentUser.id);
 
       if (error) throw error;
-      setVisiblePosts((prev) => prev.filter((p) => p.id !== postId));
+      setVisiblePosts((prev) => prev.filter((p) => !postIdEquals(p.id, key)));
     } catch (err) {
       console.error('Delete error:', err);
       alert('Failed to delete post');
@@ -768,10 +788,11 @@ function CommunityFeedPage() {
           </>
         )}
         {visiblePosts.map((post, index) => {
-          const liked = likedPosts.has(post.id);
+          const pid = String(post.id);
+          const liked = likedPosts.has(pid);
           const commentCount = post.community_comments?.[0]?.count || 0;
-          const isCommentsOpen = commentsOpen.has(post.id);
-          const comments = commentsByPost[post.id] || [];
+          const isCommentsOpen = commentsOpen.has(pid);
+          const comments = commentsByPost[pid] || [];
 
           return (
             <Fragment key={`${post.id}-${index}`}>
@@ -826,36 +847,53 @@ function CommunityFeedPage() {
               {/* Media: video (inline player) or image (thumbnail) */}
               {post.video ? (
                 <div className="mt-3 -mx-6 w-[calc(100%+3rem)] max-w-none">
-                  <FeedVideoPlayer src={post.video} square />
+                  <FeedVideoPlayer
+                    src={post.video}
+                    fullscreenActions={
+                      <PostActionsBar
+                        liked={liked}
+                        likesCount={coerceLikeCount(post.likes_post)}
+                        commentCount={commentCount}
+                        canLike={!!currentUser.id}
+                        onLike={() => handleLikePost(pid)}
+                        onComment={() => toggleComments(pid)}
+                        onShare={() => handleSharePost(pid)}
+                        postId={pid}
+                        postTitle={post.title}
+                        className="mt-0 justify-center"
+                        tone="darkVideo"
+                      />
+                    }
+                  />
                 </div>
               ) : post.image ? (
-                <Link href={`/community/post/${post.id}`} className="relative mt-3 block aspect-square w-[calc(100%+3rem)] max-w-none -mx-6 overflow-hidden">
+                <Link href={`/community/post/${post.id}`} className="relative mt-3 block w-[calc(100%+3rem)] max-w-none -mx-6 overflow-hidden">
                   <img
                     src={post.image}
                     alt="Post"
                     loading="lazy"
                     decoding="async"
-                    className="absolute inset-0 h-full w-full object-cover"
+                    className="mx-auto block h-auto max-h-[85vh] w-auto max-w-full object-contain"
                   />
                 </Link>
               ) : null}
 
               <PostActionsBar
                 liked={liked}
-                likesCount={post.likes_post || 0}
+                likesCount={coerceLikeCount(post.likes_post)}
                 commentCount={commentCount}
                 canLike={!!currentUser.id}
-                onLike={() => handleLikePost(post.id)}
-                onComment={() => toggleComments(post.id)}
-                onShare={() => handleSharePost(post.id)}
-                postId={post.id}
+                onLike={() => handleLikePost(pid)}
+                onComment={() => toggleComments(pid)}
+                onShare={() => handleSharePost(pid)}
+                postId={pid}
                 postTitle={post.title}
               />
               <div className="mt-2 flex items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-2">
                 <input
-                  value={commentInputs[post.id] || ''}
+                  value={commentInputs[pid] || ''}
                   onChange={(e) =>
-                    setCommentInputs((prev) => ({ ...prev, [post.id]: e.target.value }))
+                    setCommentInputs((prev) => ({ ...prev, [pid]: e.target.value }))
                   }
                   onFocus={() => {
                     if (!currentUser.id) requireLogin();
@@ -866,8 +904,8 @@ function CommunityFeedPage() {
                 />
                 <button
                   type="button"
-                  onClick={() => submitComment(post.id)}
-                  disabled={!currentUser.id || !commentInputs[post.id]?.trim()}
+                  onClick={() => submitComment(pid)}
+                  disabled={!currentUser.id || !commentInputs[pid]?.trim()}
                   aria-label="Post comment"
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-emerald-600 text-white shadow-sm transition hover:from-blue-500 hover:to-emerald-500 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:from-blue-500 dark:hover:to-emerald-500"
                 >
@@ -878,8 +916,8 @@ function CommunityFeedPage() {
               {currentUser.id && post.user_id === currentUser.id && (
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-3 text-sm">
                   <button
-                    onClick={() => handleDeletePost(post.id)}
-                    disabled={deletingPost === post.id}
+                    onClick={() => handleDeletePost(pid)}
+                    disabled={deletingPost === pid}
                     className="flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/40 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-300 transition hover:bg-red-200 dark:hover:bg-red-900/60 disabled:opacity-50"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -897,7 +935,7 @@ function CommunityFeedPage() {
 
               {isCommentsOpen && (
                 <div className="mt-4 border-t border-slate-100 dark:border-gray-600 pt-4">
-                  {commentLoading[post.id] ? (
+                  {commentLoading[pid] ? (
                     <p className="text-xs text-slate-500 dark:text-gray-400">Loading comments...</p>
                   ) : (
                     <div className="space-y-3">

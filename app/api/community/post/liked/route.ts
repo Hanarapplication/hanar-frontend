@@ -27,7 +27,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Failed to fetch liked posts' }, { status: 500 });
     }
 
-    const likedPostIds = (data || []).map((row) => row.post_id);
+    const likedPostIds = (data || []).map((row) => String((row as { post_id?: unknown }).post_id ?? '')).filter(Boolean);
     return NextResponse.json({ likedPostIds });
   } catch (err) {
     console.error('Liked posts API error:', err);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, useCallback, useEffect } from 'react';
+import { eventTargetToNearestElement } from '@/lib/eventTargetElement';
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void>;
@@ -22,12 +23,14 @@ export default function PullToRefresh({ onRefresh, children, className = '' }: P
   const THRESHOLD = 80;
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
-    const target = e.target as Element | null;
+    const target = eventTargetToNearestElement(e.target);
     if (target?.closest('[data-top-nav="true"]')) return;
+    /** Nested scroll regions (e.g. home Ask composer) — do not steal vertical scroll for pull-to-refresh */
+    if (target?.closest('[data-no-pull-refresh="true"]')) return;
     // Ignore normal taps/clicks on interactive elements (links, buttons, inputs, etc.)
     if (
       target?.closest(
-        'a,button,input,textarea,select,label,summary,[role="button"],[data-no-pull-refresh="true"]'
+        'a,button,input,textarea,select,label,summary,[contenteditable],[role="button"],[data-no-pull-refresh="true"]'
       )
     ) {
       return;

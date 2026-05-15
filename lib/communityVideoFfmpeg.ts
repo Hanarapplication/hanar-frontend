@@ -34,7 +34,7 @@ export type TranscodeClipOptions = {
 };
 
 /**
- * Trim + transcode to H.264/AAC MP4 for community upload (≤11s segment).
+ * Trim + transcode to H.264/AAC MP4 for community upload (segment length capped client-side).
  */
 export async function transcodeCommunityClip(
   ffmpeg: FFmpeg,

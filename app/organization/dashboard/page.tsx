@@ -7,6 +7,9 @@ import { DashboardInlineActions } from '@/components/DashboardInlineActions';
 import { Avatar } from '@/components/Avatar';
 import { supabase } from '@/lib/supabaseClient';
 import { compressImage } from '@/lib/imageCompression';
+import { removeCommentBranch } from '@/lib/communityCommentTree';
+import { coerceLikeCount } from '@/lib/coerceLikeCount';
+import { postIdEquals } from '@/lib/postIdEquals';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
@@ -633,7 +636,7 @@ function OrganizationDashboardContent() {
         const res = await fetch(`/api/community/post/liked?userId=${encodeURIComponent(profile.user_id)}`);
         const data = await res.json();
         if (res.ok && Array.isArray(data.likedPostIds)) {
-          setUserLikedPosts(new Set(data.likedPostIds));
+          setUserLikedPosts(new Set(data.likedPostIds.map((x: unknown) => String(x))));
         }
       } catch {
         setUserLikedPosts(new Set());
@@ -706,11 +709,15 @@ function OrganizationDashboardContent() {
         }
       }
 
-      const processedPosts: Post[] = postList.map((post: Post) => ({
-        ...post,
-        likes_post: likeCounts[post.id] ?? post.likes_post ?? 0,
-        user_liked: userLikedPosts.has(post.id)
-      }));
+      const processedPosts: Post[] = postList.map((post: Post) => {
+        const pid = String(post.id);
+        return {
+          ...post,
+          id: pid,
+          likes_post: likeCounts[pid] ?? post.likes_post ?? 0,
+          user_liked: userLikedPosts.has(pid),
+        };
+      });
 
       console.log('Processed posts:', processedPosts);
       setPosts(processedPosts);
@@ -1245,19 +1252,20 @@ function OrganizationDashboardContent() {
   const handleLikePost = async (postId: string, currentlyLiked: boolean) => {
     if (!profile) return;
 
+    const key = String(postId);
     const delta = currentlyLiked ? -1 : 1;
 
     // Optimistic update: show new count and liked state immediately
     const newLikedPosts = new Set(userLikedPosts);
-    if (currentlyLiked) newLikedPosts.delete(postId);
-    else newLikedPosts.add(postId);
+    if (currentlyLiked) newLikedPosts.delete(key);
+    else newLikedPosts.add(key);
     setUserLikedPosts(newLikedPosts);
     setPosts(prev =>
       prev.map(post =>
-        post.id === postId
+        postIdEquals(post.id, key)
           ? {
               ...post,
-              likes_post: Math.max(0, (post.likes_post || 0) + delta),
+              likes_post: Math.max(0, coerceLikeCount(post.likes_post) + delta),
               user_liked: !currentlyLiked,
             }
           : post
@@ -1268,7 +1276,7 @@ function OrganizationDashboardContent() {
       const method = currentlyLiked ? 'DELETE' : 'POST';
       const url =
         method === 'DELETE'
-          ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}`
+          ? `/api/community/post/like?post_id=${encodeURIComponent(key)}`
           : '/api/community/post/like';
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -1279,7 +1287,7 @@ function OrganizationDashboardContent() {
       const res = await fetch(url, {
         method,
         headers,
-        body: method === 'POST' ? JSON.stringify({ post_id: postId }) : undefined,
+        body: method === 'POST' ? JSON.stringify({ post_id: key }) : undefined,
         credentials: 'include',
       });
 
@@ -1288,11 +1296,56 @@ function OrganizationDashboardContent() {
         setUserLikedPosts(userLikedPosts);
         setPosts(prev =>
           prev.map(post =>
-            post.id === postId
-              ? { ...post, likes_post: Math.max(0, (post.likes_post || 0) - delta), user_liked: currentlyLiked }
+            postIdEquals(post.id, key)
+              ? { ...post, likes_post: Math.max(0, coerceLikeCount(post.likes_post) - delta), user_liked: currentlyLiked }
               : post
           )
         );
+        return;
+      }
+
+      const data = (await res.json().catch(() => ({}))) as { likes?: unknown };
+      if (data.likes !== undefined && data.likes !== null) {
+        const likes = coerceLikeCount(data.likes);
+        setPosts((prev) =>
+          prev.map((post) =>
+            postIdEquals(post.id, key)
+              ? {
+                  ...post,
+                  likes_post: likes,
+                  user_liked:
+                    res.ok && method === 'DELETE'
+                      ? false
+                      : (res.ok && method === 'POST') || (res.status === 409 && method === 'POST')
+                        ? true
+                        : post.user_liked,
+                }
+              : post
+          )
+        );
+      } else if (res.ok && method === 'DELETE') {
+        setPosts((prev) =>
+          prev.map((post) =>
+            postIdEquals(post.id, key) ? { ...post, user_liked: false } : post
+          )
+        );
+      } else if ((res.ok && method === 'POST') || (res.status === 409 && method === 'POST')) {
+        setPosts((prev) =>
+          prev.map((post) =>
+            postIdEquals(post.id, key) ? { ...post, user_liked: true } : post
+          )
+        );
+      }
+
+      if (res.status === 409 && method === 'POST') {
+        setUserLikedPosts((prev) => new Set(prev).add(key));
+      }
+      if (res.ok && method === 'DELETE') {
+        setUserLikedPosts((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
       }
     } catch (error) {
       console.error('Error toggling post like:', error);
@@ -1300,8 +1353,8 @@ function OrganizationDashboardContent() {
       setUserLikedPosts(userLikedPosts);
       setPosts(prev =>
         prev.map(post =>
-          post.id === postId
-            ? { ...post, likes_post: Math.max(0, (post.likes_post || 0) - delta), user_liked: currentlyLiked }
+          postIdEquals(post.id, key)
+            ? { ...post, likes_post: Math.max(0, coerceLikeCount(post.likes_post) - delta), user_liked: currentlyLiked }
             : post
         )
       );
@@ -1350,6 +1403,8 @@ function OrganizationDashboardContent() {
         body: method === 'POST' ? JSON.stringify({ comment_id: commentId, user_id: user.id }) : undefined,
       });
 
+      const data = await res.json().catch(() => ({} as { likes?: number }));
+
       if (!res.ok && res.status !== 409) {
         setComments(prev => ({
           ...prev,
@@ -1365,6 +1420,25 @@ function OrganizationDashboardContent() {
           )
         }));
         addNotification('Error updating comment like.', 'error');
+      } else {
+        if (typeof data.likes === 'number') {
+          setComments(prev => ({
+            ...prev,
+            [postId]: prev[postId].map(comment =>
+              comment.id === commentId
+                ? { ...comment, likes: data.likes, likes_comment: data.likes }
+                : comment
+            ),
+          }));
+        }
+        if (res.status === 409 && method === 'POST') {
+          setComments(prev => ({
+            ...prev,
+            [postId]: prev[postId].map(comment =>
+              comment.id === commentId ? { ...comment, user_liked: true } : comment
+            ),
+          }));
+        }
       }
     } catch (error) {
       console.error('Error toggling comment like:', error);
@@ -1386,21 +1460,20 @@ function OrganizationDashboardContent() {
         throw new Error('No authenticated user found');
       }
 
-      const { error } = await supabase
-        .from('community_comments')
-        .delete()
-        .eq('id', commentId)
-        .eq('user_id', user.id);
+      const res = await fetch('/api/community/comment/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment_id: commentId, user_id: user.id }),
+      });
+      const payload = await res.json().catch(() => ({}));
 
-      if (error) {
-        console.error('Error deleting comment:', error);
-        throw error;
+      if (!res.ok) {
+        throw new Error(typeof payload?.error === 'string' ? payload.error : 'Delete failed');
       }
 
-      // Remove the comment from the local state
-      setComments(prev => ({
+      setComments((prev) => ({
         ...prev,
-        [postId]: prev[postId].filter(comment => comment.id !== commentId)
+        [postId]: removeCommentBranch(prev[postId] || [], commentId),
       }));
 
       addNotification('Comment deleted successfully!', 'success');

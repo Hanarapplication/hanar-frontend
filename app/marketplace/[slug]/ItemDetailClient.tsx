@@ -138,6 +138,13 @@ export default function ItemDetailClient() {
   const relatedScrollRef = useRef<HTMLDivElement>(null);
   const pointerStartRef = useRef<{ x: number; index: number } | null>(null);
   const dragOffsetRef = useRef(0);
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      setViewerUserId(user?.id ?? null);
+    });
+  }, []);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -693,6 +700,16 @@ export default function ItemDetailClient() {
                 role="menu"
                 aria-hidden={!itemMenuOpen}
               >
+                {item.source === 'individual' && item.user_id && viewerUserId === item.user_id && (
+                  <Link
+                    href={`/marketplace/edit/${item.id}`}
+                    className="block px-3 py-2.5 text-sm text-slate-800 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700/80"
+                    role="menuitem"
+                    onClick={() => setItemMenuOpen(false)}
+                  >
+                    {t(effectiveLang, 'Edit')}
+                  </Link>
+                )}
                 {sellerProfileHref && (
                   <Link
                     href={sellerProfileHref}

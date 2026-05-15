@@ -15,6 +15,18 @@ const supabaseAdmin = createClient(SUPABASE_URL!, SERVICE_ROLE_KEY!, {
   auth: { persistSession: false },
 });
 
+/** Recompute total likes for `community_posts.likes_post` from `community_post_likes` rows. */
+async function syncPostDenormalizedLikeCount(post_id: string): Promise<number> {
+  const { data, error } = await supabaseAdmin.from('community_post_likes').select('id').eq('post_id', post_id);
+  if (error) {
+    console.error('[post/like] count likes', error.message);
+    return 0;
+  }
+  const n = (data ?? []).length;
+  await supabaseAdmin.from('community_posts').update({ likes_post: n }).eq('id', post_id);
+  return n;
+}
+
 export async function POST(req: Request) {
   try {
     const userId = await getAuthenticatedUserId(req);
@@ -47,7 +59,8 @@ export async function POST(req: Request) {
       .single();
 
     if (existing) {
-      return NextResponse.json({ error: 'Already liked' }, { status: 409 });
+      const likes = await syncPostDenormalizedLikeCount(post_id);
+      return NextResponse.json({ error: 'Already liked', likes }, { status: 409 });
     }
 
     // Insert new like
@@ -60,11 +73,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Failed to like post' }, { status: 500 });
     }
 
-    // Update like count on community_posts (direct update - no RPC needed)
-    const { data: post } = await supabaseAdmin.from('community_posts').select('likes_post').eq('id', post_id).single();
-    const currentCount = post?.likes_post ?? 0;
-    const newCount = currentCount + 1;
-    await supabaseAdmin.from('community_posts').update({ likes_post: newCount }).eq('id', post_id);
+    const likes = await syncPostDenormalizedLikeCount(post_id);
 
     // Notify post author when someone likes their post (skip self-like notifications)
     if (authorId && authorId !== userId) {
@@ -97,7 +106,7 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, likes: newCount }, { status: 200 });
+    return NextResponse.json({ success: true, likes }, { status: 200 });
   } catch (err) {
     console.error('Post like API error:', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
@@ -139,16 +148,9 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'Failed to unlike post' }, { status: 500 });
     }
 
-    // Decrement like count on community_posts
-    const { data: post } = await supabaseAdmin.from('community_posts').select('likes_post').eq('id', post_id).single();
-    const currentCount = post?.likes_post ?? 0;
-    const newCount = Math.max(0, currentCount - 1);
-    await supabaseAdmin
-      .from('community_posts')
-      .update({ likes_post: newCount })
-      .eq('id', post_id);
+    const likes = await syncPostDenormalizedLikeCount(post_id);
 
-    return NextResponse.json({ success: true, likes: newCount }, { status: 200 });
+    return NextResponse.json({ success: true, likes }, { status: 200 });
   } catch (err) {
     console.error('Post unlike API error:', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

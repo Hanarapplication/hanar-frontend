@@ -3,12 +3,13 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, MessageCircle, CircleUserRound, ShoppingCart, Store, UserRound } from 'lucide-react';
+import { ArrowLeft, Bell, MessageCircle, CircleUserRound, ShoppingCart, Store } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Avatar } from '@/components/Avatar';
 import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
+import NavbarEntitySearch from '@/components/NavbarEntitySearch';
 
 /** SVGs: explicit box, no flex shrink, `block` avoids sub-pixel baseline gaps in WebKit/Chrome. */
 const navLineIconClass = 'h-[1.7rem] w-[1.7rem] max-h-[1.7rem] max-w-[1.7rem] shrink-0 block';
@@ -29,7 +30,14 @@ type NavbarNotificationRow = {
   };
 };
 
-export default function Navbar({ hidden = false }: { hidden?: boolean }) {
+export default function Navbar({
+  hidden = false,
+  onHomeBottomBarDocked,
+}: {
+  hidden?: boolean;
+  /** When false, home feed main content can reduce bottom padding (tab bar scrolled off-screen). */
+  onHomeBottomBarDocked?: (docked: boolean) => void;
+}) {
   const router = useRouter();
   const pathname = usePathname() ?? '';
   /** e.g. /marketplace/individual-abc — not /marketplace, /post, or /edit/... */
@@ -44,6 +52,10 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       setNotificationsOpen(false);
     }
   }, [isMarketplaceItemDetailPage]);
+
+  useEffect(() => {
+    if (pathname !== '/') setNotificationsOpen(false);
+  }, [pathname]);
   const { effectiveLang } = useLanguage();
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
@@ -530,6 +542,10 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
     }
   }, [dashboardIdentity.loggedIn, dashboardIdentity.publicProfileHref, router]);
 
+  /** Home bottom bar: pink indicator under the active tab (matches Hanar wordmark). */
+  const bottomBarActiveMark =
+    "after:pointer-events-none after:absolute after:bottom-1 after:left-1/2 after:h-[3px] after:w-7 after:-translate-x-1/2 after:rounded-full after:bg-pink-600 after:content-[''] dark:after:bg-pink-400";
+
   const goToQuickAction = (href: string) => {
     setNotificationsOpen(false);
     router.push(href);
@@ -555,7 +571,7 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
       href: '/',
       icon: (isActive) => (
         <span
-          className={`shrink-0 text-[1.25rem] font-semibold leading-none tracking-normal lowercase text-[#1877F2] ${
+          className={`shrink-0 text-[1.25rem] font-semibold leading-none tracking-normal lowercase text-pink-600 dark:text-pink-400 ${
             isActive ? 'opacity-100' : 'opacity-80 hover:opacity-100'
           }`}
         >
@@ -621,26 +637,77 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
   ];
 
   const homeNav = primaryNavItems[0]!;
-  const midNavItems = primaryNavItems.slice(1, 3);
+  const marketplaceItem = primaryNavItems[1]!;
+  const businessesItem = primaryNavItems[2]!;
   const profileNav = primaryNavItems[3]!;
 
-  const profileIconHref = useMemo(() => {
-    const d = dashboardIdentity;
-    if (!d.loggedIn) return '/login?redirect=/dashboard';
-    if (d.publicProfileHref) return d.publicProfileHref;
-    if (d.accountKind === 'organization') return '/organization/dashboard';
-    if (d.accountKind === 'individual') return '/dashboard/account';
-    if (d.accountKind === 'business') return '/business-dashboard';
-    return '/login?redirect=/dashboard';
-  }, [dashboardIdentity]);
+  const isHomeFeedRoute = pathname === '/';
+  const isMarketplaceOrBusinessesRoute = useMemo(
+    () => pathname.startsWith('/marketplace') || pathname.startsWith('/businesses'),
+    [pathname],
+  );
 
-  const myPublicPageActive = useMemo(() => {
-    const href = dashboardIdentity.publicProfileHref;
-    if (!href || !dashboardIdentity.loggedIn) return false;
-    const path = (pathname || '').split('?')[0];
-    if (path === href) return true;
-    return path.startsWith(`${href}/`);
-  }, [dashboardIdentity.loggedIn, dashboardIdentity.publicProfileHref, pathname]);
+  const goBackSmart = useCallback(() => {
+    setNotificationsOpen(false);
+    if (typeof window === 'undefined') {
+      router.push('/');
+      return;
+    }
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/');
+    }
+  }, [router]);
+
+  /** Twitter-style: hide fixed bottom tab bar while scrolling down; show on scroll up / near top. */
+  const [homeBottomBarScrollHidden, setHomeBottomBarScrollHidden] = useState(false);
+  const lastScrollYRef = useRef(0);
+  const scrollTickingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isHomeFeedRoute || hidden) {
+      setHomeBottomBarScrollHidden(false);
+      return;
+    }
+    lastScrollYRef.current = typeof window !== 'undefined' ? window.scrollY : 0;
+
+    const onScrollFrame = () => {
+      scrollTickingRef.current = false;
+      const y = window.scrollY;
+      const last = lastScrollYRef.current;
+      const dy = y - last;
+      if (y < 72) {
+        setHomeBottomBarScrollHidden(false);
+      } else if (dy > 8) {
+        setHomeBottomBarScrollHidden(true);
+      } else if (dy < -8) {
+        setHomeBottomBarScrollHidden(false);
+      }
+      lastScrollYRef.current = y;
+    };
+
+    const onScroll = () => {
+      if (!scrollTickingRef.current) {
+        scrollTickingRef.current = true;
+        requestAnimationFrame(onScrollFrame);
+      }
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [isHomeFeedRoute, hidden]);
+
+  useEffect(() => {
+    if (!isHomeFeedRoute) {
+      onHomeBottomBarDocked?.(true);
+      return;
+    }
+    const docked = !hidden && !homeBottomBarScrollHidden;
+    onHomeBottomBarDocked?.(docked);
+  }, [isHomeFeedRoute, hidden, homeBottomBarScrollHidden, onHomeBottomBarDocked]);
+
+  const homeBottomBarOffScreen = hidden || homeBottomBarScrollHidden;
 
   return (
     <>
@@ -650,58 +717,88 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
           hidden ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
-        <div className="mx-auto flex h-14 min-h-14 max-w-[1920px] items-center gap-1 px-2 sm:gap-2 sm:px-3">
-          <div className="flex min-w-0 shrink-0 items-center gap-2">
-            <Link
-              href={homeNav.href}
-              aria-label={homeNav.label}
-              onClick={() => setNotificationsOpen(false)}
-              className="flex shrink-0 items-center rounded-md px-1.5 py-2 transition hover:bg-[#f2f2f2] dark:hover:bg-white/10"
-            >
-              {homeNav.icon(homeNav.isActive(pathname))}
-            </Link>
-            {midNavItems.map((item) => {
-              const isActive = item.isActive(pathname);
-              return (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  aria-label={item.label}
-                  onClick={() => setNotificationsOpen(false)}
-                  className={`${topNavIconBtn} ${isActive ? 'text-[#1877F2] dark:text-[#4599ff]' : ''}`}
-                >
-                  {item.icon(isActive)}
-                </Link>
-              );
-            })}
-          </div>
+        <div className="mx-auto flex h-14 min-h-14 max-w-[1920px] items-center gap-2 px-3 sm:gap-3 sm:px-4">
+          {isHomeFeedRoute ? (
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <Link
+                href={homeNav.href}
+                aria-label={homeNav.label}
+                onClick={() => setNotificationsOpen(false)}
+                className="flex shrink-0 items-center rounded-md px-1.5 py-2 transition hover:bg-[#f2f2f2] dark:hover:bg-white/10"
+              >
+                {homeNav.icon(homeNav.isActive(pathname))}
+              </Link>
+              <NavbarEntitySearch effectiveLang={effectiveLang} />
+              <Link
+                href={profileNav.href}
+                aria-label={t(effectiveLang, 'Dashboard')}
+                title={t(effectiveLang, 'Dashboard')}
+                onClick={() => setNotificationsOpen(false)}
+                className={`${topNavIconBtn} shrink-0 p-0.5 ${profileNav.isActive(pathname) ? 'ring-2 ring-[#1877F2] ring-offset-1 ring-offset-white dark:ring-offset-[#242526]' : ''}`}
+              >
+                {profileNav.icon(profileNav.isActive(pathname))}
+              </Link>
+            </div>
+          ) : isMarketplaceOrBusinessesRoute ? (
+            <div className="flex h-14 min-h-14 items-center">
+              <Link
+                href="/"
+                aria-label={t(effectiveLang, 'Back')}
+                title={t(effectiveLang, 'Home feed')}
+                onClick={() => setNotificationsOpen(false)}
+                className={topNavIconBtn}
+              >
+                <ArrowLeft className="h-6 w-6" strokeWidth={2} aria-hidden />
+              </Link>
+            </div>
+          ) : (
+            <div className="flex h-14 min-h-14 items-center">
+              <button
+                type="button"
+                aria-label={t(effectiveLang, 'Back')}
+                title={t(effectiveLang, 'Back')}
+                onClick={goBackSmart}
+                className={topNavIconBtn}
+              >
+                <ArrowLeft className="h-6 w-6" strokeWidth={2} aria-hidden />
+              </button>
+            </div>
+          )}
+        </div>
+      </nav>
 
-          <div className="flex min-w-0 flex-1 items-center justify-center gap-1 px-1 sm:gap-2 sm:px-2">
+      {isHomeFeedRoute ? (
+        <nav
+          aria-label="Home feed quick actions"
+          className={`fixed bottom-0 left-0 right-0 z-[115] border-t border-[#e4e6eb] bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-1px_2px_rgba(0,0,0,0.06)] dark:border-[#3e4042] dark:bg-[#242526] dark:shadow-[0_-1px_0_rgba(0,0,0,0.35)] ${
+            hidden
+              ? 'translate-y-full opacity-0 pointer-events-none transition-all duration-200'
+              : homeBottomBarScrollHidden
+                ? 'translate-y-full pointer-events-none transition-transform duration-300 [transition-timing-function:cubic-bezier(0.4,0,0.2,1)]'
+                : 'translate-y-0 transition-transform duration-300 [transition-timing-function:cubic-bezier(0.4,0,0.2,1)]'
+          }`}
+        >
+          <div className="mx-auto flex h-14 min-h-14 max-w-[1920px] items-center justify-center gap-9 px-4 sm:justify-evenly sm:gap-6 sm:px-6">
             <Link
-              href={profileNav.href}
-              aria-label={t(effectiveLang, 'Dashboard')}
-              title={t(effectiveLang, 'Dashboard')}
+              href={businessesItem.href}
+              aria-label={businessesItem.label}
               onClick={() => setNotificationsOpen(false)}
-              className={`${topNavIconBtn} p-0.5 ${profileNav.isActive(pathname) ? 'ring-2 ring-[#1877F2] ring-offset-1 ring-offset-white dark:ring-offset-[#242526]' : ''}`}
+              className={`${topNavIconBtn} ${businessesItem.isActive(pathname) ? `${bottomBarActiveMark} text-[#1877F2] dark:text-[#4599ff]` : ''}`}
             >
-              {profileNav.icon(profileNav.isActive(pathname))}
+              {businessesItem.icon(businessesItem.isActive(pathname))}
             </Link>
             <Link
-              href={profileIconHref}
+              href={marketplaceItem.href}
+              aria-label={marketplaceItem.label}
               onClick={() => setNotificationsOpen(false)}
-              className={`${topNavIconBtn} ${myPublicPageActive ? 'text-[#1877F2] dark:text-[#4599ff]' : ''}`}
-              aria-label={t(effectiveLang, 'Profile')}
-              title={t(effectiveLang, 'Profile')}
+              className={`${topNavIconBtn} ${marketplaceItem.isActive(pathname) ? `${bottomBarActiveMark} text-[#1877F2] dark:text-[#4599ff]` : ''}`}
             >
-              <UserRound className="h-7 w-7" strokeWidth={2} aria-hidden />
+              {marketplaceItem.icon(marketplaceItem.isActive(pathname))}
             </Link>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={() => goToQuickAction('/messages?view=inbox')}
-              className={topNavIconBtn}
+              className={`${topNavIconBtn} ${pathname.startsWith('/messages') ? `${bottomBarActiveMark} text-[#1877F2] dark:text-[#4599ff]` : ''}`}
               aria-label="Go to messages"
               title="Messages"
             >
@@ -712,12 +809,11 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
                 </span>
               ) : null}
             </button>
-
             <button
               ref={notificationsBellRef}
               type="button"
               onClick={toggleNotifications}
-              className={topNavIconBtn}
+              className={`${topNavIconBtn} ${notificationsOpen ? `${bottomBarActiveMark} text-[#1877F2] dark:text-[#4599ff]` : ''}`}
               aria-label="Open notifications"
               title="Notifications"
               aria-expanded={notificationsOpen}
@@ -731,19 +827,27 @@ export default function Navbar({ hidden = false }: { hidden?: boolean }) {
               ) : null}
             </button>
           </div>
-        </div>
-      </nav>
+        </nav>
+      ) : null}
 
       <div
         ref={notificationsPanelRef}
         role="dialog"
         aria-label="Notifications"
         aria-hidden={!notificationsOpen}
-        className={`fixed right-2 z-[125] w-[min(19rem,calc(100vw-1rem))] origin-top-right rounded-xl border border-[#e4e6eb] bg-white shadow-2xl transition-all duration-200 dark:border-[#3e4042] dark:bg-[#242526] sm:right-3 ${
-          notificationsOpen
-            ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
-            : 'pointer-events-none -translate-y-2 scale-95 opacity-0'
-        } top-[calc(env(safe-area-inset-top,0px)+3.5rem+2px)]`}
+        className={`fixed right-2 z-[125] w-[min(19rem,calc(100vw-1rem))] rounded-xl border border-[#e4e6eb] bg-white shadow-2xl transition-all duration-200 dark:border-[#3e4042] dark:bg-[#242526] sm:right-3 ${
+          isHomeFeedRoute
+            ? `origin-bottom-right ${notificationsOpen ? 'pointer-events-auto translate-y-0 scale-100 opacity-100' : 'pointer-events-none translate-y-2 scale-95 opacity-0'} ${
+                homeBottomBarOffScreen
+                  ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+10px)]'
+                  : 'bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px)+6px)]'
+              }`
+            : `origin-top-right top-[calc(env(safe-area-inset-top,0px)+3.5rem+2px)] ${
+                notificationsOpen
+                  ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+                  : 'pointer-events-none -translate-y-2 scale-95 opacity-0'
+              }`
+        }`}
       >
         <div className="flex items-center justify-between border-b border-[#e4e6eb] px-2.5 py-2 dark:border-[#3e4042]">
           <p className="text-sm font-semibold text-[#050505] dark:text-[#e4e6eb]">Notifications</p>

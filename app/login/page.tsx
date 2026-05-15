@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
@@ -12,6 +12,15 @@ import {
   redirectToHanarAppWithSession,
 } from '@/lib/hanarAppAuthRedirect';
 
+/** Same-origin path only — blocks `//evil.com` open redirects */
+function safeInternalRedirectPath(raw: string | null): string | null {
+  if (!raw || typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//')) return null;
+  if (trimmed.includes('://')) return null;
+  return trimmed;
+}
+
 export default function LoginPage() {
   const { effectiveLang } = useLanguage();
   const [email, setEmail] = useState('');
@@ -19,6 +28,7 @@ export default function LoginPage() {
   const [clicked, setClicked] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const redirectIfLoggedIn = async () => {
@@ -30,6 +40,11 @@ export default function LoginPage() {
       }
       if (typeof window !== 'undefined' && session && hasHanarAppLoginIntent()) {
         redirectToHanarAppWithSession(session);
+        return;
+      }
+      const next = safeInternalRedirectPath(searchParams.get('redirect'));
+      if (next) {
+        router.replace(next);
         return;
       }
       const { data: profile } = await supabase
@@ -48,7 +63,7 @@ export default function LoginPage() {
       router.replace('/dashboard');
     };
     redirectIfLoggedIn();
-  }, [router]);
+  }, [router, searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

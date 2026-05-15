@@ -6,17 +6,16 @@ import { supabase } from '@/lib/supabaseClient';
 import { useLanguage } from '@/context/LanguageContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { EditorContent, useEditor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
 import { compressImage } from '@/lib/imageCompression';
 import CommunityVideoStudio from '@/components/CommunityVideoStudio';
+import { COMMUNITY_VIDEO_MAX_SEGMENT_SEC } from '@/lib/communityVideoLimits';
 import { getCommunityImagesPublicUrl, uploadToCommunityImagesBucket } from '@/lib/supabaseStorageUpload';
 import { FaEye, FaEdit } from 'react-icons/fa';
-import { Bold, Image as ImageMediaIcon, Italic, Loader2, Underline as UnderlineIcon, Tag, X } from 'lucide-react';
+import { Image as ImageMediaIcon, Loader2, Tag, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { t } from '@/utils/translations';
 import { supportedLanguages } from '@/utils/languages';
+import toast from 'react-hot-toast';
 
 /** Client-side language hint from device locale; server confirms using post text. */
 function postLanguageCodeForApi(): string {
@@ -25,7 +24,6 @@ function postLanguageCodeForApi(): string {
   if (!raw || raw === 'auto') return 'en';
   return supportedLanguages.some((l) => l.code === raw && l.code !== 'auto') ? raw : 'en';
 }
-import toast from 'react-hot-toast';
 
 export type CreateCommunityPostEmbed = 'modal' | 'inline';
 
@@ -57,6 +55,7 @@ export default function CreateCommunityPostClient({
   const [tags, setTags] = useState('');
   const [tagsExpanded, setTagsExpanded] = useState(false);
   const tagsInlineInputRef = useRef<HTMLInputElement | null>(null);
+  const [postBody, setPostBody] = useState('');
   const [preview, setPreview] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [charLimitToast, setCharLimitToast] = useState(false);
@@ -99,20 +98,6 @@ export default function CreateCommunityPostClient({
       return () => cancelAnimationFrame(id);
     }
   }, [tagsExpanded]);
-
-  const editor = useEditor({
-    extensions: [StarterKit, Underline],
-    content: '',
-    autofocus: embed !== 'inline',
-    editable: true,
-    onUpdate: ({ editor }) => {
-      const textLength = editor.getText().trim().length;
-      if (textLength > 500) {
-        setCharLimitToast(true);
-        setTimeout(() => setCharLimitToast(false), 3000);
-      }
-    },
-  });
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -246,7 +231,7 @@ export default function CreateCommunityPostClient({
     setVideoReading(true);
     try {
       const duration = await getVideoDuration(file);
-      const overDuration = duration > 11;
+      const overDuration = duration > COMMUNITY_VIDEO_MAX_SEGMENT_SEC;
       const overSize = file.size > 50 * 1024 * 1024;
 
       if (overDuration || overSize) {
@@ -315,12 +300,12 @@ export default function CreateCommunityPostClient({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editor || !userId) {
+    if (!userId) {
       alert('User not authenticated');
       return;
     }
 
-    const plainText = editor.getText().trim();
+    const plainText = postBody.trim();
 
     if (!plainText) {
       setEmptyFieldsToast(true);
@@ -537,7 +522,7 @@ export default function CreateCommunityPostClient({
       {/* Continue the form with more t(effectiveLang, '...') where needed */}
 
 
-            {preview && editor ? (
+            {preview ? (
               <div className={compact ? 'space-y-2.5' : 'space-y-5'}>
                 <p className={cn('text-xs text-slate-500', compact ? 'mt-0.5' : 'mt-1')}>
                   {t(effectiveLang, 'Posted as')}:{' '}
@@ -553,7 +538,9 @@ export default function CreateCommunityPostClient({
                 {imageUrl && !videoPreviewUrl && (
                   <img src={imageUrl} alt="Preview" className="max-h-72 w-full rounded-xl object-cover" />
                 )}
-                <div className="prose prose-sm max-w-none text-slate-700" dangerouslySetInnerHTML={{ __html: editor.getHTML() }} />
+                <p className="whitespace-pre-wrap text-base leading-7 text-slate-800 dark:text-gray-100">
+                  {postBody}
+                </p>
                 {tags && (
                   <div className="flex flex-wrap gap-2">
                     {tags.split(',').map((tag, i) => (
@@ -565,9 +552,13 @@ export default function CreateCommunityPostClient({
                 )}
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className={compact ? 'space-y-2.5' : 'space-y-6'}>
+              <form
+                onSubmit={handleSubmit}
+                className={cn(compact ? 'space-y-2.5 pb-2' : 'space-y-6')}
+              >
                 <div>
                   <label
+                    htmlFor="post-body"
                     className={cn(
                       'block font-medium text-slate-700',
                       compact ? 'text-xs' : 'text-sm'
@@ -575,69 +566,37 @@ export default function CreateCommunityPostClient({
                   >
                     {t(effectiveLang, 'Content')}
                   </label>
+                  <input
+                    ref={mediaInputRef}
+                    id="post-media-upload"
+                    type="file"
+                    accept="image/*,video/*"
+                    className="hidden"
+                    onChange={handleMediaChange}
+                    disabled={videoReading || videoUploading || !!videoStudioFile}
+                  />
+                  <textarea
+                    id="post-body"
+                    name="post-body"
+                    value={postBody}
+                    onChange={(e) => setPostBody(e.target.value)}
+                    maxLength={500}
+                    rows={compact ? 5 : 7}
+                    dir={getDirection()}
+                    className={cn(
+                      'mt-1.5 block w-full resize-y rounded-xl text-slate-900 shadow-sm dark:text-slate-100',
+                      compact
+                        ? 'min-h-[7.5rem] border-2 border-slate-300 bg-slate-50 px-3 py-2.5 text-sm leading-relaxed placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 dark:border-slate-500 dark:bg-slate-950/60 dark:placeholder:text-slate-500'
+                        : 'form-textarea min-h-[140px] border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900/30 text-base'
+                    )}
+                    autoComplete="off"
+                  />
                   <div
                     className={cn(
-                      'mt-1.5 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-900/30',
-                      compact ? 'p-2' : 'p-3'
+                      'mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-2 dark:border-slate-700',
+                      compact && 'mt-1.5 pt-1.5'
                     )}
                   >
-                    <input
-                      ref={mediaInputRef}
-                      id="post-media-upload"
-                      type="file"
-                      accept="image/*,video/*"
-                      className="hidden"
-                      onChange={handleMediaChange}
-                      disabled={videoReading || videoUploading || !!videoStudioFile}
-                    />
-                    <div className={cn('flex items-center gap-1.5', compact ? 'mb-1.5' : 'mb-3')}>
-                      <button
-                        type="button"
-                        onClick={() => editor?.chain().focus().toggleBold().run()}
-                        className={cn(
-                          "rounded-md px-2 py-1 text-slate-600 hover:bg-slate-100",
-                          editor?.isActive('bold') && 'bg-slate-100 text-slate-900'
-                        )}
-                      >
-                        <Bold size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => editor?.chain().focus().toggleItalic().run()}
-                        className={cn(
-                          "rounded-md px-2 py-1 text-slate-600 hover:bg-slate-100",
-                          editor?.isActive('italic') && 'bg-slate-100 text-slate-900'
-                        )}
-                      >
-                        <Italic size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => (editor?.chain() as any).focus().toggleUnderline().run()}
-                        className={cn(
-                          "rounded-md px-2 py-1 text-slate-600 hover:bg-slate-100",
-                          editor?.isActive('underline') && 'bg-slate-100 text-slate-900'
-                        )}
-                      >
-                        <UnderlineIcon size={16} />
-                      </button>
-                    </div>
-                    <div
-                      className="form-textarea"
-                      style={{ direction: getDirection() }}
-                      onClick={() => editor?.chain().focus()}
-                    >
-                      <EditorContent
-                        editor={editor}
-                        className={cn('tiptap-editor', compact ? 'min-h-[88px]' : 'min-h-[120px]')}
-                      />
-                    </div>
-                    <div
-                      className={cn(
-                        'flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-700',
-                        compact ? 'mt-1.5 pt-1.5' : 'mt-2 pt-2'
-                      )}
-                    >
                       <div className="flex min-w-0 flex-1 items-center gap-2">
                         <label
                           htmlFor="post-media-upload"
@@ -685,7 +644,7 @@ export default function CreateCommunityPostClient({
                         )}
                       </div>
                       <div className="shrink-0 text-right text-xs text-slate-500 dark:text-slate-400">
-                        {editor?.getText().length || 0}/500 {t(effectiveLang, 'characters')}
+                        {postBody.length}/500 {t(effectiveLang, 'characters')}
                       </div>
                     </div>
                     {tagsExpanded && (
@@ -716,7 +675,6 @@ export default function CreateCommunityPostClient({
                         </p>
                       </div>
                     )}
-                  </div>
 
                   {videoStudioFile && (
                     <div className={compact ? 'mt-2' : 'mt-3'}>
@@ -840,7 +798,7 @@ export default function CreateCommunityPostClient({
                             )}
                             {videoDuration !== null && (
                               <span className="rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white">
-                                {videoDuration}s / 11s
+                                {videoDuration}s / {COMMUNITY_VIDEO_MAX_SEGMENT_SEC}s
                               </span>
                             )}
                           </div>
@@ -862,7 +820,6 @@ export default function CreateCommunityPostClient({
                 </div>
 
                 <div>
-                  <div>
                   <label
                     className={cn(
                       'block font-medium text-slate-700',
@@ -882,7 +839,6 @@ export default function CreateCommunityPostClient({
                       </option>
                     ))}
                   </select>
-                </div>
 
                 {postAs === 'personal' && (
                   <div>
@@ -935,7 +891,11 @@ export default function CreateCommunityPostClient({
 
                 <button
                   type="submit"
-                  className="btn-primary w-full"
+                  id="post-to-community-submit"
+                  className={cn(
+                    'btn-primary w-full scroll-mt-2 scroll-mb-6',
+                    compact ? 'mb-3' : 'mb-1'
+                  )}
                 >
                   {t(effectiveLang, 'Post to Community')}
                 </button>
@@ -1010,15 +970,6 @@ export default function CreateCommunityPostClient({
           .btn-primary:disabled {
             background-color: #a5b4fc;
             cursor: not-allowed;
-          }
-          .tiptap-editor .ProseMirror {
-            outline: none;
-            min-height: 120px;
-            color: #0f172a;
-            caret-color: #0f172a;
-          }
-          .tiptap-editor .ProseMirror p {
-            margin: 0;
           }
         `}</style>
     </div>

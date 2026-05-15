@@ -1,7 +1,9 @@
-// Returns like counts from community_post_likes for given post IDs
+// Returns like counts from community_post_likes for given post IDs,
+// and active (non-deleted) comment counts per post.
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getActiveCommentCountsByPostId, getLikeCountsByPostId } from '@/lib/communityActiveCommentCounts';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,26 +19,15 @@ export async function GET(req: Request) {
     }
     const postIds = postIdsParam.split(',').filter(Boolean);
     if (postIds.length === 0) {
-      return NextResponse.json({ counts: {} });
+      return NextResponse.json({ counts: {}, commentCounts: {} });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('community_post_likes')
-      .select('post_id')
-      .in('post_id', postIds);
+    const [counts, commentCounts] = await Promise.all([
+      getLikeCountsByPostId(supabaseAdmin, postIds),
+      getActiveCommentCountsByPostId(supabaseAdmin, postIds),
+    ]);
 
-    if (error) {
-      console.error('Counts fetch error:', error.message);
-      return NextResponse.json({ error: 'Failed to fetch counts' }, { status: 500 });
-    }
-
-    const counts: Record<string, number> = {};
-    postIds.forEach((id) => (counts[id] = 0));
-    (data || []).forEach((row) => {
-      counts[row.post_id] = (counts[row.post_id] ?? 0) + 1;
-    });
-
-    return NextResponse.json({ counts });
+    return NextResponse.json({ counts, commentCounts });
   } catch (err) {
     console.error('Counts API error:', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

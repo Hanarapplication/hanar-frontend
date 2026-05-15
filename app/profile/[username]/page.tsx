@@ -9,6 +9,9 @@ import { User, Trash2, X, ShoppingBag, Building2, Ban, SendHorizontal } from 'lu
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import { Avatar } from '@/components/Avatar';
+import { removeCommentBranch } from '@/lib/communityCommentTree';
+import { coerceLikeCount } from '@/lib/coerceLikeCount';
+import { postIdEquals } from '@/lib/postIdEquals';
 
 type ProfileListing = {
   id: string;
@@ -48,6 +51,7 @@ type Comment = {
   likes?: number;
   user_liked?: boolean;
   author_type?: string;
+  parent_id?: string | null;
   profiles?: { profile_pic_url: string | null } | null;
 };
 
@@ -141,7 +145,7 @@ export default function ProfilePage() {
         const res = await fetch(`/api/community/post/liked?userId=${encodeURIComponent(user.id)}`);
         const data = await res.json();
         if (res.ok && Array.isArray(data.likedPostIds)) {
-          setLikedPosts(new Set(data.likedPostIds));
+          setLikedPosts(new Set(data.likedPostIds.map((x: unknown) => String(x))));
         }
       } catch {
         setLikedPosts(new Set());
@@ -585,23 +589,24 @@ export default function ProfilePage() {
       window.location.href = `/login?redirect=${encodeURIComponent(`/profile/${usernameParam}`)}`;
       return;
     }
-    const currentlyLiked = likedPosts.has(postId);
+    const key = String(postId);
+    const currentlyLiked = likedPosts.has(key);
     const delta = currentlyLiked ? -1 : 1;
     setPosts((prev) =>
       prev.map((p) =>
-        p.id === postId ? { ...p, likes_post: Math.max(0, (p.likes_post || 0) + delta) } : p
+        postIdEquals(p.id, key) ? { ...p, likes_post: Math.max(0, coerceLikeCount(p.likes_post) + delta) } : p
       )
     );
     setLikedPosts((prev) => {
       const next = new Set(prev);
-      if (currentlyLiked) next.delete(postId);
-      else next.add(postId);
+      if (currentlyLiked) next.delete(key);
+      else next.add(key);
       return next;
     });
     const method = currentlyLiked ? 'DELETE' : 'POST';
     const url =
       method === 'DELETE'
-        ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}`
+        ? `/api/community/post/like?post_id=${encodeURIComponent(key)}`
         : '/api/community/post/like';
     const { data: { session } } = await supabase.auth.getSession();
     const headers: Record<string, string> = {};
@@ -610,19 +615,37 @@ export default function ProfilePage() {
     const res = await fetch(url, {
       method,
       headers,
-      body: method === 'POST' ? JSON.stringify({ post_id: postId }) : undefined,
+      body: method === 'POST' ? JSON.stringify({ post_id: key }) : undefined,
       credentials: 'include',
     });
+    const data = (await res.json().catch(() => ({}))) as { likes?: unknown };
     if (!res.ok && res.status !== 409) {
       setPosts((prev) =>
         prev.map((p) =>
-          p.id === postId ? { ...p, likes_post: Math.max(0, (p.likes_post || 0) - delta) } : p
+          postIdEquals(p.id, key) ? { ...p, likes_post: Math.max(0, coerceLikeCount(p.likes_post) - delta) } : p
         )
       );
       setLikedPosts((prev) => {
         const next = new Set(prev);
-        if (currentlyLiked) next.add(postId);
-        else next.delete(postId);
+        if (currentlyLiked) next.add(key);
+        else next.delete(key);
+        return next;
+      });
+      return;
+    }
+    if (data.likes !== undefined && data.likes !== null) {
+      const likes = coerceLikeCount(data.likes);
+      setPosts((prev) =>
+        prev.map((p) => (postIdEquals(p.id, key) ? { ...p, likes_post: likes } : p))
+      );
+    }
+    if (res.status === 409 && method === 'POST') {
+      setLikedPosts((prev) => new Set(prev).add(key));
+    }
+    if (res.ok && method === 'DELETE') {
+      setLikedPosts((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
         return next;
       });
     }
@@ -658,6 +681,8 @@ export default function ProfilePage() {
       headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
       body: method === 'POST' ? JSON.stringify({ comment_id: commentId, user_id: currentUser.id }) : undefined,
     });
+    const data = await res.json().catch(() => ({} as { likes?: number }));
+
     if (!res.ok && res.status !== 409) {
       setCommentsByPost((prev) => ({
         ...prev,
@@ -671,6 +696,59 @@ export default function ProfilePage() {
               }
             : c
         ),
+      }));
+      return;
+    }
+
+    const nextLiked =
+      res.status === 409 && method === 'POST' ? true : method === 'POST' ? true : false;
+    setCommentsByPost((prev) => ({
+      ...prev,
+      [postId]: (prev[postId] || []).map((c) =>
+        c.id === commentId
+          ? {
+              ...c,
+              user_liked: nextLiked,
+              ...(typeof data.likes === 'number' ? { likes: data.likes, likes_comment: data.likes } : {}),
+            }
+          : c
+      ),
+    }));
+  };
+
+  const handleDeleteComment = async (postId: string, commentId: string) => {
+    if (!currentUser?.id) return;
+    if (!confirm('Delete this comment?')) return;
+
+    const before = commentsByPost[postId] || [];
+    const after = removeCommentBranch(before, commentId);
+    const removedLocal = before.length - after.length;
+    const countBefore = commentCounts[postId] || 0;
+
+    setCommentsByPost((prev) => ({ ...prev, [postId]: after }));
+    setCommentCounts((prev) => ({
+      ...prev,
+      [postId]: Math.max(0, countBefore - removedLocal),
+    }));
+
+    const res = await fetch('/api/community/comment/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comment_id: commentId, user_id: currentUser.id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(typeof data?.error === 'string' ? data.error : 'Could not delete comment');
+      setCommentsByPost((prev) => ({ ...prev, [postId]: before }));
+      setCommentCounts((prev) => ({ ...prev, [postId]: countBefore }));
+      return;
+    }
+    const serverRemoved = typeof data.removed === 'number' ? data.removed : removedLocal;
+    if (serverRemoved !== removedLocal) {
+      const drift = serverRemoved - removedLocal;
+      setCommentCounts((prev) => ({
+        ...prev,
+        [postId]: Math.max(0, (prev[postId] || 0) - drift),
       }));
     }
   };
@@ -697,6 +775,29 @@ export default function ProfilePage() {
 
   const handleAddComment = async (postId: string) => {
     if (!currentUser || !commentInput[postId]?.trim()) return;
+    const text = commentInput[postId].trim();
+    const tempId = `pending-${Date.now()}`;
+    const optimistic: Comment = {
+      id: tempId,
+      post_id: postId,
+      user_id: currentUser.id,
+      username: currentUser.username || '',
+      author: currentUser.displayName || currentUser.username || 'User',
+      body: text,
+      text,
+      created_at: new Date().toISOString(),
+      likes: 0,
+      likes_comment: 0,
+      user_liked: false,
+      parent_id: null,
+    };
+
+    setCommentInput((prev) => ({ ...prev, [postId]: '' }));
+    setCommentsByPost((prev) => ({
+      ...prev,
+      [postId]: [optimistic, ...(prev[postId] || [])],
+    }));
+    setCommentCounts((prev) => ({ ...prev, [postId]: (prev[postId] || 0) + 1 }));
     setPostingComment((prev) => ({ ...prev, [postId]: true }));
 
     try {
@@ -705,7 +806,7 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           post_id: postId,
-          text: commentInput[postId].trim(),
+          text,
           user_id: currentUser.id,
           username: currentUser.username,
           author: currentUser.displayName || currentUser.username || 'User',
@@ -715,10 +816,18 @@ export default function ProfilePage() {
       if (res.ok && result.comment) {
         setCommentsByPost((prev) => ({
           ...prev,
-          [postId]: [result.comment, ...(prev[postId] || [])],
+          [postId]: (prev[postId] || []).map((c) => (c.id === tempId ? result.comment : c)),
         }));
-        setCommentCounts((prev) => ({ ...prev, [postId]: (prev[postId] || 0) + 1 }));
-        setCommentInput((prev) => ({ ...prev, [postId]: '' }));
+      } else {
+        setCommentInput((prev) => ({ ...prev, [postId]: text }));
+        setCommentsByPost((prev) => ({
+          ...prev,
+          [postId]: (prev[postId] || []).filter((c) => c.id !== tempId),
+        }));
+        setCommentCounts((prev) => ({
+          ...prev,
+          [postId]: Math.max(0, (prev[postId] || 0) - 1),
+        }));
       }
     } finally {
       setPostingComment((prev) => ({ ...prev, [postId]: false }));
@@ -793,7 +902,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gray-900">
       <div className="mx-auto max-w-2xl border-x border-slate-200 dark:border-gray-800 bg-white dark:bg-gray-900 min-h-screen">
-        <div className="px-4 pt-6 pb-6 flex gap-4 sm:gap-6 items-start">
+        <div className="px-4 pt-0 pb-6 flex gap-4 sm:gap-6 items-start">
           {/* Avatar */}
           <div className="h-24 w-24 sm:h-28 sm:w-28 shrink-0 overflow-hidden rounded-full border-2 border-[#c41e56]/90 bg-slate-200 shadow-lg dark:border-[#e85085]/65 dark:bg-gray-700">
             <Avatar
@@ -952,11 +1061,32 @@ export default function ProfilePage() {
                   </div>
                   {post.video ? (
                     <div className="mt-3 overflow-hidden rounded-xl">
-                      <FeedVideoPlayer src={post.video} />
+                      <FeedVideoPlayer
+                        src={post.video}
+                        fullscreenActions={
+                          <PostActionsBar
+                            liked={likedPosts.has(String(post.id))}
+                            likesCount={post.likes_post ?? 0}
+                            commentCount={commentCounts[post.id] ?? 0}
+                            canLike={!!currentUser?.id}
+                            onLike={() => handleLikePost(post.id)}
+                            onComment={() => toggleComments(post.id)}
+                            onShare={() => handleShare(post.id, post.title)}
+                            postId={post.id}
+                            postTitle={post.title}
+                            className="mt-0 justify-center"
+                            tone="darkVideo"
+                          />
+                        }
+                      />
                     </div>
                   ) : post.image ? (
                     <div className="mt-3 overflow-hidden rounded-xl">
-                      <img src={post.image} alt="" className="block w-full h-auto max-h-[85vh] object-contain" />
+                      <img
+                        src={post.image}
+                        alt=""
+                        className="mx-auto block h-auto max-h-[85vh] w-auto max-w-full object-contain"
+                      />
                     </div>
                   ) : null}
                   <p className="mt-2 text-sm text-slate-600 dark:text-gray-300 whitespace-pre-wrap">{post.body}</p>
@@ -978,7 +1108,7 @@ export default function ProfilePage() {
                     </Link>
                   </div>
                   <PostActionsBar
-                    liked={likedPosts.has(post.id)}
+                    liked={likedPosts.has(String(post.id))}
                     likesCount={post.likes_post ?? 0}
                     commentCount={commentCounts[post.id] ?? 0}
                     canLike={!!currentUser?.id}
@@ -1039,28 +1169,40 @@ export default function ProfilePage() {
                                     </Link>
                                   </p>
                                   <p className="text-sm text-slate-600 dark:text-gray-300">{c.body ?? c.text}</p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    {currentUser?.id && (
+                                  <div className="mt-1 flex w-full items-center gap-2">
+                                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                                      {currentUser?.id && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleCommentLike(post.id, c.id)}
+                                          aria-label={c.user_liked ? 'Unlike comment' : 'Like comment'}
+                                          aria-pressed={!!c.user_liked}
+                                          className={`inline-flex items-center gap-1 text-xs font-medium transition ${
+                                            c.user_liked ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-gray-500 hover:text-rose-500 dark:hover:text-rose-400'
+                                          }`}
+                                        >
+                                          <span aria-hidden>👍</span>
+                                          <span className="tabular-nums text-slate-500 dark:text-gray-400">
+                                            {c.likes ?? c.likes_comment ?? 0}
+                                          </span>
+                                        </button>
+                                      )}
+                                      {!currentUser?.id && (
+                                        <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-gray-500">
+                                          <span aria-hidden>👍</span>
+                                          <span className="tabular-nums">{c.likes ?? c.likes_comment ?? 0}</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                    {currentUser?.id && c.user_id === currentUser.id && (
                                       <button
                                         type="button"
-                                        onClick={() => handleCommentLike(post.id, c.id)}
-                                        aria-label={c.user_liked ? 'Unlike comment' : 'Like comment'}
-                                        aria-pressed={!!c.user_liked}
-                                        className={`inline-flex items-center gap-1 text-xs font-medium transition ${
-                                          c.user_liked ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-gray-500 hover:text-rose-500 dark:hover:text-rose-400'
-                                        }`}
+                                        onClick={() => void handleDeleteComment(post.id, c.id)}
+                                        aria-label="Delete comment"
+                                        className="inline-flex shrink-0 items-center justify-center rounded-full bg-red-100 p-1.5 text-red-600 transition hover:bg-red-200 dark:bg-red-950/70 dark:text-red-400 dark:hover:bg-red-900/85"
                                       >
-                                        <span aria-hidden>👍</span>
-                                        <span className="tabular-nums text-slate-500 dark:text-gray-400">
-                                          {c.likes ?? c.likes_comment ?? 0}
-                                        </span>
+                                        <Trash2 className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
                                       </button>
-                                    )}
-                                    {!currentUser?.id && (
-                                      <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-gray-500">
-                                        <span aria-hidden>👍</span>
-                                        <span className="tabular-nums">{c.likes ?? c.likes_comment ?? 0}</span>
-                                      </span>
                                     )}
                                   </div>
                                 </div>

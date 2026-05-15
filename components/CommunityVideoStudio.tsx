@@ -6,9 +6,8 @@ import { Loader2, Pause, Play, Scissors, Smile, X } from 'lucide-react';
 import { burnOverlaysToWebm } from '@/lib/communityVideoCanvasBurn';
 import { getLoadedFFmpeg, transcodeCommunityClip } from '@/lib/communityVideoFfmpeg';
 import { extractTimelineThumbnails } from '@/lib/communityVideoTimelineThumbs';
+import { COMMUNITY_VIDEO_MAX_SEGMENT_SEC } from '@/lib/communityVideoLimits';
 import { cn } from '@/lib/utils';
-
-const DEFAULT_MAX_SEC = 11;
 
 type Props = {
   file: File;
@@ -37,7 +36,7 @@ function readVideoDuration(file: File): Promise<number> {
 
 export default function CommunityVideoStudio({
   file,
-  maxSegmentSec = DEFAULT_MAX_SEC,
+  maxSegmentSec = COMMUNITY_VIDEO_MAX_SEGMENT_SEC,
   onDone,
   onCancel,
   compact = false,
@@ -326,12 +325,17 @@ export default function CommunityVideoStudio({
 
       {phase === 'trim' && !err && (
         <>
-          <div className="relative min-h-[220px] overflow-hidden rounded-xl border border-slate-700 bg-black shadow-inner dark:border-slate-600">
+          <div className="relative flex min-h-[160px] justify-center overflow-x-hidden overflow-y-visible rounded-xl border border-slate-700 bg-black shadow-inner dark:border-slate-600">
             <video
               ref={trimVideoRef}
               key={previewUrlRaw}
               src={previewUrlRaw}
-              className="block max-h-[min(52vh,420px)] w-full object-contain"
+              className={cn(
+                'mx-auto block h-auto w-auto max-w-full object-contain',
+                compact
+                  ? 'max-h-[min(38dvh,260px)]'
+                  : 'max-h-[min(70dvh,560px)]'
+              )}
               playsInline
               muted
               loop={false}
@@ -487,8 +491,13 @@ export default function CommunityVideoStudio({
 
       {phase === 'decorate' && trimmedBlob && previewUrlTrim && (
         <>
-          <div className="rounded-lg border border-indigo-100 bg-black/90 dark:border-indigo-900/40">
-            <video src={previewUrlTrim} controls className="max-h-48 w-full object-contain" />
+          <div className="flex justify-center rounded-lg border border-indigo-100 bg-black/90 dark:border-indigo-900/40">
+            <video
+              src={previewUrlTrim}
+              controls
+              playsInline
+              className="mx-auto block h-auto max-h-[min(65dvh,520px)] w-auto max-w-full object-contain"
+            />
           </div>
 
           <div>

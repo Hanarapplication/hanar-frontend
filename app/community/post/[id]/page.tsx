@@ -6,10 +6,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
-import { SendHorizontal } from 'lucide-react';
+import { SendHorizontal, Trash2 } from 'lucide-react';
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import { Avatar } from '@/components/Avatar';
+import { removeCommentBranch } from '@/lib/communityCommentTree';
+import { coerceLikeCount } from '@/lib/coerceLikeCount';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 
@@ -264,6 +266,23 @@ export default function CommunityPostPage() {
   const handleCommentSubmit = async () => {
     if (!requireLogin()) return;
     if (!newComment.trim() || !username) return;
+    const text = newComment.trim();
+    const tempId = `pending-${Date.now()}`;
+    const optimistic = {
+      id: tempId,
+      post_id: id,
+      user_id: userSession.user.id,
+      username,
+      author: displayName || username || 'User',
+      body: text,
+      text,
+      created_at: new Date().toISOString(),
+      likes: 0,
+      likes_comment: 0,
+      user_liked: false,
+    };
+    setNewComment('');
+    setComments((prev) => [optimistic, ...prev]);
 
     const res = await fetch('/api/community/comments', {
       method: 'POST',
@@ -273,24 +292,25 @@ export default function CommunityPostPage() {
         user_id: userSession.user.id,
         username,
         author: displayName || username || 'User',
-        text: newComment.trim(),
+        text,
       }),
     });
     const result = await res.json();
     if (!res.ok) {
       toast.error('Failed to post comment');
+      setNewComment(text);
+      setComments((prev) => prev.filter((c) => c.id !== tempId));
       return;
     }
-    setNewComment('');
-    setComments((prev) => [result.comment, ...prev]);
-
+    setComments((prev) => prev.map((c) => (c.id === tempId ? { ...result.comment, likes: result.comment?.likes ?? 0 } : c)));
   };
 
   const handleCommentLike = async (commentId: string) => {
     const userId = userSession?.user?.id;
     if (!userSession || !username || !userId) return toast.error('Login required');
 
-    const currentlyLiked = commentLikeStates[commentId];
+    const row = comments.find((c) => c.id === commentId);
+    const currentlyLiked = commentLikeStates[commentId] ?? row?.user_liked ?? false;
     const method = currentlyLiked ? 'DELETE' : 'POST';
     const delta = currentlyLiked ? -1 : 1;
 
@@ -312,6 +332,8 @@ export default function CommunityPostPage() {
       body: method === 'POST' ? JSON.stringify({ comment_id: commentId, user_id: userId }) : undefined,
     });
 
+    const data = await res.json().catch(() => ({} as { likes?: number }));
+
     if (!res.ok && res.status !== 409) {
       toast.error('Failed to like comment');
       setCommentLikeStates((prev) => ({ ...prev, [commentId]: currentlyLiked }));
@@ -320,7 +342,23 @@ export default function CommunityPostPage() {
           c.id === commentId ? { ...c, likes: Math.max(0, (c.likes ?? c.likes_comment ?? 0) - delta) } : c
         )
       );
+      return;
     }
+
+    const nextLiked =
+      res.status === 409 && method === 'POST' ? true : method === 'POST' ? true : false;
+    setCommentLikeStates((prev) => ({ ...prev, [commentId]: nextLiked }));
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === commentId
+          ? {
+              ...c,
+              user_liked: nextLiked,
+              ...(typeof data.likes === 'number' ? { likes: data.likes, likes_comment: data.likes } : {}),
+            }
+          : c
+      )
+    );
   };
 
   const handleLike = async () => {
@@ -352,18 +390,65 @@ export default function CommunityPostPage() {
       credentials: 'include',
     });
 
+    const data = (await res.json().catch(() => ({}))) as { likes?: unknown; error?: string };
+
     if (!res.ok && res.status !== 409) {
       toast.error('Failed to update like');
       setLikedByUser(currentlyLiked);
       setLikes((prev) => (newLiked ? Math.max(0, prev - 1) : prev + 1));
       return;
     }
-    toast.success(newLiked ? 'Liked' : 'Unliked');
+
+    if (data.likes !== undefined && data.likes !== null) {
+      setLikes(coerceLikeCount(data.likes));
+    }
+    if (res.ok && method === 'DELETE') {
+      setLikedByUser(false);
+    } else if (res.ok && method === 'POST') {
+      setLikedByUser(true);
+    } else if (res.status === 409 && method === 'POST') {
+      setLikedByUser(true);
+    }
+
+    if (res.ok && method === 'DELETE') {
+      toast.success('Unliked');
+    } else if (res.ok && method === 'POST') {
+      toast.success('Liked');
+    } else if (res.status === 409 && method === 'POST') {
+      toast.success('Liked');
+    }
   };
 
-  const handleDeleteComment = async (commentId: number) => {
-    await supabase.from('community_comments').delete().eq('id', commentId);
-    setComments(prev => prev.filter(c => c.id !== commentId));
+  const handleDeleteComment = async (commentId: string) => {
+    const userId = userSession?.user?.id;
+    if (!userId) return;
+    if (!window.confirm(t(effectiveLang, 'Delete this comment?'))) return;
+
+    const before = comments;
+    const likesBefore = { ...commentLikeStates };
+    const after = removeCommentBranch(before, commentId);
+    const beforeIds = new Set(before.map((c: { id: string }) => c.id));
+    const afterIds = new Set(after.map((c: { id: string }) => c.id));
+    const nextLikes = { ...commentLikeStates };
+    for (const bid of beforeIds) {
+      if (!afterIds.has(bid)) delete nextLikes[bid];
+    }
+
+    setComments(after);
+    setCommentLikeStates(nextLikes);
+
+    const res = await fetch('/api/community/comment/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comment_id: commentId, user_id: userId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error(typeof data?.error === 'string' ? data.error : 'Failed to delete comment');
+      setComments(before);
+      setCommentLikeStates(likesBefore);
+      return;
+    }
   };
 
   const confirmDeletePost = () => setShowDeleteModal(true);
@@ -464,7 +549,38 @@ export default function CommunityPostPage() {
 
           {post.video && (
             <div className="mt-3">
-              <FeedVideoPlayer src={post.video} />
+              <FeedVideoPlayer
+                src={post.video}
+                fullscreenActions={
+                  <PostActionsBar
+                    liked={likedByUser}
+                    likesCount={likes}
+                    commentCount={commentCount}
+                    canLike={!!userSession}
+                    onLike={handleLike}
+                    onComment={() =>
+                      document.getElementById('comment-box')?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center',
+                      })
+                    }
+                    onShare={() => {
+                      if (navigator.share) {
+                        void navigator.share({
+                          title: post.body || post.title || 'Post',
+                          url: window.location.href,
+                        });
+                      } else {
+                        toast('Sharing not supported on this device');
+                      }
+                    }}
+                    postId={post.id}
+                    postTitle={post.title}
+                    className="mt-0 justify-center"
+                    tone="darkVideo"
+                  />
+                }
+              />
             </div>
           )}
 
@@ -525,53 +641,62 @@ export default function CommunityPostPage() {
                   key={c.id}
                   className="bg-white px-5 py-3"
                 >
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <div className="h-7 w-7 flex-shrink-0 overflow-hidden rounded-full">
-                      <Avatar
-                        src={c.avatar_url || c.logo_url || c.profiles?.profile_pic_url || null}
-                        alt="avatar"
-                        className="h-full w-full rounded-full"
-                      />
+                  <div className="flex w-full flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <div className="h-7 w-7 flex-shrink-0 overflow-hidden rounded-full">
+                        <Avatar
+                          src={c.avatar_url || c.logo_url || c.profiles?.profile_pic_url || null}
+                          alt="avatar"
+                          className="h-full w-full rounded-full"
+                        />
+                      </div>
+                      {c.author_type === 'organization' && c.username ? (
+                        <Link href={`/organization/${c.username}`} className="text-xs text-blue-900 hover:underline dark:text-blue-300">
+                          {c.author || c.username || 'Organization'}
+                        </Link>
+                      ) : c.author_type === 'business' && c.username ? (
+                        <Link href={`/business/${c.username}`} className="text-xs text-blue-900 hover:underline dark:text-blue-300">
+                          {c.author || c.username || 'Business'}
+                        </Link>
+                      ) : c.username ? (
+                        <Link href={`/profile/${c.username}`} className="text-xs text-blue-900 hover:underline dark:text-blue-300">
+                          {c.author || c.username || 'User'}
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-slate-700 dark:text-gray-200">{c.author || 'User'}</span>
+                      )}
+                      <span className="shrink-0">• {new Date(c.created_at).toLocaleDateString()}</span>
                     </div>
-                    {c.author_type === 'organization' && c.username ? (
-                      <Link href={`/organization/${c.username}`} className="text-xs text-blue-900 hover:underline dark:text-blue-300">
-                        {c.author || c.username || 'Organization'}
-                      </Link>
-                    ) : c.author_type === 'business' && c.username ? (
-                      <Link href={`/business/${c.username}`} className="text-xs text-blue-900 hover:underline dark:text-blue-300">
-                        {c.author || c.username || 'Business'}
-                      </Link>
-                    ) : c.username ? (
-                      <Link href={`/profile/${c.username}`} className="text-xs text-blue-900 hover:underline dark:text-blue-300">
-                        {c.author || c.username || 'User'}
-                      </Link>
-                    ) : (
-                      <span className="text-xs text-slate-700 dark:text-gray-200">{c.author || 'User'}</span>
-                    )}
-                    <span>• {new Date(c.created_at).toLocaleDateString()}</span>
-                    {userSession && (
-                      <button
-                        type="button"
-                        onClick={() => handleCommentLike(c.id)}
-                        aria-label={commentLikeStates[c.id] ? 'Unlike comment' : 'Like comment'}
-                        aria-pressed={!!commentLikeStates[c.id]}
-                        className={`ml-auto inline-flex items-center gap-1 text-xs font-medium ${commentLikeStates[c.id] ? 'text-rose-600' : 'text-gray-500 dark:text-gray-400'} hover:opacity-90`}
-                      >
-                        <span aria-hidden>{commentLikeStates[c.id] ? '💙' : '👍'}</span>
-                        <span className="tabular-nums">{c.likes ?? c.likes_comment ?? 0}</span>
-                      </button>
-                    )}
-                    {!userSession && (
-                      <span className="ml-auto inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                        <span aria-hidden>👍</span>
-                        <span className="tabular-nums">{c.likes ?? c.likes_comment ?? 0}</span>
-                      </span>
-                    )}
-                    {userSession?.user?.id === c.user_id && (
-                      <button type="button" onClick={() => handleDeleteComment(c.id)} className="ml-2 text-xs text-red-500 hover:underline">
-                        Delete
-                      </button>
-                    )}
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {userSession && (
+                        <button
+                          type="button"
+                          onClick={() => handleCommentLike(c.id)}
+                          aria-label={(commentLikeStates[c.id] ?? c.user_liked) ? 'Unlike comment' : 'Like comment'}
+                          aria-pressed={!!(commentLikeStates[c.id] ?? c.user_liked)}
+                          className={`inline-flex items-center gap-1 text-xs font-medium ${commentLikeStates[c.id] ?? c.user_liked ? 'text-rose-600' : 'text-gray-500 dark:text-gray-400'} hover:opacity-90`}
+                        >
+                          <span aria-hidden>{commentLikeStates[c.id] ?? c.user_liked ? '💙' : '👍'}</span>
+                          <span className="tabular-nums">{c.likes ?? c.likes_comment ?? 0}</span>
+                        </button>
+                      )}
+                      {!userSession && (
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                          <span aria-hidden>👍</span>
+                          <span className="tabular-nums">{c.likes ?? c.likes_comment ?? 0}</span>
+                        </span>
+                      )}
+                      {userSession?.user?.id === c.user_id && (
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteComment(c.id)}
+                          aria-label={t(effectiveLang, 'Delete comment')}
+                          className="inline-flex items-center justify-center rounded-full bg-red-100 p-1.5 text-red-600 transition hover:bg-red-200 dark:bg-red-950/70 dark:text-red-400 dark:hover:bg-red-900/85"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div data-no-translate>
                     <p className="mt-2 text-sm text-slate-700 dark:text-gray-200">{c.body ?? c.text}</p>

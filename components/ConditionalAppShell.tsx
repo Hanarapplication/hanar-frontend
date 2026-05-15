@@ -34,12 +34,17 @@ export default function ConditionalAppShell({
   // Re-trigger enter animation on every route change
   const [animKey, setAnimKey] = useState(pathname);
   const [isChromeHidden, setIsChromeHidden] = useState(false);
+  const [homeBottomBarDocked, setHomeBottomBarDocked] = useState(true);
   useEffect(() => {
     setAnimKey(pathname);
   }, [pathname]);
 
   useEffect(() => {
     setIsChromeHidden(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (pathname !== '/') setHomeBottomBarDocked(true);
   }, [pathname]);
 
   if (isBusinessSlugPage || isAuthPage || isAdminRoute) {
@@ -58,15 +63,25 @@ export default function ConditionalAppShell({
     );
   }
 
+  const isHomeFeedShell = pathname === '/';
+
   return (
     <>
       <HanarAppIntentSync />
       <LocationPromptModal />
-      <Navbar hidden={isChromeHidden} />
+      <Navbar hidden={isChromeHidden} onHomeBottomBarDocked={setHomeBottomBarDocked} />
       <ClientRedirectTracker />
       <main
         key={animKey}
-        className="animate-route-swap-soft pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-6 sm:pb-8"
+        className={`animate-route-swap-soft ${
+          isHomeFeedShell
+            ? `pt-[calc(3.5rem+env(safe-area-inset-top,0px))] ${
+                homeBottomBarDocked
+                  ? 'pb-[calc(3.5rem+env(safe-area-inset-bottom,0px)+1rem)]'
+                  : 'pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]'
+              }`
+            : 'pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-6 sm:pb-8'
+        }`}
       >
         {children}
       </main>

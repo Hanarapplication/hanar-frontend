@@ -662,9 +662,9 @@ function DashboardContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen w-full flex-col bg-[#f0f2f5] pt-14 pb-10 dark:bg-gray-900">
+      <div className="flex min-h-screen w-full flex-col bg-[#f0f2f5] pb-10 dark:bg-gray-900">
         <div className="w-full space-y-4 px-4 sm:px-5">
-          <div className="w-full bg-white p-5 dark:bg-gray-800 sm:p-6">
+          <div className="w-full bg-white px-4 pt-0 pb-5 dark:bg-gray-800 sm:px-5 sm:pb-6">
             <div className="flex items-center gap-6">
               <div className="skeleton h-20 w-20 rounded-full" />
               <div className="flex-1 space-y-2">
@@ -690,10 +690,10 @@ function DashboardContent() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-[#f0f2f5] pt-14 pb-10 dark:bg-gray-900">
+    <div className="flex min-h-screen w-full flex-col bg-[#f0f2f5] pb-10 dark:bg-gray-900">
       <div className="w-full flex-1 space-y-0">
         {/* Profile card */}
-        <div className="w-full bg-white px-4 py-5 dark:bg-gray-800 sm:px-5 sm:py-6">
+        <div className="w-full bg-white px-4 pt-0 pb-5 dark:bg-gray-800 sm:px-5 sm:pb-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             <label className="relative block shrink-0 cursor-pointer group">
               <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-[#c41e56]/90 bg-slate-100 ring-2 ring-transparent transition group-hover:ring-indigo-200 dark:border-[#e85085]/65 dark:bg-gray-700 dark:group-hover:ring-indigo-500">
@@ -1017,14 +1017,22 @@ function DashboardContent() {
                         </p>
                       );
                     })()}
-                    <button
-                      type="button"
-                      onClick={() => deleteMyListing(listing.id)}
-                      disabled={deletingListing === listing.id}
-                      className="mt-2 text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
-                    >
-                      {deletingListing === listing.id ? t(effectiveLang, 'Deleting...') : t(effectiveLang, 'Delete listing')}
-                    </button>
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                      <Link
+                        href={`/marketplace/edit/${listing.id}`}
+                        className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                      >
+                        {t(effectiveLang, 'Edit')}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => deleteMyListing(listing.id)}
+                        disabled={deletingListing === listing.id}
+                        className="text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
+                      >
+                        {deletingListing === listing.id ? t(effectiveLang, 'Deleting...') : t(effectiveLang, 'Delete listing')}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

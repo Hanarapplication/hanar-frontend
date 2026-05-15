@@ -40,7 +40,9 @@ export async function POST(req: Request) {
       .single();
 
     if (existing) {
-      return NextResponse.json({ error: 'Already liked' }, { status: 409 });
+      const { data: c2 } = await supabaseAdmin.from('community_comments').select('likes').eq('id', comment_id).single();
+      const likes = c2?.likes ?? 0;
+      return NextResponse.json({ error: 'Already liked', likes }, { status: 409 });
     }
 
     const { error: insertError } = await supabaseAdmin

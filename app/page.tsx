@@ -8,6 +8,7 @@ import { Trash2, Megaphone, SendHorizontal, X, Search, ThumbsUp } from 'lucide-r
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
 import PostActionsBar from '@/components/PostActionsBar';
+import FeedPostCommentsSheet, { groupCommentsByRoot } from '@/components/FeedPostCommentsSheet';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
 import { Avatar } from '@/components/Avatar';
@@ -22,6 +23,9 @@ import {
   postMatchesFeedLangs,
   serializeFeedLangsForStorage,
 } from '@/lib/communityPostFeedLangs';
+import { removeCommentBranch } from '@/lib/communityCommentTree';
+import { coerceLikeCount } from '@/lib/coerceLikeCount';
+import { postIdEquals } from '@/lib/postIdEquals';
 
 type SliderBusiness = {
   id: string;
@@ -36,6 +40,14 @@ type AdBanner = { id: string; image: string; link: string; alt: string };
 /** Neutral rule between feed / skeleton rows */
 const HOME_FEED_BETWEEN_ROW =
   'h-px w-full shrink-0 bg-slate-300 dark:bg-gray-600';
+
+/**
+ * Home "Ask" composer — height fits between fixed top nav and fixed bottom tab bar (both `h-14`
+ * plus safe-area insets; see Navbar + ConditionalAppShell). `100svh` keeps the panel above the
+ * bottom bar when mobile browser chrome resizes the viewport.
+ */
+const HOME_ASK_COMPOSER_MAX_HEIGHT =
+  'min(calc(100svh - 3.5rem - env(safe-area-inset-top,0px) - 3.5rem - env(safe-area-inset-bottom,0px) - 0.75rem), 940px)';
 
 type CommunityPost = {
   id: string;
@@ -119,6 +131,7 @@ type Comment = {
   logo_url?: string | null;
   avatar_url?: string | null;
   profiles?: { profile_pic_url: string | null } | null;
+  parent_id?: string | null;
 };
 
 type FeedItem =
@@ -128,23 +141,6 @@ type FeedItem =
   | { type: 'marketplaceCategorySlider'; categoryLabel: string; items: MarketplaceItem[] }
   | { type: 'ad'; banner: AdBanner }
   | { type: 'sliderBusinesses' };
-
-const coerceLikeCount = (value: unknown): number => {
-  if (typeof value === 'number') return Number.isFinite(value) ? Math.max(0, value) : 0;
-  if (typeof value === 'string') {
-    const n = Number(value.trim());
-    return Number.isFinite(n) ? Math.max(0, n) : 0;
-  }
-  if (value && typeof value === 'object') {
-    const obj = value as Record<string, unknown>;
-    if (typeof obj.likes_post === 'number' || typeof obj.likes_post === 'string') return coerceLikeCount(obj.likes_post);
-    if (typeof obj.likes === 'number' || typeof obj.likes === 'string') return coerceLikeCount(obj.likes);
-    if (typeof obj.likes_count === 'number' || typeof obj.likes_count === 'string') return coerceLikeCount(obj.likes_count);
-    if (typeof obj.count === 'number' || typeof obj.count === 'string') return coerceLikeCount(obj.count);
-    if (typeof obj.value === 'number' || typeof obj.value === 'string') return coerceLikeCount(obj.value);
-  }
-  return 0;
-};
 
 const getDistanceMiles = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 3958.8;
@@ -758,6 +754,11 @@ export default function Home() {
   const [deletingPost, setDeletingPost] = useState<string | null>(null);
   const [commentsOpen, setCommentsOpen] = useState<Set<string>>(new Set());
   const [commentLoading, setCommentLoading] = useState<Record<string, boolean>>({});
+  const [videoCommentsSheetPostId, setVideoCommentsSheetPostId] = useState<string | null>(null);
+  const commentsByPostRef = useRef(commentsByPost);
+  const commentLoadingRef = useRef(commentLoading);
+  commentsByPostRef.current = commentsByPost;
+  commentLoadingRef.current = commentLoading;
   const [feedBanners, setFeedBanners] = useState<AdBanner[]>([]);
   const [hasNewContent, setHasNewContent] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -780,7 +781,7 @@ export default function Home() {
       const res = await fetch(`/api/community/post/liked?userId=${encodeURIComponent(userId)}`, { credentials: 'include' });
       const data = await res.json();
       if (res.ok && Array.isArray(data.likedPostIds)) {
-        setLikedPosts(new Set(data.likedPostIds));
+        setLikedPosts(new Set(data.likedPostIds.map((x: unknown) => String(x))));
       }
     } catch {
       setLikedPosts(new Set());
@@ -1081,24 +1082,39 @@ export default function Home() {
         coerceLikeCount(postAny.likes_post) ||
         coerceLikeCount(postAny.likes) ||
         coerceLikeCount(postAny.likes_count);
-      return { ...p, likes_post: normalizedLikes };
+      return { ...p, id: String(p.id), likes_post: normalizedLikes };
     });
 
     const postIds = rawPosts.map((p: { id: string }) => p.id);
-    const skipLikeRefetch =
-      rawPosts.length > 0 && rawPosts.some((p) => p.home_rank_score !== undefined && p.home_rank_score !== null);
 
-    if (postIds.length > 0 && !skipLikeRefetch) {
+    if (postIds.length > 0) {
       try {
         const countsRes = await fetch(`/api/community/post/counts?postIds=${postIds.join(',')}`);
-        const { counts } = await countsRes.json();
-        if (counts) {
+        const payload = (await countsRes.json()) as {
+          counts?: Record<string, number>;
+          commentCounts?: Record<string, number>;
+        };
+        const { counts, commentCounts } = payload;
+        if (counts && typeof counts === 'object') {
           rawPosts.forEach((p) => {
-            p.likes_post = coerceLikeCount(counts[p.id] ?? p.likes_post ?? 0);
+            const pid = String(p.id);
+            const n = counts[pid] ?? (counts as Record<string, number>)[String(p.id)];
+            if (typeof n === 'number') {
+              p.likes_post = coerceLikeCount(n);
+            }
+          });
+        }
+        if (commentCounts && typeof commentCounts === 'object') {
+          rawPosts.forEach((p) => {
+            const pid = String(p.id);
+            const c = commentCounts[pid] ?? (commentCounts as Record<string, number>)[String(p.id)];
+            if (typeof c === 'number') {
+              p.community_comments = [{ count: c }];
+            }
           });
         }
       } catch {
-        // keep original likes_post
+        // keep original likes_post / comment counts
       }
     }
 
@@ -1328,7 +1344,7 @@ export default function Home() {
       setVisibleCount(12);
       const cache = readFeedCache(feedLangsCacheKey(postFeedLangs), homeFeedTab);
       if (cache) {
-        setCommunityPosts(cache.communityPosts);
+        setCommunityPosts(cache.communityPosts.map((p) => ({ ...p, id: String(p.id) })));
         setBusinesses(cache.businesses);
         setOrganizations(cache.organizations);
         setMarketplaceItems(cache.marketplaceItems);
@@ -1510,13 +1526,20 @@ const formatDateLabel = (value?: string | null) => {
       .sort((a, b) => b.date - a.date);
   }, [nearbyMarketplaceItems]);
 
-  const requireLogin = () => {
-    if (!currentUser.id) {
+  /**
+   * Use Supabase session — not `currentUser` — so we do not redirect while `loadUser()` is still
+   * resolving (otherwise /login sees an active session and sends users to /dashboard).
+   */
+  const requireLogin = useCallback(async (): Promise<boolean> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) {
       window.location.href = '/login?redirect=/';
       return false;
     }
+    setCurrentUser((prev) => (prev.id === uid ? prev : { ...prev, id: uid }));
     return true;
-  };
+  }, []);
 
   useEffect(() => {
     if (!composerExpanded) return;
@@ -1528,38 +1551,39 @@ const formatDateLabel = (value?: string | null) => {
   }, [composerExpanded]);
 
   const handleLikePost = async (postId: string) => {
-    if (!requireLogin()) return;
+    if (!(await requireLogin())) return;
 
-    const currentlyLiked = likedPosts.has(postId);
+    const key = String(postId);
+    const currentlyLiked = likedPosts.has(key);
     const delta = currentlyLiked ? -1 : 1;
 
     // Optimistic update: show new count and liked state immediately
     setCommunityPosts((prev) =>
       prev.map((post) =>
-        post.id === postId
+        postIdEquals(post.id, key)
           ? { ...post, likes_post: Math.max(0, coerceLikeCount(post.likes_post) + delta) }
           : post
       )
     );
     setLikedPosts((prev) => {
       const next = new Set(prev);
-      if (currentlyLiked) next.delete(postId);
-      else next.add(postId);
+      if (currentlyLiked) next.delete(key);
+      else next.add(key);
       return next;
     });
 
     const revert = () => {
       setCommunityPosts((prev) =>
         prev.map((post) =>
-          post.id === postId
+          postIdEquals(post.id, key)
             ? { ...post, likes_post: Math.max(0, coerceLikeCount(post.likes_post) - delta) }
             : post
         )
       );
       setLikedPosts((prev) => {
         const next = new Set(prev);
-        if (currentlyLiked) next.add(postId);
-        else next.delete(postId);
+        if (currentlyLiked) next.add(key);
+        else next.delete(key);
         return next;
       });
     };
@@ -1567,7 +1591,7 @@ const formatDateLabel = (value?: string | null) => {
     const method = currentlyLiked ? 'DELETE' : 'POST';
     const url =
       method === 'DELETE'
-        ? `/api/community/post/like?post_id=${encodeURIComponent(postId)}`
+        ? `/api/community/post/like?post_id=${encodeURIComponent(key)}`
         : '/api/community/post/like';
 
     try {
@@ -1579,7 +1603,7 @@ const formatDateLabel = (value?: string | null) => {
       const res = await fetch(url, {
         method,
         headers,
-        body: method === 'POST' ? JSON.stringify({ post_id: postId }) : undefined,
+        body: method === 'POST' ? JSON.stringify({ post_id: key }) : undefined,
         credentials: 'include',
       });
 
@@ -1590,15 +1614,25 @@ const formatDateLabel = (value?: string | null) => {
         return;
       }
 
-      // Sync with server response for accurate count
-      const data = await res.json().catch(() => ({}));
-      if (data.likes !== undefined) {
+      // Sync with server response for accurate count (POST/DELETE/409)
+      const data = (await res.json().catch(() => ({}))) as { likes?: unknown };
+      if (data.likes !== undefined && data.likes !== null) {
         const likes = coerceLikeCount(data.likes);
         setCommunityPosts((prev) =>
           prev.map((post) =>
-            post.id === postId ? { ...post, likes_post: likes } : post
+            postIdEquals(post.id, key) ? { ...post, likes_post: likes } : post
           )
         );
+      }
+      if (res.status === 409 && method === 'POST') {
+        setLikedPosts((prev) => new Set(prev).add(key));
+      }
+      if (res.ok && method === 'DELETE') {
+        setLikedPosts((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
       }
     } catch (err) {
       revert();
@@ -1697,38 +1731,61 @@ const formatDateLabel = (value?: string | null) => {
     });
   }, []);
 
-  const toggleComments = async (postId: string) => {
-    setCommentsOpen((prev) => {
-      const next = new Set(prev);
-      if (next.has(postId)) {
-        next.delete(postId);
-      } else {
-        next.add(postId);
-      }
-      return next;
-    });
-
-    if (!commentsByPost[postId] && !commentLoading[postId]) {
-      setCommentLoading((prev) => ({ ...prev, [postId]: true }));
+  const loadCommentsForPostIfNeeded = useCallback(
+    async (postId: string) => {
+      const key = String(postId);
+      if (commentsByPostRef.current[key] !== undefined || commentLoadingRef.current[key]) return;
+      setCommentLoading((prev) => ({ ...prev, [key]: true }));
       try {
-        const params = new URLSearchParams({ postId });
+        const params = new URLSearchParams({ postId: key });
         if (currentUser.id) params.set('userId', currentUser.id);
         const res = await fetch(`/api/community/comments?${params.toString()}`);
         const data = await res.json();
         const enrichedComments = await enrichCommentsWithAvatars((data.comments || []) as Comment[]);
-        setCommentsByPost((prev) => ({ ...prev, [postId]: enrichedComments }));
+        setCommentsByPost((prev) => {
+          if (prev[key] !== undefined) return prev;
+          return { ...prev, [key]: enrichedComments };
+        });
       } finally {
-        setCommentLoading((prev) => ({ ...prev, [postId]: false }));
+        setCommentLoading((prev) => ({ ...prev, [key]: false }));
       }
-    }
+    },
+    [currentUser.id, enrichCommentsWithAvatars]
+  );
+
+  const openVideoCommentsSheet = useCallback(
+    (postId: string) => {
+      const key = String(postId);
+      setVideoCommentsSheetPostId(key);
+      void loadCommentsForPostIfNeeded(key);
+    },
+    [loadCommentsForPostIfNeeded]
+  );
+
+  const toggleComments = async (postId: string) => {
+    const key = String(postId);
+    setCommentsOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+
+    await loadCommentsForPostIfNeeded(key);
   };
 
   const handleCommentLike = async (postId: string, commentId: string) => {
-    if (!currentUser.id) {
+    const key = String(postId);
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) {
       window.location.href = '/login?redirect=/';
       return;
     }
-    const comments = commentsByPost[postId] || [];
+    const comments = commentsByPost[key] || [];
     const comment = comments.find((c) => c.id === commentId);
     if (!comment) return;
     const currentlyLiked = comment.user_liked ?? false;
@@ -1736,7 +1793,7 @@ const formatDateLabel = (value?: string | null) => {
 
     setCommentsByPost((prev) => ({
       ...prev,
-      [postId]: (prev[postId] || []).map((c) =>
+      [key]: (prev[key] || []).map((c) =>
         c.id === commentId
           ? {
               ...c,
@@ -1751,19 +1808,21 @@ const formatDateLabel = (value?: string | null) => {
     const method = currentlyLiked ? 'DELETE' : 'POST';
     const url =
       method === 'DELETE'
-        ? `/api/community/comments/like?comment_id=${encodeURIComponent(commentId)}&user_id=${encodeURIComponent(currentUser.id)}`
+        ? `/api/community/comments/like?comment_id=${encodeURIComponent(commentId)}&user_id=${encodeURIComponent(uid)}`
         : '/api/community/comments/like';
 
     const res = await fetch(url, {
       method,
       headers: method === 'POST' ? { 'Content-Type': 'application/json' } : undefined,
-      body: method === 'POST' ? JSON.stringify({ comment_id: commentId, user_id: currentUser.id }) : undefined,
+      body: method === 'POST' ? JSON.stringify({ comment_id: commentId, user_id: uid }) : undefined,
     });
+
+    const data = await res.json().catch(() => ({} as { likes?: number }));
 
     if (!res.ok && res.status !== 409) {
       setCommentsByPost((prev) => ({
         ...prev,
-        [postId]: (prev[postId] || []).map((c) =>
+        [key]: (prev[key] || []).map((c) =>
           c.id === commentId
             ? {
                 ...c,
@@ -1774,28 +1833,145 @@ const formatDateLabel = (value?: string | null) => {
             : c
         ),
       }));
+      return;
+    }
+
+    const nextLiked =
+      res.status === 409 && method === 'POST' ? true : method === 'POST' ? true : false;
+    setCommentsByPost((prev) => ({
+      ...prev,
+      [key]: (prev[key] || []).map((c) =>
+        c.id === commentId
+          ? {
+              ...c,
+              user_liked: nextLiked,
+              ...(typeof data.likes === 'number' ? { likes: data.likes, likes_comment: data.likes } : {}),
+            }
+          : c
+      ),
+    }));
+  };
+
+  const handleDeleteComment = async (postId: string, commentId: string) => {
+    if (!(await requireLogin())) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) return;
+    if (!window.confirm(t(effectiveLang, 'Delete this comment?'))) return;
+
+    const key = String(postId);
+    const before = commentsByPost[key] || [];
+    const after = removeCommentBranch(before, commentId);
+    const removedLocal = before.length - after.length;
+    const postRow = communityPosts.find((p) => postIdEquals(p.id, key));
+    const countBefore = postRow?.community_comments?.[0]?.count || 0;
+
+    setCommentsByPost((prev) => ({ ...prev, [key]: after }));
+    setCommunityPosts((prev) =>
+      prev.map((post) => {
+        if (!postIdEquals(post.id, key)) return post;
+        return { ...post, community_comments: [{ count: Math.max(0, countBefore - removedLocal) }] };
+      })
+    );
+
+    const res = await fetch('/api/community/comment/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comment_id: commentId, user_id: uid }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toast.error(typeof data?.error === 'string' ? data.error : 'Could not delete comment');
+      setCommentsByPost((prev) => ({ ...prev, [key]: before }));
+      setCommunityPosts((prev) =>
+        prev.map((post) => {
+          if (!postIdEquals(post.id, key)) return post;
+          return { ...post, community_comments: [{ count: countBefore }] };
+        })
+      );
+      return;
+    }
+    const serverRemoved = typeof data.removed === 'number' ? data.removed : removedLocal;
+    if (serverRemoved !== removedLocal) {
+      const drift = serverRemoved - removedLocal;
+      setCommunityPosts((prev) =>
+        prev.map((post) => {
+          if (!postIdEquals(post.id, key)) return post;
+          const c = post.community_comments?.[0]?.count || 0;
+          return { ...post, community_comments: [{ count: Math.max(0, c - drift) }] };
+        })
+      );
     }
   };
 
   const submitComment = async (postId: string) => {
-    if (!requireLogin()) return;
-    const text = commentInputs[postId]?.trim();
+    if (!(await requireLogin())) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) return;
+    const key = String(postId);
+    const text = commentInputs[key]?.trim();
     if (!text) return;
+
+    const tempId = `pending-${Date.now()}`;
+    const optimistic: Comment = {
+      id: tempId,
+      post_id: key,
+      user_id: uid,
+      username: currentUser.username,
+      author: currentUser.displayName || currentUser.username || 'User',
+      body: text,
+      text,
+      created_at: new Date().toISOString(),
+      likes: 0,
+      likes_comment: 0,
+      user_liked: false,
+      avatar_url: currentUser.avatarUrl,
+      parent_id: null,
+    };
+
+    setCommentInputs((prev) => ({ ...prev, [key]: '' }));
+    setCommentsByPost((prev) => ({
+      ...prev,
+      [key]: [optimistic, ...(prev[key] || [])],
+    }));
+    setCommunityPosts((prev) =>
+      prev.map((post) => {
+        if (!postIdEquals(post.id, key)) return post;
+        const currentCount = post.community_comments?.[0]?.count || 0;
+        return { ...post, community_comments: [{ count: currentCount + 1 }] };
+      })
+    );
 
     const res = await fetch('/api/community/comments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        post_id: postId,
+        post_id: key,
         text,
-        user_id: currentUser.id,
+        user_id: uid,
         username: currentUser.username,
         author: currentUser.displayName || currentUser.username || 'User',
       }),
     });
 
     const data = await res.json();
-    if (!res.ok) return;
+    if (!res.ok) {
+      toast.error(typeof data?.error === 'string' ? data.error : t(effectiveLang, 'Could not post comment.'));
+      setCommentInputs((prev) => ({ ...prev, [key]: text }));
+      setCommentsByPost((prev) => ({
+        ...prev,
+        [key]: (prev[key] || []).filter((c) => c.id !== tempId),
+      }));
+      setCommunityPosts((prev) =>
+        prev.map((post) => {
+          if (!postIdEquals(post.id, key)) return post;
+          const currentCount = post.community_comments?.[0]?.count || 0;
+          return { ...post, community_comments: [{ count: Math.max(0, currentCount - 1) }] };
+        })
+      );
+      return;
+    }
     const insertedComment = (data.comment || {}) as Comment;
     const normalizedInsertedAvatar =
       insertedComment.author_type === 'business'
@@ -1819,31 +1995,131 @@ const formatDateLabel = (value?: string | null) => {
 
     setCommentsByPost((prev) => ({
       ...prev,
-      [postId]: [hydratedInsertedComment || commentForState, ...(prev[postId] || [])],
+      [key]: (prev[key] || []).map((c) => (c.id === tempId ? hydratedInsertedComment || commentForState : c)),
     }));
-    setCommentInputs((prev) => ({ ...prev, [postId]: '' }));
-    setCommunityPosts((prev) =>
-      prev.map((post) => {
-        if (post.id !== postId) return post;
-        const currentCount = post.community_comments?.[0]?.count || 0;
-        return { ...post, community_comments: [{ count: currentCount + 1 }] };
-      })
-    );
   };
 
+  const submitCommentReply = useCallback(
+    async (postId: string, parentCommentId: string, text: string) => {
+      if (!(await requireLogin())) return;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const uid = session?.user?.id;
+      if (!uid) return;
+      const key = String(postId);
+      const trimmed = text.trim();
+      if (trimmed.length < 3) {
+        toast.error(t(effectiveLang, 'Comment must be at least 3 characters.'));
+        return;
+      }
+
+      const tempId = `pending-${Date.now()}`;
+      const optimistic: Comment = {
+        id: tempId,
+        post_id: key,
+        user_id: uid,
+        username: currentUser.username,
+        author: currentUser.displayName || currentUser.username || 'User',
+        body: trimmed,
+        text: trimmed,
+        created_at: new Date().toISOString(),
+        likes: 0,
+        likes_comment: 0,
+        user_liked: false,
+        avatar_url: currentUser.avatarUrl,
+        parent_id: parentCommentId,
+      };
+
+      setCommentsByPost((prev) => ({
+        ...prev,
+        [key]: [optimistic, ...(prev[key] || [])],
+      }));
+      setCommunityPosts((prev) =>
+        prev.map((post) => {
+          if (!postIdEquals(post.id, key)) return post;
+          const currentCount = post.community_comments?.[0]?.count || 0;
+          return { ...post, community_comments: [{ count: currentCount + 1 }] };
+        })
+      );
+
+      const res = await fetch('/api/community/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: key,
+          parent_id: parentCommentId,
+          text: trimmed,
+          user_id: uid,
+          username: currentUser.username,
+          author: currentUser.displayName || currentUser.username || 'User',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(typeof data?.error === 'string' ? data.error : 'Could not post reply.');
+        setCommentsByPost((prev) => ({
+          ...prev,
+          [key]: (prev[key] || []).filter((c) => c.id !== tempId),
+        }));
+        setCommunityPosts((prev) =>
+          prev.map((post) => {
+            if (!postIdEquals(post.id, key)) return post;
+            const currentCount = post.community_comments?.[0]?.count || 0;
+            return { ...post, community_comments: [{ count: Math.max(0, currentCount - 1) }] };
+          })
+        );
+        return;
+      }
+      const insertedComment = (data.comment || {}) as Comment;
+      const normalizedInsertedAvatar =
+        insertedComment.author_type === 'business'
+          ? normalizeAvatarUrl(insertedComment.logo_url || insertedComment.avatar_url, [
+              'business-uploads',
+              'organizations',
+              'organization-uploads',
+              'avatars',
+            ])
+          : normalizeAvatarUrl(insertedComment.avatar_url || insertedComment.logo_url, [
+              'avatars',
+              'business-uploads',
+              'organizations',
+              'organization-uploads',
+            ]);
+      const commentForState: Comment = {
+        ...insertedComment,
+        avatar_url: normalizedInsertedAvatar || null,
+        user_liked: false,
+        likes: insertedComment.likes ?? 0,
+        likes_comment: insertedComment.likes ?? 0,
+      };
+      const [hydratedInsertedComment] = await enrichCommentsWithAvatars([commentForState]);
+
+      setCommentsByPost((prev) => ({
+        ...prev,
+        [key]: (prev[key] || []).map((c) => (c.id === tempId ? hydratedInsertedComment || commentForState : c)),
+      }));
+    },
+    [requireLogin, currentUser, enrichCommentsWithAvatars, effectiveLang]
+  );
+
   const handleDeletePost = async (postId: string) => {
-    if (!requireLogin()) return;
+    if (!(await requireLogin())) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const uid = session?.user?.id;
+    if (!uid) return;
     if (!confirm('Are you sure you want to delete this post? This cannot be undone.')) return;
-    setDeletingPost(postId);
+    const key = String(postId);
+    setDeletingPost(key);
     try {
       const { error } = await supabase
         .from('community_posts')
         .update({ deleted: true })
-        .eq('id', postId)
-        .eq('user_id', currentUser.id);
+        .eq('id', key)
+        .eq('user_id', uid);
 
       if (error) throw error;
-      setCommunityPosts((prev) => prev.filter((p) => p.id !== postId));
+      setCommunityPosts((prev) => prev.filter((p) => !postIdEquals(p.id, key)));
     } catch (err) {
       console.error('Delete error:', err);
       alert('Failed to delete post');
@@ -2030,7 +2306,7 @@ const formatDateLabel = (value?: string | null) => {
       filteredFeedItems
         .slice(0, visibleCount)
         .filter((item): item is Extract<FeedItem, { type: 'post' }> => item.type === 'post')
-        .map((item) => item.post.id)
+        .map((item) => String(item.post.id))
     );
 
     const raf = window.requestAnimationFrame(() => {
@@ -2243,8 +2519,10 @@ const formatDateLabel = (value?: string | null) => {
               <button
                 type="button"
                 onClick={() => {
-                  if (!requireLogin()) return;
-                  setComposerExpanded(true);
+                  void (async () => {
+                    if (!(await requireLogin())) return;
+                    setComposerExpanded(true);
+                  })();
                 }}
                 className="group relative flex w-full min-h-[3rem] items-center gap-2.5 rounded-2xl border border-slate-200 bg-white/95 py-2.5 pl-3.5 pr-3.5 text-left shadow-sm transition-all duration-200 hover:-translate-y-[1px] hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200"
                 aria-label={t(effectiveLang, 'Ask — write a post')}
@@ -2264,11 +2542,20 @@ const formatDateLabel = (value?: string | null) => {
           </div>
 
           <div
-            className={`overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out ${
+            data-no-pull-refresh="true"
+            className={`flex min-h-0 flex-col overflow-hidden transition-[max-height,height,opacity,transform] duration-300 ease-out ${
               composerExpanded ? 'pointer-events-auto' : 'pointer-events-none'
             }`}
             style={{
-              maxHeight: composerExpanded ? 'min(85dvh,940px)' : '0px',
+              ...(composerExpanded
+                ? {
+                    height: HOME_ASK_COMPOSER_MAX_HEIGHT,
+                    maxHeight: HOME_ASK_COMPOSER_MAX_HEIGHT,
+                  }
+                : {
+                    height: '0px',
+                    maxHeight: '0px',
+                  }),
               opacity: composerExpanded ? 1 : 0,
               transform: composerExpanded ? 'translateY(0)' : 'translateY(-8px)',
             }}
@@ -2276,7 +2563,7 @@ const formatDateLabel = (value?: string | null) => {
             aria-labelledby="home-compose-post-title"
             aria-hidden={!composerExpanded}
           >
-            <div className="mx-2 mt-1 flex items-center justify-between gap-2 rounded-t-2xl border border-slate-200 border-b-0 bg-white px-3 py-2 shadow-sm sm:mx-3">
+            <div className="mx-2 mt-1 flex shrink-0 items-center justify-between gap-2 rounded-t-2xl border border-slate-200 border-b-0 bg-white px-3 py-2 shadow-sm sm:mx-3">
               <span
                 id="home-compose-post-title"
                 className="text-base font-bold tracking-wide text-slate-700"
@@ -2292,7 +2579,10 @@ const formatDateLabel = (value?: string | null) => {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="mx-2 max-h-[min(85dvh,880px)] overflow-y-auto overscroll-contain rounded-b-2xl border border-slate-200 border-t-0 bg-white px-1 pb-2 shadow-sm sm:mx-3 sm:px-2 sm:pb-2 dark:bg-white">
+            <div
+              data-no-pull-refresh="true"
+              className="mx-2 min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-pb-24 [-webkit-overflow-scrolling:touch] rounded-b-2xl border border-slate-200 border-t-0 bg-white px-1 pb-[max(1.5rem,calc(0.5rem+env(safe-area-inset-bottom,0px)))] pt-0 shadow-sm sm:mx-3 sm:px-2 sm:pb-[max(1.5rem,calc(0.5rem+env(safe-area-inset-bottom,0px)))] dark:bg-white"
+            >
               <Suspense
                 fallback={
                   <div className="flex justify-center py-12 text-base text-slate-500 dark:text-gray-400">
@@ -2361,16 +2651,17 @@ const formatDateLabel = (value?: string | null) => {
           <div>
         {filteredFeedItems.slice(0, visibleCount).map((item, index) => {
           if (item.type === 'post') {
+            const pid = String(item.post.id);
             const dateLabel = new Date(item.post.created_at).toLocaleDateString();
-            const liked = likedPosts.has(item.post.id);
+            const liked = likedPosts.has(pid);
             const commentCount = item.post.community_comments?.[0]?.count || 0;
-            const isCommentsOpen = commentsOpen.has(item.post.id);
-            const comments = commentsByPost[item.post.id] || [];
+            const isCommentsOpen = commentsOpen.has(pid);
+            const comments = commentsByPost[pid] || [];
             const postText = String(item.post.body || item.post.title || '');
-            const isExpanded = expandedPostText.has(item.post.id);
-            const shouldShowExpand = expandablePostText.has(item.post.id);
+            const isExpanded = expandedPostText.has(pid);
+            const shouldShowExpand = expandablePostText.has(pid);
             return (
-              <Fragment key={`post-${item.post.id}-${index}`}>
+              <Fragment key={`post-${pid}-${index}`}>
                 {index > 0 && <div className={HOME_FEED_BETWEEN_ROW} aria-hidden />}
                 <article className="rounded-none border-0 bg-white p-4 shadow-sm ring-0 dark:bg-gray-800 sm:p-5">
                 <div className="flex items-center justify-between gap-2 text-sm text-slate-500 dark:text-gray-400">
@@ -2398,10 +2689,10 @@ const formatDateLabel = (value?: string | null) => {
                   </div>
                   <span className="flex-shrink-0">{dateLabel}</span>
                 </div>
-                <Link href={`/community/post/${item.post.id}`} data-no-translate>
+                <Link href={`/community/post/${pid}`} data-no-translate>
                   <p
                     ref={(node) => {
-                      postTextRefs.current[item.post.id] = node;
+                      postTextRefs.current[pid] = node;
                     }}
                     className={`mt-2 whitespace-pre-wrap text-base leading-7 text-slate-800 dark:text-gray-100 ${isExpanded ? '' : 'line-clamp-3'}`}
                   >
@@ -2411,7 +2702,7 @@ const formatDateLabel = (value?: string | null) => {
                 {shouldShowExpand ? (
                   <button
                     type="button"
-                    onClick={() => toggleExpandedPostText(item.post.id)}
+                    onClick={() => toggleExpandedPostText(pid)}
                     className="mt-1 text-sm font-semibold text-indigo-600 hover:underline dark:text-indigo-300"
                   >
                     {isExpanded ? 'See less' : 'See more'}
@@ -2419,16 +2710,33 @@ const formatDateLabel = (value?: string | null) => {
                 ) : null}
                 {item.post.video ? (
                   <div className="mt-3 w-[calc(100%+2.5rem)] max-w-none -mx-5">
-                    <FeedVideoPlayer src={item.post.video} square />
+                    <FeedVideoPlayer
+                      src={item.post.video}
+                      fullscreenActions={
+                        <PostActionsBar
+                          liked={liked}
+                          likesCount={coerceLikeCount(item.post.likes_post)}
+                          commentCount={commentCount}
+                          canLike={!!currentUser.id}
+                          onLike={() => handleLikePost(pid)}
+                          onComment={() => openVideoCommentsSheet(pid)}
+                          onShare={() => handleSharePost(pid)}
+                          postId={pid}
+                          postTitle={item.post.title}
+                          className="mt-0 justify-center"
+                          tone="darkVideo"
+                        />
+                      }
+                    />
                   </div>
                 ) : item.post.image ? (
-                  <Link href={`/community/post/${item.post.id}`} className="relative mt-3 block aspect-square w-[calc(100%+2.5rem)] max-w-none -mx-5 overflow-hidden">
+                  <Link href={`/community/post/${pid}`} className="relative mt-3 block w-[calc(100%+2.5rem)] max-w-none -mx-5 overflow-hidden">
                     <img
                       src={item.post.image}
                       alt={item.post.title}
                       loading="lazy"
                       decoding="async"
-                      className="absolute inset-0 h-full w-full object-cover"
+                      className="mx-auto block h-auto max-h-[85vh] w-auto max-w-full object-contain"
                     />
                   </Link>
                 ) : null}
@@ -2437,17 +2745,17 @@ const formatDateLabel = (value?: string | null) => {
                   likesCount={coerceLikeCount(item.post.likes_post)}
                   commentCount={commentCount}
                   canLike={!!currentUser.id}
-                  onLike={() => handleLikePost(item.post.id)}
-                  onComment={() => toggleComments(item.post.id)}
-                  onShare={() => handleSharePost(item.post.id)}
-                  postId={item.post.id}
+                  onLike={() => handleLikePost(pid)}
+                  onComment={() => toggleComments(pid)}
+                  onShare={() => handleSharePost(pid)}
+                  postId={pid}
                   postTitle={item.post.title}
                 />
                 {currentUser.id && item.post.user_id === currentUser.id && (
                   <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-3 text-base">
                     <button
-                      onClick={() => handleDeletePost(item.post.id)}
-                      disabled={deletingPost === item.post.id}
+                      onClick={() => handleDeletePost(pid)}
+                      disabled={deletingPost === pid}
                       className="flex items-center gap-1.5 rounded-full bg-red-100 dark:bg-red-900/40 px-3 py-1.5 text-sm font-semibold text-red-600 dark:text-red-300 transition hover:bg-red-200 dark:hover:bg-red-900/60 disabled:opacity-50"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -2465,66 +2773,131 @@ const formatDateLabel = (value?: string | null) => {
 
                 {isCommentsOpen && (
                   <div className="mt-4 border-t border-slate-100 dark:border-gray-600 pt-4">
-                    {commentLoading[item.post.id] ? (
+                    {commentLoading[pid] ? (
                       <p className="text-sm text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading comments...')}</p>
                     ) : (
                       <div className="space-y-3">
                         {comments.length === 0 && (
                           <p className="text-sm text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Be the first to comment.')}</p>
                         )}
-                        {comments.map((comment) => (
-                          <div key={comment.id} className="rounded-none bg-slate-100 px-3 py-2 text-base flex gap-2 dark:bg-gray-700/80">
-                            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-                              <Avatar
-                                src={comment.avatar_url || null}
-                                alt=""
-                                className="w-full h-full rounded-full"
-                              />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">
-                                {comment.author || comment.username || 'User'}
-                              </p>
-                              <div data-no-translate>
-                                <p className="text-base leading-7 text-slate-600 dark:text-gray-300">{comment.body ?? comment.text}</p>
+                        {groupCommentsByRoot(comments).map(({ root, replies }) => (
+                          <div key={root.id} className="space-y-2">
+                            <div className="flex gap-2 rounded-none bg-slate-100 px-3 py-2 text-base dark:bg-gray-700/80">
+                              <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full">
+                                <Avatar src={root.avatar_url || null} alt="" className="h-full w-full rounded-full object-cover" />
                               </div>
-                              <div className="flex items-center gap-2 mt-1">
-                                {currentUser.id && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCommentLike(item.post.id, comment.id)}
-                                    aria-label={comment.user_liked ? t(effectiveLang, 'Unlike comment') : t(effectiveLang, 'Like comment')}
-                                    aria-pressed={!!comment.user_liked}
-                                    className={`inline-flex items-center gap-1 text-sm font-medium transition ${
-                                      comment.user_liked ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-gray-500 hover:text-rose-500 dark:hover:text-rose-400'
-                                    }`}
-                                  >
-                                    <ThumbsUp className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-                                    <span className="tabular-nums text-slate-500 dark:text-gray-400">
-                                      {comment.likes ?? comment.likes_comment ?? 0}
-                                    </span>
-                                  </button>
-                                )}
-                                {!currentUser.id && (
-                                  <span className="inline-flex items-center gap-1 text-sm text-slate-400 dark:text-gray-500">
-                                    <ThumbsUp className="h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={2} aria-hidden />
-                                    <span className="tabular-nums">{comment.likes ?? comment.likes_comment ?? 0}</span>
-                                  </span>
-                                )}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">
+                                  {root.author || root.username || 'User'}
+                                </p>
+                                <div data-no-translate>
+                                  <p className="text-base leading-7 text-slate-600 dark:text-gray-300">{root.body ?? root.text}</p>
+                                </div>
+                                <div className="mt-1 flex w-full items-center gap-2">
+                                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                                    {currentUser.id ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCommentLike(pid, root.id)}
+                                        aria-label={root.user_liked ? t(effectiveLang, 'Unlike comment') : t(effectiveLang, 'Like comment')}
+                                        aria-pressed={!!root.user_liked}
+                                        className={`inline-flex items-center gap-1 text-sm font-medium transition ${
+                                          root.user_liked ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-gray-500 hover:text-rose-500 dark:hover:text-rose-400'
+                                        }`}
+                                      >
+                                        <ThumbsUp className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                                        <span className="tabular-nums text-slate-500 dark:text-gray-400">
+                                          {root.likes ?? root.likes_comment ?? 0}
+                                        </span>
+                                      </button>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 text-sm text-slate-400 dark:text-gray-500">
+                                        <ThumbsUp className="h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={2} aria-hidden />
+                                        <span className="tabular-nums">{root.likes ?? root.likes_comment ?? 0}</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                  {currentUser.id && root.user_id === currentUser.id && (
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleDeleteComment(pid, root.id)}
+                                      aria-label={t(effectiveLang, 'Delete comment')}
+                                      className="inline-flex shrink-0 items-center justify-center rounded-full bg-red-100 p-2 text-red-600 transition hover:bg-red-200 dark:bg-red-950/70 dark:text-red-400 dark:hover:bg-red-900/85"
+                                    >
+                                      <Trash2 className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </div>
+                            {replies.map(({ comment: reply, depth }) => (
+                              <div
+                                key={reply.id}
+                                style={{ marginLeft: Math.max(0, depth - 1) * 10 }}
+                                className="flex gap-2 border-l-2 border-sky-200/80 py-1 pl-3 text-sm dark:border-sky-500/40"
+                              >
+                                <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full">
+                                  <Avatar src={reply.avatar_url || null} alt="" className="h-full w-full rounded-full object-cover" />
+                                </div>
+                                <div className="min-w-0 flex-1 rounded-none bg-slate-100/90 px-2 py-1.5 dark:bg-gray-700/60">
+                                  <p className="text-xs font-semibold text-slate-700 dark:text-gray-200">
+                                    {reply.author || reply.username || 'User'}
+                                  </p>
+                                  <div data-no-translate>
+                                    <p className="text-sm leading-6 text-slate-600 dark:text-gray-300">{reply.body ?? reply.text}</p>
+                                  </div>
+                                  <div className="mt-0.5 flex w-full items-center gap-2">
+                                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                                      {currentUser.id ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleCommentLike(pid, reply.id)}
+                                          aria-label={reply.user_liked ? t(effectiveLang, 'Unlike comment') : t(effectiveLang, 'Like comment')}
+                                          aria-pressed={!!reply.user_liked}
+                                          className={`inline-flex items-center gap-1 text-xs font-medium transition ${
+                                            reply.user_liked ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400 dark:text-gray-500 hover:text-rose-500 dark:hover:text-rose-400'
+                                          }`}
+                                        >
+                                          <ThumbsUp className="h-3 w-3 shrink-0" strokeWidth={2} aria-hidden />
+                                          <span className="tabular-nums text-slate-500 dark:text-gray-400">
+                                            {reply.likes ?? reply.likes_comment ?? 0}
+                                          </span>
+                                        </button>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-gray-500">
+                                          <ThumbsUp className="h-3 w-3 shrink-0 opacity-70" strokeWidth={2} aria-hidden />
+                                          <span className="tabular-nums">{reply.likes ?? reply.likes_comment ?? 0}</span>
+                                        </span>
+                                      )}
+                                    </div>
+                                    {currentUser.id && reply.user_id === currentUser.id && (
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleDeleteComment(pid, reply.id)}
+                                        aria-label={t(effectiveLang, 'Delete comment')}
+                                        className="inline-flex shrink-0 items-center justify-center rounded-full bg-red-100 p-1.5 text-red-600 transition hover:bg-red-200 dark:bg-red-950/70 dark:text-red-400 dark:hover:bg-red-900/85"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         ))}
                       </div>
                     )}
                     <div className="mt-3 flex items-center gap-2 border-t border-slate-100 dark:border-gray-600 pt-3">
                       <input
-                        value={commentInputs[item.post.id] || ''}
+                        value={commentInputs[pid] || ''}
                         onChange={(e) =>
-                          setCommentInputs((prev) => ({ ...prev, [item.post.id]: e.target.value }))
+                          setCommentInputs((prev) => ({ ...prev, [pid]: e.target.value }))
                         }
                         onFocus={() => {
-                          if (!currentUser.id) requireLogin();
+                          void (async () => {
+                            if (!currentUser.id) await requireLogin();
+                          })();
                         }}
                         placeholder={currentUser.id ? t(effectiveLang, 'Write a comment...') : t(effectiveLang, 'Log in to write a comment')}
                         disabled={!currentUser.id}
@@ -2532,8 +2905,8 @@ const formatDateLabel = (value?: string | null) => {
                       />
                       <button
                         type="button"
-                        onClick={() => submitComment(item.post.id)}
-                        disabled={!currentUser.id || !commentInputs[item.post.id]?.trim()}
+                        onClick={() => submitComment(pid)}
+                        disabled={!currentUser.id || !commentInputs[pid]?.trim()}
                         aria-label={t(effectiveLang, 'Post comment')}
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-500 text-white shadow-sm transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-sky-200 disabled:text-sky-100/90 dark:bg-sky-600 dark:hover:bg-sky-500 dark:disabled:bg-slate-600 dark:disabled:text-slate-400"
                       >
@@ -2639,6 +3012,30 @@ const formatDateLabel = (value?: string | null) => {
       <Footer />
     </div>
     </PullToRefresh>
+    <FeedPostCommentsSheet
+      open={!!videoCommentsSheetPostId}
+      postId={videoCommentsSheetPostId}
+      onClose={() => setVideoCommentsSheetPostId(null)}
+      comments={videoCommentsSheetPostId ? commentsByPost[videoCommentsSheetPostId] ?? [] : []}
+      loading={videoCommentsSheetPostId ? !!commentLoading[videoCommentsSheetPostId] : false}
+      currentUserId={currentUser.id}
+      commentInput={videoCommentsSheetPostId ? commentInputs[videoCommentsSheetPostId] || '' : ''}
+      onCommentInputChange={(value) => {
+        if (!videoCommentsSheetPostId) return;
+        setCommentInputs((prev) => ({ ...prev, [videoCommentsSheetPostId]: value }));
+      }}
+      onSubmitComment={() => {
+        if (videoCommentsSheetPostId) void submitComment(videoCommentsSheetPostId);
+      }}
+      onCommentLike={(commentId) => {
+        if (videoCommentsSheetPostId) void handleCommentLike(videoCommentsSheetPostId, commentId);
+      }}
+      onSubmitReply={(parentId, text) => submitCommentReply(videoCommentsSheetPostId!, parentId, text)}
+      onDeleteComment={(commentId) => {
+        if (videoCommentsSheetPostId) void handleDeleteComment(videoCommentsSheetPostId, commentId);
+      }}
+      effectiveLang={effectiveLang}
+    />
     </>
   );
 }
