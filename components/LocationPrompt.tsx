@@ -46,6 +46,21 @@ export default function LocationPromptModal() {
         setSelectedLang(supportedCodes.has(browserLang) ? browserLang : 'en');
       }
 
+      let isDone = localStorage.getItem(ONBOARDING_DONE_KEY) === 'true';
+      const savedCoords = localStorage.getItem('userCoords');
+      const currentLang = localStorage.getItem('hanarLang');
+      const hasChosenLang = !!currentLang && currentLang !== 'auto';
+      const hasLocation = !!savedCoords;
+      if (hasChosenLang && hasLocation && !isDone) {
+        try {
+          localStorage.setItem(ONBOARDING_DONE_KEY, 'true');
+          localStorage.setItem(LEGACY_LOCATION_SEEN_KEY, 'true');
+        } catch {
+          /* ignore */
+        }
+        isDone = true;
+      }
+
       // Never show onboarding location/language prompt to logged-in users.
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
@@ -54,14 +69,9 @@ export default function LocationPromptModal() {
         return;
       }
 
-      const isDone = localStorage.getItem(ONBOARDING_DONE_KEY) === 'true';
-      const savedCoords = localStorage.getItem('userCoords');
-      const currentLang = localStorage.getItem('hanarLang');
-      const hasChosenLang = !!currentLang && currentLang !== 'auto';
-      const hasLocation = !!savedCoords;
       const shouldShow = !isDone || !hasChosenLang || !hasLocation;
       setShowModal(shouldShow);
-      if (shouldShow) setStep('language');
+      if (shouldShow) setStep(!hasChosenLang ? 'language' : 'locationPrompt');
       setInitialized(true);
     };
 
