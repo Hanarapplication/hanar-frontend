@@ -10,6 +10,12 @@ import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 import NavbarEntitySearch from '@/components/NavbarEntitySearch';
+import { cn } from '@/lib/utils';
+import {
+  clearBusinessesBackToHomeFeedIfLeftDirectory,
+  clearBusinessesBackToHomeFeedIntent,
+  peekBusinessesEnteredFromBusinessSlug,
+} from '@/lib/businessesDirectoryNav';
 
 /** SVGs: explicit box, no flex shrink, `block` avoids sub-pixel baseline gaps in WebKit/Chrome. */
 const navLineIconClass = 'h-[1.7rem] w-[1.7rem] max-h-[1.7rem] max-w-[1.7rem] shrink-0 block';
@@ -570,9 +576,11 @@ export default function Navbar({
     }
   }, [dashboardIdentity.loggedIn, dashboardIdentity.publicProfileHref, router]);
 
-  /** Home bottom bar: pink indicator under the active tab (matches Hanar wordmark). */
-  const bottomBarActiveMark =
-    "after:pointer-events-none after:absolute after:bottom-1 after:left-1/2 after:h-[3px] after:w-7 after:-translate-x-1/2 after:rounded-full after:bg-pink-600 after:content-[''] dark:after:bg-pink-400";
+  /** Home bottom bar icon buttons — pink highlight when active (matches feed filter/search). */
+  const homeBottomBarIconBtn =
+    'relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-[#65676B] transition-colors hover:bg-pink-50 active:scale-[0.97] dark:text-[#e4e6eb] dark:hover:bg-pink-900/25 [-webkit-tap-highlight-color:transparent]';
+  const homeBottomBarIconActive =
+    'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300';
 
   const goToQuickAction = (href: string) => {
     setNotificationsOpen(false);
@@ -614,7 +622,7 @@ export default function Navbar({
       href: '/marketplace',
       icon: (isActive) => (
         <ShoppingCart
-          className={`${navLineIconClass} ${isActive ? 'text-[#1877F2]' : ''}`}
+          className={`${navLineIconClass} ${isActive ? 'text-pink-700 dark:text-pink-300' : ''}`}
           strokeWidth={2}
           aria-hidden
         />
@@ -627,7 +635,7 @@ export default function Navbar({
       href: '/businesses',
       icon: (isActive) => (
         <Store
-          className={`${navLineIconClass} ${isActive ? 'text-[#1877F2]' : ''}`}
+          className={`${navLineIconClass} ${isActive ? 'text-pink-700 dark:text-pink-300' : ''}`}
           strokeWidth={2}
           aria-hidden
         />
@@ -670,10 +678,17 @@ export default function Navbar({
   const profileNav = primaryNavItems[3]!;
 
   const isHomeFeedRoute = pathname === '/';
-  const isMarketplaceOrBusinessesRoute = useMemo(
-    () => pathname.startsWith('/marketplace') || pathname.startsWith('/businesses'),
-    [pathname],
-  );
+  /** Marketplace, businesses, business dashboard: no nav bottom rule — content continues as one white card. */
+  const isDirectorySearchChromeRoute =
+    pathname.startsWith('/marketplace') ||
+    pathname.startsWith('/businesses') ||
+    pathname.startsWith('/business-dashboard');
+  /** Same left mark as home (hanar) on legacy /home-feed; bottom tab bar still only on `/`. */
+  const showHanarHomeMark = pathname === '/' || pathname === '/home-feed';
+
+  useEffect(() => {
+    clearBusinessesBackToHomeFeedIfLeftDirectory(pathname);
+  }, [pathname]);
 
   const goBackSmart = useCallback(() => {
     setNotificationsOpen(false);
@@ -681,12 +696,23 @@ export default function Navbar({
       router.push('/');
       return;
     }
+    if (pathname.startsWith('/businesses') && peekBusinessesEnteredFromBusinessSlug()) {
+      clearBusinessesBackToHomeFeedIntent();
+      router.push('/');
+      return;
+    }
+    /** Next.js App Router often tracks stack position on `history.state.idx`. */
+    const st = window.history.state as { idx?: number } | null;
+    if (typeof st?.idx === 'number' && st.idx > 0) {
+      router.back();
+      return;
+    }
     if (window.history.length > 1) {
       router.back();
-    } else {
-      router.push('/');
+      return;
     }
-  }, [router]);
+    router.push('/');
+  }, [router, pathname]);
 
   /** Twitter-style: hide fixed bottom tab bar while scrolling down; show on scroll up / near top. */
   const [homeBottomBarScrollHidden, setHomeBottomBarScrollHidden] = useState(false);
@@ -741,13 +767,17 @@ export default function Navbar({
     <>
       <nav
         data-top-nav="true"
-        className={`fixed top-0 left-0 right-0 z-[120] border-b border-[#e4e6eb] bg-white pt-[env(safe-area-inset-top,0px)] shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all duration-200 dark:border-[#3e4042] dark:bg-[#242526] dark:shadow-[0_1px_0_rgba(0,0,0,0.35)] ${
-          hidden ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
-        }`}
+        className={cn(
+          'fixed top-0 left-0 right-0 z-[120] bg-white pt-[env(safe-area-inset-top,0px)] transition-all duration-200',
+          isDirectorySearchChromeRoute || isHomeFeedRoute
+            ? 'border-b-0 shadow-none dark:border-b-0 dark:bg-white dark:shadow-none'
+            : 'border-b border-[#e4e6eb] shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:border-[#3e4042] dark:bg-[#242526] dark:shadow-[0_1px_0_rgba(0,0,0,0.35)]',
+          hidden ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100',
+        )}
       >
         <div className="mx-auto flex h-14 min-h-14 max-w-[1920px] items-center gap-2 px-3 sm:gap-3 sm:px-4">
-          {isHomeFeedRoute ? (
-            <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {showHanarHomeMark ? (
               <Link
                 href={homeNav.href}
                 aria-label={homeNav.label}
@@ -756,42 +786,31 @@ export default function Navbar({
               >
                 {homeNav.icon(homeNav.isActive(pathname))}
               </Link>
-              <NavbarEntitySearch effectiveLang={effectiveLang} />
-              <Link
-                href={profileNav.href}
-                aria-label={t(effectiveLang, 'Dashboard')}
-                title={t(effectiveLang, 'Dashboard')}
-                onClick={() => setNotificationsOpen(false)}
-                className={`${topNavIconBtn} shrink-0 p-0.5 ${profileNav.isActive(pathname) ? 'ring-2 ring-[#1877F2] ring-offset-1 ring-offset-white dark:ring-offset-[#242526]' : ''}`}
-              >
-                {profileNav.icon(profileNav.isActive(pathname))}
-              </Link>
-            </div>
-          ) : isMarketplaceOrBusinessesRoute ? (
-            <div className="flex h-14 min-h-14 items-center">
-              <Link
-                href="/"
-                aria-label={t(effectiveLang, 'Back')}
-                title={t(effectiveLang, 'Home feed')}
-                onClick={() => setNotificationsOpen(false)}
-                className={topNavIconBtn}
-              >
-                <ArrowLeft className="h-6 w-6" strokeWidth={2} aria-hidden />
-              </Link>
-            </div>
-          ) : (
-            <div className="flex h-14 min-h-14 items-center">
+            ) : (
               <button
                 type="button"
                 aria-label={t(effectiveLang, 'Back')}
                 title={t(effectiveLang, 'Back')}
                 onClick={goBackSmart}
-                className={topNavIconBtn}
+                className={cn(
+                  topNavIconBtn,
+                  'text-pink-600 opacity-80 hover:opacity-100 dark:text-pink-400',
+                )}
               >
                 <ArrowLeft className="h-6 w-6" strokeWidth={2} aria-hidden />
               </button>
-            </div>
-          )}
+            )}
+            <NavbarEntitySearch effectiveLang={effectiveLang} />
+            <Link
+              href={profileNav.href}
+              aria-label={t(effectiveLang, 'Dashboard')}
+              title={t(effectiveLang, 'Dashboard')}
+              onClick={() => setNotificationsOpen(false)}
+              className={`${topNavIconBtn} shrink-0 p-0.5 ${profileNav.isActive(pathname) ? 'ring-2 ring-[#1877F2] ring-offset-1 ring-offset-white dark:ring-offset-[#242526]' : ''}`}
+            >
+              {profileNav.icon(profileNav.isActive(pathname))}
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -811,7 +830,7 @@ export default function Navbar({
               href={businessesItem.href}
               aria-label={businessesItem.label}
               onClick={() => setNotificationsOpen(false)}
-              className={`${topNavIconBtn} ${businessesItem.isActive(pathname) ? `${bottomBarActiveMark} text-[#1877F2] dark:text-[#4599ff]` : ''}`}
+              className={`${homeBottomBarIconBtn} ${businessesItem.isActive(pathname) ? homeBottomBarIconActive : ''}`}
             >
               {businessesItem.icon(businessesItem.isActive(pathname))}
             </Link>
@@ -819,20 +838,20 @@ export default function Navbar({
               href={marketplaceItem.href}
               aria-label={marketplaceItem.label}
               onClick={() => setNotificationsOpen(false)}
-              className={`${topNavIconBtn} ${marketplaceItem.isActive(pathname) ? `${bottomBarActiveMark} text-[#1877F2] dark:text-[#4599ff]` : ''}`}
+              className={`${homeBottomBarIconBtn} ${marketplaceItem.isActive(pathname) ? homeBottomBarIconActive : ''}`}
             >
               {marketplaceItem.icon(marketplaceItem.isActive(pathname))}
             </Link>
             <button
               type="button"
               onClick={() => goToQuickAction('/messages?view=inbox')}
-              className={`${topNavIconBtn} ${pathname.startsWith('/messages') ? `${bottomBarActiveMark} text-[#1877F2] dark:text-[#4599ff]` : ''}`}
+              className={`${homeBottomBarIconBtn} ${pathname.startsWith('/messages') ? homeBottomBarIconActive : ''}`}
               aria-label="Go to messages"
               title="Messages"
             >
               <MessageCircle className="h-6 w-6" strokeWidth={2} aria-hidden />
               {unreadMessageCount > 0 ? (
-                <span className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[#e41e3f] px-0.5 text-[10px] font-semibold leading-none text-white">
+                <span className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-pink-600 px-0.5 text-[10px] font-semibold leading-none text-white dark:bg-pink-500">
                   {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
                 </span>
               ) : null}
@@ -841,7 +860,7 @@ export default function Navbar({
               ref={notificationsBellRef}
               type="button"
               onClick={toggleNotifications}
-              className={`${topNavIconBtn} ${notificationsOpen ? `${bottomBarActiveMark} text-[#1877F2] dark:text-[#4599ff]` : ''}`}
+              className={`${homeBottomBarIconBtn} ${notificationsOpen ? homeBottomBarIconActive : ''}`}
               aria-label="Open notifications"
               title="Notifications"
               aria-expanded={notificationsOpen}
@@ -849,7 +868,7 @@ export default function Navbar({
             >
               <Bell className="h-6 w-6" strokeWidth={2} aria-hidden />
               {unreadCount > 0 ? (
-                <span className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-[#e41e3f] px-0.5 text-[10px] font-semibold leading-none text-white">
+                <span className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-pink-600 px-0.5 text-[10px] font-semibold leading-none text-white dark:bg-pink-500">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               ) : null}

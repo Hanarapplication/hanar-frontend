@@ -979,7 +979,7 @@ function BusinessDashboardContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 pt-14 pb-12">
+      <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 pb-12">
         <div className="w-full px-4 sm:px-5">
           <div className="w-full bg-white dark:bg-gray-800 p-6 space-y-6">
             <div className="flex items-start gap-4">
@@ -1101,7 +1101,7 @@ function BusinessDashboardContent() {
     : pagePreviewBackground;
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-slate-50 pt-14 pb-12 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
+    <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-slate-50 pb-12 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
       <div className="w-full space-y-6">
         <div className="w-full bg-white shadow-none dark:bg-gray-800">
           {/* Header */}

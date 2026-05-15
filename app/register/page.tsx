@@ -250,8 +250,8 @@ export default function RegisterPage() {
           <Image
             src="/hanar.logo.png"
             alt="Hanar"
-            width={100}
-            height={64}
+            width={200}
+            height={128}
             className="h-16 w-auto object-contain"
             unoptimized
             priority

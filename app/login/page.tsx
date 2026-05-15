@@ -139,7 +139,14 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] px-4">
       <div className="relative z-20 pointer-events-auto bg-white w-full max-w-md p-6 rounded-lg shadow-[0_2px_4px_rgba(0,0,0,.1),0_8px_16px_rgba(0,0,0,.1)]">
         <div className="flex justify-center mb-6">
-          <span className="text-3xl font-bold tracking-tight text-gray-900">Hanar</span>
+          <img
+            src="/hanar.logo.png"
+            alt="Hanar"
+            width={160}
+            height={100}
+            className="h-16 w-auto max-w-[min(100%,14rem)] object-contain"
+            decoding="async"
+          />
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4 pointer-events-auto" autoComplete="on">

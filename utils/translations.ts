@@ -126,6 +126,7 @@ const translations: Record<string, Record<string, string>> = {
       "Previous": "Previous",
       "Search": "Search",
       "Search businesses, people, organizations...": "Search businesses, people, organizations…",
+      "Search businesses, people, etc.": "Search businesses, people, etc.",
       "Filter": "Filter",
       "No results found": "No results found",
       "Failed to load favorites": "Failed to load favorites",

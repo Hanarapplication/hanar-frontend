@@ -914,9 +914,9 @@ export default function BusinessesPage() {
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
-      <div className="mx-auto max-w-[66rem] px-3 pt-0">
-        {/* Search and location bar (Hanar nav gradient — matches home Ask strip) */}
-        <div className="sticky top-0 z-10 -mx-3 mb-0 border-b border-slate-200 bg-slate-100 px-3 pb-3 pt-0 shadow-sm sm:-mx-5 sm:mb-0 sm:px-5 dark:border-slate-200 dark:bg-slate-100">
+      <div className="mx-auto max-w-[66rem] px-3 pt-0 sm:px-4">
+        {/* Search and location bar */}
+        <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-[110] -mx-3 mb-0 border-b border-slate-200/80 bg-white px-3 pb-3 pt-2 shadow-[0_4px_6px_-4px_rgba(0,0,0,0.08)] sm:px-4 sm:pt-3 dark:border-slate-200/80 dark:bg-white">
           <div className="mx-auto max-w-3xl">
             <div className="mb-2 flex items-center justify-between gap-2">
               <button

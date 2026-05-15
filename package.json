@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "translate:ui": "tsx scripts/translate-ui.ts"
+    "translate:ui": "tsx scripts/translate-ui.ts",
+    "logo:transparent": "node scripts/make-hanar-logo-transparent.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

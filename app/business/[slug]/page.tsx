@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'; // These imports remain as per your original code
 
 import { cn } from '@/lib/utils'; // This import remains as per your original code
+import { setBusinessesEnteredFromBusinessSlug } from '@/lib/businessesDirectoryNav';
 import { getMainCategory } from '@/utils/businessCategories';
 import { Playfair_Display, DM_Sans } from 'next/font/google';
 import ReportButton from '@/components/ReportButton';
@@ -500,6 +501,24 @@ const BusinessMap = ({ address }: { address: BusinessType['address'] }) => {
         </div>
     );
 };
+
+/** Link to the directory without a large Hanar mark — matches other header icon chips. */
+function BusinessesDirectoryLink({ className }: { className?: string }) {
+    return (
+        <Link
+            href="/businesses"
+            onClick={() => setBusinessesEnteredFromBusinessSlug()}
+            className={cn(
+                'inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-white/10 px-2 text-white ring-1 ring-white/25 transition hover:bg-white/20 sm:h-10 sm:gap-1.5 sm:px-2.5',
+                className
+            )}
+            aria-label="Browse all businesses"
+        >
+            <ChevronLeft className="h-[18px] w-[18px] shrink-0 opacity-90" strokeWidth={2.25} aria-hidden />
+            <span className="hidden text-xs font-semibold tracking-tight text-white/95 sm:inline sm:text-sm">All businesses</span>
+        </Link>
+    );
+}
 
 const BusinessProfilePage = () => {
     const params = useParams();
@@ -1421,18 +1440,12 @@ const BusinessProfilePage = () => {
                     </linearGradient>
                 </defs>
             </svg>
-            {/* Hanar logo + business name */}
+            {/* Directory link + business name */}
             {isRetailShopPage ? (
                 <div className="sticky top-0 z-30 border-b border-white/15 shadow-sm" style={retailSearchBarStyle}>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-3 py-2.5 sm:gap-3">
                         <div className="flex min-w-0 flex-1 items-center gap-2 sm:min-w-[12rem]">
-                            <Link
-                                href="/businesses"
-                                className="inline-block shrink-0 rounded-lg bg-white/10 px-1.5 py-0.5 ring-1 ring-white/20 transition hover:bg-white/15"
-                                aria-label="Back to Hanar"
-                            >
-                                <img src="/hanar.logo.png" alt="Hanar" className="h-7 w-auto max-w-[5.5rem] object-contain sm:h-8 sm:max-w-[7rem]" />
-                            </Link>
+                            <BusinessesDirectoryLink />
                             {business.logo_url ? (
                                 <img
                                     src={business.logo_url}
@@ -1444,7 +1457,7 @@ const BusinessProfilePage = () => {
                                 />
                             ) : null}
                             <h1
-                                className="min-w-0 flex-1 truncate text-left text-[13px] font-semibold tracking-tight text-white sm:text-sm"
+                                className="min-w-0 flex-1 break-words text-left text-[13px] font-semibold tracking-tight text-white sm:text-sm"
                                 data-no-translate
                             >
                                 {business.business_name}
@@ -1570,13 +1583,7 @@ const BusinessProfilePage = () => {
                 <div id="basel-top" className="sticky top-0 z-30 shadow-md">
                     <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-4" style={retailSearchBarStyle}>
                         <div className="flex min-w-0 flex-1 items-center gap-2">
-                            <Link
-                                href="/businesses"
-                                className="inline-block shrink-0 rounded-lg bg-white/10 px-2 py-1 ring-1 ring-white/20 transition hover:bg-white/15"
-                                aria-label="Back to Hanar"
-                            >
-                                <img src="/hanar.logo.png" alt="Hanar" className="h-8 w-auto max-w-[7rem] object-contain" />
-                            </Link>
+                            <BusinessesDirectoryLink />
                             {business.logo_url ? (
                                 <img
                                     src={business.logo_url}
@@ -1587,7 +1594,7 @@ const BusinessProfilePage = () => {
                                     }}
                                 />
                             ) : null}
-                            <span className="min-w-0 truncate text-sm font-semibold text-white sm:text-base" data-no-translate>{business.business_name}</span>
+                            <span className="min-w-0 flex-1 break-words text-sm font-semibold text-white sm:text-base" data-no-translate>{business.business_name}</span>
                         </div>
                         <div className="flex shrink-0 items-center gap-2.5 sm:gap-3">
                             {!communityPostsLoading && communityPosts.length > 0 && (
@@ -1725,10 +1732,8 @@ const BusinessProfilePage = () => {
                 style={{ background: slugBrandBackground }}
             >
                 <div className="flex items-center justify-between gap-3 min-w-0">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                        <Link href="/businesses" className="inline-block rounded-lg bg-white/10 px-2 py-1 ring-1 ring-white/20 transition hover:bg-white/15 shrink-0" aria-label="Back to Hanar">
-                            <img src="/hanar.logo.png" alt="Hanar" className="h-8 w-auto object-contain" />
-                        </Link>
+                    <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                        <BusinessesDirectoryLink />
                         {business.logo_url ? (
                             <img
                                 src={business.logo_url}
@@ -1737,7 +1742,7 @@ const BusinessProfilePage = () => {
                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                             />
                         ) : null}
-                        <span className="min-w-0 truncate text-sm sm:text-base font-semibold text-white" data-no-translate>
+                        <span className="min-w-0 flex-1 break-words text-sm sm:text-base font-semibold text-white" data-no-translate>
                             {business.business_name}
                         </span>
                     </div>

@@ -105,7 +105,7 @@ export default function NavbarEntitySearch({ effectiveLang }: { effectiveLang: s
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          placeholder={t(effectiveLang, 'Search businesses, people, organizations...')}
+          placeholder={t(effectiveLang, 'Search businesses, people, etc.')}
           autoComplete="off"
           spellCheck={false}
           aria-autocomplete="list"
