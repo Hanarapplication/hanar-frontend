@@ -197,8 +197,26 @@ export default function LoginPage() {
           {t(effectiveLang, 'View without logging in')}
         </Link>
 
-        <p className="mt-4 text-center text-xs text-gray-500">
-          {t(effectiveLang, 'By continuing, you agree to our Terms and Privacy Policy.')}
+        <p className="mt-4 text-center text-xs text-gray-500 leading-relaxed">
+          <span>{t(effectiveLang, 'Login legal prefix')}</span>
+          <Link
+            href="/terms"
+            className="font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800 dark:text-indigo-400"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t(effectiveLang, 'Terms of Service')}
+          </Link>
+          <span>{t(effectiveLang, 'Login legal between')}</span>
+          <Link
+            href="/privacy"
+            className="font-semibold text-indigo-600 underline underline-offset-2 hover:text-indigo-800 dark:text-indigo-400"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t(effectiveLang, 'Privacy Policy')}
+          </Link>
+          <span>{t(effectiveLang, 'Login legal suffix')}</span>
         </p>
       </div>
     </div>

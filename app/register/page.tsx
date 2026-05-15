@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { Turnstile } from '@marsidev/react-turnstile';
 import toast from 'react-hot-toast';
@@ -401,10 +402,37 @@ export default function RegisterPage() {
           <input id="website" type="text" value={form.website} onChange={handleChange} tabIndex={-1} autoComplete="off" />
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={agreed} onChange={() => setAgreed(!agreed)} />
-          {t(effectiveLang, 'I agree to the Terms & Privacy Policy')}
-        </label>
+        <div className="flex items-start gap-2.5 text-sm text-slate-700 dark:text-slate-200">
+          <input
+            id="register-agree-legal"
+            type="checkbox"
+            checked={agreed}
+            onChange={() => setAgreed(!agreed)}
+            className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            aria-describedby="register-agree-legal-text"
+          />
+          <div id="register-agree-legal-text" className="leading-relaxed">
+            <span>{t(effectiveLang, 'Registration agree prefix')}</span>
+            <Link
+              href="/terms"
+              className="font-semibold text-indigo-600 underline decoration-indigo-600/30 underline-offset-2 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t(effectiveLang, 'Terms of Service')}
+            </Link>
+            <span>{t(effectiveLang, 'Registration agree between')}</span>
+            <Link
+              href="/privacy"
+              className="font-semibold text-indigo-600 underline decoration-indigo-600/30 underline-offset-2 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t(effectiveLang, 'Privacy Policy')}
+            </Link>
+            <span>{t(effectiveLang, 'Registration agree suffix')}</span>
+          </div>
+        </div>
 
         <div className="flex justify-center">
           <Turnstile

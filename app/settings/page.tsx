@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useDarkMode } from '@/context/DarkModeContext';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
@@ -176,6 +177,42 @@ export default function SettingsPage() {
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-slate-900 dark:text-gray-100 mb-3">Notifications</h2>
         <PushNotificationToggle />
+      </div>
+
+      {/* Legal — public pages (no auth required to view) */}
+      <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50/90 p-4 dark:border-gray-600 dark:bg-gray-800/50">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-gray-100 mb-2">
+          {t(effectiveLang, 'Legal')}
+        </h2>
+        <p className="text-sm text-slate-600 dark:text-gray-400 mb-3">
+          {t(effectiveLang, 'Review our policies or request account deletion.')}
+        </p>
+        <ul className="space-y-2 text-sm font-medium">
+          <li>
+            <Link
+              href="/privacy"
+              className="text-indigo-600 hover:text-indigo-800 underline underline-offset-2 dark:text-indigo-400 dark:hover:text-indigo-300"
+            >
+              {t(effectiveLang, 'Privacy Policy')}
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/terms"
+              className="text-indigo-600 hover:text-indigo-800 underline underline-offset-2 dark:text-indigo-400 dark:hover:text-indigo-300"
+            >
+              {t(effectiveLang, 'Terms of Service')}
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/delete-account"
+              className="text-indigo-600 hover:text-indigo-800 underline underline-offset-2 dark:text-indigo-400 dark:hover:text-indigo-300"
+            >
+              {t(effectiveLang, 'Delete account')}
+            </Link>
+          </li>
+        </ul>
       </div>
 
       {/* Spoken languages (individual) – for ads and matching */}
