@@ -74,34 +74,6 @@ export default function LocationPromptModal() {
     setShowModal(false);
   };
 
-  const persistLocation = async (
-    lat: number,
-    lon: number,
-    meta?: { city?: string | null; state?: string | null; zip?: string | null; source?: string }
-  ) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const accessToken = session?.access_token || '';
-      await fetch('/api/user-location', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        body: JSON.stringify({
-          lat,
-          lng: lon,
-          city: meta?.city ?? null,
-          state: meta?.state ?? null,
-          zip: meta?.zip ?? null,
-          source: meta?.source ?? null,
-        }),
-      });
-    } catch {
-      // Ignore persistence failures
-    }
-  };
-
   const handleAllow = () => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -111,7 +83,6 @@ export default function LocationPromptModal() {
             lon: pos.coords.longitude,
           };
           localStorage.setItem('userCoords', JSON.stringify(coords));
-          void persistLocation(coords.lat, coords.lon, { source: 'gps' });
 
           const radiusMiles = readSavedSearchRadiusMiles(40);
           let label: string | undefined;
@@ -162,12 +133,6 @@ export default function LocationPromptModal() {
     const label = result.formatted_address || [result.city, result.state, result.zip].filter(Boolean).join(', ');
     localStorage.setItem('userCoords', JSON.stringify(coords));
     try { if (label) localStorage.setItem('userLocationLabel', label); } catch {}
-    persistLocation(coords.lat, coords.lon, {
-      city: cityValue,
-      state: stateValue,
-      zip: zipValue,
-      source: 'google_places',
-    });
     if (typeof window !== 'undefined') {
       const radiusMiles = readSavedSearchRadiusMiles(40);
       window.dispatchEvent(new CustomEvent('location:updated', {

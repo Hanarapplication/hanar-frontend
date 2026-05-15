@@ -165,17 +165,44 @@ export default function Navbar({
     }
   }, []);
 
-  /** Keep shared location prefs in sync when Set on Businesses/Marketplace/Location prompt (no header UI). */
+  /** When the app updates `userCoords` (businesses/marketplace/etc.), mirror to server if signed in — not on bare page refresh. */
   useEffect(() => {
     const handleLocationUpdated = (event: Event) => {
-      const detail = (event as CustomEvent).detail as { label?: string; radiusMiles?: number } | undefined;
+      const detail = (event as CustomEvent).detail as
+        | {
+            lat?: number;
+            lon?: number;
+            label?: string;
+            radiusMiles?: number;
+            city?: string | null;
+            state?: string | null;
+            zip?: string | null;
+            source?: string;
+          }
+        | undefined;
+      if (detail?.lat != null && detail?.lon != null) {
+        void (async () => {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (session?.user) {
+            await persistLocation(detail.lat!, detail.lon!, {
+              city: detail.city ?? null,
+              state: detail.state ?? null,
+              zip: detail.zip ?? null,
+              source: detail.source,
+            });
+          }
+        })();
+      }
       if (detail?.label) localStorage.setItem('userLocationLabel', detail.label);
       if (detail?.radiusMiles != null) writeSavedSearchRadiusMiles(detail.radiusMiles);
     };
     window.addEventListener('location:updated', handleLocationUpdated as EventListener);
     return () => window.removeEventListener('location:updated', handleLocationUpdated as EventListener);
-  }, []);
+  }, [persistLocation]);
 
+  /** Push stored coords to the server once after login — not on every page refresh. */
   useEffect(() => {
     const syncStoredLocationIfLoggedIn = async () => {
       const coordsRaw = localStorage.getItem('userCoords');
@@ -186,8 +213,9 @@ export default function Navbar({
         if (session?.user) persistLocation(lat, lon, { source: 'gps' });
       } catch {}
     };
-    syncStoredLocationIfLoggedIn();
-    const { data: authListener } = supabase.auth.onAuthStateChange(() => { syncStoredLocationIfLoggedIn(); });
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') void syncStoredLocationIfLoggedIn();
+    });
     return () => authListener?.subscription?.unsubscribe();
   }, [persistLocation]);
 
