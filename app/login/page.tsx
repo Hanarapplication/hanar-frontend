@@ -7,12 +7,34 @@ import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
-import {
-  hasHanarAppLoginIntent,
-  redirectToHanarAppWithSession,
-} from '@/lib/hanarAppAuthRedirect';
+import { completeLoginWithOptionalNativeHandoff } from '@/lib/hanarAppAuthRedirect';
 import { flushPendingNativePushToken } from '@/components/FcmTokenHandler';
 import { resolvePostLoginHref, type PostLoginUserType } from '@/lib/postLoginNavigation';
+
+const PROFILE_LOOKUP_TIMEOUT_MS = 8000;
+
+async function fetchAccountType(userId: string): Promise<PostLoginUserType> {
+  try {
+    const lookup = supabase
+      .from('registeredaccounts')
+      .select('business, organization')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const profile = await Promise.race([
+      lookup.then((res) => res.data),
+      new Promise<null>((resolve) => {
+        window.setTimeout(() => resolve(null), PROFILE_LOOKUP_TIMEOUT_MS);
+      }),
+    ]);
+
+    if (profile?.business === true) return 'business';
+    if (profile?.organization === true) return 'organization';
+  } catch {
+    /* default individual */
+  }
+  return 'individual';
+}
 
 export default function LoginPage() {
   const { effectiveLang } = useLanguage();
@@ -29,31 +51,17 @@ export default function LoginPage() {
       session: NonNullable<Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']>,
       options?: { showSuccessToast?: boolean },
     ) => {
-      const userId = session.user.id;
-      let userType: PostLoginUserType = 'individual';
-      try {
-        const { data: profile } = await supabase
-          .from('registeredaccounts')
-          .select('business, organization')
-          .eq('user_id', userId)
-          .maybeSingle();
-        if (profile?.business === true) userType = 'business';
-        else if (profile?.organization === true) userType = 'organization';
-      } catch {
-        /* default individual — do not block navigation */
-      }
+      const userType = await fetchAccountType(session.user.id);
       if (typeof window !== 'undefined') {
         localStorage.setItem('userType', userType);
       }
       void flushPendingNativePushToken(session);
-      if (typeof window !== 'undefined' && hasHanarAppLoginIntent()) {
-        redirectToHanarAppWithSession(session);
-        return;
-      }
+
+      const href = resolvePostLoginHref(redirectParam, userType);
       if (options?.showSuccessToast) {
         toast.success(t(effectiveLang, 'Login successful!'));
       }
-      window.location.assign(resolvePostLoginHref(redirectParam, userType));
+      await completeLoginWithOptionalNativeHandoff(session, href);
     },
     [effectiveLang, redirectParam],
   );
@@ -66,7 +74,6 @@ export default function LoginPage() {
         } = await supabase.auth.getSession();
         const user = session?.user;
         if (!user) return;
-        // Session already persisted (e.g. WebView reopened) — redirect quietly, no toast.
         await persistUserTypeAndNavigate(session);
       } finally {
         setCheckingAuth(false);
@@ -75,7 +82,6 @@ export default function LoginPage() {
     void redirectIfLoggedIn();
   }, [persistUserTypeAndNavigate]);
 
-  /** Browser autofill often skips React `onChange` — sync DOM values before first submit. */
   useEffect(() => {
     if (checkingAuth) return;
     const syncAutofill = () => {
@@ -133,6 +139,12 @@ export default function LoginPage() {
       const message = err instanceof Error ? err.message : t(effectiveLang, 'Unexpected login error.');
       toast.error(message);
       resetSubmitState();
+    } finally {
+      window.setTimeout(() => {
+        if (window.location.pathname.startsWith('/login')) {
+          resetSubmitState();
+        }
+      }, 15000);
     }
   };
 

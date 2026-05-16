@@ -4,8 +4,7 @@ import { useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
 import {
-  hasHanarAppLoginIntent,
-  redirectToHanarAppWithSession,
+  completeLoginWithOptionalNativeHandoff,
   syncHanarAppIntentFromBrowser,
 } from '@/lib/hanarAppAuthRedirect';
 import { flushPendingNativePushToken } from '@/components/FcmTokenHandler';
@@ -26,11 +25,6 @@ export default function AuthCallback() {
 
       const session = data.session;
       await flushPendingNativePushToken(session);
-
-      if (typeof window !== 'undefined' && hasHanarAppLoginIntent()) {
-        redirectToHanarAppWithSession(session);
-        return;
-      }
 
       const userId = session.user?.id;
       let userType: PostLoginUserType = 'individual';
@@ -53,7 +47,7 @@ export default function AuthCallback() {
       }
 
       const href = resolvePostLoginHref(null, userType);
-      window.location.assign(href);
+      await completeLoginWithOptionalNativeHandoff(session, href);
     };
 
     void handleRedirect();

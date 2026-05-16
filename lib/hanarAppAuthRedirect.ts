@@ -87,3 +87,27 @@ export function redirectToHanarAppWithSession(session: Session): void {
   // `href` assignment tends to be more reliable than `replace` for custom schemes from Android WebView.
   window.location.href = buildHanarAuthDeepLink(session);
 }
+
+const NATIVE_HANDOFF_WEB_FALLBACK_MS = 1500;
+
+/**
+ * In the Flutter WebView, `hanar://auth` may not unload the page if the shell misses the URL.
+ * Wait briefly, then continue in-web so login never stalls on "Logging in…".
+ */
+export async function completeLoginWithOptionalNativeHandoff(
+  session: Session,
+  webHref: string,
+): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (hasHanarAppLoginIntent()) {
+    redirectToHanarAppWithSession(session);
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, NATIVE_HANDOFF_WEB_FALLBACK_MS);
+    });
+    if (window.location.pathname.startsWith('/login')) {
+      window.location.assign(webHref);
+    }
+    return;
+  }
+  window.location.assign(webHref);
+}
