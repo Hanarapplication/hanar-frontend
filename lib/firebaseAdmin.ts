@@ -10,6 +10,9 @@
  * - Tray delivery when backgrounded/killed requires a `notification` object (not data-only),
  *   plus `data` for routing. Android uses `android.notification.channel_id` =
  *   `hanar_high_importance_channel` (must match the Flutter default channel).
+ * - Web/PWA clients: expanded tray uses `notification.icon`; limited space uses `badge` (`data.badge`
+ *   URL + `/icons/notification-status-badge.png`). Native Android status-bar glyph must still match a
+ *   white-on-transparent drawable in the Flutter APK (`ic_launcher`/notification drawable); URLs do not replace that bitmap.
  * - We do not set a global `collapse_key` for distinct DMs/alerts so FCM does not replace
  *   unrelated messages; omit per-message collapse unless product explicitly wants collapsing.
  */
@@ -54,6 +57,9 @@ export function isPushConfigured(): boolean {
 
 /** Matches Flutter `kAndroidFcmNotificationChannelId` + AndroidManifest default channel. */
 export const ANDROID_FCM_HIGH_CHANNEL_ID = 'hanar_high_importance_channel';
+
+/** Monochrome-ish mark for Web Notification `badge` (status bar / limited space); path under `public/`. */
+const NOTIFICATION_BADGE_PATH = '/icons/notification-status-badge.png';
 
 const DEFAULT_SITE_ORIGIN =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || 'https://www.hanar.net';
@@ -178,6 +184,8 @@ export async function sendPushToTokens(
 
   const { title: safeTitle, body: safeBody } = safeNotificationTitleBody(title, body);
   const linkAbs = toAbsoluteHanarLink(urlOrPath);
+  const largeIconAbs = toAbsoluteHanarLink('/icons/icon-512.png');
+  const badgeAbs = toAbsoluteHanarLink(NOTIFICATION_BADGE_PATH);
 
   const data: Record<string, string> = {
     type: (extras?.type ?? 'hanar').trim() || 'hanar',
@@ -194,6 +202,8 @@ export async function sendPushToTokens(
   const mid = extras?.messageId != null ? String(extras.messageId).trim() : '';
   if (mid) {
     data.messageId = mid;
+    // Unique tag so tray / Web Notifications do not replace unrelated pushes (default was `hanar-push`).
+    data.tag = `hanar-${data.type}-${mid}`;
   }
   const conv = extras?.conversationId != null ? String(extras.conversationId).trim() : '';
   if (conv) {
@@ -208,15 +218,24 @@ export async function sendPushToTokens(
       data.url = linkAbs;
     }
   }
+  if (badgeAbs) {
+    data.badge = badgeAbs;
+  }
 
   const batchSize = 500;
   let successCount = 0;
   let failureCount = 0;
 
+  const androidNotificationTag = data.tag;
+
   for (let i = 0; i < tokens.length; i += batchSize) {
     const chunk = tokens.slice(i, i + batchSize);
     const result = await m.sendEachForMulticast({
-      notification: { title: safeTitle, body: safeBody },
+      notification: {
+        title: safeTitle,
+        body: safeBody,
+        ...(largeIconAbs ? { icon: largeIconAbs } : {}),
+      },
       data,
       tokens: chunk,
       android: {
@@ -227,6 +246,7 @@ export async function sendPushToTokens(
           channelId: ANDROID_FCM_HIGH_CHANNEL_ID,
           title: safeTitle,
           body: safeBody,
+          ...(androidNotificationTag ? { tag: androidNotificationTag } : {}),
           defaultSound: true,
           defaultVibrateTimings: true,
           visibility: 'public',

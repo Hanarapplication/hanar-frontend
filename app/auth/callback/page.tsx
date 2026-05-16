@@ -1,66 +1,68 @@
-'use client'
+'use client';
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabaseClient'
-import toast from 'react-hot-toast'
+import { useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import toast from 'react-hot-toast';
 import {
   hasHanarAppLoginIntent,
   redirectToHanarAppWithSession,
   syncHanarAppIntentFromBrowser,
-} from '@/lib/hanarAppAuthRedirect'
+} from '@/lib/hanarAppAuthRedirect';
+import { flushPendingNativePushToken } from '@/components/FcmTokenHandler';
+import { resolvePostLoginHref, type PostLoginUserType } from '@/lib/postLoginNavigation';
 
 export default function AuthCallback() {
-  const router = useRouter()
-
   useEffect(() => {
     const handleRedirect = async () => {
-      syncHanarAppIntentFromBrowser()
+      syncHanarAppIntentFromBrowser();
 
-      const { data, error } = await supabase.auth.getSession()
+      const { data, error } = await supabase.auth.getSession();
 
       if (error || !data?.session) {
-        toast.error('Login failed. Please try again.')
-        router.push('/login')
-      } else {
-        if (typeof window !== 'undefined' && hasHanarAppLoginIntent()) {
-          redirectToHanarAppWithSession(data.session)
-          return
-        }
-        // Get user type and store it
-        const userId = data.session.user?.id
-        if (userId) {
-          const { data: profile } = await supabase
-            .from('registeredaccounts')
-            .select('business, organization')
-            .eq('user_id', userId)
-            .maybeSingle()
-
-          let userType: 'business' | 'individual' | 'organization' = 'individual'
-          
-          if (profile?.business === true) {
-            userType = 'business'
-          } else if (profile?.organization === true) {
-            userType = 'organization'
-          }
-
-          // Store user type in localStorage
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('userType', userType)
-          }
-        }
-
-        toast.success('Signed in successfully!')
-        router.push('/')
+        toast.error('Login failed. Please try again.');
+        window.location.assign('/login');
+        return;
       }
-    }
 
-    handleRedirect()
-  }, [router])
+      const session = data.session;
+      await flushPendingNativePushToken(session);
+
+      if (typeof window !== 'undefined' && hasHanarAppLoginIntent()) {
+        redirectToHanarAppWithSession(session);
+        return;
+      }
+
+      const userId = session.user?.id;
+      let userType: PostLoginUserType = 'individual';
+      if (userId) {
+        const { data: profile } = await supabase
+          .from('registeredaccounts')
+          .select('business, organization')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (profile?.business === true) {
+          userType = 'business';
+        } else if (profile?.organization === true) {
+          userType = 'organization';
+        }
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('userType', userType);
+        }
+      }
+
+      toast.success('Signed in successfully!');
+      const href = resolvePostLoginHref(null, userType);
+      window.location.assign(href);
+    };
+
+    void handleRedirect();
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <p className="text-lg text-gray-700">Signing you in...</p>
     </div>
-  )
+  );
 }

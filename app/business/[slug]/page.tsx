@@ -1442,7 +1442,9 @@ const BusinessProfilePage = () => {
             </svg>
             {/* Directory link + business name */}
             {isRetailShopPage ? (
-                <div className="sticky top-0 z-30 border-b border-white/15 shadow-sm" style={retailSearchBarStyle}>
+                <div className="sticky top-0 z-30 flex flex-col border-b border-white/15 shadow-sm">
+                    <div className="min-h-[env(safe-area-inset-top,0px)] w-full shrink-0" aria-hidden />
+                    <div className="flex flex-col" style={retailSearchBarStyle}>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-3 py-2.5 sm:gap-3">
                         <div className="flex min-w-0 flex-1 items-center gap-2 sm:min-w-[12rem]">
                             <BusinessesDirectoryLink />
@@ -1578,9 +1580,11 @@ const BusinessProfilePage = () => {
                             </div>
                         </div>
                     </div>
+                    </div>
                 </div>
             ) : isRetailBaselPage ? (
-                <div id="basel-top" className="sticky top-0 z-30 shadow-md">
+                <div id="basel-top" className="sticky top-0 z-30 flex flex-col shadow-md">
+                    <div className="min-h-[env(safe-area-inset-top,0px)] w-full shrink-0" aria-hidden />
                     <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-4" style={retailSearchBarStyle}>
                         <div className="flex min-w-0 flex-1 items-center gap-2">
                             <BusinessesDirectoryLink />
@@ -1727,10 +1731,12 @@ const BusinessProfilePage = () => {
                     </div>
                 </div>
             ) : (
-            <div
-                className="sticky top-0 z-30 mb-0 px-4 py-3 border-b border-white/15 dark:border-white/10 shadow-[inset_0_1px_0_rgba(130,170,230,0.22)] dark:shadow-[inset_0_1px_0_rgba(180,70,80,0.16)] backdrop-blur-sm"
-                style={{ background: slugBrandBackground }}
-            >
+            <div className="sticky top-0 z-30 mb-0 flex flex-col">
+                <div className="min-h-[env(safe-area-inset-top,0px)] w-full shrink-0" aria-hidden />
+                <div
+                    className="border-b border-white/15 px-4 py-3 shadow-[inset_0_1px_0_rgba(130,170,230,0.22)] backdrop-blur-sm dark:border-white/10 dark:shadow-[inset_0_1px_0_rgba(180,70,80,0.16)]"
+                    style={{ background: slugBrandBackground }}
+                >
                 <div className="flex items-center justify-between gap-3 min-w-0">
                     <div className="flex min-w-0 flex-1 items-center gap-2.5">
                         <BusinessesDirectoryLink />
@@ -1810,6 +1816,7 @@ const BusinessProfilePage = () => {
                             </button>
                         )}
                     </div>
+                </div>
                 </div>
             </div>
             )}

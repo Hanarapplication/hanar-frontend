@@ -8,8 +8,8 @@ import PwaRegistration from '@/components/PwaRegistration';
 import { LanguageProvider } from '@/context/LanguageContext';
 import FcmTokenHandler from '@/components/FcmTokenHandler';
 
-/** Golden yellow from brand mark — matches favicon / PWA chrome. */
-const BRAND_THEME = '#e8c547';
+/** Theme matches home-screen / standalone chrome with the pomegranate app icon. */
+const BRAND_THEME = '#d63384';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://hanar.net'),
@@ -20,10 +20,10 @@ export const metadata: Metadata = {
     icon: [
       { url: '/icons/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
       { url: '/icons/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/hanar.logo.png', sizes: '512x512', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
     ],
     apple: '/icons/apple-touch-icon.png',
-    shortcut: '/hanar.logo.png',
+    shortcut: '/icons/icon-512.png',
   },
   appleWebApp: {
     title: 'Hanar',
@@ -34,13 +34,13 @@ export const metadata: Metadata = {
     type: 'website',
     title: 'Hanar',
     description: 'Connecting immigrant businesses and marketplaces',
-    images: [{ url: '/hanar.logo.png', width: 512, height: 512, alt: 'Hanar' }],
+    images: [{ url: '/icons/icon-512.png', width: 512, height: 512, alt: 'Hanar' }],
   },
   twitter: {
     card: 'summary',
     title: 'Hanar',
     description: 'Connecting immigrant businesses and marketplaces',
-    images: ['/hanar.logo.png'],
+    images: ['/icons/icon-512.png'],
   },
 };
 

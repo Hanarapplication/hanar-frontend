@@ -172,10 +172,19 @@ export function usePushNotifications(): UsePushNotificationsResult {
         const notification = payload.notification;
         const title = notification?.title || payload.data?.title || 'Hanar';
         const body = notification?.body || payload.data?.body || '';
+        const tag =
+          (typeof payload.data?.tag === 'string' && payload.data.tag.trim()) ||
+          (typeof payload.data?.messageId === 'string' && payload.data.messageId.trim()
+            ? `hanar-${payload.data?.type || 'hanar'}-${payload.data.messageId}`
+            : 'hanar-push');
+        const badge =
+          (typeof payload.data?.badge === 'string' && payload.data.badge.trim()) ||
+          '/icons/notification-status-badge.png';
         const options: NotificationOptions = {
           body: body || 'New notification',
-          icon: notification?.icon || payload.data?.icon || '/hanar.logo.png',
-          tag: payload.data?.tag || 'hanar-push',
+          icon: notification?.icon || payload.data?.icon || '/icons/icon-512.png',
+          badge,
+          tag,
           data: { url: payload.data?.url || '/' },
         };
         if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {

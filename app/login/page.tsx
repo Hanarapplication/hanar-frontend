@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
@@ -11,15 +11,8 @@ import {
   hasHanarAppLoginIntent,
   redirectToHanarAppWithSession,
 } from '@/lib/hanarAppAuthRedirect';
-
-/** Same-origin path only — blocks `//evil.com` open redirects */
-function safeInternalRedirectPath(raw: string | null): string | null {
-  if (!raw || typeof raw !== 'string') return null;
-  const trimmed = raw.trim();
-  if (!trimmed.startsWith('/') || trimmed.startsWith('//')) return null;
-  if (trimmed.includes('://')) return null;
-  return trimmed;
-}
+import { flushPendingNativePushToken } from '@/components/FcmTokenHandler';
+import { resolvePostLoginHref, type PostLoginUserType } from '@/lib/postLoginNavigation';
 
 export default function LoginPage() {
   const { effectiveLang } = useLanguage();
@@ -27,24 +20,23 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [clicked, setClicked] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const router = useRouter();
+  const submitLockRef = useRef(false);
   const searchParams = useSearchParams();
+  const redirectParam = searchParams.get('redirect');
 
   useEffect(() => {
     const redirectIfLoggedIn = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const user = session?.user;
       if (!user) {
         setCheckingAuth(false);
         return;
       }
+      await flushPendingNativePushToken(session);
       if (typeof window !== 'undefined' && session && hasHanarAppLoginIntent()) {
         redirectToHanarAppWithSession(session);
-        return;
-      }
-      const next = safeInternalRedirectPath(searchParams.get('redirect'));
-      if (next) {
-        router.replace(next);
         return;
       }
       const { data: profile } = await supabase
@@ -52,23 +44,26 @@ export default function LoginPage() {
         .select('business, organization')
         .eq('user_id', user.id)
         .maybeSingle();
+
+      let userType: PostLoginUserType = 'individual';
       if (profile?.business === true) {
-        router.replace('/business-dashboard');
-        return;
+        userType = 'business';
+      } else if (profile?.organization === true) {
+        userType = 'organization';
       }
-      if (profile?.organization === true) {
-        router.replace('/organization/dashboard');
-        return;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('userType', userType);
       }
-      router.replace('/dashboard');
+      const href = resolvePostLoginHref(redirectParam, userType);
+      window.location.assign(href);
     };
     redirectIfLoggedIn();
-  }, [router, searchParams]);
+  }, [redirectParam]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (clicked) return;
-
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
     setClicked(true);
 
     try {
@@ -99,8 +94,7 @@ export default function LoginPage() {
         return;
       }
 
-      let userType: 'business' | 'individual' | 'organization' = 'individual';
-
+      let userType: PostLoginUserType = 'individual';
       if (profile?.business === true) {
         userType = 'business';
       } else if (profile?.organization === true) {
@@ -112,17 +106,21 @@ export default function LoginPage() {
       }
 
       const session = signInData.session;
+      await flushPendingNativePushToken(session ?? null);
+
       if (typeof window !== 'undefined' && session && hasHanarAppLoginIntent()) {
         redirectToHanarAppWithSession(session);
         return;
       }
 
       toast.success(t(effectiveLang, 'Login successful!'));
-      router.replace('/');
+      const href = resolvePostLoginHref(redirectParam, userType);
+      window.location.assign(href);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : t(effectiveLang, 'Unexpected login error.');
       toast.error(message);
     } finally {
+      submitLockRef.current = false;
       setClicked(false);
     }
   };

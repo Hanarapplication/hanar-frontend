@@ -29,12 +29,15 @@ configPromise.then(function (config) {
   messaging.onBackgroundMessage(function (payload) {
     var title = (payload.notification && payload.notification.title) || payload.data?.title || 'Hanar';
     var body = (payload.notification && payload.notification.body) || payload.data?.body || '';
-    var icon = (payload.notification && payload.notification.icon) || payload.data?.icon || '/hanar.logo.png';
+    /** Large image in the expanded tray; monochrome `badge` is used in limited space (e.g. status area). */
+    var icon =
+      (payload.notification && payload.notification.icon) || payload.data?.icon || '/icons/icon-512.png';
+    var badge = payload.data?.badge || '/icons/notification-status-badge.png';
     var url = payload.data?.url || '/';
     var options = {
       body: body || 'New notification',
       icon: icon,
-      badge: icon,
+      badge: badge,
       tag: payload.data?.tag || 'hanar-push',
       data: { url: url },
       requireInteraction: false,
