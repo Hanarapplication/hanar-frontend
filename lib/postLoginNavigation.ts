@@ -1,5 +1,5 @@
 /**
- * Shared post-login URLs: same-origin redirect param, then account-type routes.
+ * Shared post-login URLs: same-origin `redirect` param when present, otherwise home feed.
  * Prefer `window.location.assign` after password/OAuth sign-in so in-app WebViews
  * reliably leave `/login` (client `router.replace` can appear as a no-op).
  */
@@ -15,13 +15,23 @@ export function safeInternalRedirectPath(raw: string | null): string | null {
 
 export type PostLoginUserType = 'business' | 'individual' | 'organization';
 
+/** Account dashboards — post-login always sends users to the home feed instead. */
+const DASHBOARD_POST_LOGIN_PREFIXES = ['/dashboard', '/business-dashboard', '/organization/dashboard'] as const;
+
+function isDashboardPostLoginPath(path: string): boolean {
+  const base = path.split('?')[0]?.split('#')[0]?.replace(/\/$/, '') || '/';
+  return DASHBOARD_POST_LOGIN_PREFIXES.some((prefix) => base === prefix || base.startsWith(`${prefix}/`));
+}
+
+/**
+ * Where to send the user after sign-in. Defaults to home feed (`/`).
+ * Honors safe `redirect` params except dashboard URLs (those become `/`).
+ */
 export function resolvePostLoginHref(
   redirectParam: string | null,
-  userType: PostLoginUserType,
+  _userType?: PostLoginUserType,
 ): string {
   const next = safeInternalRedirectPath(redirectParam);
-  if (next) return next;
-  if (userType === 'business') return '/business-dashboard';
-  if (userType === 'organization') return '/organization/dashboard';
-  return '/dashboard';
+  if (next && !isDashboardPostLoginPath(next)) return next;
+  return '/';
 }

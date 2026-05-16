@@ -125,6 +125,7 @@ const translations: Record<string, Record<string, string>> = {
       "Next": "Next",
       "Previous": "Previous",
       "Search": "Search",
+      "Search feed, words, phrases…": "Search feed, words, phrases…",
       "Search businesses, people, organizations...": "Search businesses, people, organizations…",
       "Search businesses, people, etc.": "Search businesses, people, etc.",
       "Filter": "Filter",

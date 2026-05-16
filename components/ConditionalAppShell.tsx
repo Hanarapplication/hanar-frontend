@@ -75,12 +75,12 @@ export default function ConditionalAppShell({
         key={animKey}
         className={`animate-route-swap-soft ${
           isHomeFeedShell
-            ? `pt-[calc(3.5rem+env(safe-area-inset-top,0px))] ${
+            ? `pt-[calc(4rem+env(safe-area-inset-top,0px))] ${
                 homeBottomBarDocked
                   ? 'pb-[calc(3.5rem+env(safe-area-inset-bottom,0px)+1rem)]'
                   : 'pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]'
               }`
-            : 'pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-6 sm:pb-8'
+            : 'pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-6 sm:pb-8'
         }`}
       >
         {children}

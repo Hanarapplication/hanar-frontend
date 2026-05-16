@@ -21,7 +21,8 @@ import {
 const navLineIconClass = 'h-[1.7rem] w-[1.7rem] max-h-[1.7rem] max-w-[1.7rem] shrink-0 block';
 /** Facebook-style top bar icon hit target */
 const topNavIconBtn =
-  'relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[#65676B] transition-colors hover:bg-[#f2f2f2] active:scale-[0.97] dark:text-[#e4e6eb] dark:hover:bg-white/10 [-webkit-tap-highlight-color:transparent]';
+  'relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-black transition-colors hover:bg-[#f2f2f2] active:scale-[0.97] dark:text-[#e4e6eb] dark:hover:bg-white/10 [-webkit-tap-highlight-color:transparent]';
+const topNavProfileIconClass = 'h-9 w-9 max-h-9 max-w-9 shrink-0 block sm:h-10 sm:w-10 sm:max-h-10 sm:max-w-10';
 
 type NavbarNotificationRow = {
   id: string;
@@ -564,7 +565,7 @@ export default function Navbar({
 
   // Dashboard is one of the heaviest pages; prefetch it so profile tap feels immediate.
   useEffect(() => {
-    const target = dashboardIdentity.loggedIn ? '/dashboard' : '/login?redirect=/dashboard';
+    const target = dashboardIdentity.loggedIn ? '/dashboard' : '/login?redirect=/';
     try {
       router.prefetch(target);
       const pub = dashboardIdentity.publicProfileHref;
@@ -576,11 +577,12 @@ export default function Navbar({
     }
   }, [dashboardIdentity.loggedIn, dashboardIdentity.publicProfileHref, router]);
 
-  /** Home bottom bar icon buttons — pink highlight when active (matches feed filter/search). */
+  /** Home bottom bar icon buttons — black icons; pink background when active. */
   const homeBottomBarIconBtn =
-    'relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-[#65676B] transition-colors hover:bg-pink-50 active:scale-[0.97] dark:text-[#e4e6eb] dark:hover:bg-pink-900/25 [-webkit-tap-highlight-color:transparent]';
+    'relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-black transition-colors hover:bg-pink-50 active:scale-[0.97] dark:text-black dark:hover:bg-pink-50 [-webkit-tap-highlight-color:transparent]';
   const homeBottomBarIconActive =
-    'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300';
+    'bg-pink-100 text-black dark:bg-pink-100 dark:text-black';
+  const homeBottomBarLineIconClass = `${navLineIconClass} text-black dark:text-black`;
 
   const goToQuickAction = (href: string) => {
     setNotificationsOpen(false);
@@ -607,7 +609,7 @@ export default function Navbar({
       href: '/',
       icon: (isActive) => (
         <span
-          className={`shrink-0 text-[1.25rem] font-semibold leading-none tracking-normal lowercase text-pink-600 dark:text-pink-400 ${
+          className={`shrink-0 text-[1.625rem] font-semibold leading-none tracking-normal lowercase text-pink-600 sm:text-[1.75rem] dark:text-pink-400 ${
             isActive ? 'opacity-100' : 'opacity-80 hover:opacity-100'
           }`}
         >
@@ -622,7 +624,7 @@ export default function Navbar({
       href: '/marketplace',
       icon: (isActive) => (
         <ShoppingCart
-          className={`${navLineIconClass} ${isActive ? 'text-pink-700 dark:text-pink-300' : ''}`}
+          className={homeBottomBarLineIconClass}
           strokeWidth={2}
           aria-hidden
         />
@@ -635,7 +637,7 @@ export default function Navbar({
       href: '/businesses',
       icon: (isActive) => (
         <Store
-          className={`${navLineIconClass} ${isActive ? 'text-pink-700 dark:text-pink-300' : ''}`}
+          className={homeBottomBarLineIconClass}
           strokeWidth={2}
           aria-hidden
         />
@@ -645,11 +647,11 @@ export default function Navbar({
     },
     {
       key: 'profile',
-      href: dashboardIdentity.loggedIn ? '/dashboard' : '/login?redirect=/dashboard',
+      href: dashboardIdentity.loggedIn ? '/dashboard' : '/login?redirect=/',
       icon: (isActive) =>
         dashboardIdentity.loggedIn ? (
           <span
-            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-white p-px ${
+            className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border bg-white p-px sm:h-[3.25rem] sm:w-[3.25rem] ${
               isActive ? 'border-[#1877F2] ring-2 ring-[#1877F2] ring-offset-1 ring-offset-white dark:bg-[#3a3b3c] dark:ring-offset-[#242526]' : 'border-[#e4e6eb] dark:border-[#3e4042]'
             }`}
           >
@@ -662,7 +664,7 @@ export default function Navbar({
           </span>
         ) : (
           <CircleUserRound
-            className={`${navLineIconClass} ${isActive ? 'text-[#1877F2]' : ''}`}
+            className={`${topNavProfileIconClass} text-black dark:text-[#e4e6eb]`}
             strokeWidth={1.9}
             aria-hidden
           />
@@ -775,14 +777,14 @@ export default function Navbar({
           hidden ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100',
         )}
       >
-        <div className="mx-auto flex h-14 min-h-14 max-w-[1920px] items-center gap-2 px-3 sm:gap-3 sm:px-4">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className="mx-auto flex h-16 min-h-16 max-w-[1920px] items-center justify-between gap-2.5 px-3 sm:gap-3 sm:px-4">
+          <div className="flex shrink-0 items-center">
             {showHanarHomeMark ? (
               <Link
                 href={homeNav.href}
                 aria-label={homeNav.label}
                 onClick={() => setNotificationsOpen(false)}
-                className="flex shrink-0 items-center rounded-md px-1.5 py-2 transition hover:bg-[#f2f2f2] dark:hover:bg-white/10"
+                className="flex shrink-0 items-center rounded-md px-2 py-1.5 transition hover:bg-[#f2f2f2] dark:hover:bg-white/10"
               >
                 {homeNav.icon(homeNav.isActive(pathname))}
               </Link>
@@ -797,9 +799,11 @@ export default function Navbar({
                   'text-pink-600 opacity-80 hover:opacity-100 dark:text-pink-400',
                 )}
               >
-                <ArrowLeft className="h-6 w-6" strokeWidth={2} aria-hidden />
+                <ArrowLeft className="h-7 w-7" strokeWidth={2} aria-hidden />
               </button>
             )}
+          </div>
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-1.5">
             <NavbarEntitySearch effectiveLang={effectiveLang} />
             <Link
               href={profileNav.href}
@@ -817,7 +821,7 @@ export default function Navbar({
       {isHomeFeedRoute ? (
         <nav
           aria-label="Home feed quick actions"
-          className={`fixed bottom-0 left-0 right-0 z-[115] border-t border-[#e4e6eb] bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-1px_2px_rgba(0,0,0,0.06)] dark:border-[#3e4042] dark:bg-[#242526] dark:shadow-[0_-1px_0_rgba(0,0,0,0.35)] ${
+          className={`fixed bottom-0 left-0 right-0 z-[115] border-t border-[#e4e6eb] bg-[#ffffff] pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-1px_2px_rgba(0,0,0,0.06)] dark:border-[#e4e6eb] dark:bg-[#ffffff] dark:shadow-[0_-1px_2px_rgba(0,0,0,0.06)] ${
             hidden
               ? 'translate-y-full opacity-0 pointer-events-none transition-all duration-200'
               : homeBottomBarScrollHidden
@@ -825,7 +829,7 @@ export default function Navbar({
                 : 'translate-y-0 transition-transform duration-300 [transition-timing-function:cubic-bezier(0.4,0,0.2,1)]'
           }`}
         >
-          <div className="mx-auto flex h-14 min-h-14 max-w-[1920px] items-center justify-center gap-9 px-4 sm:justify-evenly sm:gap-6 sm:px-6">
+          <div className="mx-auto flex h-14 min-h-14 max-w-[1920px] items-center justify-center gap-11 px-4 sm:justify-evenly sm:gap-10 sm:px-6">
             <Link
               href={businessesItem.href}
               aria-label={businessesItem.label}
@@ -849,7 +853,7 @@ export default function Navbar({
               aria-label="Go to messages"
               title="Messages"
             >
-              <MessageCircle className="h-6 w-6" strokeWidth={2} aria-hidden />
+              <MessageCircle className={`h-6 w-6 ${homeBottomBarLineIconClass}`} strokeWidth={2} aria-hidden />
               {unreadMessageCount > 0 ? (
                 <span className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-pink-600 px-0.5 text-[10px] font-semibold leading-none text-white dark:bg-pink-500">
                   {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
@@ -866,7 +870,7 @@ export default function Navbar({
               aria-expanded={notificationsOpen}
               aria-haspopup="dialog"
             >
-              <Bell className="h-6 w-6" strokeWidth={2} aria-hidden />
+              <Bell className={`h-6 w-6 ${homeBottomBarLineIconClass}`} strokeWidth={2} aria-hidden />
               {unreadCount > 0 ? (
                 <span className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-pink-600 px-0.5 text-[10px] font-semibold leading-none text-white dark:bg-pink-500">
                   {unreadCount > 99 ? '99+' : unreadCount}
@@ -889,7 +893,7 @@ export default function Navbar({
                   ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+10px)]'
                   : 'bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px)+6px)]'
               }`
-            : `origin-top-right top-[calc(env(safe-area-inset-top,0px)+3.5rem+2px)] ${
+            : `origin-top-right top-[calc(env(safe-area-inset-top,0px)+4rem+2px)] ${
                 notificationsOpen
                   ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
                   : 'pointer-events-none -translate-y-2 scale-95 opacity-0'
@@ -949,7 +953,7 @@ export default function Navbar({
             incomingToastVisible
               ? 'translate-y-0 opacity-100 scale-100'
               : 'pointer-events-none -translate-y-3 opacity-0 scale-95'
-          } top-[calc(env(safe-area-inset-top,0px)+3.5rem+0.75rem)]`}
+          } top-[calc(env(safe-area-inset-top,0px)+4rem+0.75rem)]`}
           aria-label="Open new message"
         >
           <p className="text-xs font-semibold uppercase tracking-wide text-[#1877F2]">New message</p>

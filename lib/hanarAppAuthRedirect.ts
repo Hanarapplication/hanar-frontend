@@ -60,10 +60,21 @@ export function syncHanarAppIntentFromBrowser(): void {
   }
 }
 
+function isHanarNativeUserAgent(): boolean {
+  return typeof navigator !== 'undefined' && HANAR_APP_USER_AGENT.test(navigator.userAgent);
+}
+
+/**
+ * True when post-login should deep-link into the native shell (`hanar://auth`).
+ * SessionStorage alone does not count — visiting `/?platform=app` in mobile Safari once
+ * would otherwise make the first browser login attempt a no-op `hanar://` redirect.
+ */
 export function hasHanarAppLoginIntent(): boolean {
   if (typeof window === 'undefined') return false;
+  if (urlSearchIndicatesHanarApp(new URLSearchParams(window.location.search))) return true;
+  if (!isHanarNativeUserAgent()) return false;
   if (sessionStorage.getItem(HANAR_LOGIN_FROM_APP_KEY) === '1') return true;
-  return urlSearchIndicatesHanarApp(new URLSearchParams(window.location.search));
+  return true;
 }
 
 export function clearHanarAppLoginIntent(): void {

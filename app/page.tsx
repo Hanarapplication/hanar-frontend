@@ -48,7 +48,7 @@ const HOME_FEED_BETWEEN_ROW =
  * bottom bar when mobile browser chrome resizes the viewport.
  */
 const HOME_ASK_COMPOSER_MAX_HEIGHT =
-  'min(calc(100svh - 3.5rem - env(safe-area-inset-top,0px) - 3.5rem - env(safe-area-inset-bottom,0px) - 0.75rem), 940px)';
+  'min(calc(100svh - 4rem - env(safe-area-inset-top,0px) - 3.5rem - env(safe-area-inset-bottom,0px) - 0.75rem), 940px)';
 
 type CommunityPost = {
   id: string;
@@ -745,11 +745,10 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(12);
   const [feedSearchQuery, setFeedSearchQuery] = useState('');
-  const [feedSearchOpen, setFeedSearchOpen] = useState(false);
   const [homeFeedFilterOpen, setHomeFeedFilterOpen] = useState(false);
   const [homeFeedFilterPanelPos, setHomeFeedFilterPanelPos] = useState<{ top: number; right: number } | null>(null);
   const homeFeedSearchInputRef = useRef<HTMLInputElement | null>(null);
-  const homeFeedSearchButtonRef = useRef<HTMLButtonElement | null>(null);
+  const homeFeedSearchBoxRef = useRef<HTMLDivElement | null>(null);
   const homeFeedFilterButtonRef = useRef<HTMLButtonElement | null>(null);
   const homeFeedFilterPanelRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -2344,16 +2343,6 @@ const formatDateLabel = (value?: string | null) => {
     setVisibleCount(12);
   }, [feedSearchQuery]);
 
-  useEffect(() => {
-    if (feedSearchQuery.trim()) setFeedSearchOpen(true);
-  }, [feedSearchQuery]);
-
-  useEffect(() => {
-    if (!feedSearchOpen) return;
-    const id = window.requestAnimationFrame(() => homeFeedSearchInputRef.current?.focus());
-    return () => window.cancelAnimationFrame(id);
-  }, [feedSearchOpen]);
-
   const updateHomeFeedFilterPanelPos = useCallback(() => {
     const btn = homeFeedFilterButtonRef.current;
     if (!btn) return;
@@ -2384,9 +2373,7 @@ const formatDateLabel = (value?: string | null) => {
       const target = event.target as Node;
       if (homeFeedFilterPanelRef.current?.contains(target)) return;
       if (homeFeedFilterButtonRef.current?.contains(target)) return;
-      if (homeFeedSearchButtonRef.current?.contains(target)) return;
-      const searchPanel = document.getElementById('home-feed-search');
-      if (searchPanel?.contains(target)) return;
+      if (homeFeedSearchBoxRef.current?.contains(target)) return;
       setHomeFeedFilterOpen(false);
     };
     document.addEventListener('pointerdown', onPointerDown);
@@ -2423,8 +2410,6 @@ const formatDateLabel = (value?: string | null) => {
   }, [postFeedLangs, effectiveLang]);
 
   const homeFeedFiltersActive = homeFeedTab !== 'for_you' || postFeedLangs.length > 0;
-  const homeFeedSearchActive = feedSearchOpen || feedSearchQuery.trim().length > 0;
-
   const homeFeedFilterSummary = useMemo(() => {
     const parts: string[] = [];
     if (homeFeedTab === 'popular') parts.push(t(effectiveLang, 'Most Popular'));
@@ -2452,37 +2437,39 @@ const formatDateLabel = (value?: string | null) => {
         )}
 
         <div className="relative bg-white dark:bg-gray-800">
-          <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4">
-            <p className="min-w-0 flex-1 truncate text-sm text-slate-600 dark:text-slate-300" title={homeFeedToolbarSummary}>
+          <div className="flex items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4">
+            <p
+              className="hidden min-w-0 max-w-[38%] truncate text-sm text-slate-600 sm:block dark:text-slate-300"
+              title={homeFeedToolbarSummary}
+            >
               {homeFeedToolbarSummary}
             </p>
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                ref={homeFeedSearchButtonRef}
-                type="button"
-                onClick={() => {
-                  setHomeFeedFilterOpen(false);
-                  setFeedSearchOpen((open) => !open);
-                }}
-                className={`relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
-                  homeFeedSearchActive
-                    ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300'
-                    : 'bg-gray-100 text-gray-700 hover:bg-pink-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-pink-900/25'
-                }`}
-                aria-label={t(effectiveLang, 'Search')}
-                aria-expanded={feedSearchOpen}
-                aria-controls="home-feed-search"
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-2.5">
+              <div
+                ref={homeFeedSearchBoxRef}
+                id="home-feed-search"
+                className="relative min-w-[11rem] w-full max-w-xl flex-1 sm:min-w-[18rem]"
               >
-                <Search className="h-4 w-4" strokeWidth={2} aria-hidden />
-                {feedSearchQuery.trim() && !feedSearchOpen ? (
-                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-pink-600 dark:bg-pink-400" aria-hidden />
-                ) : null}
-              </button>
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 dark:text-slate-400"
+                  strokeWidth={2}
+                  aria-hidden
+                />
+                <input
+                  ref={homeFeedSearchInputRef}
+                  type="search"
+                  value={feedSearchQuery}
+                  onChange={(e) => setFeedSearchQuery(e.target.value)}
+                  onFocus={() => setHomeFeedFilterOpen(false)}
+                  placeholder={t(effectiveLang, 'Search feed, words, phrases…')}
+                  className="h-11 w-full rounded-xl border border-slate-400 bg-gray-50 py-2 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-pink-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 dark:border-slate-500 dark:bg-gray-700 dark:text-slate-100 dark:placeholder:text-slate-400 dark:focus:border-pink-500 dark:focus:ring-pink-900/40"
+                  aria-label={t(effectiveLang, 'Search feed, words, phrases…')}
+                />
+              </div>
               <button
                 ref={homeFeedFilterButtonRef}
                 type="button"
                 onClick={() => {
-                  setFeedSearchOpen(false);
                   setHomeFeedFilterOpen((open) => {
                     const next = !open;
                     if (next) {
@@ -2491,7 +2478,7 @@ const formatDateLabel = (value?: string | null) => {
                     return next;
                   });
                 }}
-                className={`relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
+                className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition ${
                   homeFeedFilterOpen || homeFeedFiltersActive
                     ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300'
                     : 'bg-gray-100 text-gray-700 hover:bg-pink-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-pink-900/25'
@@ -2507,25 +2494,6 @@ const formatDateLabel = (value?: string | null) => {
               </button>
             </div>
           </div>
-          {feedSearchOpen ? (
-            <div id="home-feed-search" className="bg-white px-3 pb-2.5 pt-2 dark:bg-gray-800 sm:px-4">
-              <label className="relative block">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4a0a14]"
-                  aria-hidden
-                />
-                <input
-                  ref={homeFeedSearchInputRef}
-                  type="search"
-                  value={feedSearchQuery}
-                  onChange={(e) => setFeedSearchQuery(e.target.value)}
-                  placeholder="Search words, phrases, or similar terms..."
-                  className="h-10 w-full rounded-full border-2 border-[#4a0a14]/55 bg-white pl-9 pr-3 text-base font-medium text-slate-900 placeholder:text-slate-500 shadow-sm shadow-[#4a0a14]/15 focus:border-[#0b2a66] focus:outline-none focus:ring-2 focus:ring-[#0b2a66]/25 dark:bg-gray-900 dark:text-slate-100"
-                  aria-label="Search feed"
-                />
-              </label>
-            </div>
-          ) : null}
         </div>
 
         {homeFeedFilterOpen && homeFeedFilterPanelPos && typeof document !== 'undefined'

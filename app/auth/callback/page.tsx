@@ -52,7 +52,6 @@ export default function AuthCallback() {
         }
       }
 
-      toast.success('Signed in successfully!');
       const href = resolvePostLoginHref(null, userType);
       window.location.assign(href);
     };

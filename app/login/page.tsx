@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
@@ -24,104 +24,115 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get('redirect');
 
-  useEffect(() => {
-    const redirectIfLoggedIn = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) {
-        setCheckingAuth(false);
-        return;
-      }
-      await flushPendingNativePushToken(session);
-      if (typeof window !== 'undefined' && session && hasHanarAppLoginIntent()) {
-        redirectToHanarAppWithSession(session);
-        return;
-      }
-      const { data: profile } = await supabase
-        .from('registeredaccounts')
-        .select('business, organization')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
+  const persistUserTypeAndNavigate = useCallback(
+    async (
+      session: NonNullable<Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']>,
+      options?: { showSuccessToast?: boolean },
+    ) => {
+      const userId = session.user.id;
       let userType: PostLoginUserType = 'individual';
-      if (profile?.business === true) {
-        userType = 'business';
-      } else if (profile?.organization === true) {
-        userType = 'organization';
+      try {
+        const { data: profile } = await supabase
+          .from('registeredaccounts')
+          .select('business, organization')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (profile?.business === true) userType = 'business';
+        else if (profile?.organization === true) userType = 'organization';
+      } catch {
+        /* default individual — do not block navigation */
       }
       if (typeof window !== 'undefined') {
         localStorage.setItem('userType', userType);
       }
-      const href = resolvePostLoginHref(redirectParam, userType);
-      window.location.assign(href);
-    };
-    redirectIfLoggedIn();
-  }, [redirectParam]);
+      void flushPendingNativePushToken(session);
+      if (typeof window !== 'undefined' && hasHanarAppLoginIntent()) {
+        redirectToHanarAppWithSession(session);
+        return;
+      }
+      if (options?.showSuccessToast) {
+        toast.success(t(effectiveLang, 'Login successful!'));
+      }
+      window.location.assign(resolvePostLoginHref(redirectParam, userType));
+    },
+    [effectiveLang, redirectParam],
+  );
 
-  const handleLogin = async (e: React.FormEvent) => {
+  useEffect(() => {
+    const redirectIfLoggedIn = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const user = session?.user;
+        if (!user) return;
+        // Session already persisted (e.g. WebView reopened) — redirect quietly, no toast.
+        await persistUserTypeAndNavigate(session);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    void redirectIfLoggedIn();
+  }, [persistUserTypeAndNavigate]);
+
+  /** Browser autofill often skips React `onChange` — sync DOM values before first submit. */
+  useEffect(() => {
+    if (checkingAuth) return;
+    const syncAutofill = () => {
+      const emailEl = document.getElementById('email') as HTMLInputElement | null;
+      const passwordEl = document.getElementById('password') as HTMLInputElement | null;
+      if (emailEl?.value) setEmail((prev) => prev || emailEl.value);
+      if (passwordEl?.value) setPassword((prev) => prev || passwordEl.value);
+    };
+    syncAutofill();
+    const t1 = window.setTimeout(syncAutofill, 100);
+    const t2 = window.setTimeout(syncAutofill, 400);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [checkingAuth]);
+
+  const resetSubmitState = () => {
+    submitLockRef.current = false;
+    setClicked(false);
+  };
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (submitLockRef.current) return;
     submitLockRef.current = true;
     setClicked(true);
 
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const emailFromForm = String(fd.get('email') ?? '').trim();
+    const passwordFromForm = String(fd.get('password') ?? '');
+
     try {
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: emailFromForm || email.trim(),
+        password: passwordFromForm || password,
       });
 
       if (signInError) {
         toast.error(signInError.message);
+        resetSubmitState();
         return;
-      }
-
-      const userId = signInData.user?.id;
-      if (!userId) {
-        toast.error(t(effectiveLang, 'Login succeeded, but user ID is missing.'));
-        return;
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from('registeredaccounts')
-        .select('business, organization')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (profileError) {
-        toast.error(`${t(effectiveLang, 'Failed to load account type:')} ${profileError.message}`);
-        return;
-      }
-
-      let userType: PostLoginUserType = 'individual';
-      if (profile?.business === true) {
-        userType = 'business';
-      } else if (profile?.organization === true) {
-        userType = 'organization';
-      }
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('userType', userType);
       }
 
       const session = signInData.session;
-      await flushPendingNativePushToken(session ?? null);
-
-      if (typeof window !== 'undefined' && session && hasHanarAppLoginIntent()) {
-        redirectToHanarAppWithSession(session);
+      if (!session?.user?.id) {
+        toast.error(t(effectiveLang, 'Login succeeded, but user ID is missing.'));
+        resetSubmitState();
         return;
       }
 
-      toast.success(t(effectiveLang, 'Login successful!'));
-      const href = resolvePostLoginHref(redirectParam, userType);
-      window.location.assign(href);
+      await persistUserTypeAndNavigate(session, { showSuccessToast: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : t(effectiveLang, 'Unexpected login error.');
       toast.error(message);
-    } finally {
-      submitLockRef.current = false;
-      setClicked(false);
+      resetSubmitState();
     }
   };
 

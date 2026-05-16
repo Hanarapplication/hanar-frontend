@@ -145,11 +145,9 @@ function MessagesPageContent() {
   const [pendingItemPreview, setPendingItemPreview] = useState<ItemPreviewContext | null>(null);
   const [visibleThreadCount, setVisibleThreadCount] = useState(THREAD_PAGE_SIZE);
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const [composerHeight, setComposerHeight] = useState(112);
   const threadScrollRef = useRef<HTMLDivElement | null>(null);
   const messagesRef = useRef<MessageRow[]>([]);
   messagesRef.current = messages;
-  const composerRef = useRef<HTMLDivElement | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const shouldStickToBottomRef = useRef(true);
   const previousSelectedPeerRef = useRef<string | null>(null);
@@ -171,20 +169,6 @@ function MessagesPageContent() {
       });
     });
   }, [scrollThreadToBottom]);
-
-  useEffect(() => {
-    const node = composerRef.current;
-    if (!node) return;
-    const update = () => {
-      const h = node.offsetHeight || 112;
-      setComposerHeight(h);
-    };
-    update();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(() => update());
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [selectedAttachment, draft.length, mobileView, selectedPeerId]);
 
   useEffect(() => {
     if (!selectedAttachment || !String(selectedAttachment.type || '').startsWith('image/')) {
@@ -847,17 +831,6 @@ function MessagesPageContent() {
     previousActiveMessagesCountRef.current = activeMessages.length;
   }, [selectedPeerId, activeMessages.length, scheduleScrollThreadToBottom]);
 
-  useEffect(() => {
-    if (!selectedPeerId) return;
-    if (typeof window === 'undefined') return;
-    if (window.innerWidth >= 768) return;
-    const composerNode = composerRef.current;
-    if (!composerNode) return;
-    requestAnimationFrame(() => {
-      composerNode.scrollIntoView({ behavior: 'auto', block: 'end' });
-    });
-  }, [selectedPeerId]);
-
   const handleThreadScroll = useCallback(() => {
     const node = threadScrollRef.current;
     if (!node || !selectedPeerId) return;
@@ -1350,15 +1323,17 @@ function MessagesPageContent() {
   }
 
   return (
-    <div className="h-[calc(100dvh-5rem)] overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-100 px-0 py-2 sm:h-auto sm:min-h-screen sm:px-4 sm:py-8">
-      <div className="mx-auto h-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:h-auto sm:min-h-0 sm:rounded-3xl sm:shadow-xl">
-        <div className="grid h-full min-h-0 grid-cols-1 md:h-[70vh] md:grid-cols-[20rem_1fr]">
-          <aside className={`${mobileView === 'chat' ? 'hidden md:block' : 'block'} border-b border-slate-200 md:border-b-0 md:border-r`}>
-            <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur">
+    <div className="box-border h-[calc(100dvh-4rem-env(safe-area-inset-top,0px)-1.5rem-env(safe-area-inset-bottom,0px)-1rem)] overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-100 px-0 py-2 sm:h-auto sm:min-h-screen sm:px-4 sm:py-8">
+      <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:h-auto sm:min-h-0 sm:rounded-3xl sm:shadow-xl">
+        <div className="grid min-h-0 flex-1 grid-cols-1 md:h-[70vh] md:grid-cols-[20rem_1fr]">
+          <aside
+            className={`${mobileView === 'chat' ? 'hidden md:flex' : 'flex'} min-h-0 flex-col border-b border-slate-200 md:border-b-0 md:border-r`}
+          >
+            <div className="sticky top-0 z-10 shrink-0 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur">
               <h1 className="text-xl font-semibold text-slate-900">Chats</h1>
               <p className="mt-1 text-xs text-slate-500">{conversations.length} people</p>
             </div>
-            <div className="max-h-[calc(100vh-9.5rem)] overflow-y-auto bg-slate-50/70 p-2 sm:max-h-[65vh] sm:bg-transparent sm:p-0 md:max-h-[calc(70vh-4.5rem)]">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-slate-50/70 p-2 sm:max-h-[65vh] sm:bg-transparent sm:p-0 md:max-h-[calc(70vh-4.5rem)]">
               {conversations.length === 0 ? (
                 <div className="px-4 py-6 text-sm text-slate-500">No messages yet.</div>
               ) : (
@@ -1442,7 +1417,9 @@ function MessagesPageContent() {
             </div>
           </aside>
 
-          <section className={`${mobileView === 'inbox' ? 'hidden md:flex' : 'flex'} h-full min-h-0 flex-col md:h-[70vh]`}>
+          <section
+            className={`${mobileView === 'inbox' ? 'hidden md:flex' : 'flex'} min-h-0 flex-1 flex-col md:h-[70vh] md:flex-none`}
+          >
             <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-5 sm:py-4">
               <div className="flex items-center gap-3">
                 <button
@@ -1475,10 +1452,9 @@ function MessagesPageContent() {
             <div
               ref={threadScrollRef}
               onScroll={handleThreadScroll}
-              className="flex-1 min-h-0 space-y-3 overflow-y-auto overscroll-y-contain bg-slate-50 px-3 py-3 pb-[calc(env(safe-area-inset-bottom)+7rem)] touch-pan-y sm:px-5 sm:py-4 sm:pb-6"
+              className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain bg-slate-50 px-3 py-3 pb-4 touch-pan-y sm:px-5 sm:py-4 sm:pb-6"
               style={{
-                paddingBottom: `calc(env(safe-area-inset-bottom) + ${composerHeight + 16}px)`,
-                scrollPaddingBottom: `calc(env(safe-area-inset-bottom) + ${composerHeight + 16}px)`,
+                scrollPaddingBottom: '12px',
                 WebkitOverflowScrolling: 'touch',
               }}
             >
@@ -1617,10 +1593,7 @@ function MessagesPageContent() {
               )}
             </div>
 
-            <div
-              ref={composerRef}
-              className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-[0_-8px_20px_rgba(15,23,42,0.06)] sm:static sm:z-auto sm:p-4 sm:shadow-none"
-            >
+            <div className="shrink-0 border-t border-slate-200 bg-white p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shadow-[0_-8px_20px_rgba(15,23,42,0.06)] sm:p-4 sm:shadow-none">
               {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
               {activeItemPreview && (
                 <div className="relative mb-2">
