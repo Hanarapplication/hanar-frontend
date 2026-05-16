@@ -141,9 +141,71 @@ export async function POST(req: Request) {
 
     const bodyForDb = hasAttachment && !normalized ? '' : normalized;
 
+    const { data: bizNameRows } = await supabaseAdmin
+      .from('businesses')
+      .select('business_name')
+      .eq('owner_id', authedUser.id)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    const bizName = String(bizNameRows?.[0]?.business_name || '').trim();
+
+    let senderLabel: string | null = null;
+    if (bizName) {
+      senderLabel = bizName;
+    } else {
+      const { data: org } = await supabaseAdmin
+        .from('organizations')
+        .select('full_name, username')
+        .eq('user_id', authedUser.id)
+        .maybeSingle();
+      if (org) {
+        senderLabel =
+          String(org.full_name || '').trim() ||
+          String(org.username || '')
+            .trim()
+            .replace(/^@+/, '') ||
+          null;
+      }
+    }
+    if (!senderLabel) {
+      const { data: ra } = await supabaseAdmin
+        .from('registeredaccounts')
+        .select('full_name, first_name, last_name, username')
+        .eq('user_id', authedUser.id)
+        .maybeSingle();
+      if (ra) {
+        const full = String(ra.full_name || '').trim();
+        const fn = String(ra.first_name || '').trim();
+        const ln = String(ra.last_name || '').trim();
+        const combined = `${fn} ${ln}`.trim();
+        senderLabel =
+          full ||
+          combined ||
+          String(ra.username || '')
+            .trim()
+            .replace(/^@+/, '') ||
+          null;
+      }
+    }
+    if (!senderLabel) {
+      const { data: prof } = await supabaseAdmin
+        .from('profiles')
+        .select('username')
+        .eq('id', authedUser.id)
+        .maybeSingle();
+      const u = String(prof?.username || '')
+        .trim()
+        .replace(/^@+/, '');
+      senderLabel = u || null;
+    }
+    if (!senderLabel) {
+      senderLabel = `user_${authedUser.id.replace(/-/g, '').slice(0, 8)}`;
+    }
+
     const insertPayload = {
       sender_user_id: authedUser.id,
       recipient_user_id: recipient,
+      sender_label: senderLabel,
       body: bodyForDb,
       attachment_url: attachmentUrl,
       attachment_name:
@@ -169,11 +231,31 @@ export async function POST(req: Request) {
           : null,
     };
 
-    const { data: inserted, error: insertError } = await supabaseAdmin
+    let insertRes = await supabaseAdmin
       .from('direct_messages')
       .insert(insertPayload)
       .select('id, sender_user_id, recipient_user_id, body, attachment_url, dm_push_sent_at')
       .single();
+
+    if (insertRes.error) {
+      const em = `${insertRes.error.message || ''}`.toLowerCase();
+      const looksLikeMissingSenderLabel =
+        em.includes('sender_label') ||
+        (em.includes('column') && em.includes('does not exist'));
+      if (looksLikeMissingSenderLabel) {
+        const { sender_label: _omit, ...payloadWithoutSenderLabel } = insertPayload;
+        const second = await supabaseAdmin
+          .from('direct_messages')
+          .insert(payloadWithoutSenderLabel)
+          .select('id, sender_user_id, recipient_user_id, body, attachment_url, dm_push_sent_at')
+          .single();
+        if (!second.error) {
+          insertRes = second;
+        }
+      }
+    }
+
+    const { data: inserted, error: insertError } = insertRes;
 
     if (insertError || !inserted) {
       console.error('[send-direct] insert failed', insertError);

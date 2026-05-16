@@ -19,6 +19,8 @@ type MessageRow = {
   recipient_entity_type?: 'user' | 'business' | 'organization' | null;
   recipient_entity_id?: string | null;
   recipient_entity_label?: string | null;
+  /** Persisted display name for the sender (works when cross-table profile queries are RLS-limited). */
+  sender_label?: string | null;
 };
 
 type ConversationPreview = {
@@ -45,6 +47,68 @@ const THREAD_PAGE_SIZE = 10;
 const ITEM_REF_PREFIX = '[ITEM_REF]';
 
 const shortUser = (userId: string) => `User ${userId.slice(0, 6)}`;
+
+function stripAtHandle(raw: string | null | undefined): string {
+  return String(raw || '').trim().replace(/^@+/, '');
+}
+
+/** Display name from registered account row (full_name, else first + last). */
+function registeredAccountDisplayName(row: {
+  full_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+}): string {
+  const full = String(row.full_name || '').trim();
+  if (full) return full;
+  const first = String(row.first_name || '').trim();
+  const last = String(row.last_name || '').trim();
+  return `${first} ${last}`.trim();
+}
+
+/** `User ab12cd` fallback from {@link shortUser} — not a real display name. */
+function isShortUserPlaceholderLabel(s: string): boolean {
+  return /^User\s+[0-9a-f-]{4,12}$/i.test(s.trim());
+}
+
+/** Prefer a real display name over a bare handle / placeholder when merging hydrates. */
+function preferRicherDisplayName(prev: string | undefined, incoming: string): string {
+  const p = (prev || '').trim();
+  const n = (incoming || '').trim();
+  if (!p) return n;
+  if (!n) return p;
+  if (p === n) return n;
+  if (isShortUserPlaceholderLabel(p) && !isShortUserPlaceholderLabel(n)) return n;
+  if (isShortUserPlaceholderLabel(n) && !isShortUserPlaceholderLabel(p)) return p;
+  const pSpace = /\s/.test(p);
+  const nSpace = /\s/.test(n);
+  if (pSpace && !nSpace) return p;
+  if (nSpace && !pSpace) return n;
+  return n;
+}
+
+const DM_PEER_LABEL_CACHE = 'hanar.dm.peerLabels';
+
+function readDmPeerLabelCache(viewerId: string): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = sessionStorage.getItem(`${DM_PEER_LABEL_CACHE}.${viewerId}`);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') return {};
+    return parsed as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
+function writeDmPeerLabelCache(viewerId: string, map: Record<string, string>) {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(`${DM_PEER_LABEL_CACHE}.${viewerId}`, JSON.stringify(map));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
 
 function MessagesPageContent() {
   const router = useRouter();
@@ -76,11 +140,15 @@ function MessagesPageContent() {
   const [itemPreviewActionContext, setItemPreviewActionContext] = useState<ItemPreviewContext | null>(null);
   const [itemPreviewActionVisible, setItemPreviewActionVisible] = useState(false);
   const [intent, setIntent] = useState<RecipientIntent>(null);
+  const intentRef = useRef<RecipientIntent>(null);
+  intentRef.current = intent;
   const [pendingItemPreview, setPendingItemPreview] = useState<ItemPreviewContext | null>(null);
   const [visibleThreadCount, setVisibleThreadCount] = useState(THREAD_PAGE_SIZE);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [composerHeight, setComposerHeight] = useState(112);
   const threadScrollRef = useRef<HTMLDivElement | null>(null);
+  const messagesRef = useRef<MessageRow[]>([]);
+  messagesRef.current = messages;
   const composerRef = useRef<HTMLDivElement | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const shouldStickToBottomRef = useRef(true);
@@ -130,21 +198,40 @@ function MessagesPageContent() {
     };
   }, [selectedAttachment]);
 
-  const loadMessages = useCallback(async (activeUserId: string) => {
-    const [messagesRes, clearsRes] = await Promise.all([
+  const loadMessages = useCallback(async (activeUserId: string): Promise<MessageRow[]> => {
+    const baseSelect =
+      'id, sender_user_id, recipient_user_id, body, attachment_url, attachment_name, attachment_mime, attachment_size, created_at, read_at, recipient_entity_type, recipient_entity_id, recipient_entity_label';
+
+    const fetchDm = async (select: string) =>
       supabase
         .from('direct_messages')
-        .select(
-          'id, sender_user_id, recipient_user_id, body, attachment_url, attachment_name, attachment_mime, attachment_size, created_at, read_at, recipient_entity_type, recipient_entity_id, recipient_entity_label'
-        )
+        .select(select)
         .or(`sender_user_id.eq.${activeUserId},recipient_user_id.eq.${activeUserId}`)
         .order('created_at', { ascending: false })
-        .limit(PAGE_SIZE),
+        .limit(PAGE_SIZE);
+
+    const [firstMsgRes, clearsRes] = await Promise.all([
+      fetchDm(`${baseSelect}, sender_label`),
       supabase
         .from('message_conversation_clears')
         .select('peer_id, cleared_at')
         .eq('user_id', activeUserId),
     ]);
+
+    let messagesRes = firstMsgRes;
+    if (messagesRes.error) {
+      const hint = `${messagesRes.error.message || ''} ${(messagesRes.error as { details?: string; hint?: string }).details || ''} ${(messagesRes.error as { hint?: string }).hint || ''}`.toLowerCase();
+      const looksLikeMissingSenderLabel =
+        hint.includes('sender_label') ||
+        hint.includes('schema cache') ||
+        (hint.includes('column') && hint.includes('does not exist'));
+      if (looksLikeMissingSenderLabel) {
+        const fallback = await fetchDm(baseSelect);
+        if (!fallback.error) {
+          messagesRes = fallback;
+        }
+      }
+    }
 
     const { data, error: fetchError } = messagesRes;
     const { data: clearRows, error: clearError } = clearsRes;
@@ -157,7 +244,8 @@ function MessagesPageContent() {
       }
     }
 
-    const filtered = ((data || []) as MessageRow[]).filter((row) => {
+    const msgRows = Array.isArray(data) ? (data as unknown as MessageRow[]) : [];
+    const filtered = msgRows.filter((row) => {
       const peerId =
         row.sender_user_id === activeUserId ? row.recipient_user_id : row.sender_user_id;
       const clearedAtTs = clearMap.get(String(peerId));
@@ -170,11 +258,12 @@ function MessagesPageContent() {
     if (fetchError) {
       setMessages([]);
       setError(fetchError.message || 'Failed to load messages');
-      return;
+      return [];
     }
 
     setMessages(filtered);
     setError(null);
+    return filtered;
   }, []);
 
   const resolveIntentFromQuery = useCallback(async (): Promise<RecipientIntent> => {
@@ -183,7 +272,15 @@ function MessagesPageContent() {
     if (!targetType || !targetId) return null;
 
     if (targetType === 'user') {
-      return { userId: targetId, label: shortUser(targetId), entityType: 'user', entityId: targetId };
+      const { data: reg } = await supabase
+        .from('registeredaccounts')
+        .select('full_name, first_name, last_name, username')
+        .eq('user_id', targetId)
+        .maybeSingle();
+      const display = reg ? registeredAccountDisplayName(reg) : '';
+      const handle = reg?.username ? stripAtHandle(reg.username) : '';
+      const label = display || handle || shortUser(targetId);
+      return { userId: targetId, label, entityType: 'user', entityId: targetId };
     }
 
     if (targetType === 'business') {
@@ -303,68 +400,193 @@ function MessagesPageContent() {
     [toPublicStorageUrl]
   );
 
-  const hydratePeerLabels = useCallback(async (activeUserId: string, rows: MessageRow[]) => {
-    const ids = Array.from(
-      new Set(
-        rows
-          .map((m) => (m.sender_user_id === activeUserId ? m.recipient_user_id : m.sender_user_id))
-          .filter(Boolean)
-      )
-    );
-    if (ids.length === 0) {
-      setPeerLabels({});
-      setPeerAvatarUrls({});
-      setPeerProfileLinks({});
-      return;
+  /** Only changes when the set of DM peers changes — avoids re-hydrating on read receipts / body edits. */
+  const peerIdsHydrationKey = useMemo(() => {
+    if (!userId) return '';
+    const peers = new Set<string>();
+    for (const m of messages) {
+      const peerId = m.sender_user_id === userId ? m.recipient_user_id : m.sender_user_id;
+      if (peerId) peers.add(peerId);
     }
+    if (intent?.userId) peers.add(intent.userId);
+    return Array.from(peers).sort().join('|');
+  }, [userId, messages, intent?.userId]);
 
-    const [profilesRes, regRes, orgRes, bizRes] = await Promise.all([
-      supabase.from('profiles').select('id, username, profile_pic_url').in('id', ids),
-      supabase.from('registeredaccounts').select('user_id, username').in('user_id', ids),
-      supabase.from('organizations').select('user_id, full_name, username, logo_url').in('user_id', ids),
-      supabase
-        .from('businesses')
-        .select('owner_id, business_name, logo_url, slug, created_at')
-        .in('owner_id', ids)
-        .order('created_at', { ascending: false }),
-    ]);
-
-    const labelById: Record<string, string> = {};
-    const avatarById: Record<string, string> = {};
-    const profileLinkById: Record<string, string> = {};
-
-    for (const row of (profilesRes.data || []) as Array<{ id: string; username?: string | null; profile_pic_url?: string | null }>) {
-      if (row.username) labelById[row.id] = `@${row.username}`;
-      const avatar = normalizeAvatarUrl(row.profile_pic_url, ['avatars']);
-      if (avatar) avatarById[row.id] = avatar;
-      if (row.username) profileLinkById[row.id] = `/profile/${row.username}`;
-    }
-    for (const row of (regRes.data || []) as Array<{ user_id: string; username?: string | null }>) {
-      if (!labelById[row.user_id] && row.username) labelById[row.user_id] = `@${row.username}`;
-      if (!profileLinkById[row.user_id] && row.username) profileLinkById[row.user_id] = `/profile/${row.username}`;
-    }
-    for (const row of (orgRes.data || []) as Array<{ user_id: string; full_name?: string | null; username?: string | null; logo_url?: string | null }>) {
-      if (!labelById[row.user_id]) labelById[row.user_id] = row.full_name || row.username || shortUser(row.user_id);
-      const logo = normalizeAvatarUrl(row.logo_url, ['organization-uploads']);
-      if (logo) avatarById[row.user_id] = logo;
-      if (row.username) profileLinkById[row.user_id] = `/organization/${row.username}`;
-    }
-    for (const row of (bizRes.data || []) as Array<{ owner_id: string; business_name?: string | null; logo_url?: string | null; slug?: string | null }>) {
-      if (!labelById[row.owner_id] && row.business_name) labelById[row.owner_id] = row.business_name;
-      if (!avatarById[row.owner_id]) {
-        const logo = normalizeAvatarUrl(row.logo_url, ['business-uploads']);
-        if (logo) avatarById[row.owner_id] = logo;
+  const hydratePeerLabels = useCallback(
+    async (activeUserId: string, rows: MessageRow[], extraPeerIds: string[] = []) => {
+      const idSet = new Set<string>();
+      for (const m of rows) {
+        const peerId = m.sender_user_id === activeUserId ? m.recipient_user_id : m.sender_user_id;
+        if (peerId) idSet.add(peerId);
       }
-      if (row.slug && !profileLinkById[row.owner_id]) profileLinkById[row.owner_id] = `/business/${row.slug}`;
-    }
+      for (const x of extraPeerIds) {
+        if (x) idSet.add(x);
+      }
+      const ids = Array.from(idSet);
 
-    ids.forEach((id) => {
-      if (!labelById[id]) labelById[id] = shortUser(id);
-    });
-    setPeerLabels(labelById);
-    setPeerAvatarUrls(avatarById);
-    setPeerProfileLinks(profileLinkById);
-  }, [normalizeAvatarUrl]);
+      // Do not clear labels when there are no peers yet. After a full refresh, `userId` is set
+      // before `messages` is populated; an effect can run with `[]` and would wipe sessionStorage
+      // merges and any in-flight hydrate — leaving only handles until the next navigation.
+      if (ids.length === 0) {
+        return;
+      }
+
+      const [profilesRes, regRes, orgRes, bizRes] = await Promise.all([
+        supabase.from('profiles').select('id, username, profile_pic_url').in('id', ids),
+        supabase
+          .from('registeredaccounts')
+          .select('user_id, username, full_name, first_name, last_name')
+          .in('user_id', ids),
+        supabase.from('organizations').select('user_id, full_name, username, logo_url').in('user_id', ids),
+        supabase
+          .from('businesses')
+          .select('owner_id, business_name, logo_url, slug, created_at')
+          .in('owner_id', ids)
+          .order('created_at', { ascending: false }),
+      ]);
+
+      const labelById: Record<string, string> = {};
+      const avatarById: Record<string, string> = {};
+      const profileLinkById: Record<string, string> = {};
+
+      const bizByOwner = new Map<
+        string,
+        { business_name?: string | null; logo_url?: string | null; slug?: string | null }
+      >();
+      for (const row of (bizRes.data || []) as Array<{
+        owner_id: string;
+        business_name?: string | null;
+        logo_url?: string | null;
+        slug?: string | null;
+      }>) {
+        const oid = String(row.owner_id);
+        if (!bizByOwner.has(oid)) bizByOwner.set(oid, row);
+      }
+
+      const orgByUserId = new Map<
+        string,
+        { full_name?: string | null; username?: string | null; logo_url?: string | null }
+      >();
+      for (const row of (orgRes.data || []) as Array<{
+        user_id: string;
+        full_name?: string | null;
+        username?: string | null;
+        logo_url?: string | null;
+      }>) {
+        orgByUserId.set(String(row.user_id), row);
+      }
+
+      const regByUserId = new Map<
+        string,
+        { username?: string | null; full_name?: string | null; first_name?: string | null; last_name?: string | null }
+      >();
+      for (const row of (regRes.data || []) as Array<{
+        user_id: string;
+        username?: string | null;
+        full_name?: string | null;
+        first_name?: string | null;
+        last_name?: string | null;
+      }>) {
+        regByUserId.set(String(row.user_id), row);
+      }
+
+      const profileById = new Map<string, { username?: string | null; profile_pic_url?: string | null }>();
+      for (const row of (profilesRes.data || []) as Array<{
+        id: string;
+        username?: string | null;
+        profile_pic_url?: string | null;
+      }>) {
+        profileById.set(String(row.id), row);
+      }
+
+      /** From DM rows the viewer can always read (participant); not blocked by other users' RLS. */
+      const labelFromDmRows: Record<string, string> = {};
+      for (const m of rows) {
+        if (m.sender_user_id === activeUserId) continue;
+        const sl = String(m.sender_label || '').trim();
+        if (!sl) continue;
+        labelFromDmRows[m.sender_user_id] = preferRicherDisplayName(labelFromDmRows[m.sender_user_id], sl);
+      }
+
+      for (const id of ids) {
+        const biz = bizByOwner.get(id);
+        const bizName = String(biz?.business_name || '').trim();
+        if (bizName) labelById[id] = bizName;
+        else {
+          const org = orgByUserId.get(id);
+          const orgLabel =
+            String(org?.full_name || '').trim() || (org?.username ? stripAtHandle(org.username) : '');
+          if (orgLabel) labelById[id] = orgLabel;
+          else {
+            const reg = regByUserId.get(id);
+            const person = reg ? registeredAccountDisplayName(reg) : '';
+            const regHandle = reg?.username ? stripAtHandle(reg.username) : '';
+            const prof = profileById.get(id);
+            const profHandle = prof?.username ? stripAtHandle(prof.username) : '';
+            labelById[id] = person || regHandle || profHandle || shortUser(id);
+          }
+        }
+      }
+
+      for (const id of ids) {
+        const hint = labelFromDmRows[id];
+        if (hint) labelById[id] = preferRicherDisplayName(labelById[id], hint);
+      }
+
+      for (const row of (profilesRes.data || []) as Array<{ id: string; username?: string | null; profile_pic_url?: string | null }>) {
+        const avatar = normalizeAvatarUrl(row.profile_pic_url, ['avatars']);
+        if (avatar) avatarById[row.id] = avatar;
+        const handle = row.username ? stripAtHandle(row.username) : '';
+        if (handle) profileLinkById[row.id] = `/profile/${handle}`;
+      }
+      for (const row of (regRes.data || []) as Array<{ user_id: string; username?: string | null }>) {
+        const handle = row.username ? stripAtHandle(row.username) : '';
+        if (handle && !profileLinkById[row.user_id]) profileLinkById[row.user_id] = `/profile/${handle}`;
+      }
+      for (const row of (orgRes.data || []) as Array<{ user_id: string; username?: string | null; logo_url?: string | null }>) {
+        const logo = normalizeAvatarUrl(row.logo_url, ['organization-uploads']);
+        if (logo) avatarById[row.user_id] = logo;
+        const handle = row.username ? stripAtHandle(row.username) : '';
+        if (handle) profileLinkById[row.user_id] = `/organization/${handle}`;
+      }
+      for (const [oid, row] of bizByOwner) {
+        if (!avatarById[oid]) {
+          const logo = normalizeAvatarUrl(row.logo_url, ['business-uploads']);
+          if (logo) avatarById[oid] = logo;
+        }
+        if (row.slug && !profileLinkById[oid]) profileLinkById[oid] = `/business/${row.slug}`;
+      }
+
+      setPeerLabels((prev) => {
+        const cached = readDmPeerLabelCache(activeUserId);
+        const mergedForStorage = { ...cached };
+        const next: Record<string, string> = {};
+        for (const id of ids) {
+          const computed = labelById[id] ?? shortUser(id);
+          const best = preferRicherDisplayName(
+            preferRicherDisplayName(prev[id], cached[id]),
+            computed
+          );
+          next[id] = best;
+          mergedForStorage[id] = preferRicherDisplayName(cached[id], best);
+        }
+        writeDmPeerLabelCache(activeUserId, mergedForStorage);
+        return next;
+      });
+      setPeerAvatarUrls(avatarById);
+      setPeerProfileLinks(profileLinkById);
+    },
+    [normalizeAvatarUrl]
+  );
+
+  /** Hydrate with the rows just returned from Supabase — avoids stale `messages` / `messagesRef` before React commits. */
+  const runMessagesLoaded = useCallback(
+    (activeUserId: string, rows: MessageRow[]) => {
+      const extra = intentRef.current?.userId ? [intentRef.current.userId] : [];
+      void hydratePeerLabels(activeUserId, rows, extra);
+    },
+    [hydratePeerLabels]
+  );
 
   const markConversationAsRead = useCallback(async (activeUserId: string, peerId: string) => {
     const nowIso = new Date().toISOString();
@@ -405,17 +627,36 @@ function MessagesPageContent() {
       const resolvedIntent = await resolveIntentFromQuery();
       const resolvedItemPreview = resolveItemPreviewFromQuery();
       setIntent(resolvedIntent);
+      intentRef.current = resolvedIntent;
       setPendingItemPreview(resolvedItemPreview);
-      await loadMessages(user.id);
+      const rows = await loadMessages(user.id);
+      runMessagesLoaded(user.id, rows);
       setLoading(false);
     };
     load();
-  }, [router, loadMessages, resolveIntentFromQuery, resolveItemPreviewFromQuery]);
+  }, [router, loadMessages, resolveIntentFromQuery, resolveItemPreviewFromQuery, runMessagesLoaded]);
 
   useEffect(() => {
     if (!userId) return;
-    hydratePeerLabels(userId, messages);
-  }, [userId, messages, hydratePeerLabels]);
+    const cached = readDmPeerLabelCache(userId);
+    const keys = Object.keys(cached);
+    if (keys.length === 0) return;
+    setPeerLabels((prev) => {
+      const next = { ...prev };
+      for (const k of keys) {
+        next[k] = preferRicherDisplayName(prev[k], cached[k]);
+      }
+      return next;
+    });
+  }, [userId]);
+
+  /* eslint-disable react-hooks/exhaustive-deps -- `messages` intentionally omitted (peer set = `peerIdsHydrationKey`; `runMessagesLoaded` passes fresh rows after each fetch). */
+  useEffect(() => {
+    if (!userId) return;
+    const extra = intent?.userId ? [intent.userId] : [];
+    void hydratePeerLabels(userId, messagesRef.current, extra);
+  }, [userId, peerIdsHydrationKey, intent?.userId, hydratePeerLabels]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const conversations = useMemo<ConversationPreview[]>(() => {
     if (!userId) return [];
@@ -426,7 +667,9 @@ function MessagesPageContent() {
       const existing = map.get(peerId);
       const unreadIncrement = msg.recipient_user_id === userId && !msg.read_at ? 1 : 0;
       const inferred =
-        (msg.sender_user_id === userId && msg.recipient_entity_label) || peerLabels[peerId] || shortUser(peerId);
+        peerLabels[peerId] ||
+        (msg.sender_user_id === userId && msg.recipient_entity_label) ||
+        shortUser(peerId);
       if (!existing) {
         map.set(peerId, {
           peerId,
@@ -452,6 +695,11 @@ function MessagesPageContent() {
         },
         unreadCount: 0,
       });
+    }
+
+    for (const conv of map.values()) {
+      const resolved = peerLabels[conv.peerId];
+      if (resolved) conv.label = resolved;
     }
 
     return Array.from(map.values()).sort(
@@ -521,7 +769,8 @@ function MessagesPageContent() {
           filter: `recipient_user_id=eq.${userId}`,
         },
         async () => {
-          await loadMessages(userId);
+          const rows = await loadMessages(userId);
+          runMessagesLoaded(userId, rows);
           if (selectedPeerId) await markConversationAsRead(userId, selectedPeerId);
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('messages:updated'));
@@ -541,7 +790,8 @@ function MessagesPageContent() {
           filter: `sender_user_id=eq.${userId}`,
         },
         async () => {
-          await loadMessages(userId);
+          const rows = await loadMessages(userId);
+          runMessagesLoaded(userId, rows);
         }
       )
       .subscribe();
@@ -550,7 +800,7 @@ function MessagesPageContent() {
       supabase.removeChannel(incomingChannel);
       supabase.removeChannel(outgoingChannel);
     };
-  }, [loadMessages, markConversationAsRead, selectedPeerId, userId]);
+  }, [loadMessages, markConversationAsRead, runMessagesLoaded, selectedPeerId, userId]);
 
   const activeMessages = useMemo(() => {
     if (!userId || !selectedPeerId) return [];
@@ -908,7 +1158,8 @@ function MessagesPageContent() {
       setError(clearError.message || 'Failed to delete chat');
     } else {
       setError(null);
-      await loadMessages(userId);
+      const rows = await loadMessages(userId);
+      runMessagesLoaded(userId, rows);
       if (selectedPeerId === peerId) {
         setSelectedPeerId(null);
         setMobileView('inbox');
@@ -920,7 +1171,7 @@ function MessagesPageContent() {
     setActionPeerId(null);
     setOpenMenuPeerId(null);
     setMenuPosition(null);
-  }, [loadMessages, selectedPeerId, userId]);
+  }, [loadMessages, runMessagesLoaded, selectedPeerId, userId]);
 
   const handleBlockProfileUser = useCallback(async (peerId: string) => {
     setActionPeerId(peerId);
@@ -1080,7 +1331,8 @@ function MessagesPageContent() {
         setDraft('');
         setSelectedAttachment(null);
         if (activeItemPreview) setPendingItemPreview(null);
-        await loadMessages(userId);
+        const rows = await loadMessages(userId);
+        runMessagesLoaded(userId, rows);
         scheduleScrollThreadToBottom();
       }
     } catch {
