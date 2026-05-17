@@ -26,6 +26,10 @@ export function googleTypesToHanarCategory(
     return { category: 'Real Estate', subcategory: 'Real Estate Agency' };
   if (lower.some((t) => ['lawyer', 'attorney'].includes(t)))
     return { category: 'Services', subcategory: 'Legal Services' };
+  if (lower.some((t) => ['bank'].includes(t)))
+    return { category: 'Finance', subcategory: 'Bank' };
+  if (lower.some((t) => ['finance'].includes(t)))
+    return { category: 'Finance', subcategory: 'Loan Lender' };
   if (lower.some((t) => ['accounting', 'accountant'].includes(t)))
     return { category: 'Services', subcategory: 'Accounting' };
   if (lower.some((t) => ['insurance_agency'].includes(t)))
@@ -34,8 +38,12 @@ export function googleTypesToHanarCategory(
     return { category: 'Services', subcategory: 'Hair Salon' };
   if (lower.some((t) => ['beauty_salon', 'spa'].includes(t)))
     return { category: 'Retail', subcategory: 'Beauty Supply' };
-  if (lower.some((t) => ['dentist', 'doctor', 'hospital', 'pharmacy', 'physiotherapist'].includes(t)))
-    return { category: 'Services', subcategory: 'Other Services' };
+  if (lower.includes('dentist'))
+    return { category: 'Health', subcategory: 'Dentist' };
+  if (lower.includes('doctor'))
+    return { category: 'Health', subcategory: 'Doctor' };
+  if (lower.some((t) => ['hospital', 'pharmacy', 'physiotherapist'].includes(t)))
+    return { category: 'Health', subcategory: 'Other Health' };
   if (lower.some((t) => ['gym', 'health'].includes(t)))
     return { category: 'Services', subcategory: 'Other Services' };
   if (lower.some((t) => ['store', 'shopping_mall', 'clothing_store', 'convenience_store', 'electronics_store', 'furniture_store', 'home_goods_store', 'jewelry_store', 'pet_store', 'shoe_store'].includes(t)))

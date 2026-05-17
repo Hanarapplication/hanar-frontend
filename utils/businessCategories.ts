@@ -31,6 +31,29 @@ export const BUSINESS_CATEGORIES: BusinessCategory[] = [
     ],
   },
   {
+    value: 'Health',
+    label: 'Health',
+    icon: '🏥',
+    subcategories: [
+      { value: 'Dentist', label: 'Dentist' },
+      { value: 'Doctor', label: 'Doctor' },
+      { value: 'Other Health', label: 'Other Health' },
+    ],
+  },
+  {
+    value: 'Finance',
+    label: 'Finance',
+    icon: '💰',
+    subcategories: [
+      { value: 'Loan Lender', label: 'Loan Lender' },
+      { value: 'Bank', label: 'Bank' },
+      { value: 'Credit Union', label: 'Credit Union' },
+      { value: 'Mortgage Lender', label: 'Mortgage Lender' },
+      { value: 'Financial Advisor', label: 'Financial Advisor' },
+      { value: 'Other Finance', label: 'Other Finance' },
+    ],
+  },
+  {
     value: 'Food',
     label: 'Food',
     icon: '🍽',
@@ -144,4 +167,12 @@ export function isRealEstateCategory(value?: string | null): boolean {
 
 export function isServicesCategory(value?: string | null): boolean {
   return getMainCategory(value) === 'Services';
+}
+
+export function isHealthCategory(value?: string | null): boolean {
+  return getMainCategory(value) === 'Health';
+}
+
+export function isFinanceCategory(value?: string | null): boolean {
+  return getMainCategory(value) === 'Finance';
 }
