@@ -610,8 +610,16 @@ function BusinessCard({
           </button>
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); window.open(`/businesses/edit/${biz.slug}`, '_blank'); }}
-            className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600 shadow-sm transition hover:bg-emerald-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!biz.slug) {
+                toast.error('This business has no slug yet');
+                return;
+              }
+              window.open(`/businesses/edit/${encodeURIComponent(biz.slug)}?from=admin`, '_blank');
+            }}
+            disabled={!biz.slug}
+            className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600 shadow-sm transition hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Edit Business
           </button>

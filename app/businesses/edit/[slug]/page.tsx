@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { checkHanarAdminClient } from '@/lib/admin/checkHanarAdminClient';
 import { supabase } from '@/lib/supabaseClient'; // Import your Supabase client
 import { compressImage } from '@/lib/imageCompression';
 
@@ -517,6 +518,8 @@ interface BusinessForm {
 export default function EditBusinessPage() {
   const { slug } = useParams(); // Get slug from URL parameters
   const router = useRouter(); // Get router instance
+  const searchParams = useSearchParams();
+  const fromAdminPanel = searchParams.get('from') === 'admin';
   const { effectiveLang } = useLanguage();
   // Configure dnd-kit sensors for pointer (mouse/touch) and keyboard interactions
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
@@ -608,6 +611,7 @@ export default function EditBusinessPage() {
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false); // State to track auth readiness
   const [userId, setUserId] = useState<string | null>(null); // User ID for Supabase RLS context if needed for paths
+  const [isHanarAdminEdit, setIsHanarAdminEdit] = useState(false);
   
   // Plan limits from business plan
   const [planLimits, setPlanLimits] = useState<{
@@ -680,7 +684,14 @@ export default function EditBusinessPage() {
     async function fetchBusinessData() {
       if (!slug || !authReady) return; // Don't fetch if slug or auth is not available yet
 
+      const redirectAway = (isAdmin: boolean) => {
+        router.push(isAdmin ? '/admin/approvals' : '/business-dashboard');
+      };
+
       try {
+        const isAdmin = fromAdminPanel || (await checkHanarAdminClient());
+        setIsHanarAdminEdit(isAdmin);
+
         // Fetch main business data from 'businesses' table (all columns including phone)
         const { data: businessData, error: businessError } = await supabase
           .from('businesses')
@@ -691,27 +702,27 @@ export default function EditBusinessPage() {
         if (businessError) {
           console.error('Error fetching business:', businessError);
           setModal({ isOpen: true, title: 'Error', message: `Failed to load business: ${businessError.message}`, onConfirm: () => {} });
-          router.push('/business-dashboard'); // Redirect to business dashboard on error
+          redirectAway(isAdmin);
           return;
         }
 
         if (!businessData) {
           setModal({ isOpen: true, title: 'Not Found', message: 'Business not found.', onConfirm: () => {} });
-          router.push('/business-dashboard');
+          redirectAway(isAdmin);
           return;
         }
 
         const ownerId = (businessData as { owner_id?: string | null }).owner_id;
-        if (!ownerId) {
+        if (!ownerId && !isAdmin) {
           setModal({ isOpen: true, title: 'Unclaimed', message: 'This business is unclaimed and cannot be edited.', onConfirm: () => {} });
-          router.push('/business-dashboard');
+          redirectAway(false);
           return;
         }
 
         const { data: { user } } = await supabase.auth.getUser();
-        if (user && ownerId !== user.id) {
+        if (user && ownerId && ownerId !== user.id && !isAdmin) {
           setModal({ isOpen: true, title: 'Forbidden', message: "You don't have permission to edit this business.", onConfirm: () => {} });
-          router.push('/business-dashboard');
+          redirectAway(false);
           return;
         }
 
@@ -1004,14 +1015,16 @@ export default function EditBusinessPage() {
       } catch (error: any) {
         console.error('Error in fetchBusinessData:', error);
         setModal({ isOpen: true, title: 'Error', message: error.message || 'An unexpected error occurred while loading business data.', onConfirm: () => {} });
-        router.push('/business-dashboard');
+        const isAdmin = fromAdminPanel || (await checkHanarAdminClient());
+        setIsHanarAdminEdit(isAdmin);
+        router.push(isAdmin ? '/admin/approvals' : '/business-dashboard');
       }
     }
 
     if (authReady) {
       fetchBusinessData();
     }
-  }, [slug, router, authReady]);
+  }, [slug, router, authReady, fromAdminPanel]);
 
 
   const applyCategoryChange = (nextCategory: string, nextSubcategory?: string) => {
@@ -2097,7 +2110,7 @@ export default function EditBusinessPage() {
         }
       }
 
-      router.push(`/business/${slug}`);
+      router.push(isHanarAdminEdit ? '/admin/approvals' : `/business/${slug}`);
     } catch (error: any) {
       console.error('Submission error:', error);
       setModal({ isOpen: true, title: 'Error', message: error.message || 'An unexpected error occurred during submission.', onConfirm: () => {} });
@@ -2227,6 +2240,14 @@ export default function EditBusinessPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 sm:p-6 lg:p-8 font-inter">
+      {isHanarAdminEdit && (
+        <div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-100">
+          <p className="font-semibold">Admin edit mode</p>
+          <p className="mt-0.5 text-indigo-800/90 dark:text-indigo-200/90">
+            You are editing this listing as a Hanar admin. Changes apply to the business profile shown on Hanar.
+          </p>
+        </div>
+      )}
       <CustomModal
         isOpen={modal.isOpen}
         title={modal.title}
