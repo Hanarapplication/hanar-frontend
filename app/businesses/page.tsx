@@ -878,10 +878,6 @@ export default function BusinessesPage() {
               {favorites.includes(biz.id) ? <FaHeart className="h-4 w-4 text-rose-500" /> : <FaRegHeart className="h-4 w-4" />}
             </button>
           </div>
-          <p className="mt-0.5 text-sm font-medium text-[#d32323]">
-            {'★'.repeat(isPremium(biz) ? 5 : 4)}
-            <span className="ml-1 text-slate-500">{isPremium(biz) ? t(effectiveLang, 'Premium') : t(effectiveLang, 'New')}</span>
-          </p>
           <div className="mt-1 flex flex-col items-start gap-1.5">
             {displayCategory ? (
               <span className="block w-fit max-w-full rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-bold leading-tight text-blue-700 break-words whitespace-normal">
@@ -1217,7 +1213,7 @@ export default function BusinessesPage() {
           <div className="px-3 py-4">
             <h2 className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-white px-3 py-1 text-base font-semibold tracking-tight text-slate-900 shadow-sm">
               <Store className="h-4 w-4" strokeWidth={2} aria-hidden />
-              <span>{t(effectiveLang, 'Hot New Businesses Nearby')}</span>
+              <span>{t(effectiveLang, 'Businesses nearby')}</span>
             </h2>
           </div>
           {areaFilterActive && filtered.length === 0 && (

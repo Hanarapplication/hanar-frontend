@@ -36,6 +36,7 @@ import {
   isRetailCategory,
   isRealEstateCategory,
 } from '@/utils/businessCategories';
+import { BUSINESS_DESCRIPTION_MAX_LENGTH } from '@/utils/businessDescription';
 
 /**
  * Global variables (from Canvas environment, if applicable).
@@ -1625,11 +1626,11 @@ export default function EditBusinessPage() {
       setSubmitting(false);
       return;
     }
-    if (form.description.length > 120) {
+    if (form.description.length > BUSINESS_DESCRIPTION_MAX_LENGTH) {
       setModal({
         isOpen: true,
         title: 'Description Too Long',
-        message: 'Please keep the business description at 120 characters or less.',
+        message: `Please keep the business description at ${BUSINESS_DESCRIPTION_MAX_LENGTH} characters or less.`,
         onConfirm: () => {},
       });
       setIsSaving(false);
@@ -2227,7 +2228,7 @@ export default function EditBusinessPage() {
   }
 
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const descriptionLimit = 120;
+  const descriptionLimit = BUSINESS_DESCRIPTION_MAX_LENGTH;
   const descriptionCount = form.description.length;
   const isDescriptionTooLong = descriptionCount > descriptionLimit;
 
@@ -2390,7 +2391,7 @@ export default function EditBusinessPage() {
               value={form.description}
               onChange={handleChange}
               placeholder={t(effectiveLang, 'A brief description of your business')}
-              rows={3}
+              rows={6}
               icon={Info}
             />
             <div className="flex items-center justify-between text-xs">
@@ -2398,7 +2399,7 @@ export default function EditBusinessPage() {
                 {descriptionCount}/{descriptionLimit}
               </span>
               {isDescriptionTooLong && (
-                <span className="text-red-600 dark:text-red-400">{t(effectiveLang, 'Description exceeds 120 characters.')}</span>
+                <span className="text-red-600 dark:text-red-400">{t(effectiveLang, 'Description exceeds 2000 characters.')}</span>
               )}
             </div>
             <div>

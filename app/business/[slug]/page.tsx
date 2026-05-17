@@ -34,6 +34,7 @@ import { getMainCategory } from '@/utils/businessCategories';
 import { Playfair_Display, DM_Sans } from 'next/font/google';
 import ReportButton from '@/components/ReportButton';
 import BusinessCommunityPostsModal, { type BusinessCommunityPostRow } from '@/components/BusinessCommunityPostsModal';
+import { BusinessDescriptionText } from '@/components/BusinessDescriptionText';
 
 const restaurantHeading = Playfair_Display({ subsets: ['latin'], display: 'swap' });
 const restaurantBody = DM_Sans({ subsets: ['latin'], display: 'swap' });
@@ -2080,9 +2081,11 @@ const BusinessProfilePage = () => {
                                 {displayCategory ? (
                                     <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-100">{displayCategory}</p>
                                 ) : null}
-                                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line">
-                                    {business.description || 'No description provided yet.'}
-                                </p>
+                                <BusinessDescriptionText
+                                    text={business.description}
+                                    fallback="No description provided yet."
+                                    className="mt-2 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line"
+                                />
                             </div>
 
                             <div className="flex flex-col gap-2">
@@ -2274,9 +2277,11 @@ const BusinessProfilePage = () => {
             {isDealership ? (
                 <motion.div className="w-full bg-[#e6e6eb] pb-6 dark:bg-slate-900">
                     <div className="border-b border-slate-300 bg-white px-4 py-2.5 text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
-                        <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200 whitespace-pre-line">
-                            {business.description || 'No description provided yet.'}
-                        </p>
+                        <BusinessDescriptionText
+                            text={business.description}
+                            fallback="No description provided yet."
+                            className="text-sm leading-relaxed text-slate-700 dark:text-slate-200 whitespace-pre-line"
+                        />
                         {business.phone && (
                             <div className="mt-1.5">
                                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600 dark:text-slate-300">Sales:</p>
@@ -2589,9 +2594,10 @@ const BusinessProfilePage = () => {
                                     {displayCategory ? (
                                         <p className="mt-1 text-sm italic text-stone-600">{displayCategory}</p>
                                     ) : null}
-                                    <p className="mt-3 whitespace-pre-line leading-relaxed text-stone-700">
-                                        {business.description || ' '}
-                                    </p>
+                                    <BusinessDescriptionText
+                                        text={business.description}
+                                        className="mt-3 whitespace-pre-line leading-relaxed text-stone-700"
+                                    />
                                     {(hasHours || hasSocials) && (
                                         <>
                                             <div className="mt-5 flex flex-wrap items-center justify-center gap-2 border-t border-[#1A472A]/10 pt-5 sm:justify-start">
@@ -3318,9 +3324,10 @@ const BusinessProfilePage = () => {
                     <section id="retail-about" className="border-t border-neutral-100 bg-neutral-50 px-4 py-8">
                         <div className="mx-auto flex max-w-lg flex-col gap-3 sm:max-w-2xl">
                             <h2 className="text-sm font-bold uppercase tracking-wide text-neutral-900">About</h2>
-                            <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-600">
-                                {business.description || ' '}
-                            </p>
+                            <BusinessDescriptionText
+                                text={business.description}
+                                className="whitespace-pre-line text-sm leading-relaxed text-neutral-600"
+                            />
                             <ReportButton
                                 entityType="business"
                                 entityId={business.id}
@@ -3779,9 +3786,10 @@ const BusinessProfilePage = () => {
 
                     <section id="basel-about" className="mx-auto max-w-6xl border-t border-zinc-200 px-3 py-10 sm:px-4">
                         <h2 className="text-sm font-bold uppercase tracking-widest text-neutral-900">About</h2>
-                        <p className="mt-3 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-neutral-600">
-                            {business.description || ' '}
-                        </p>
+                        <BusinessDescriptionText
+                            text={business.description}
+                            className="mt-3 max-w-3xl whitespace-pre-line text-sm leading-relaxed text-neutral-600"
+                        />
                         <div className="mt-4 flex flex-wrap gap-4">
                             <ReportButton
                                 entityType="business"
@@ -3959,9 +3967,10 @@ const BusinessProfilePage = () => {
                                 ) : null}
                             </div>
                         </div>
-                        <p className="mt-2 font-normal text-[#444] dark:text-gray-300 leading-relaxed whitespace-pre-line">
-                            {business.description}
-                        </p>
+                        <BusinessDescriptionText
+                            text={business.description}
+                            className="mt-2 font-normal text-[#444] dark:text-gray-300 leading-relaxed whitespace-pre-line"
+                        />
                         {(hasHours || hasSocials) && (
                             <>
                             <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600 flex flex-wrap items-center gap-2">

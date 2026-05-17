@@ -4,6 +4,7 @@ import { Heart } from 'lucide-react';
 import { useBusinessProfileTheme } from '../theme/ThemeProvider';
 import { cn } from '@/lib/utils';
 import type { BusinessProfileData } from '../types';
+import { BusinessDescriptionText } from '@/components/BusinessDescriptionText';
 
 interface BusinessInfoCardProps {
   business: BusinessProfileData;
@@ -86,14 +87,13 @@ export function BusinessInfoCard({
             />
           </button>
         </div>
-        {business.description && (
-          <p
+        {business.description ? (
+          <BusinessDescriptionText
+            text={business.description}
             className="mt-2 font-normal leading-relaxed whitespace-pre-line text-sm"
             style={{ color: theme.mutedText }}
-          >
-            {business.description}
-          </p>
-        )}
+          />
+        ) : null}
       </div>
     </div>
   );

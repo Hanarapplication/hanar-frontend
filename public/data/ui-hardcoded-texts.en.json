@@ -515,7 +515,7 @@
     "Plan features": "Plan features",
     "Basic Information": "Basic Information",
     "A brief description of your business": "A brief description of your business",
-    "Description exceeds 120 characters.": "Description exceeds 120 characters.",
+    "Description exceeds 2000 characters.": "Description exceeds 2000 characters.",
     "Business Category": "Business Category",
     "Restaurant Menu Items": "Restaurant Menu Items",
     "Add Menu Item": "Add Menu Item",
