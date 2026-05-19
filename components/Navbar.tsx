@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowLeft, Bell, CircleUserRound } from 'lucide-react';
+import { ArrowLeft, Bell, CircleUserRound, MessageCircle, ShoppingCart, Store } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Avatar } from '@/components/Avatar';
 import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
@@ -577,15 +577,36 @@ export default function Navbar({
 
   /** Home bottom bar — white chips without borders. */
   const homeBottomBarChip =
-    'relative flex min-h-12 min-w-0 flex-1 basis-0 items-center justify-center overflow-hidden rounded-2xl bg-white px-2 py-2.5 text-slate-800 transition-all duration-200 ease-out hover:bg-slate-50/60 active:scale-[0.97] active:bg-pink-200/55 active:text-pink-700 active:[&_span]:text-pink-700 active:[&_svg]:text-pink-600 [-webkit-tap-highlight-color:transparent]';
+    'relative flex h-full min-h-[3.25rem] w-full min-w-0 flex-col items-center justify-center gap-0.5 overflow-visible rounded-2xl bg-white px-0.5 py-1 text-slate-800 transition-all duration-200 ease-out hover:bg-slate-50/60 active:scale-[0.97] active:bg-pink-200/55 active:text-pink-700 active:[&_span]:text-pink-700 active:[&_svg]:text-pink-600 [-webkit-tap-highlight-color:transparent]';
   const homeBottomBarChipActive =
     'bg-white text-pink-700 hover:bg-pink-50/40 [&_span]:text-pink-700 [&_svg]:text-pink-600';
   const homeBottomBarChipSplash =
     'bg-pink-100 text-pink-700 [&_span]:text-pink-700 [&_svg]:text-pink-600';
-  const homeBottomBarChipLabel =
-    'block max-w-full px-0.5 text-center text-sm font-semibold leading-tight tracking-tight text-inherit sm:text-[15px]';
+  const homeBottomBarIconClass = 'h-6 w-6 shrink-0 text-slate-700';
+  const homeBottomBarIconWrap = 'relative inline-flex shrink-0 items-center justify-center';
   const homeBottomBarIconBadge =
-    'absolute -right-1.5 -top-1.5 inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-pink-500 px-0.5 text-[9px] font-bold leading-none text-white ring-2 ring-white shadow-sm';
+    'pointer-events-none absolute -right-2 -top-1.5 z-10 inline-flex h-[15px] min-w-[15px] max-w-none shrink-0 items-center justify-center rounded-full bg-pink-500 px-0.5 text-[9px] font-bold leading-none text-white ring-2 ring-white shadow-sm whitespace-nowrap';
+  const homeBottomBarTabStack = 'flex w-full min-w-0 max-w-full flex-col items-center justify-center gap-0.5';
+  const homeBottomBarChipLabel =
+    'block w-full min-w-0 max-w-full px-0.5 text-center text-[8px] font-semibold leading-[1.15] tracking-tight text-inherit hyphens-auto whitespace-normal break-words [overflow-wrap:anywhere] sm:text-[9px]';
+
+  const renderHomeBottomBarTab = (
+    icon: React.ReactNode,
+    label: string,
+    badgeCount?: number
+  ) => (
+    <span className={homeBottomBarTabStack}>
+      <span className={homeBottomBarIconWrap}>
+        {icon}
+        {badgeCount != null && badgeCount > 0 ? (
+          <span className={homeBottomBarIconBadge}>{badgeCount > 99 ? '99+' : badgeCount}</span>
+        ) : null}
+      </span>
+      <span className={homeBottomBarChipLabel} title={label}>
+        {label}
+      </span>
+    </span>
+  );
 
   const goToQuickAction = (href: string) => {
     setNotificationsOpen(false);
@@ -625,22 +646,14 @@ export default function Navbar({
     {
       key: 'marketplace',
       href: '/marketplace',
-      icon: (isActive) => (
-        <span className={homeBottomBarChipLabel}>
-          {t(effectiveLang, 'Marketplace')}
-        </span>
-      ),
+      icon: () => <ShoppingCart className={homeBottomBarIconClass} strokeWidth={2} aria-hidden />,
       label: t(effectiveLang, 'Marketplace'),
       isActive: (path) => path.startsWith('/marketplace'),
     },
     {
       key: 'businesses',
       href: '/businesses',
-      icon: (isActive) => (
-        <span className={homeBottomBarChipLabel}>
-          {t(effectiveLang, 'Businesses')}
-        </span>
-      ),
+      icon: () => <Store className={homeBottomBarIconClass} strokeWidth={2} aria-hidden />,
       label: t(effectiveLang, 'Businesses'),
       isActive: (path) => path.startsWith('/businesses') || path.startsWith('/business/'),
     },
@@ -848,7 +861,7 @@ export default function Navbar({
       {isHomeFeedRoute ? (
         <nav
           aria-label="Home feed quick actions"
-          className={`fixed bottom-0 left-0 right-0 z-[115] border-t border-slate-200/60 bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_32px_rgba(15,23,42,0.08)] dark:border-slate-200/60 dark:bg-white ${
+          className={`fixed bottom-0 left-0 right-0 z-[115] overflow-visible border-t border-slate-200/60 bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_32px_rgba(15,23,42,0.08)] dark:border-slate-200/60 dark:bg-white ${
             hidden
               ? 'translate-y-full opacity-0 pointer-events-none transition-all duration-200'
               : homeBottomBarScrollHidden
@@ -856,7 +869,7 @@ export default function Navbar({
                 : 'translate-y-0 transition-transform duration-300 [transition-timing-function:cubic-bezier(0.4,0,0.2,1)]'
           }`}
         >
-          <div className="mx-auto flex h-16 min-h-16 w-full max-w-[1920px] items-stretch gap-2.5 px-3 sm:gap-3 sm:px-4">
+          <div className="mx-auto grid min-h-[4.25rem] w-full max-w-[1920px] auto-rows-fr grid-cols-4 items-stretch gap-1 overflow-visible px-1.5 py-1.5 sm:gap-1.5 sm:px-2.5">
             <Link
               href={businessesItem.href}
               aria-label={businessesItem.label}
@@ -870,7 +883,10 @@ export default function Navbar({
                 homeBottomBarSplash === 'businesses' && homeBottomBarChipSplash,
               )}
             >
-              {businessesItem.icon(businessesItem.isActive(pathname))}
+              {renderHomeBottomBarTab(
+                businessesItem.icon(businessesItem.isActive(pathname)),
+                businessesItem.label
+              )}
             </Link>
             <Link
               href={marketplaceItem.href}
@@ -885,7 +901,10 @@ export default function Navbar({
                 homeBottomBarSplash === 'marketplace' && homeBottomBarChipSplash,
               )}
             >
-              {marketplaceItem.icon(marketplaceItem.isActive(pathname))}
+              {renderHomeBottomBarTab(
+                marketplaceItem.icon(marketplaceItem.isActive(pathname)),
+                marketplaceItem.label
+              )}
             </Link>
             <button
               type="button"
@@ -898,19 +917,14 @@ export default function Navbar({
                 pathname.startsWith('/messages') && homeBottomBarChipActive,
                 homeBottomBarSplash === 'messages' && homeBottomBarChipSplash,
               )}
-              aria-label={t(effectiveLang, 'Go to messages')}
+              aria-label={t(effectiveLang, 'Messages')}
               title={t(effectiveLang, 'Messages')}
             >
-              <span className="relative inline-flex shrink-0 items-center justify-center">
-                <span className={homeBottomBarChipLabel}>
-                  {t(effectiveLang, 'Messages')}
-                </span>
-                {unreadMessageCount > 0 ? (
-                  <span className={cn(homeBottomBarIconBadge, '-right-3.5')}>
-                    {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
-                  </span>
-                ) : null}
-              </span>
+              {renderHomeBottomBarTab(
+                <MessageCircle className={homeBottomBarIconClass} strokeWidth={2} aria-hidden />,
+                t(effectiveLang, 'Messages'),
+                unreadMessageCount
+              )}
             </button>
             <button
               ref={notificationsBellRef}
@@ -924,19 +938,16 @@ export default function Navbar({
                 notificationsOpen && homeBottomBarChipActive,
                 homeBottomBarSplash === 'notifications' && homeBottomBarChipSplash,
               )}
-              aria-label="Open notifications"
-              title="Notifications"
+              aria-label={t(effectiveLang, 'Notifications')}
+              title={t(effectiveLang, 'Notifications')}
               aria-expanded={notificationsOpen}
               aria-haspopup="dialog"
             >
-              <span className="relative inline-flex shrink-0 items-center justify-center">
-                <Bell className="h-6 w-6 shrink-0 text-slate-700" strokeWidth={2} aria-hidden />
-                {unreadCount > 0 ? (
-                  <span className={homeBottomBarIconBadge}>
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                ) : null}
-              </span>
+              {renderHomeBottomBarTab(
+                <Bell className={homeBottomBarIconClass} strokeWidth={2} aria-hidden />,
+                t(effectiveLang, 'Notifications'),
+                unreadCount
+              )}
             </button>
           </div>
         </nav>
@@ -952,7 +963,7 @@ export default function Navbar({
             ? `origin-bottom-right ${notificationsOpen ? 'pointer-events-auto translate-y-0 scale-100 opacity-100' : 'pointer-events-none translate-y-2 scale-95 opacity-0'} ${
                 homeBottomBarOffScreen
                   ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+10px)]'
-                  : 'bottom-[calc(4rem+env(safe-area-inset-bottom,0px)+6px)]'
+                  : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px)+6px)]'
               }`
             : `origin-top-right top-[calc(env(safe-area-inset-top,0px)+4rem+2px)] ${
                 notificationsOpen

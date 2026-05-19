@@ -4,7 +4,7 @@ import { getMutuallyBlockedUserIds } from '@/lib/userBlocksServer';
 import { getHomeRankContext } from '@/lib/communityFeedPersonalize';
 import { scoreHomePost, scoresToRank0to100 } from '@/lib/homeFeedRank';
 import {
-  postMatchesFeedLangs,
+  partitionFeedLangPostsWithEnglishFallback,
   primaryPostLangCode,
   resolveFeedLangsFromHomeBody,
 } from '@/lib/communityPostFeedLangs';
@@ -225,6 +225,40 @@ function pickExplorePostsWithEnglishHead(prioritized: PostRow[], limit: number):
   return [...head, ...tail].slice(0, limit);
 }
 
+async function fetchLikeCounts(postIds: string[]): Promise<Record<string, number>> {
+  const likeCounts: Record<string, number> = {};
+  postIds.forEach((id) => {
+    likeCounts[id] = 0;
+  });
+  if (postIds.length === 0) return likeCounts;
+  const { data: likesRows } = await supabaseAdmin
+    .from('community_post_likes')
+    .select('post_id')
+    .in('post_id', postIds);
+  (likesRows || []).forEach((r: { post_id: string }) => {
+    likeCounts[r.post_id] = (likeCounts[r.post_id] ?? 0) + 1;
+  });
+  return likeCounts;
+}
+
+function selectExplorePostsFromPool(
+  ordered: PostRow[],
+  limit: number,
+  feedSort: 'for_you' | 'popular',
+  likeCounts: Record<string, number>,
+  useEnglishFirstPick: boolean
+): PostRow[] {
+  if (ordered.length === 0) return [];
+  if (feedSort === 'popular') {
+    return useEnglishFirstPick
+      ? pickPopularEnglishFirst(ordered, likeCounts, limit)
+      : sortRowsByLikeCountDesc(ordered, likeCounts).slice(0, limit);
+  }
+  return useEnglishFirstPick
+    ? pickExplorePostsWithEnglishHead(ordered, limit)
+    : ordered.slice(0, limit);
+}
+
 function pickPopularEnglishFirst(
   posts: PostRow[],
   likeCounts: Record<string, number>,
@@ -283,68 +317,54 @@ export async function POST(req: Request) {
       posts = posts.filter((p) => postHasTag(p, tagNorm));
     }
 
-    if (posts.length === 0) {
-      return NextResponse.json({ posts: [] });
-    }
-
     const feedLangs = resolveFeedLangsFromHomeBody(body);
     const hasLangFilter = feedLangs.length > 0;
-    if (hasLangFilter) {
-      posts = posts.filter((p) => postMatchesFeedLangs(p, feedLangs));
-    }
-    if (posts.length === 0) {
+    const { primary: primaryPool, englishFallback: englishPool } = partitionFeedLangPostsWithEnglishFallback(
+      posts,
+      feedLangs
+    );
+
+    if (primaryPool.length === 0 && englishPool.length === 0) {
       return NextResponse.json({ posts: [] });
     }
 
-    if (!hasLangFilter) {
-      posts = orderPostsEnglishFirst(posts);
-    } else {
-      posts = orderPostsForFeedLangsMulti(posts, feedLangs);
-    }
-
-    posts = await patchPostsWithActiveCommentCounts(supabaseAdmin, posts);
+    const primaryOrdered = !hasLangFilter
+      ? orderPostsEnglishFirst(primaryPool)
+      : orderPostsForFeedLangsMulti(primaryPool, feedLangs);
+    const englishOrdered =
+      englishPool.length > 0 ? orderPostsEnglishFirst(englishPool) : [];
 
     const feedSort: 'for_you' | 'popular' = body.feedSort === 'popular' ? 'popular' : 'for_you';
+    const useEnglishFirstPick = !hasLangFilter || englishPool.length > 0;
 
     if (explore) {
-      let chosen: PostRow[];
-      const likeCounts: Record<string, number> = {};
+      const primaryLikeCounts = await fetchLikeCounts(primaryOrdered.map((p) => p.id));
+      const primaryChosen = selectExplorePostsFromPool(
+        primaryOrdered,
+        limit,
+        feedSort,
+        primaryLikeCounts,
+        useEnglishFirstPick && !hasLangFilter
+      );
 
-      if (feedSort === 'popular') {
-        const poolIds = posts.map((p) => p.id);
-        poolIds.forEach((id) => {
-          likeCounts[id] = 0;
-        });
-        if (poolIds.length > 0) {
-          const { data: likesRows } = await supabaseAdmin
-            .from('community_post_likes')
-            .select('post_id')
-            .in('post_id', poolIds);
-          (likesRows || []).forEach((r: { post_id: string }) => {
-            likeCounts[r.post_id] = (likeCounts[r.post_id] ?? 0) + 1;
-          });
-        }
-        chosen = !hasLangFilter
-          ? pickPopularEnglishFirst(posts, likeCounts, limit)
-          : sortRowsByLikeCountDesc(posts, likeCounts).slice(0, limit);
-      } else {
-        chosen = !hasLangFilter ? pickExplorePostsWithEnglishHead(posts, limit) : posts.slice(0, limit);
-        const exploreIds = chosen.map((p) => p.id);
-        exploreIds.forEach((id) => {
-          likeCounts[id] = 0;
-        });
-        if (exploreIds.length > 0) {
-          const { data: likesRows } = await supabaseAdmin
-            .from('community_post_likes')
-            .select('post_id')
-            .in('post_id', exploreIds);
-          (likesRows || []).forEach((r: { post_id: string }) => {
-            likeCounts[r.post_id] = (likeCounts[r.post_id] ?? 0) + 1;
-          });
-        }
+      let englishChosen: PostRow[] = [];
+      let englishLikeCounts: Record<string, number> = {};
+      if (englishOrdered.length > 0) {
+        englishLikeCounts = await fetchLikeCounts(englishOrdered.map((p) => p.id));
+        englishChosen = selectExplorePostsFromPool(
+          englishOrdered,
+          limit,
+          feedSort,
+          englishLikeCounts,
+          true
+        );
       }
 
-      const top = chosen.map((p) => {
+      const chosen = [...primaryChosen, ...englishChosen];
+      const likeCounts = { ...primaryLikeCounts, ...englishLikeCounts };
+
+      const patched = await patchPostsWithActiveCommentCounts(supabaseAdmin, chosen);
+      const top = patched.map((p) => {
         const commentCount =
           (p.community_comments as { count?: number }[] | undefined)?.[0]?.count ?? 0;
         return {
@@ -364,53 +384,48 @@ export async function POST(req: Request) {
       deviceLang: body.deviceLang ?? null,
     });
 
-    const postIds = posts.map((p) => p.id);
-    const likeCounts: Record<string, number> = {};
-    postIds.forEach((id) => {
-      likeCounts[id] = 0;
-    });
+    const rankTopFromPool = async (pool: PostRow[], poolLimit: number): Promise<PostRow[]> => {
+      if (pool.length === 0) return [];
+      const patched = await patchPostsWithActiveCommentCounts(supabaseAdmin, pool);
+      const postIds = patched.map((p) => p.id);
+      const likeCounts = await fetchLikeCounts(postIds);
 
-    const { data: likesRows } = await supabaseAdmin
-      .from('community_post_likes')
-      .select('post_id')
-      .in('post_id', postIds);
+      const scored = patched.map((p) => {
+        const commentCount =
+          (p.community_comments as { count?: number }[] | undefined)?.[0]?.count ?? 0;
+        const likeCount = likeCounts[p.id] ?? (p.likes_post as number) ?? 0;
+        const raw = scoreHomePost(
+          {
+            created_at: p.created_at,
+            language: p.language as string | null,
+            tags: p.tags as string[] | null,
+            title: p.title as string,
+            body: p.body as string,
+            likeCount,
+            commentCount,
+          },
+          ctx
+        );
+        return { p, raw, likeCount, commentCount };
+      });
 
-    (likesRows || []).forEach((r: { post_id: string }) => {
-      likeCounts[r.post_id] = (likeCounts[r.post_id] ?? 0) + 1;
-    });
+      const rawScores = scored.map((x) => x.raw);
+      const norm = scoresToRank0to100(rawScores);
+      const withNorm = scored.map((row, i) => ({ ...row, home_rank_score: norm[i] ?? 0 }));
+      withNorm.sort((a, b) => b.raw - a.raw);
 
-    const scored = posts.map((p) => {
-      const commentCount =
-        (p.community_comments as { count?: number }[] | undefined)?.[0]?.count ?? 0;
-      const likeCount = likeCounts[p.id] ?? (p.likes_post as number) ?? 0;
-      const raw = scoreHomePost(
-        {
-          created_at: p.created_at,
-          language: p.language as string | null,
-          tags: p.tags as string[] | null,
-          title: p.title as string,
-          body: p.body as string,
-          likeCount,
-          commentCount,
-        },
-        ctx
-      );
-      return { p, raw, likeCount, commentCount };
-    });
+      return withNorm.slice(0, poolLimit).map((row) => ({
+        ...row.p,
+        likes_post: row.likeCount,
+        community_comments: [{ count: row.commentCount }],
+        home_rank_score: row.home_rank_score,
+      }));
+    };
 
-    const rawScores = scored.map((x) => x.raw);
-    const norm = scoresToRank0to100(rawScores);
-
-    const withNorm = scored.map((row, i) => ({ ...row, home_rank_score: norm[i] ?? 0 }));
-    withNorm.sort((a, b) => b.raw - a.raw);
-
-    const top = withNorm.slice(0, limit).map((row) => ({
-      ...row.p,
-      likes_post: row.likeCount,
-      community_comments: [{ count: row.commentCount }],
-      home_rank_score: row.home_rank_score,
-    }));
-    const enrichedTop = await enrichPostAvatars(top);
+    const primaryTop = await rankTopFromPool(primaryOrdered, limit);
+    const englishTop =
+      englishOrdered.length > 0 ? await rankTopFromPool(englishOrdered, limit) : [];
+    const enrichedTop = await enrichPostAvatars([...primaryTop, ...englishTop]);
     return NextResponse.json({ posts: enrichedTop });
   } catch (err) {
     console.error('[home-feed-posts]', err);

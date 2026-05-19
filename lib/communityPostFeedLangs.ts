@@ -68,6 +68,31 @@ export function postMatchesFeedLangs(p: unknown, langs: string[]): boolean {
   return langs.includes(c);
 }
 
+/** Split candidates into selected-language posts and English/unknown (when `en` is not already selected). */
+export function partitionFeedLangPostsWithEnglishFallback<T extends { id: string }>(
+  candidates: T[],
+  feedLangs: string[]
+): { primary: T[]; englishFallback: T[] } {
+  const langs = normalizeFeedLangsList(feedLangs);
+  if (!langs.length) {
+    return { primary: candidates, englishFallback: [] };
+  }
+  if (langs.includes('en')) {
+    return {
+      primary: candidates.filter((p) => postMatchesFeedLangs(p, langs)),
+      englishFallback: [],
+    };
+  }
+  const primary = candidates.filter((p) => postMatchesFeedLangs(p, langs));
+  const primaryIds = new Set(primary.map((p) => p.id));
+  const englishFallback = candidates.filter((p) => {
+    if (primaryIds.has(p.id)) return false;
+    const c = primaryPostLangCode(p);
+    return c === 'en' || c == null;
+  });
+  return { primary, englishFallback };
+}
+
 export function resolveFeedLangsFromHomeBody(body: {
   feedLangs?: unknown;
   feedLang?: string | null;

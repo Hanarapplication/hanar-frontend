@@ -21,7 +21,7 @@ import {
   feedLangsCacheKey,
   normalizeFeedLangsList,
   parseStoredFeedLangs,
-  postMatchesFeedLangs,
+  partitionFeedLangPostsWithEnglishFallback,
   serializeFeedLangsForStorage,
 } from '@/lib/communityPostFeedLangs';
 import { removeCommentBranch } from '@/lib/communityCommentTree';
@@ -1076,8 +1076,12 @@ export default function Home() {
         .order('created_at', { ascending: false })
         .limit(48);
       rawPosts = (fb.data || []) as CommunityPost[];
-      if (postFeedLangsRef.current.length > 0) {
-        rawPosts = rawPosts.filter((p) => postMatchesFeedLangs(p, normalizeFeedLangsList(postFeedLangsRef.current)));
+      const fallbackLangs = normalizeFeedLangsList(postFeedLangsRef.current);
+      if (fallbackLangs.length > 0) {
+        const { primary, englishFallback } = partitionFeedLangPostsWithEnglishFallback(rawPosts, fallbackLangs);
+        const byNewest = (a: CommunityPost, b: CommunityPost) =>
+          new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        rawPosts = [...primary.sort(byNewest), ...englishFallback.sort(byNewest)];
       }
     }
 
@@ -2800,7 +2804,7 @@ const formatDateLabel = (value?: string | null) => {
                     onClick={() => toggleExpandedPostText(pid)}
                     className="mt-1 text-sm font-semibold text-indigo-600 hover:underline dark:text-indigo-300"
                   >
-                    {isExpanded ? 'See less' : 'See more'}
+                    {isExpanded ? t(effectiveLang, 'See less') : t(effectiveLang, 'See more')}
                   </button>
                 ) : null}
                 {item.post.video ? (

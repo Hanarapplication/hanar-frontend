@@ -77,7 +77,7 @@ export default function ConditionalAppShell({
           isHomeFeedShell
             ? `pt-[calc(4rem+env(safe-area-inset-top,0px))] ${
                 homeBottomBarDocked
-                  ? 'pb-[calc(4rem+env(safe-area-inset-bottom,0px)+1rem)]'
+                  ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom,0px)+1rem)]'
                   : 'pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]'
               }`
             : 'pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-6 sm:pb-8'
