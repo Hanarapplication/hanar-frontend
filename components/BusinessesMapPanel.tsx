@@ -49,6 +49,8 @@ type BusinessesMapPanelProps = {
   userCoords?: { lat: number; lon: number } | null;
   /** Blue-dot location on map (independent of radius search filter). */
   mapUserCoords?: { lat: number; lon: number } | null;
+  /** When false, map user pin always uses the Hanar logo. */
+  isLoggedIn?: boolean;
   userAvatarUrl?: string | null;
   onShareMapLocation?: () => void;
   sharingMapLocation?: boolean;
@@ -441,6 +443,7 @@ export default function BusinessesMapPanel({
   geocoding = false,
   userCoords,
   mapUserCoords,
+  isLoggedIn = false,
   userAvatarUrl,
   onShareMapLocation,
   sharingMapLocation = false,
@@ -525,7 +528,7 @@ export default function BusinessesMapPanel({
   );
 
   const youOnMap = mapUserCoords ?? (isRadiusMode && userCoords ? userCoords : null);
-  const youAvatar = userAvatarUrl || HANAR_AVATAR_URL;
+  const youAvatar = isLoggedIn && userAvatarUrl ? userAvatarUrl : HANAR_AVATAR_URL;
 
   const showSelectedArea =
     mapViewport === 'area' && !isRadiusMode && isValidMapAreaBounds(selectedAreaBounds);
@@ -785,6 +788,10 @@ export default function BusinessesMapPanel({
     if (!expanded || !scriptReady || !apiKey) return;
     syncPins();
   }, [expanded, scriptReady, apiKey, syncPins, pinsForView, selectedId]);
+
+  useEffect(() => {
+    userOverlayRef.current?.updateAvatar(youAvatar);
+  }, [youAvatar, isLoggedIn]);
 
   useEffect(() => {
     if (!expanded || !scriptReady || !apiKey) return;

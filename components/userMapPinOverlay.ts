@@ -3,7 +3,33 @@ import { escapeHtml } from '@/components/businessMapPinStyles';
 
 export type UserPinOverlayHandle = google.maps.OverlayView & {
   requestDraw: () => void;
+  updateAvatar: (avatarUrl: string) => void;
 };
+
+function loadPinAvatarImage(img: HTMLImageElement, avatarUrl: string, onDone: () => void) {
+  const url = avatarUrl || HANAR_AVATAR_URL;
+  if (img.dataset.avatarSrc === url && img.classList.contains('hanar-user-map-pin__avatar--ready')) {
+    onDone();
+    return;
+  }
+  img.dataset.avatarSrc = url;
+  img.classList.remove('hanar-user-map-pin__avatar--ready');
+  const preload = new Image();
+  preload.decoding = 'async';
+  preload.referrerPolicy = 'no-referrer';
+  preload.onload = () => {
+    img.src = url;
+    img.classList.add('hanar-user-map-pin__avatar--ready');
+    onDone();
+  };
+  preload.onerror = () => {
+    img.src = HANAR_AVATAR_URL;
+    img.dataset.avatarSrc = HANAR_AVATAR_URL;
+    img.classList.add('hanar-user-map-pin__avatar--ready');
+    onDone();
+  };
+  preload.src = url;
+}
 
 export function createUserMapPinOverlay(
   lat: number,
@@ -22,9 +48,14 @@ export function createUserMapPinOverlay(
       this.draw();
     }
 
+    updateAvatar(avatarUrl: string) {
+      const img = this.div?.querySelector('img');
+      if (!img) return;
+      loadPinAvatarImage(img, avatarUrl, () => this.requestDraw());
+    }
+
     onAdd() {
       const label = escapeHtml(options.label);
-      const avatarUrl = options.avatarUrl || HANAR_AVATAR_URL;
       const placeholder = HANAR_AVATAR_URL.replace(/"/g, '&quot;');
 
       this.div = document.createElement('div');
@@ -43,20 +74,7 @@ export function createUserMapPinOverlay(
 
       const img = this.div.querySelector('img');
       if (img) {
-        const preload = new Image();
-        preload.decoding = 'async';
-        preload.referrerPolicy = 'no-referrer';
-        preload.onload = () => {
-          img.src = avatarUrl;
-          img.classList.add('hanar-user-map-pin__avatar--ready');
-          this.requestDraw();
-        };
-        preload.onerror = () => {
-          img.src = HANAR_AVATAR_URL;
-          img.classList.add('hanar-user-map-pin__avatar--ready');
-          this.requestDraw();
-        };
-        preload.src = avatarUrl;
+        loadPinAvatarImage(img, options.avatarUrl, () => this.requestDraw());
       }
 
       this.getPanes()?.overlayMouseTarget.appendChild(this.div);

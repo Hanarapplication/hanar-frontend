@@ -35,7 +35,7 @@ import {
 import { isValidMapAreaBounds, type MapAreaBounds, type MapAreaScopeLevel } from '@/lib/mapAreaBounds';
 import { hasValidAreaRings, type MapAreaRing } from '@/lib/mapAreaPolygon';
 import { requestLocationWithFallback, readStoredCoords } from '@/lib/getBrowserLocation';
-import { normalizeAvatarUrl } from '@/lib/avatarUrl';
+import { fetchUserDisplayAvatarUrl } from '@/lib/fetchUserDisplayAvatar';
 import {
   itemMatchesCityFilter,
   itemMatchesCountryFilter,
@@ -285,12 +285,23 @@ export default function BusinessesPage() {
 
     const syncAuthState = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (mounted) setIsLoggedIn(Boolean(user));
+      if (!mounted) return;
+      if (user) {
+        setIsLoggedIn(true);
+      } else {
+        setIsLoggedIn(false);
+        setUserAvatarUrl(null);
+      }
     };
 
     syncAuthState();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(Boolean(session?.user));
+      if (session?.user) {
+        setIsLoggedIn(true);
+      } else {
+        setIsLoggedIn(false);
+        setUserAvatarUrl(null);
+      }
     });
 
     return () => {
@@ -331,15 +342,13 @@ export default function BusinessesPage() {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        if (!user || !mounted) return;
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('avatar_url')
-          .eq('id', user.id)
-          .maybeSingle();
-        if (mounted) {
-          setUserAvatarUrl(normalizeAvatarUrl(profile?.avatar_url, ['avatars']));
+        if (!mounted) return;
+        if (!user) {
+          setUserAvatarUrl(null);
+          return;
         }
+        const avatarUrl = await fetchUserDisplayAvatarUrl(user.id);
+        if (mounted) setUserAvatarUrl(avatarUrl);
       } catch {
         /* ignore */
       }
@@ -1555,6 +1564,12 @@ export default function BusinessesPage() {
     };
 
     setSharingMapLocation(true);
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      void fetchUserDisplayAvatarUrl(user.id).then((avatarUrl) => {
+        if (avatarUrl) setUserAvatarUrl(avatarUrl);
+      });
+    });
     const locationPromise = requestLocationWithFallback();
     void locationPromise
       .then((result) => {
@@ -2045,6 +2060,7 @@ export default function BusinessesPage() {
           }
           userCoords={isRadiusLocationMode ? userCoords : null}
           mapUserCoords={myMapLocation ?? (isRadiusLocationMode ? userCoords : null)}
+          isLoggedIn={isLoggedIn}
           userAvatarUrl={userAvatarUrl}
           onShareMapLocation={handleShareMapLocation}
           sharingMapLocation={sharingMapLocation}
