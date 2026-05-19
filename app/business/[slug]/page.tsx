@@ -16,6 +16,7 @@ import {
 import { FaXTwitter } from 'react-icons/fa6';
 import { motion, AnimatePresence } from 'framer-motion'; // This import remains as per your original code
 import Script from 'next/script'; // This import remains as per your original code
+import BusinessMap from '@/components/BusinessMap';
 import Image from 'next/image'; // Added for Image component
 
 import {
@@ -35,6 +36,8 @@ import { Playfair_Display, DM_Sans } from 'next/font/google';
 import ReportButton from '@/components/ReportButton';
 import BusinessCommunityPostsModal, { type BusinessCommunityPostRow } from '@/components/BusinessCommunityPostsModal';
 import { BusinessDescriptionText } from '@/components/BusinessDescriptionText';
+import { ContactHrefLink } from '@/components/ContactHrefLink';
+import { buildMailtoHref, buildTelHref } from '@/lib/openContactUrl';
 
 const restaurantHeading = Playfair_Display({ subsets: ['latin'], display: 'swap' });
 const restaurantBody = DM_Sans({ subsets: ['latin'], display: 'swap' });
@@ -138,13 +141,6 @@ interface BusinessType {
     slug_view_detail_button_color?: string | null;
     slug_sidebar_menu_button_color?: string | null;
     isrestaurant?: boolean | null;
-}
-
-// Add window callback type
-declare global {
-    interface Window {
-        initMapCallback?: () => void;
-    }
 }
 
 interface MenuItem {
@@ -400,107 +396,6 @@ const DetailedViewModal = ({ item, type, onClose }: DetailedViewModalProps) => {
         </div>
     );
     return typeof document !== 'undefined' ? createPortal(content, document.body) : null;
-};
-
-
-const BusinessMap = ({ address }: { address: BusinessType['address'] }) => {
-    const mapRef = useRef<HTMLDivElement>(null);
-    const fullAddress = `${address.street || ''}, ${address.city || ''}, ${address.state || ''} ${address.zip || ''}`;
-    const [isLoaded, setIsLoaded] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [mapInitialized, setMapInitialized] = useState(false);
-    const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-
-    const initMap = useCallback(() => {
-        if (!window.google || !mapRef.current || mapInitialized) return;
-        if (!address.street || !address.city || !address.state) {
-            setError("Missing complete address information for map.");
-            setIsLoaded(true);
-            return;
-        }
-        const geocoder = new window.google.maps.Geocoder();
-        geocoder.geocode({ address: fullAddress }, (results, status) => {
-            if (status === window.google.maps.GeocoderStatus.OK && results && results.length > 0) {
-                const location = results[0].geometry.location;
-                const map = new window.google.maps.Map(mapRef.current!, {
-                    center: location,
-                    zoom: 15,
-                    mapTypeId: 'roadmap',
-                });
-
-                // Create standard marker
-                new window.google.maps.Marker({
-                    map,
-                    position: location,
-                    title: fullAddress,
-                });
-
-                setMapInitialized(true);
-            } else {
-                setError('Could not find location on map: ' + status);
-            }
-            setIsLoaded(true);
-        });
-    }, [fullAddress, mapInitialized, address.street, address.city, address.state]);
-
-    useEffect(() => {
-        if (window.google && !mapInitialized) {
-            setIsLoaded(true);
-            initMap();
-        } else if (!GOOGLE_MAPS_API_KEY) {
-            setError("Google Maps API Key is missing. Map cannot be loaded.");
-            setIsLoaded(true);
-        }
-    }, [isLoaded, initMap, mapInitialized, GOOGLE_MAPS_API_KEY]);
-
-    // Add global callback for Google Maps
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            window.initMapCallback = () => {
-                setIsLoaded(true);
-                initMap();
-            };
-        }
-        return () => {
-            if (typeof window !== 'undefined') {
-                delete window.initMapCallback;
-            }
-        };
-    }, [initMap]);
-
-    return (
-        <div className="w-full">
-            {GOOGLE_MAPS_API_KEY && !isLoaded && (
-                <Script
-                    src={`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMapCallback`}
-                    strategy="afterInteractive"
-                    async
-                    defer
-                    onError={() => { setError('Failed to load Google Maps script.'); setIsLoaded(true); }}
-                />
-            )}
-            <div
-                ref={mapRef}
-                className={cn(
-                    "w-full h-[200px] sm:h-[250px] rounded-none sm:rounded-b-xl",
-                    "overflow-hidden",
-                    "transition-all duration-300",
-                    !isLoaded ? "opacity-0" : "opacity-100"
-                )}
-            >
-                {!isLoaded && !error && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-                        <div className="w-[80px] h-[80px] rounded-full bg-gray-300 dark:bg-gray-700 animate-spin" />
-                    </div>
-                )}
-                {error && (
-                    <div className="absolute inset-0 flex items-center justify-center text-center bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 rounded-xl p-4">
-                        {error}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
 };
 
 /** Link to the directory without a large Hanar mark — matches other header icon chips. */
@@ -1361,9 +1256,11 @@ const BusinessProfilePage = () => {
         return () => window.removeEventListener('scroll', onScroll);
     }, [isRetailShopPage, isRetailBaselPage]);
 
+    const formatBusinessAddressLine = (address: BusinessType['address']) =>
+        [address?.street, address?.city, address?.state, address?.zip].filter(Boolean).join(', ');
+
     const getMapUrl = (address: BusinessType['address']) => {
-        const { street, city, state, zip } = address;
-        const fullAddress = `${street || ''}, ${city || ''}, ${state || ''} ${zip || ''}`;
+        const fullAddress = formatBusinessAddressLine(address);
         const encodedAddress = encodeURIComponent(fullAddress);
         const isIOS = typeof window !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
         return isIOS
@@ -1419,11 +1316,11 @@ const BusinessProfilePage = () => {
         'inline-flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:brightness-110 [&_path]:fill-white [&_svg]:stroke-white [&_svg]:text-white';
 
     return (
-        <motion.div
+        <div
             initial="hidden"
             animate="visible"
             className={cn(
-                'relative px-0 pt-0 pb-4 min-h-screen overflow-x-clip lg:mx-auto',
+                'relative px-0 pt-0 pb-[max(1rem,env(safe-area-inset-bottom,0px))] min-h-screen overflow-x-clip lg:mx-auto',
                 isRetailBaselPage ? 'lg:max-w-[90rem]' : 'lg:max-w-5xl',
                 isRetailShopPage || isRetailBaselPage
                     ? 'bg-white font-inter text-neutral-900'
@@ -2090,14 +1987,14 @@ const BusinessProfilePage = () => {
 
                             <div className="flex flex-col gap-2">
                                 {business.phone && (
-                                    <a
-                                        href={`tel:${business.phone}`}
+                                    <ContactHrefLink
+                                        href={buildTelHref(business.phone)}
                                         className={dealershipMenuActionClassName}
                                         style={sidebarMenuButtonStyle}
                                     >
                                         <FaPhone size={13} />
                                         Call
-                                    </a>
+                                    </ContactHrefLink>
                                 )}
                                 {business.owner_id && (
                                     <Link
@@ -2111,14 +2008,14 @@ const BusinessProfilePage = () => {
                                     </Link>
                                 )}
                                 {business.email && (
-                                    <a
-                                        href={`mailto:${business.email}`}
+                                    <ContactHrefLink
+                                        href={buildMailtoHref(business.email)}
                                         className={dealershipMenuActionClassName}
                                         style={sidebarMenuButtonStyle}
                                     >
                                         <FaEnvelope size={13} />
                                         Email
-                                    </a>
+                                    </ContactHrefLink>
                                 )}
                                 {business.whatsapp && (
                                     <a
@@ -2275,7 +2172,7 @@ const BusinessProfilePage = () => {
                 )}
 
             {isDealership ? (
-                <motion.div className="w-full bg-[#e6e6eb] pb-6 dark:bg-slate-900">
+                <div className="w-full bg-[#e6e6eb] pb-6 dark:bg-slate-900">
                     <div className="border-b border-slate-300 bg-white px-4 py-2.5 text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
                         <BusinessDescriptionText
                             text={business.description}
@@ -2285,9 +2182,9 @@ const BusinessProfilePage = () => {
                         {business.phone && (
                             <div className="mt-1.5">
                                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600 dark:text-slate-300">Sales:</p>
-                                <a href={`tel:${business.phone}`} className="mt-0.5 inline-block text-3xl font-black leading-none">
+                                <ContactHrefLink href={buildTelHref(business.phone)} className="mt-0.5 inline-block text-3xl font-black leading-none">
                                     {business.phone}
-                                </a>
+                                </ContactHrefLink>
                             </div>
                         )}
                     </div>
@@ -2371,7 +2268,7 @@ const BusinessProfilePage = () => {
                             <>
                                 <div className="relative min-h-[10rem] overflow-hidden sm:min-h-[11rem]">
                                     <AnimatePresence mode="wait" initial={false}>
-                                        <motion.div
+                                        <div
                                             key={dealershipListingsPage}
                                             role="list"
                                             className="grid grid-cols-2 gap-2"
@@ -2412,7 +2309,7 @@ const BusinessProfilePage = () => {
                                                     </div>
                                                 </article>
                                             ))}
-                                        </motion.div>
+                                        </div>
                                     </AnimatePresence>
                                 </div>
                                 {dealershipTotalPages >= 1 ? (
@@ -2452,33 +2349,24 @@ const BusinessProfilePage = () => {
 
                     {business.address?.street && (
                         <section className="mx-3 mt-4 overflow-hidden border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900">
-                            <div className="px-3 pb-2 pt-3">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const mapUrl = getMapUrl(business.address);
-                                        window.open(mapUrl, '_blank');
-                                    }}
-                                    className="flex w-full items-center justify-center gap-2 px-3 py-2 text-sm font-bold text-white transition hover:brightness-110"
-                                    style={viewDetailButtonStyle}
-                                >
-                                    <FaDirections size={16} />
-                                    <span>
-                                        Get Directions
-                                        {business.address?.street || business.address?.city || business.address?.state || business.address?.zip
-                                            ? ` · ${[business.address?.street, business.address?.city, business.address?.state, business.address?.zip].filter(Boolean).join(', ')}`
-                                            : ''}
-                                    </span>
-                                </button>
+                            <div className="flex items-center justify-center gap-2 px-3 pb-2 pt-3 text-center text-sm font-medium text-slate-700 dark:text-slate-200">
+                                <MapPin size={16} className="shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
+                                <span data-no-translate>{formatBusinessAddressLine(business.address)}</span>
                             </div>
                             <div className="w-full overflow-hidden border-t border-slate-200 dark:border-slate-700">
-                                <BusinessMap address={business.address} />
+                                <BusinessMap
+                                    embedded
+                                    address={business.address}
+                                    businessId={business.id}
+                                    businessName={business.business_name}
+                                    logoUrl={business.logo_url}
+                                />
                             </div>
                         </section>
                     )}
-                </motion.div>
+                </div>
             ) : isRestaurant ? (
-                <motion.div
+                <div
                     initial="hidden"
                     animate="visible"
                     className={cn(
@@ -2505,9 +2393,9 @@ const BusinessProfilePage = () => {
                             </p>
                             <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-2.5">
                                 {business.phone && (
-                                    <a href={`tel:${business.phone}`} aria-label="Call" className={RESTAURANT_ICON_RING}>
+                                    <ContactHrefLink href={buildTelHref(business.phone)} ariaLabel="Call" className={RESTAURANT_ICON_RING}>
                                         <Phone className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
-                                    </a>
+                                    </ContactHrefLink>
                                 )}
                                 {business.whatsapp && (
                                     <a
@@ -2521,9 +2409,9 @@ const BusinessProfilePage = () => {
                                     </a>
                                 )}
                                 {business.email && (
-                                    <a href={`mailto:${business.email}`} aria-label="Email" className={RESTAURANT_ICON_RING}>
+                                    <ContactHrefLink href={buildMailtoHref(business.email)} ariaLabel="Email" className={RESTAURANT_ICON_RING}>
                                         <Mail className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden />
-                                    </a>
+                                    </ContactHrefLink>
                                 )}
                                 {business.website && (
                                     <a
@@ -2568,7 +2456,7 @@ const BusinessProfilePage = () => {
                         </div>
                     </div>
 
-                    <motion.div className="border-t border-[#1A472A]/10 bg-[#FCF8F1]">
+                    <div className="border-t border-[#1A472A]/10 bg-[#FCF8F1]">
                         <div className="p-6 sm:p-8">
                             <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
                                 {business.logo_url && (
@@ -2702,7 +2590,7 @@ const BusinessProfilePage = () => {
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
+                    </div>
 
                     {menu.length > 0 && (
                         <section className="px-4 py-12 sm:px-8" id="restaurant-menu">
@@ -2815,38 +2703,23 @@ const BusinessProfilePage = () => {
                     )}
 
                     {business.address?.street && (
-                        <motion.div className="mx-4 mt-2 overflow-hidden rounded-2xl border border-[#1A472A]/15 bg-white shadow-sm sm:mx-6">
+                        <div className="mx-4 mt-2 overflow-hidden rounded-2xl border border-[#1A472A]/15 bg-white shadow-sm sm:mx-6">
                             <div className="w-full">
-                                <div className="flex justify-center px-0 pb-2 pt-4 sm:px-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const mapUrl = getMapUrl(business.address);
-                                            window.open(mapUrl, '_blank');
-                                        }}
-                                        className={cn(
-                                            restaurantHeading.className,
-                                            'flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white transition hover:brightness-110 sm:w-auto [&_svg]:stroke-white'
-                                        )}
-                                        style={viewDetailButtonStyle}
-                                    >
-                                        <Navigation className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
-                                        <span>
-                                            Get directions
-                                            {business.address?.street ||
-                                            business.address?.city ||
-                                            business.address?.state ||
-                                            business.address?.zip
-                                                ? ` · ${[business.address?.street, business.address?.city, business.address?.state, business.address?.zip].filter(Boolean).join(', ')}`
-                                                : ''}
-                                        </span>
-                                    </button>
+                                <div className="flex items-center justify-center gap-2 px-4 pb-2 pt-4 text-center text-sm font-medium text-stone-700 sm:px-3">
+                                    <MapPin className="h-4 w-4 shrink-0 text-[#1A472A]/70" strokeWidth={2} aria-hidden />
+                                    <span data-no-translate>{formatBusinessAddressLine(business.address)}</span>
                                 </div>
                                 <div className="relative w-full overflow-hidden">
-                                    <BusinessMap address={business.address} />
+                                    <BusinessMap
+                                    embedded
+                                    address={business.address}
+                                    businessId={business.id}
+                                    businessName={business.business_name}
+                                    logoUrl={business.logo_url}
+                                />
                                 </div>
                             </div>
-                        </motion.div>
+                        </div>
                     )}
 
                     <footer className="mt-10 border-t border-[#1A472A]/12 bg-[#FCF8F1] px-4 py-10 sm:px-8">
@@ -2859,9 +2732,9 @@ const BusinessProfilePage = () => {
                                             <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#1A472A]/18 bg-white text-[#1A472A] shadow-sm">
                                                 <Phone className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
                                             </span>
-                                            <a href={`tel:${business.phone}`} className="pt-1 text-stone-700 hover:text-[#1A472A] hover:underline">
+                                            <ContactHrefLink href={buildTelHref(business.phone)} className="pt-1 text-stone-700 hover:text-[#1A472A] hover:underline">
                                                 {business.phone}
-                                            </a>
+                                            </ContactHrefLink>
                                         </li>
                                     )}
                                     {business.address?.street && (
@@ -2881,9 +2754,9 @@ const BusinessProfilePage = () => {
                                             <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#1A472A]/18 bg-white text-[#1A472A] shadow-sm">
                                                 <Mail className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
                                             </span>
-                                            <a href={`mailto:${business.email}`} className="pt-1 text-stone-700 hover:text-[#1A472A] hover:underline">
+                                            <ContactHrefLink href={buildMailtoHref(business.email)} className="pt-1 text-stone-700 hover:text-[#1A472A] hover:underline">
                                                 {business.email}
-                                            </a>
+                                            </ContactHrefLink>
                                         </li>
                                     )}
                                 </ul>
@@ -2986,7 +2859,7 @@ const BusinessProfilePage = () => {
                     </footer>
 
                     {(carListings.length > 0 || retailItems.length > 0 || realEstateListings.length > 0) && (
-                        <motion.div className="mt-4 border-t border-[#1A472A]/12 bg-[#FCF8F1] p-4 sm:p-6">
+                        <div className="mt-4 border-t border-[#1A472A]/12 bg-[#FCF8F1] p-4 sm:p-6">
                             {carListings.length > 0 && (
                                 <div className="mb-10">
                                     <h2
@@ -3154,7 +3027,7 @@ const BusinessProfilePage = () => {
                                     </div>
                                 </div>
                             )}
-                        </motion.div>
+                        </div>
                     )}
 
                     {hasMoreItems && (
@@ -3167,9 +3040,9 @@ const BusinessProfilePage = () => {
                             <div ref={loadMoreRef} className="h-8 w-full" aria-hidden="true" />
                         </div>
                     )}
-                </motion.div>
+                </div>
             ) : isRetailShopPage ? (
-                <motion.div className="w-full space-y-0 bg-white pb-0 font-inter text-neutral-900">
+                <div className="w-full space-y-0 bg-white pb-0 font-inter text-neutral-900">
                     {business.moderation_status !== 'active' && (
                         <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                             Your business is currently pending approval. You can still view and edit your business profile and online
@@ -3394,29 +3267,19 @@ const BusinessProfilePage = () => {
                         <section className="border-t border-neutral-100 px-4 py-6">
                             <div className="mx-auto max-w-lg overflow-hidden rounded-xl border border-neutral-200 bg-white sm:max-w-4xl">
                                 <div className="px-3 pb-2 pt-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const mapUrl = getMapUrl(business.address);
-                                            window.open(mapUrl, '_blank');
-                                        }}
-                                        className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-bold uppercase tracking-wide text-white transition hover:brightness-110"
-                                        style={retailSearchCtaStyle}
-                                    >
-                                        <FaDirections size={16} />
-                                        <span>
-                                            Get directions
-                                            {business.address?.street ||
-                                            business.address?.city ||
-                                            business.address?.state ||
-                                            business.address?.zip
-                                                ? ` · ${[business.address?.street, business.address?.city, business.address?.state, business.address?.zip].filter(Boolean).join(', ')}`
-                                                : ''}
-                                        </span>
-                                    </button>
+                                    <div className="flex items-center justify-center gap-2 px-3 pb-2 pt-3 text-center text-sm font-medium text-neutral-800">
+                                    <MapPin size={16} className="shrink-0 text-neutral-500" aria-hidden />
+                                    <span data-no-translate>{formatBusinessAddressLine(business.address)}</span>
+                                </div>
                                 </div>
                                 <div className="w-full overflow-hidden border-t border-neutral-200">
-                                    <BusinessMap address={business.address} />
+                                    <BusinessMap
+                                    embedded
+                                    address={business.address}
+                                    businessId={business.id}
+                                    businessName={business.business_name}
+                                    logoUrl={business.logo_url}
+                                />
                                 </div>
                             </div>
                         </section>
@@ -3442,9 +3305,9 @@ const BusinessProfilePage = () => {
                             © {new Date().getFullYear()} {business.business_name} · Listed on Hanar
                         </p>
                     </footer>
-                </motion.div>
+                </div>
             ) : isRetailBaselPage ? (
-                <motion.div className="w-full space-y-0 bg-white pb-8 font-inter text-neutral-900">
+                <div className="w-full space-y-0 bg-white pb-8 font-inter text-neutral-900">
                     {business.moderation_status !== 'active' && (
                         <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                             Your business is currently pending approval. You can still view and edit your business profile and online
@@ -3455,8 +3318,8 @@ const BusinessProfilePage = () => {
                     <section className="border-b border-zinc-200 bg-white">
                         <div className="mx-auto flex max-w-6xl flex-wrap justify-center gap-x-8 gap-y-6 px-4 py-8 lg:px-6">
                             {business.phone?.trim() && (
-                                <a
-                                    href={`tel:${business.phone}`}
+                                <ContactHrefLink
+                                    href={buildTelHref(business.phone)}
                                     className="flex max-w-xs min-w-[220px] gap-3 rounded-lg p-1 transition hover:bg-zinc-50"
                                 >
                                     <span
@@ -3469,11 +3332,11 @@ const BusinessProfilePage = () => {
                                         <p className="text-sm font-bold text-neutral-900">Phone</p>
                                         <p className="mt-0.5 text-xs leading-snug text-neutral-600">{business.phone}</p>
                                     </div>
-                                </a>
+                                </ContactHrefLink>
                             )}
                             {business.email?.trim() && (
-                                <a
-                                    href={`mailto:${business.email}`}
+                                <ContactHrefLink
+                                    href={buildMailtoHref(business.email)}
                                     className="flex max-w-xs min-w-[220px] gap-3 rounded-lg p-1 transition hover:bg-zinc-50"
                                 >
                                     <span
@@ -3486,7 +3349,7 @@ const BusinessProfilePage = () => {
                                         <p className="text-sm font-bold text-neutral-900">Email</p>
                                         <p className="mt-0.5 break-all text-xs leading-snug text-neutral-600">{business.email}</p>
                                     </div>
-                                </a>
+                                </ContactHrefLink>
                             )}
                             {business.whatsapp?.trim() && (
                                 <a
@@ -3812,21 +3675,13 @@ const BusinessProfilePage = () => {
                     {business.address?.street && (
                         <section className="mx-auto max-w-6xl px-3 pb-8 sm:px-4">
                             <div className="overflow-hidden rounded-lg border border-zinc-200">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const mapUrl = getMapUrl(business.address);
-                                        window.open(mapUrl, '_blank');
-                                    }}
-                                    className="flex w-full items-center justify-center gap-2 px-4 py-3 text-sm font-bold text-white transition hover:brightness-110"
-                                    style={retailSearchCtaStyle}
-                                >
-                                    <FaDirections size={16} />
-                                    Get directions
-                                </button>
-                                <div className="h-[200px] w-full sm:h-[240px]">
-                                    <BusinessMap address={business.address} />
-                                </div>
+                                <BusinessMap
+                                    embedded
+                                    address={business.address}
+                                    businessId={business.id}
+                                    businessName={business.business_name}
+                                    logoUrl={business.logo_url}
+                                />
                             </div>
                         </section>
                     )}
@@ -3848,9 +3703,9 @@ const BusinessProfilePage = () => {
                     <footer className="mt-6 border-t border-zinc-200 bg-zinc-50 py-6 text-center text-xs text-zinc-500" data-no-translate>
                         © {new Date().getFullYear()} {business.business_name} · Hanar
                     </footer>
-                </motion.div>
+                </div>
             ) : (
-                <motion.div className="w-full space-y-0 bg-gray-100 dark:bg-slate-900/80 backdrop-blur lg:px-6 lg:pt-4">
+                <div className="w-full space-y-0 bg-gray-100 dark:bg-slate-900/80 backdrop-blur lg:px-6 lg:pt-4">
                 {business.moderation_status !== 'active' && (
                     <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                         Your business is currently pending approval. You can still view and edit your business profile and online
@@ -3894,9 +3749,9 @@ const BusinessProfilePage = () => {
                         style={{ background: slugBrandBackground }}
                     >
                         {business.phone && (
-                            <a href={`tel:${business.phone}`} aria-label="Call" className={CONTACT_STRIP_CHIP}>
+                            <ContactHrefLink href={buildTelHref(business.phone)} ariaLabel="Call" className={CONTACT_STRIP_CHIP}>
                                 <FaPhone size={18} className="shrink-0" />
-                            </a>
+                            </ContactHrefLink>
                         )}
                         {business.whatsapp && (
                             <a href={`https://wa.me/${business.whatsapp}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className={CONTACT_STRIP_CHIP}>
@@ -3904,9 +3759,9 @@ const BusinessProfilePage = () => {
                             </a>
                         )}
                         {business.email && (
-                            <a href={`mailto:${business.email}`} aria-label="Email" className={CONTACT_STRIP_CHIP}>
+                            <ContactHrefLink href={buildMailtoHref(business.email)} ariaLabel="Email" className={CONTACT_STRIP_CHIP}>
                                 <FaEnvelope size={18} className="shrink-0" />
-                            </a>
+                            </ContactHrefLink>
                         )}
                         {business.website && (
                             <a href={business.website} target="_blank" rel="noopener noreferrer" aria-label="External link" className={CONTACT_STRIP_CHIP}>
@@ -3942,7 +3797,7 @@ const BusinessProfilePage = () => {
                     </div>
                 </div>
                 {/* Name + Description - scrolls away with page */}
-                <motion.div className="border-t border-b border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900">
+                <div className="border-t border-b border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900">
                     <div className="p-4 sm:p-6 bg-white dark:bg-slate-900">
                         <div className="flex w-full items-center gap-4">
                             {business.logo_url && (
@@ -4031,39 +3886,32 @@ const BusinessProfilePage = () => {
                             </>
                         )}
                     </div>
-                </motion.div>
+                </div>
                 {/* Address / map — menu & listings follow below */}
                 {business.address?.street && (
-                    <motion.div className="rounded-b-xl border-2 border-t-0 border-slate-300 dark:border-slate-600 bg-white p-0 shadow-sm dark:bg-slate-900/90 overflow-hidden">
+                    <div className="rounded-b-xl border-2 border-t-0 border-slate-300 dark:border-slate-600 bg-white p-0 shadow-sm dark:bg-slate-900/90 overflow-hidden pb-[env(safe-area-inset-bottom,0px)]">
                         <div className="w-full">
                             <div className="flex justify-center px-0 pb-2 pt-3 sm:px-3">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const mapUrl = getMapUrl(business.address);
-                                        window.open(mapUrl, '_blank');
-                                    }}
-                                    className="flex w-full items-center justify-center gap-2 rounded-none px-3 py-2 text-sm font-bold text-white transition hover:brightness-110 sm:w-auto sm:rounded"
-                                    style={viewDetailButtonStyle}
-                                >
-                                    <FaDirections size={16} />
-                                    <span>
-                                        Get Directions
-                                        {business.address?.street || business.address?.city || business.address?.state || business.address?.zip
-                                            ? ` · ${[business.address?.street, business.address?.city, business.address?.state, business.address?.zip].filter(Boolean).join(', ')}`
-                                            : ''}
-                                    </span>
-                                </button>
+                                <div className="flex items-center justify-center gap-2 rounded-none px-3 py-2 text-center text-sm font-medium text-slate-700 dark:text-slate-200 sm:rounded">
+                                    <MapPin size={16} className="shrink-0 text-slate-500 dark:text-slate-400" aria-hidden />
+                                    <span data-no-translate>{formatBusinessAddressLine(business.address)}</span>
+                                </div>
                             </div>
                             <div className="relative w-full overflow-hidden sm:rounded-b-xl">
-                                <BusinessMap address={business.address} />
+                                <BusinessMap
+                                    embedded
+                                    address={business.address}
+                                    businessId={business.id}
+                                    businessName={business.business_name}
+                                    logoUrl={business.logo_url}
+                                />
                             </div>
                         </div>
-                    </motion.div>
+                    </div>
                 )}
                 {/* === Shop: menu & listings (under address map) === */}
                 {(menu.length > 0 || carListings.length > 0 || retailItems.length > 0 || realEstateListings.length > 0) && (
-                    <motion.div className="mt-4 border-b border-slate-300 dark:border-slate-600 p-4 sm:p-6 space-y-10 bg-white dark:bg-gray-800">
+                    <div className="mt-4 border-b border-slate-300 dark:border-slate-600 p-4 sm:p-6 space-y-10 bg-white dark:bg-gray-800">
                         {/* Menu */}
                         {menu.length > 0 && (
                             <div>
@@ -4286,7 +4134,7 @@ const BusinessProfilePage = () => {
                                 </div>
                             </div>
                         )}
-                    </motion.div>
+                    </div>
                 )}
                 {/* === END ITEMS SECTION === */}
                 {hasMoreItems && (
@@ -4299,10 +4147,10 @@ const BusinessProfilePage = () => {
                         <div ref={loadMoreRef} className="h-8 w-full" aria-hidden="true" />
                     </div>
                 )}
-            </motion.div>
+            </div>
             )}
 
-        </motion.div>
+        </div>
     );
 };
 export default BusinessProfilePage;

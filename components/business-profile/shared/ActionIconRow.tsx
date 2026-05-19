@@ -1,6 +1,8 @@
 'use client';
 
 import { Phone, Mail, Globe, Share2 } from 'lucide-react';
+import { ContactHrefLink } from '@/components/ContactHrefLink';
+import { buildMailtoHref, buildTelHref } from '@/lib/openContactUrl';
 import { SiWhatsapp } from 'react-icons/si';
 import ReportButton from '@/components/ReportButton';
 import { useBusinessProfileTheme } from '../theme/ThemeProvider';
@@ -33,13 +35,13 @@ export function ActionIconRow({ business, onShare }: ActionIconRowProps) {
       }}
     >
       {business.phone && (
-        <a
-          href={`tel:${business.phone}`}
-          aria-label="Call"
+        <ContactHrefLink
+          href={buildTelHref(business.phone)}
+          ariaLabel="Call"
           className={iconClass + ' bg-green-50 text-green-600 hover:bg-green-500 hover:text-white'}
         >
           <Phone size={20} strokeWidth={2} />
-        </a>
+        </ContactHrefLink>
       )}
       {business.whatsapp && (
         <a
@@ -53,13 +55,13 @@ export function ActionIconRow({ business, onShare }: ActionIconRowProps) {
         </a>
       )}
       {business.email && (
-        <a
-          href={`mailto:${business.email}`}
-          aria-label="Email"
+        <ContactHrefLink
+          href={buildMailtoHref(business.email)}
+          ariaLabel="Email"
           className={iconClass + ' bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white'}
         >
           <Mail size={20} strokeWidth={2} />
-        </a>
+        </ContactHrefLink>
       )}
       {business.website && (
         <a

@@ -188,27 +188,62 @@ export const BUSINESS_MAP_PIN_CSS = `
   filter: drop-shadow(0 2px 2px rgba(15, 23, 42, 0.18));
 }
 
-/* Hide Google Maps logo / terms text inside our map panel (zoom controls kept). */
+/* Hide Google Maps logo / terms / Street View inside Hanar map surfaces. */
 .hanar-businesses-map-surface .gm-style-cc,
+.hanar-business-embed-map-surface .gm-style-cc,
 .hanar-businesses-map-surface .gm-style-mtc,
+.hanar-business-embed-map-surface .gm-style-mtc,
 .hanar-businesses-map-surface a[href*="google.com/maps"],
+.hanar-business-embed-map-surface a[href*="google.com/maps"],
+.hanar-businesses-map-surface a[href*="google.com"],
+.hanar-business-embed-map-surface a[href*="google.com"],
 .hanar-businesses-map-surface a[href*="terms"],
-.hanar-businesses-map-surface img[alt="Google"] {
+.hanar-business-embed-map-surface a[href*="terms"],
+.hanar-businesses-map-surface img[alt="Google"],
+.hanar-business-embed-map-surface img[alt="Google"],
+.hanar-business-embed-map-surface .gm-style > div > a,
+.hanar-business-embed-map-surface .gm-style > div > div > a {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Hide rotate / Street View pegman / directions controls. */
+.hanar-businesses-map-surface .gm-compass,
+.hanar-business-embed-map-surface .gm-compass,
+.hanar-businesses-map-surface .gm-svpc,
+.hanar-business-embed-map-surface .gm-svpc,
+.hanar-businesses-map-surface button[aria-label*="Rotate"],
+.hanar-business-embed-map-surface button[aria-label*="Rotate"],
+.hanar-businesses-map-surface button[aria-label*="rotate"],
+.hanar-business-embed-map-surface button[aria-label*="rotate"],
+.hanar-businesses-map-surface button[aria-label*="Directions"],
+.hanar-business-embed-map-surface button[aria-label*="Directions"],
+.hanar-businesses-map-surface button[aria-label*="directions"],
+.hanar-business-embed-map-surface button[aria-label*="directions"],
+.hanar-businesses-map-surface button[aria-label*="Street View"],
+.hanar-business-embed-map-surface button[aria-label*="Street View"],
+.hanar-businesses-map-surface button[title*="Rotate"],
+.hanar-business-embed-map-surface button[title*="Rotate"],
+.hanar-businesses-map-surface button[title*="Directions"],
+.hanar-business-embed-map-surface button[title*="Directions"],
+.hanar-businesses-map-surface button[title*="Street View"],
+.hanar-business-embed-map-surface button[title*="Street View"] {
   display: none !important;
 }
 
-/* Hide Google rotate / directions / camera controls (zoom +/- kept). */
-.hanar-businesses-map-surface .gm-compass,
-.hanar-businesses-map-surface .gm-svpc,
-.hanar-businesses-map-surface button[aria-label*="Rotate"],
-.hanar-businesses-map-surface button[aria-label*="rotate"],
-.hanar-businesses-map-surface button[aria-label*="Directions"],
-.hanar-businesses-map-surface button[aria-label*="directions"],
-.hanar-businesses-map-surface button[title*="Rotate"],
-.hanar-businesses-map-surface button[title*="Directions"] {
+/* Business profile embed: hide zoom and remaining bundled Google controls. */
+.hanar-business-embed-map-surface .gm-bundled-control,
+.hanar-business-embed-map-surface .gmnoprint,
+.hanar-business-embed-map-surface .gm-fullscreen-control,
+.hanar-business-embed-map-surface .gm-style-moc {
   display: none !important;
 }
 `;
+
+/** Applied to business slug / profile embedded maps (minimal Google chrome). */
+export const BUSINESS_EMBED_MAP_SURFACE_CLASS = 'hanar-business-embed-map-surface';
 
 export function escapeHtml(text: string): string {
   return text
