@@ -1316,7 +1316,7 @@ const BusinessProfilePage = () => {
         'inline-flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:brightness-110 [&_path]:fill-white [&_svg]:stroke-white [&_svg]:text-white';
 
     return (
-        <div
+        <motion.div
             initial="hidden"
             animate="visible"
             className={cn(
@@ -2268,7 +2268,7 @@ const BusinessProfilePage = () => {
                             <>
                                 <div className="relative min-h-[10rem] overflow-hidden sm:min-h-[11rem]">
                                     <AnimatePresence mode="wait" initial={false}>
-                                        <div
+                                        <motion.div
                                             key={dealershipListingsPage}
                                             role="list"
                                             className="grid grid-cols-2 gap-2"
@@ -2309,7 +2309,7 @@ const BusinessProfilePage = () => {
                                                     </div>
                                                 </article>
                                             ))}
-                                        </div>
+                                        </motion.div>
                                     </AnimatePresence>
                                 </div>
                                 {dealershipTotalPages >= 1 ? (
@@ -2366,7 +2366,7 @@ const BusinessProfilePage = () => {
                     )}
                 </div>
             ) : isRestaurant ? (
-                <div
+                <motion.div
                     initial="hidden"
                     animate="visible"
                     className={cn(
@@ -3040,7 +3040,7 @@ const BusinessProfilePage = () => {
                             <div ref={loadMoreRef} className="h-8 w-full" aria-hidden="true" />
                         </div>
                     )}
-                </div>
+                </motion.div>
             ) : isRetailShopPage ? (
                 <div className="w-full space-y-0 bg-white pb-0 font-inter text-neutral-900">
                     {business.moderation_status !== 'active' && (
@@ -4150,7 +4150,7 @@ const BusinessProfilePage = () => {
             </div>
             )}
 
-        </div>
+        </motion.div>
     );
 };
 export default BusinessProfilePage;
