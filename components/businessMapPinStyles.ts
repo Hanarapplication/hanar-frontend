@@ -187,6 +187,15 @@ export const BUSINESS_MAP_PIN_CSS = `
   border-top: 10px solid #2563eb;
   filter: drop-shadow(0 2px 2px rgba(15, 23, 42, 0.18));
 }
+
+/* Hide Google Maps logo / terms text inside our map panel (zoom controls kept). */
+.hanar-businesses-map-surface .gm-style-cc,
+.hanar-businesses-map-surface .gm-style-mtc,
+.hanar-businesses-map-surface a[href*="google.com/maps"],
+.hanar-businesses-map-surface a[href*="terms"],
+.hanar-businesses-map-surface img[alt="Google"] {
+  display: none !important;
+}
 `;
 
 export function escapeHtml(text: string): string {
@@ -199,9 +208,11 @@ export function escapeHtml(text: string): string {
 
 export function ensureBusinessMapPinStyles() {
   if (typeof document === 'undefined') return;
-  if (document.getElementById(BUSINESS_MAP_PIN_STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = BUSINESS_MAP_PIN_STYLE_ID;
+  let style = document.getElementById(BUSINESS_MAP_PIN_STYLE_ID) as HTMLStyleElement | null;
+  if (!style) {
+    style = document.createElement('style');
+    style.id = BUSINESS_MAP_PIN_STYLE_ID;
+    document.head.appendChild(style);
+  }
   style.textContent = BUSINESS_MAP_PIN_CSS;
-  document.head.appendChild(style);
 }

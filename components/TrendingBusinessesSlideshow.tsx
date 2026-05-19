@@ -57,10 +57,10 @@ export default function TrendingBusinessesSlideshow({
           key={biz.id}
           href={getBusinessHref(biz)}
           data-keen-slider-clickable
-          className="keen-slider__slide group block min-h-0 rounded-lg border border-violet-200/80 bg-white p-1.5 shadow-sm transition hover:border-violet-300 hover:shadow-md"
+          className="keen-slider__slide group block min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md"
           data-no-translate
         >
-          <div className="relative overflow-hidden rounded-md bg-slate-100">
+          <div className="relative overflow-hidden bg-slate-100">
             <img
               src={biz.logo_url || FALLBACK_LOGO}
               alt={biz.business_name || 'Business'}
@@ -68,16 +68,18 @@ export default function TrendingBusinessesSlideshow({
               decoding="async"
               className="h-20 w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:h-24"
             />
-            <span className="absolute bottom-1 left-1 inline-flex items-center rounded bg-amber-500/95 px-1 py-0.5 text-[9px] font-bold text-white shadow-sm">
+            <span className="absolute bottom-1.5 left-1.5 inline-flex items-center rounded-md border border-slate-200/80 bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-700 shadow-sm">
               {t(effectiveLang, 'Premium')}
             </span>
           </div>
-          <p className="mt-1 line-clamp-2 text-center text-xs font-semibold leading-tight text-slate-900">
-            {biz.business_name}
-          </p>
-          <p className="mt-1 w-full rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-center text-[10px] font-bold leading-tight text-violet-800 break-words whitespace-normal">
-            {formatCategoryLabel(biz)}
-          </p>
+          <div className="px-2 py-2">
+            <p className="line-clamp-2 text-center text-xs font-semibold leading-tight text-slate-900">
+              {biz.business_name}
+            </p>
+            <p className="mt-1 line-clamp-2 text-center text-[10px] font-medium leading-tight text-slate-500">
+              {formatCategoryLabel(biz)}
+            </p>
+          </div>
         </Link>
       ))}
     </div>

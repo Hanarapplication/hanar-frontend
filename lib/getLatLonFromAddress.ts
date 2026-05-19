@@ -1,4 +1,6 @@
-export async function getLatLonFromAddress(address: string): Promise<{ lat: number; lon: number } | null> {
+export async function getLatLonFromAddress(
+  address: string
+): Promise<{ lat: number; lon: number; bounds?: { north: number; south: number; east: number; west: number } } | null> {
   try {
     const encodedAddress = encodeURIComponent(address);
     const apiKey =
@@ -9,10 +11,22 @@ export async function getLatLonFromAddress(address: string): Promise<{ lat: numb
     const json = await res.json();
 
     if (json.status === 'OK') {
-      const location = json.results[0].geometry.location;
+      const result = json.results[0];
+      const location = result.geometry.location;
+      const viewport = result.geometry?.viewport ?? result.geometry?.bounds;
+      let bounds: { north: number; south: number; east: number; west: number } | undefined;
+      if (viewport?.northeast && viewport?.southwest) {
+        bounds = {
+          north: viewport.northeast.lat,
+          south: viewport.southwest.lat,
+          east: viewport.northeast.lng,
+          west: viewport.southwest.lng,
+        };
+      }
       return {
         lat: location.lat,
         lon: location.lng,
+        bounds,
       };
     }
 

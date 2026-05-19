@@ -210,10 +210,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
           continue;
         }
         if (SKIP_TAGS.has(parent.tagName) || shouldSkipElementTranslationContext(parent)) {
-          // If this node was previously translated, restore its original source text.
-          if (typeof extended.__hanarOriginalText === 'string') {
-            node.nodeValue = extended.__hanarOriginalText;
-          }
           current = walker.nextNode();
           continue;
         }
@@ -235,14 +231,31 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       const map = getRuntimeTranslations(effectiveLang);
       nodes.forEach((node) => {
         const extended = node as Text & { __hanarOriginalText?: string };
+        const raw = node.nodeValue || '';
         if (typeof extended.__hanarOriginalText !== 'string') {
-          extended.__hanarOriginalText = node.nodeValue || '';
+          extended.__hanarOriginalText = raw;
         }
-        const original = extended.__hanarOriginalText;
+
+        let original = extended.__hanarOriginalText;
         if (effectiveLang === 'en') {
-          node.nodeValue = original;
+          if (original !== raw) {
+            extended.__hanarOriginalText = raw;
+          }
           return;
         }
+
+        const translatedFromOriginal = map[original.trim()];
+        if (
+          translatedFromOriginal &&
+          raw.trim() === translatedFromOriginal.trim()
+        ) {
+          return;
+        }
+        if (original !== raw) {
+          extended.__hanarOriginalText = raw;
+          original = raw;
+        }
+
         const key = original.trim();
         if (!key) return;
         const translated = map[key];

@@ -160,8 +160,8 @@ function DashboardContent() {
         let { data: { session } } = await supabase.auth.getSession();
         let user = session?.user;
         if (!user) {
-          // Give session a moment to restore (e.g. from storage) so we don't send logged-in users to login
-          await new Promise((r) => setTimeout(r, 200));
+          // Brief wait for session restore from storage before sending users to login
+          await new Promise((r) => setTimeout(r, 100));
           const retry = await supabase.auth.getSession();
           session = retry.data.session;
           user = session?.user;
@@ -173,7 +173,7 @@ function DashboardContent() {
 
         const { data: regProfile, error: profileError } = await supabase
           .from('registeredaccounts')
-          .select('business, organization')
+          .select('business, organization, username, full_name')
           .eq('user_id', user.id)
           .maybeSingle();
         if (profileError) throw profileError;
@@ -189,24 +189,27 @@ function DashboardContent() {
 
         setCurrentUserId(user.id);
 
-        const [{ data: favoriteRows, error: favoritesError }, { data: profData }, { data: regData }] = await Promise.all([
+        const [
+          { data: favoriteRows, error: favoritesError },
+          { data: profData },
+          { data: favRows },
+        ] = await Promise.all([
           supabase.from('business_favorites').select('business_id').eq('user_id', user.id),
           supabase.from('profiles').select('username, profile_pic_url').eq('id', user.id).maybeSingle(),
-          supabase.from('registeredaccounts').select('username, full_name').eq('user_id', user.id).maybeSingle(),
+          supabase
+            .from('user_marketplace_favorites')
+            .select('item_key, item_snapshot')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true }),
         ]);
 
         if (favoritesError) throw favoritesError;
-        const uname = profData?.username ?? regData?.username ?? null;
-        const displayName = regData?.full_name?.trim() || null;
-        setProfile(profData || regData ? { username: uname, displayName, profile_pic_url: profData?.profile_pic_url ?? null } : null);
+        const uname = profData?.username ?? regProfile?.username ?? null;
+        const displayName = regProfile?.full_name?.trim() || null;
+        setProfile(profData || regProfile ? { username: uname, displayName, profile_pic_url: profData?.profile_pic_url ?? null } : null);
 
         const businessIds = (favoriteRows || []).map((row: { business_id: string }) => row.business_id);
 
-        const { data: favRows } = await supabase
-          .from('user_marketplace_favorites')
-          .select('item_key, item_snapshot')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: true });
         const items = (favRows || []).map((r: { item_key: string; item_snapshot: Record<string, unknown> }) => ({
           key: r.item_key,
           id: (r.item_snapshot?.id as string) ?? '',
@@ -305,37 +308,34 @@ function DashboardContent() {
   useEffect(() => {
     if (!currentUserId) return;
     let cancelled = false;
-    const t = window.setTimeout(() => {
-      (async () => {
-        try {
-          const { data: followRows, error: followError } = await supabase
-            .from('follows')
-            .select('following_id')
-            .eq('follower_id', currentUserId);
+    (async () => {
+      try {
+        const { data: followRows, error: followError } = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', currentUserId);
+        if (cancelled) return;
+        if (followError) throw followError;
+        const orgOwnerIds = (followRows || []).map((row: { following_id: string }) => row.following_id);
+        if (orgOwnerIds.length === 0) {
+          setFollowedOrgs([]);
+        } else {
+          const { data: orgData, error: orgError } = await supabase
+            .from('organizations')
+            .select('user_id, full_name, username, logo_url')
+            .in('user_id', orgOwnerIds);
           if (cancelled) return;
-          if (followError) throw followError;
-          const orgOwnerIds = (followRows || []).map((row: { following_id: string }) => row.following_id);
-          if (orgOwnerIds.length === 0) {
-            setFollowedOrgs([]);
-          } else {
-            const { data: orgData, error: orgError } = await supabase
-              .from('organizations')
-              .select('user_id, full_name, username, logo_url')
-              .in('user_id', orgOwnerIds);
-            if (cancelled) return;
-            if (orgError) throw orgError;
-            setFollowedOrgs((orgData as FollowedOrg[]) || []);
-          }
-        } catch {
-          if (!cancelled) setFollowedOrgs([]);
-        } finally {
-          if (!cancelled) setFollowedOrgsLoading(false);
+          if (orgError) throw orgError;
+          setFollowedOrgs((orgData as FollowedOrg[]) || []);
         }
-      })();
-    }, 200);
+      } catch {
+        if (!cancelled) setFollowedOrgs([]);
+      } finally {
+        if (!cancelled) setFollowedOrgsLoading(false);
+      }
+    })();
     return () => {
       cancelled = true;
-      window.clearTimeout(t);
     };
   }, [currentUserId]);
 
@@ -375,34 +375,31 @@ function DashboardContent() {
       }
     })();
 
-    const limitsTimer = window.setTimeout(() => {
-      setListingLimitsLoading(true);
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        const headers: Record<string, string> = {};
-        if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-        return fetch('/api/marketplace/listing-limits', { headers });
-      }).then((res) => res.json().catch(() => ({}))).then((data) => {
-        if (cancelled) return;
-        if (data && !data.error) {
-          setListingLimits({
-            activeCount: data.activeCount ?? 0,
-            maxAllowed: data.maxAllowed ?? 1,
-            hasPack: !!data.hasPack,
-            packExpiresAt: data.packExpiresAt ?? null,
-            canAddMore: !!data.canAddMore,
-            isBusiness: !!data.isBusiness,
-          });
-        } else {
-          setListingLimits(null);
-        }
-      }).finally(() => {
-        if (!cancelled) setListingLimitsLoading(false);
-      });
-    }, 400);
+    setListingLimitsLoading(true);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      return fetch('/api/marketplace/listing-limits', { headers });
+    }).then((res) => res.json().catch(() => ({}))).then((data) => {
+      if (cancelled) return;
+      if (data && !data.error) {
+        setListingLimits({
+          activeCount: data.activeCount ?? 0,
+          maxAllowed: data.maxAllowed ?? 1,
+          hasPack: !!data.hasPack,
+          packExpiresAt: data.packExpiresAt ?? null,
+          canAddMore: !!data.canAddMore,
+          isBusiness: !!data.isBusiness,
+        });
+      } else {
+        setListingLimits(null);
+      }
+    }).finally(() => {
+      if (!cancelled) setListingLimitsLoading(false);
+    });
 
     return () => {
       cancelled = true;
-      window.clearTimeout(limitsTimer);
     };
   }, [currentUserId]);
 

@@ -48,7 +48,15 @@ export default function AddressAutocomplete({
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dismissKeyboard = useCallback(() => {
+    inputRef.current?.blur();
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }, []);
 
   useEffect(() => {
     setInputValue(value);
@@ -143,6 +151,8 @@ export default function AddressAutocomplete({
   }, [onSelect, onChange]);
 
   const handleSelect = (p: Prediction) => {
+    dismissKeyboard();
+    setOpen(false);
     fetchDetailsAndSelect(p.place_id, p.description);
   };
 
@@ -170,6 +180,7 @@ export default function AddressAutocomplete({
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <input
+        ref={inputRef}
         type="text"
         value={inputValue}
         onChange={handleInputChange}
@@ -190,7 +201,7 @@ export default function AddressAutocomplete({
         <ul
           id="address-suggestions-list"
           role="listbox"
-          className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+          className="absolute z-[100] mt-1 w-full max-h-60 overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
         >
           {predictions.map((p, i) => (
             <li

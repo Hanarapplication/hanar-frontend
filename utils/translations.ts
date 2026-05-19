@@ -73,6 +73,10 @@ const translations: Record<string, Record<string, string>> = {
       "News": "News",
       "Marketplace": "Marketplace",
       "Businesses": "Businesses",
+      "Messages": "Messages",
+
+      "Go to messages": "Go to messages",
+
       "Showing posts in": "Showing posts in",
       "Image must be less than 4MB": "Image must be less than 4MB",
       "Image processing failed": "Image processing failed",
@@ -979,6 +983,10 @@ const translations: Record<string, Record<string, string>> = {
         "News": "ዜና",
         "Marketplace": "ገበያ",
         "Businesses": "ንግዶች",
+        "Messages": "መልዕክቶች",
+
+        "Go to messages": "ወደ መልዕክቶች ሂድ",
+
         "Showing posts in": "ፖስቶች በዚህ ቋንቋ",
         "Image must be less than 4MB": "ምስል ከ4MB በታች መሆን አለበት",
         "Image processing failed": "የምስል ማስኬድ አልተሳካም",
@@ -1891,6 +1899,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "المجتمع",
     "Marketplace": "السوق",
     "Businesses": "الأعمال",
+    "Messages": "الرسائل",
+
+    "Go to messages": "الانتقال إلى الرسائل",
+
     "Showing posts in": "عرض المنشورات بـ",
     "Image must be less than 4MB": "يجب أن تكون الصورة أقل من 4 ميجابايت",
     "Image processing failed": "فشل معالجة الصورة",
@@ -2013,6 +2025,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "انجمن",
     "Marketplace": "بازار",
     "Businesses": "کسب‌وکارها",
+    "Messages": "پیام‌ها",
+
+    "Go to messages": "رفتن به پیام‌ها",
+
     "Showing posts in": "نمایش پست‌ها به",
     "Image must be less than 4MB": "تصویر باید کمتر از ۴ مگابایت باشد",
     "Image processing failed": "پردازش تصویر ناموفق بود",
@@ -2134,6 +2150,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "کۆمەڵگا",
   "Marketplace": "بازاڕ",
   "Businesses": "کاروبارەکان",
+  "Messages": "پەیامەکان",
+
+  "Go to messages": "بڕۆ بۆ پەیامەکان",
+
   "Showing posts in": "پۆستەکان پەخش دەکرێن بە",
   "Image must be less than 4MB": "وێنە دەبێت کەمتر لە ٤ مێگابایت بێت",
   "Image processing failed": "پڕۆسەکردنی وێنە سەرکەوتوو نەبوو",
@@ -2255,6 +2275,10 @@ const translations: Record<string, Record<string, string>> = {
   "Community": "समुदाय",
   "Marketplace": "मार्केटप्लेस",
   "Businesses": "व्यवसाय",
+  "Messages": "संदेश",
+
+  "Go to messages": "संदेशों पर जाएं",
+
   "Showing posts in": "इनमें पोस्ट दिखाए जा रहे हैं",
   "Image must be less than 4MB": "छवि 4MB से कम होनी चाहिए",
   "Image processing failed": "छवि प्रोसेसिंग विफल",
@@ -2376,6 +2400,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Topluluk",
     "Marketplace": "Pazar Yeri",
     "Businesses": "İşletmeler",
+    "Messages": "Mesajlar",
+
+    "Go to messages": "Mesajlara git",
+
     "Showing posts in": "Gönderiler şu dilde gösteriliyor",
     "Image must be less than 4MB": "Görsel 4MB'dan küçük olmalıdır",
     "Image processing failed": "Görsel işleme başarısız",
@@ -2497,6 +2525,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Сообщество",
   "Marketplace": "Торговая площадка",
   "Businesses": "Бизнесы",
+  "Messages": "Сообщения",
+
+  "Go to messages": "Перейти к сообщениям",
+
   "Showing posts in": "Показ записей на",
   "Image must be less than 4MB": "Изображение должно быть меньше 4 МБ",
   "Image processing failed": "Ошибка обработки изображения",
@@ -2618,6 +2650,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Comunidad",
   "Marketplace": "Mercado",
   "Businesses": "Negocios",
+  "Messages": "Mensajes",
+
+  "Go to messages": "Ir a mensajes",
+
   "Showing posts in": "Mostrando publicaciones en",
   "Image must be less than 4MB": "La imagen debe ser menor de 4 MB",
   "Image processing failed": "Error al procesar la imagen",
@@ -2739,6 +2775,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "ټولنه",
     "Marketplace": "بازار",
     "Businesses": "سوداګرۍ",
+    "Messages": "پیغامونه",
+
+    "Go to messages": "پیغامونو ته لاړ شئ",
+
     "Showing posts in": "پوسټونه په",
     "Image must be less than 4MB": "انځور 4MB څخه لږ وي",
     "Image processing failed": "انځور پروسس نشو",
@@ -2860,6 +2900,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "کمیونٹی",
   "Marketplace": "مارکیٹ",
   "Businesses": "کاروبار",
+  "Messages": "پیغامات",
+
+  "Go to messages": "پیغامات پر جائیں",
+
   "Showing posts in": "پوسٹیں دکھائی جا رہی ہیں",
   "Image must be less than 4MB": "تصویر 4MB سے کم ہونی چاہیے",
   "Image processing failed": "تصویر پروسیس نہیں ہوئی",
@@ -2981,6 +3025,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "社区",
     "Marketplace": "市场",
     "Businesses": "商家",
+    "Messages": "消息",
+
+    "Go to messages": "前往消息",
+
     "Showing posts in": "帖子显示语言",
     "Image must be less than 4MB": "图片须小于 4MB",
     "Image processing failed": "图片处理失败",
@@ -3102,6 +3150,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "커뮤니티",
   "Marketplace": "마켓플레이스",
   "Businesses": "비즈니스",
+  "Messages": "메시지",
+
+  "Go to messages": "메시지로 이동",
+
   "Showing posts in": "게시물 표시 언어",
   "Image must be less than 4MB": "이미지는 4MB 미만이어야 합니다",
   "Image processing failed": "이미지 처리 실패",
@@ -3240,6 +3292,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Communauté",
     "Marketplace": "Marché",
     "Businesses": "Entreprises",
+    "Messages": "Messages",
+
+    "Go to messages": "Aller aux messages",
+
     "Showing posts in": "Publications affichées en",
     "Image must be less than 4MB": "L'image doit faire moins de 4 Mo",
     "Image processing failed": "Échec du traitement de l'image",
@@ -3378,6 +3434,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Gemeinschaft",
   "Marketplace": "Marktplatz",
   "Businesses": "Unternehmen",
+  "Messages": "Nachrichten",
+
+  "Go to messages": "Zu Nachrichten",
+
   "Showing posts in": "Beiträge anzeigen in",
   "Image must be less than 4MB": "Bild muss unter 4 MB sein",
   "Image processing failed": "Bildverarbeitung fehlgeschlagen",
@@ -3499,6 +3559,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Społeczność",
   "Marketplace": "Targowisko",
   "Businesses": "Firmy",
+  "Messages": "Wiadomości",
+
+  "Go to messages": "Przejdź do wiadomości",
+
   "Showing posts in": "Posty wyświetlane w",
   "Image must be less than 4MB": "Obraz musi być mniejszy niż 4 MB",
   "Image processing failed": "Błąd przetwarzania obrazu",
@@ -3620,6 +3684,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "İcma",
   "Marketplace": "Bazar",
   "Businesses": "Bizneslər",
+  "Messages": "Mesajlar",
+
+  "Go to messages": "Mesajlara keç",
+
   "Showing posts in": "Yazılar göstərilir",
   "Image must be less than 4MB": "Şəkil 4MB-dan az olmalıdır",
   "Image processing failed": "Şəkil işlənmədi",
@@ -3741,6 +3809,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "কমিউনিটি",
     "Marketplace": "মার্কেটপ্লেস",
     "Businesses": "ব্যবসা",
+    "Messages": "বার্তা",
+
+    "Go to messages": "বার্তায় যান",
+
     "Showing posts in": "পোস্ট দেখানো হচ্ছে",
     "Image must be less than 4MB": "ছবি 4MB এর কম হতে হবে",
     "Image processing failed": "ছবি প্রসেস করা যায়নি",
@@ -3862,6 +3934,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Komunitas",
     "Marketplace": "Pasar",
     "Businesses": "Bisnis",
+    "Messages": "Pesan",
+
+    "Go to messages": "Buka pesan",
+
     "Showing posts in": "Menampilkan posting dalam",
     "Image must be less than 4MB": "Gambar harus kurang dari 4MB",
     "Image processing failed": "Pemrosesan gambar gagal",
@@ -4000,6 +4076,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "சமூகத்துவம்",
     "Marketplace": "சந்தை",
     "Businesses": "வணிகங்கள்",
+    "Messages": "செய்திகள்",
+
+    "Go to messages": "செய்திகளுக்குச் செல்",
+
     "Showing posts in": "இடுகைகள் காட்டப்படுகின்றன",
     "Image must be less than 4MB": "படம் 4MB க்கும் குறைவாக இருக்க வேண்டும்",
     "Image processing failed": "பட செயலாக்கம் தோல்வி",
@@ -4121,6 +4201,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "समुदाय",
   "Marketplace": "बजार",
   "Businesses": "व्यवसायहरू",
+  "Messages": "सन्देश",
+
+  "Go to messages": "सन्देशहरूमा जानुहोस्",
+
   "Showing posts in": "पोस्टहरू देखाइएको",
   "Image must be less than 4MB": "छवि 4MB भन्दा कम हुनुपर्छ",
   "Image processing failed": "छवि प्रशोधन असफल",
@@ -4242,6 +4326,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Jumuiya",
   "Marketplace": "Soko",
   "Businesses": "Biashara",
+  "Messages": "Ujumbe",
+
+  "Go to messages": "Nenda kwenye ujumbe",
+
   "Showing posts in": "Inaonyesha machapisho kwa",
   "Image must be less than 4MB": "Picha lazima iwe chini ya 4MB",
   "Image processing failed": "Usindikaji wa picha umeshindwa",
@@ -4363,6 +4451,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "ਕਮਿਊਨਿਟੀ",
   "Marketplace": "ਬਾਜ਼ਾਰ",
   "Businesses": "ਕਾਰੋਬਾਰ",
+  "Messages": "ਸੁਨੇਹੇ",
+
+  "Go to messages": "ਸੁਨੇਹਿਆਂ 'ਤੇ ਜਾਓ",
+
   "Showing posts in": "ਪੋਸਟਾਂ ਦਿਖਾਈਆਂ ਜਾ ਰਹੀਆਂ ਹਨ",
   "Image must be less than 4MB": "ਚਿੱਤਰ 4MB ਤੋਂ ਘੱਟ ਹੋਣਾ ਚਾਹੀਦਾ ਹੈ",
   "Image processing failed": "ਚਿੱਤਰ ਪ੍ਰੋਸੈਸਿੰਗ ਅਸਫਲ",
@@ -4484,6 +4576,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Comunitate",
     "Marketplace": "Piață",
     "Businesses": "Afaceri",
+    "Messages": "Mesaje",
+
+    "Go to messages": "Mergi la mesaje",
+
     "Showing posts in": "Afișare postări în",
     "Image must be less than 4MB": "Imaginea trebuie să fie sub 4MB",
     "Image processing failed": "Procesarea imaginii a eșuat",
@@ -4605,6 +4701,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Спільнота",
     "Marketplace": "Ринок",
     "Businesses": "Бізнеси",
+    "Messages": "Повідомлення",
+
+    "Go to messages": "Перейти до повідомлень",
+
     "Showing posts in": "Показати дописи мовою",
     "Image must be less than 4MB": "Зображення має бути менше 4 МБ",
     "Image processing failed": "Помилка обробки зображення",
@@ -4726,6 +4826,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "קהילה",
     "Marketplace": "שוק",
     "Businesses": "עסקים",
+    "Messages": "הודעות",
+
+    "Go to messages": "עבור להודעות",
+
     "Showing posts in": "הצגת פוסטים ב",
     "Image must be less than 4MB": "התמונה חייבת להיות מתחת ל-4MB",
     "Image processing failed": "עיבוד התמונה נכשל",
@@ -4847,6 +4951,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "საზოგადოება",
   "Marketplace": "ბაზარი",
   "Businesses": "ბიზნესები",
+  "Messages": "შეტყობინებები",
+
+  "Go to messages": "შეტყობინებებზე გადასვლა",
+
   "Showing posts in": "პოსტების ჩვენება",
   "Image must be less than 4MB": "სურათი 4MB-ზე ნაკლები უნდა იყოს",
   "Image processing failed": "სურათის დამუშავება ვერ მოხერხდა",
@@ -4968,6 +5076,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Al'umma",
     "Marketplace": "Kasuwa",
     "Businesses": "Kasuwanci",
+    "Messages": "Saƙonni",
+
+    "Go to messages": "Je zuwa saƙonni",
+
     "Showing posts in": "Ana nuna postings a",
     "Image must be less than 4MB": "Hoto dole ta ƙasa da 4MB",
     "Image processing failed": "Sarrafa hoto ya kasa",
@@ -5089,6 +5201,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "コミュニティ",
     "Marketplace": "マーケットプレイス",
     "Businesses": "ビジネス",
+    "Messages": "メッセージ",
+
+    "Go to messages": "メッセージへ",
+
     "Showing posts in": "投稿の表示言語",
     "Image must be less than 4MB": "画像は4MB未満にしてください",
     "Image processing failed": "画像の処理に失敗しました",
@@ -5210,6 +5326,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Komuniti",
     "Marketplace": "Pasaran",
     "Businesses": "Perniagaan",
+    "Messages": "Mesej",
+
+    "Go to messages": "Pergi ke mesej",
+
     "Showing posts in": "Paparkan siaran dalam",
     "Image must be less than 4MB": "Imej mesti kurang daripada 4MB",
     "Image processing failed": "Pemprosesan imej gagal",
@@ -5331,6 +5451,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "جەمئىيەت",
     "Marketplace": "بازار",
     "Businesses": "كارخانا",
+    "Messages": "ئۇچۇرلار",
+
+    "Go to messages": "ئۇچۇرلارغا كىرىش",
+
     "Showing posts in": "يازما تەڭشىكى",
     "Image must be less than 4MB": "سۈرەت 4MB دىن كىچىك بولۇشى كېرەك",
     "Image processing failed": "سۈرەت بىر تەرەپ قىلىش مەغلۇپ",
@@ -5452,6 +5576,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Cộng đồng",
     "Marketplace": "Chợ",
     "Businesses": "Doanh nghiệp",
+    "Messages": "Tin nhắn",
+
+    "Go to messages": "Đi tới tin nhắn",
+
     "Showing posts in": "Hiển thị bài viết bằng",
     "Image must be less than 4MB": "Hình ảnh phải nhỏ hơn 4MB",
     "Image processing failed": "Xử lý hình ảnh thất bại",
@@ -5551,6 +5679,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Κοινότητα",
     "Marketplace": "Αγορά",
     "Businesses": "Επιχειρήσεις",
+    "Messages": "Μηνύματα",
+
+    "Go to messages": "Μετάβαση στα μηνύματα",
+
     "Save": "Αποθήκευση",
     "Cancel": "Ακύρωση",
     "Loading...": "Φόρτωση...",
@@ -5596,6 +5728,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Համայնք",
     "Marketplace": "Շուկա",
     "Businesses": "Բիզնես",
+    "Messages": "Հաղորդագրություններ",
+
+    "Go to messages": "Անցնել հաղորդագրություններին",
+
     "Save": "Պահել",
     "Cancel": "Չեղարկել",
     "Loading...": "Բեռնվում է...",
@@ -5641,6 +5777,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Community",
     "Marketplace": "Mercato",
     "Businesses": "Attività",
+    "Messages": "Messaggi",
+
+    "Go to messages": "Vai ai messaggi",
+
     "Save": "Salva",
     "Cancel": "Annulla",
     "Loading...": "Caricamento...",
@@ -5686,6 +5826,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Comunidade",
     "Marketplace": "Mercado",
     "Businesses": "Negócios",
+    "Messages": "Mensagens",
+
+    "Go to messages": "Ir para mensagens",
+
     "Save": "Guardar",
     "Cancel": "Cancelar",
     "Loading...": "A carregar...",
@@ -5731,6 +5875,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Bulshada",
     "Marketplace": "Suuqa",
     "Businesses": "Ganacsiga",
+    "Messages": "Fariimaha",
+
+    "Go to messages": "Tag fariimaha",
+
     "Save": "Kaydi",
     "Cancel": "Jooji",
     "Loading...": "Waa la soo dejiyeyaa...",
@@ -5776,6 +5924,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "ชุมชน",
     "Marketplace": "ตลาด",
     "Businesses": "ธุรกิจ",
+    "Messages": "ข้อความ",
+
+    "Go to messages": "ไปที่ข้อความ",
+
     "Save": "บันทึก",
     "Cancel": "ยกเลิก",
     "Loading...": "กำลังโหลด...",
@@ -5821,6 +5973,10 @@ const translations: Record<string, Record<string, string>> = {
     "Community": "Jamiyat",
     "Marketplace": "Bozor",
     "Businesses": "Biznes",
+    "Messages": "Xabarlar",
+
+    "Go to messages": "Xabarlarga o'tish",
+
     "Save": "Saqlash",
     "Cancel": "Bekor qilish",
     "Loading...": "Yuklanmoqda...",

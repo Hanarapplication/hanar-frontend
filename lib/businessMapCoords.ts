@@ -1,4 +1,11 @@
 import { extractLatLonFromAddress, resolveLatLon } from '@/lib/geoDistance';
+import {
+  approximateMapAreaBounds,
+  isValidMapAreaBounds,
+  mapAreaBoundsFromOsmBbox,
+  type MapAreaBounds,
+  type MapAreaScopeLevel,
+} from '@/lib/mapAreaBounds';
 
 const GEOCODE_CACHE_KEY = 'hanar_business_geocode_cache';
 
@@ -239,15 +246,31 @@ export async function geocodeStoredBusinessAddress(
 }
 
 export async function geocodeAddressQuery(query: string): Promise<{ lat: number; lon: number } | null> {
+  const area = await geocodeLocationAreaQuery(query);
+  return area ? { lat: area.lat, lon: area.lon } : null;
+}
+
+export async function geocodeLocationAreaQuery(
+  query: string,
+  scopeLevel: MapAreaScopeLevel = 'city'
+): Promise<{ lat: number; lon: number; bounds: MapAreaBounds } | null> {
   const q = query.trim();
   if (!q) return null;
 
   try {
     const googleRes = await fetch(`/api/geocode/forward?query=${encodeURIComponent(q)}`);
     if (googleRes.ok) {
-      const google = (await googleRes.json()) as { lat?: number; lon?: number };
+      const google = (await googleRes.json()) as {
+        lat?: number;
+        lon?: number;
+        bounds?: MapAreaBounds;
+      };
       if (google.lat != null && google.lon != null && Number.isFinite(google.lat) && Number.isFinite(google.lon)) {
-        return { lat: google.lat, lon: google.lon };
+        const center = { lat: google.lat, lon: google.lon };
+        const bounds = isValidMapAreaBounds(google.bounds)
+          ? google.bounds
+          : approximateMapAreaBounds(center, scopeLevel);
+        return { ...center, bounds };
       }
     }
   } catch {
@@ -262,6 +285,7 @@ export async function geocodeAddressQuery(query: string): Promise<{ lat: number;
     const data = (await res.json()) as Array<{
       lat?: string;
       lon?: string;
+      boundingbox?: string[];
       address?: { state?: string };
     }>;
     if (!Array.isArray(data) || data.length === 0) return null;
@@ -277,7 +301,11 @@ export async function geocodeAddressQuery(query: string): Promise<{ lat: number;
     const lat = parseFloat(String(picked.lat));
     const lon = parseFloat(String(picked.lon));
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-    return { lat, lon };
+
+    const center = { lat, lon };
+    const osmBounds = mapAreaBoundsFromOsmBbox(picked.boundingbox ?? []);
+    const bounds = osmBounds ?? approximateMapAreaBounds(center, scopeLevel);
+    return { lat, lon, bounds };
   } catch {
     return null;
   }

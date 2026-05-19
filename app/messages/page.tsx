@@ -4,6 +4,8 @@ import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { ArrowLeft, Check, CheckCheck, ExternalLink, Eye, Image as ImageIcon, Send } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
+import { t } from '@/utils/translations';
 
 type MessageRow = {
   id: string;
@@ -113,6 +115,7 @@ function writeDmPeerLabelCache(viewerId: string, map: Record<string, string>) {
 function MessagesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { effectiveLang } = useLanguage();
 
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1330,7 +1333,7 @@ function MessagesPageContent() {
             className={`${mobileView === 'chat' ? 'hidden md:flex' : 'flex'} min-h-0 flex-col border-b border-slate-200 md:border-b-0 md:border-r`}
           >
             <div className="sticky top-0 z-10 shrink-0 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur">
-              <h1 className="text-xl font-semibold text-slate-900">Chats</h1>
+              <h1 className="text-xl font-semibold text-slate-900">{t(effectiveLang, 'Messages')}</h1>
               <p className="mt-1 text-xs text-slate-500">{conversations.length} people</p>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-slate-50/70 p-2 sm:max-h-[65vh] sm:bg-transparent sm:p-0 md:max-h-[calc(70vh-4.5rem)]">
@@ -1426,7 +1429,7 @@ function MessagesPageContent() {
                   type="button"
                   onClick={() => setMobileView('inbox')}
                   className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 active:scale-95 md:hidden"
-                  aria-label="Back to chats"
+                  aria-label="Back to messages"
                 >
                   <ArrowLeft className="h-4 w-4" strokeWidth={2.4} />
                 </button>

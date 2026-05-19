@@ -3,8 +3,6 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { Store } from 'lucide-react';
-
 import { FaHeart, FaRegHeart, FaMapMarkerAlt } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
 import PullToRefresh from '@/components/PullToRefresh';
@@ -1057,6 +1055,8 @@ export default function MarketplacePage() {
     </div>
   );
 
+  const hasMarketplaceLocation = Boolean(locationLabel?.trim());
+
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
     <div className="min-h-screen bg-[#eaeded] pb-10 dark:bg-[#111827]">
@@ -1064,24 +1064,33 @@ export default function MarketplacePage() {
       {/* Search and location bar */}
       <div className="sticky top-[calc(4rem+env(safe-area-inset-top,0px))] z-[110] -mx-3 mb-0 border-b border-slate-200/80 bg-white px-3 pb-3 pt-2 shadow-[0_4px_6px_-4px_rgba(0,0,0,0.08)] sm:px-4 sm:pt-3 dark:border-slate-200/80 dark:bg-white">
         <div className="mx-auto max-w-3xl">
-          <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="mb-2">
             <button
               type="button"
               onClick={() => { setLocationModalOpen(true); setTempRadius(radius); }}
-              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+              className={`inline-flex w-full items-center justify-center gap-2 rounded-lg border-2 px-4 py-2.5 text-sm font-semibold shadow-md transition sm:w-auto sm:justify-start ${
+                hasMarketplaceLocation
+                  ? 'border-emerald-500 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                  : 'border-red-500 bg-red-50 text-red-700 hover:bg-red-100'
+              }`}
             >
-              <FaMapMarkerAlt className="h-3.5 w-3.5 text-slate-600" />
-              <span className="max-w-[11rem] truncate">{locationLabel || t(effectiveLang, 'Choose marketplace location')}</span>
-              {locationLabel && locationScope.mode === 'country' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'Country')}</span>}
-              {locationLabel && locationScope.mode === 'state' && <span className="text-[10px] text-slate-500">{t(effectiveLang, 'State')}</span>}
-              {locationLabel && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && userCoords && (
-                <span className="text-[10px] text-slate-500">{radius} mi</span>
+              <FaMapMarkerAlt
+                className={`h-4 w-4 shrink-0 ${hasMarketplaceLocation ? 'text-emerald-600' : 'text-red-600'}`}
+                aria-hidden
+              />
+              <span className="min-w-0 max-w-[14rem] truncate sm:max-w-[18rem]">
+                {locationLabel || t(effectiveLang, 'Choose marketplace location')}
+              </span>
+              {hasMarketplaceLocation && locationScope.mode === 'country' && (
+                <span className="text-[11px] font-medium text-emerald-700/80">{t(effectiveLang, 'Country')}</span>
+              )}
+              {hasMarketplaceLocation && locationScope.mode === 'state' && (
+                <span className="text-[11px] font-medium text-emerald-700/80">{t(effectiveLang, 'State')}</span>
+              )}
+              {hasMarketplaceLocation && (locationScope.mode === 'city_radius' || locationScope.mode === 'none') && userCoords && (
+                <span className="text-[11px] font-medium text-emerald-700/80">{radius} mi</span>
               )}
             </button>
-            <div className="pointer-events-none inline-flex items-center gap-1.5 rounded-md border border-[#d4af37] bg-gradient-to-r from-[#b8860b] via-[#d4af37] to-[#f5d76e] px-3 py-1 text-[13px] font-extrabold uppercase tracking-[0.08em] text-black shadow-md">
-              <Store className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-              <span>Marketplace</span>
-            </div>
           </div>
 
           <div className="flex overflow-hidden rounded-md border border-amber-700/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_22px_-12px_rgba(60,40,0,0.55)] [background:linear-gradient(155deg,#4a3608_0%,#8a6b12_20%,#c9a227_44%,#f0d878_55%,#d4af37_72%,#6b4c0a_100%)]">
@@ -1271,11 +1280,10 @@ export default function MarketplacePage() {
         <>
           {topCategories.length > 0 && (
             <>
-              <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="mb-2">
                 <h2 className="inline-flex items-center rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[16px] font-bold text-slate-900 shadow-sm dark:border-slate-600 dark:bg-gray-800 dark:text-gray-100">
                   {t(effectiveLang, 'Categories for you')}
                 </h2>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">{t(effectiveLang, 'Tap to filter')}</span>
               </div>
               <section className="relative mb-3 overflow-hidden rounded-xl border border-slate-200/90 bg-gradient-to-b from-slate-50 via-white to-slate-100 p-3 dark:border-slate-700 dark:from-gray-950 dark:via-gray-900 dark:to-slate-950">
               <div className="relative flex flex-wrap gap-2">

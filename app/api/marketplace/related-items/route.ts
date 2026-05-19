@@ -13,6 +13,56 @@ const supabaseAdmin = SUPABASE_URL && SERVICE_ROLE_KEY
   : null;
 
 const base = SUPABASE_URL || '';
+const CATEGORY_SEPARATOR = ' — ';
+
+type RelatedEntry = {
+  id: string;
+  title: string;
+  price: string | number;
+  slug: string;
+  image: string;
+  source: string;
+  category?: string;
+  location?: string;
+  external_buy_url?: string | null;
+};
+
+function categoryMatchValues(category: string): string[] {
+  const raw = category.trim();
+  if (!raw) return [];
+  const values = new Set<string>([raw]);
+  if (raw.includes(CATEGORY_SEPARATOR)) {
+    const parent = raw.slice(0, raw.indexOf(CATEGORY_SEPARATOR)).trim();
+    if (parent) values.add(parent);
+  }
+  const alt = raw.match(/^(.+?)\s*[-–—]\s*(.+)$/);
+  if (alt?.[1]) values.add(alt[1].trim());
+  return [...values];
+}
+
+function applyCategoryFilter<T extends { ilike: (col: string, pattern: string) => T; or: (filters: string) => T }>(
+  query: T,
+  category: string,
+  escape: (s: string) => string,
+): T {
+  const tokens = categoryMatchValues(category);
+  if (tokens.length === 0) return query;
+  if (tokens.length === 1) {
+    return query.ilike('category', `%${escape(tokens[0])}%`);
+  }
+  return query.or(tokens.map((token) => `category.ilike.%${escape(token)}%`).join(','));
+}
+
+function isActiveMarketplaceRow(row: {
+  is_on_hold?: boolean | null;
+  is_reviewed?: boolean | null;
+  expires_at?: string | null;
+}) {
+  if (row.is_on_hold) return false;
+  if (row.is_reviewed === false) return false;
+  if (row.expires_at && String(row.expires_at) < new Date().toISOString()) return false;
+  return true;
+}
 
 function getStorageUrl(bucket: string, path?: string | null): string {
   if (!path) return '';
@@ -53,12 +103,14 @@ export async function GET(req: Request) {
     const hasCategory = category.length > 0;
     const hasLocation = location.length > 0;
     const hasFilter = hasCategory || hasLocation;
+    const externalOnly =
+      searchParams.get('externalOnly') === '1' || searchParams.get('externalOnly') === 'true';
     const escape = (s: string) => s.replace(/'/g, "''");
 
-    const items: { id: string; title: string; price: string | number; slug: string; image: string; source: string; category?: string; location?: string }[] = [];
+    const items: RelatedEntry[] = [];
     const seen = new Set<string>();
 
-    const add = (entry: { id: string; source: string; title: string; price: string | number; slug: string; image: string; category?: string; location?: string }) => {
+    const add = (entry: RelatedEntry) => {
       const key = `${entry.source}:${entry.id}`;
       if (seen.has(key)) return;
       if (excludeId && entry.id === excludeId && entry.source === source) return;
@@ -66,25 +118,26 @@ export async function GET(req: Request) {
       items.push(entry);
     };
 
-    // Marketplace (individual) items
-    let qInd = supabaseAdmin
-      .from('marketplace_items')
-      .select('id, title, price, location, category, image_urls, expires_at, is_on_hold, is_reviewed')
-      .is('archived_at', null);
-    if (excludeId && source === 'individual') qInd = qInd.neq('id', excludeId);
-    if (hasFilter) {
-      if (hasCategory) qInd = qInd.ilike('category', `%${escape(category)}%`);
-      else if (hasLocation) qInd = qInd.ilike('location', `%${escape(location)}%`);
-    } else {
-      qInd = qInd.order('created_at', { ascending: false });
-    }
-    const { data: rowsInd, error: errInd } = await qInd.limit(12);
-    if (!errInd && rowsInd?.length) {
-      const nowIso = new Date().toISOString();
+    const loadIndividualItems = async (opts: { externalOnly: boolean; limit: number }) => {
+      let qInd = supabaseAdmin!
+        .from('marketplace_items')
+        .select('id, title, price, location, category, image_urls, external_buy_url, expires_at, is_on_hold, is_reviewed')
+        .is('archived_at', null);
+      if (excludeId && source === 'individual') qInd = qInd.neq('id', excludeId);
+      if (opts.externalOnly) qInd = qInd.not('external_buy_url', 'is', null);
+      if (hasCategory) {
+        qInd = applyCategoryFilter(qInd, category, escape);
+      } else if (hasLocation && !opts.externalOnly) {
+        qInd = qInd.ilike('location', `%${escape(location)}%`);
+      } else {
+        qInd = qInd.order('created_at', { ascending: false });
+      }
+      const { data: rowsInd, error: errInd } = await qInd.limit(opts.limit);
+      if (errInd || !rowsInd?.length) return;
       for (const row of rowsInd as any[]) {
-        if (row.is_on_hold) continue;
-        if (row.is_reviewed === false) continue;
-        if (row.expires_at && String(row.expires_at) < nowIso) continue;
+        if (!isActiveMarketplaceRow(row)) continue;
+        const externalUrl = String(row.external_buy_url || '').trim();
+        if (opts.externalOnly && !externalUrl) continue;
         const imgs = normalizeImages(row.image_urls, 'marketplace-images');
         add({
           id: String(row.id),
@@ -95,16 +148,98 @@ export async function GET(req: Request) {
           source: 'individual',
           category: row.category || undefined,
           location: row.location || undefined,
+          external_buy_url: externalUrl || null,
+        });
+      }
+    };
+
+    const loadRetailItems = async (opts: { externalOnly: boolean; limit: number }) => {
+      try {
+        let qRet = supabaseAdmin!
+          .from('retail_items')
+          .select('id, title, price, location, category, images, image_url, image_urls, slug, external_buy_url');
+        if (excludeId && source === 'retail') qRet = qRet.neq('id', excludeId);
+        if (opts.externalOnly) qRet = qRet.not('external_buy_url', 'is', null);
+        if (hasCategory) {
+          qRet = applyCategoryFilter(qRet, category, escape);
+        } else if (hasLocation && !opts.externalOnly) {
+          qRet = qRet.ilike('location', `%${escape(location)}%`);
+        } else {
+          qRet = qRet.order('created_at', { ascending: false });
+        }
+        const { data: rowsRet } = await qRet.limit(opts.limit);
+        (rowsRet || []).forEach((row: any) => {
+          const externalUrl = String(row.external_buy_url || '').trim();
+          if (opts.externalOnly && !externalUrl) return;
+          const imgs = normalizeImages(row.images ?? row.image_url ?? row.image_urls, 'retail-items');
+          add({
+            id: String(row.id),
+            title: row.title || row.name || row.item_name || 'Item',
+            price: row.price ?? row.amount ?? row.cost ?? '',
+            slug: row.slug || row.item_slug || `retail-${row.id}`,
+            image: imgs[0] || '/placeholder.jpg',
+            source: 'retail',
+            category: row.category || row.type || undefined,
+            location: row.location || row.city || undefined,
+            external_buy_url: externalUrl || null,
+          });
+        });
+      } catch (_) {
+        // table may not exist
+      }
+    };
+
+    if (externalOnly) {
+      await loadIndividualItems({ externalOnly: true, limit: 12 });
+      if (items.length < 12) {
+        await loadRetailItems({ externalOnly: true, limit: 12 - items.length });
+      }
+      if (items.length < 6 && hasCategory) {
+        await loadIndividualItems({ externalOnly: false, limit: 12 - items.length });
+        if (items.length < 12) {
+          await loadRetailItems({ externalOnly: false, limit: 12 - items.length });
+        }
+      }
+      return NextResponse.json({ items: items.slice(0, 12) });
+    }
+
+    // Marketplace (individual) items
+    let qInd = supabaseAdmin
+      .from('marketplace_items')
+      .select('id, title, price, location, category, image_urls, external_buy_url, expires_at, is_on_hold, is_reviewed')
+      .is('archived_at', null);
+    if (excludeId && source === 'individual') qInd = qInd.neq('id', excludeId);
+    if (hasFilter) {
+      if (hasCategory) qInd = applyCategoryFilter(qInd, category, escape);
+      else if (hasLocation) qInd = qInd.ilike('location', `%${escape(location)}%`);
+    } else {
+      qInd = qInd.order('created_at', { ascending: false });
+    }
+    const { data: rowsInd, error: errInd } = await qInd.limit(12);
+    if (!errInd && rowsInd?.length) {
+      for (const row of rowsInd as any[]) {
+        if (!isActiveMarketplaceRow(row)) continue;
+        const imgs = normalizeImages(row.image_urls, 'marketplace-images');
+        add({
+          id: String(row.id),
+          title: row.title || 'Item',
+          price: row.price ?? '',
+          slug: `individual-${row.id}`,
+          image: imgs[0] || '/placeholder.jpg',
+          source: 'individual',
+          category: row.category || undefined,
+          location: row.location || undefined,
+          external_buy_url: String(row.external_buy_url || '').trim() || null,
         });
       }
     }
 
     // Retail (optional)
     try {
-      let qRet = supabaseAdmin.from('retail_items').select('id, title, price, location, category, images, image_url, image_urls, slug');
+      let qRet = supabaseAdmin.from('retail_items').select('id, title, price, location, category, images, image_url, image_urls, slug, external_buy_url');
       if (excludeId && source === 'retail') qRet = qRet.neq('id', excludeId);
       if (hasFilter) {
-        if (hasCategory) qRet = qRet.ilike('category', `%${escape(category)}%`);
+        if (hasCategory) qRet = applyCategoryFilter(qRet, category, escape);
         else if (hasLocation) qRet = qRet.ilike('location', `%${escape(location)}%`);
       } else {
         qRet = qRet.order('created_at', { ascending: false });
@@ -121,6 +256,7 @@ export async function GET(req: Request) {
           source: 'retail',
           category: row.category || row.type || undefined,
           location: row.location || row.city || undefined,
+          external_buy_url: String(row.external_buy_url || '').trim() || null,
         });
       });
     } catch (_) {

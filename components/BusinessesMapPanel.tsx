@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Script from 'next/script';
 import Link from 'next/link';
 import { ChevronDown, ChevronUp, MapPin, Navigation, Phone, User } from 'lucide-react';
@@ -18,6 +18,7 @@ import {
   ensureBusinessMapPinStyles,
 } from '@/components/businessMapPinStyles';
 import { USA_MAP_BOUNDS } from '@/lib/businessMapCoords';
+import { isValidMapAreaBounds, type MapAreaBounds } from '@/lib/mapAreaBounds';
 
 export type MapViewportMode = 'usa' | 'area' | 'radius';
 
@@ -54,6 +55,8 @@ type BusinessesMapPanelProps = {
   mapViewport?: MapViewportMode;
   mapAreaZoom?: number;
   isRadiusMode?: boolean;
+  /** Shaded region for city/state/country search (not used in radius/GPS mode). */
+  selectedAreaBounds?: MapAreaBounds | null;
   defaultExpanded?: boolean;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
@@ -63,7 +66,11 @@ type BusinessesMapPanelProps = {
   onRadiusChange: (miles: number) => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  /** Authoritative row for the detail strip under the map (avoids stale map pin pool data). */
+  selectedBusiness?: MapPanelBusiness | null;
   getBusinessHref: (biz: MapPanelBusiness) => string;
+  /** Rendered at the top of the map card (e.g. location picker). */
+  locationBar?: ReactNode;
   labels: {
     showOnMap: string;
     hideMap: string;
@@ -115,6 +122,258 @@ function toPercent(
   return { left: `${Math.min(92, Math.max(8, x * 100))}%`, top: `${Math.min(88, Math.max(12, y * 100))}%` };
 }
 
+function areaBoxPercent(
+  area: MapAreaBounds,
+  bounds: NonNullable<ReturnType<typeof computeBounds>>
+) {
+  const x1 = ((area.west - bounds.minLon) / (bounds.maxLon - bounds.minLon)) * 100;
+  const x2 = ((area.east - bounds.minLon) / (bounds.maxLon - bounds.minLon)) * 100;
+  const y1 = ((bounds.maxLat - area.north) / (bounds.maxLat - bounds.minLat)) * 100;
+  const y2 = ((bounds.maxLat - area.south) / (bounds.maxLat - bounds.minLat)) * 100;
+  const left = Math.min(x1, x2);
+  const top = Math.min(y1, y2);
+  const width = Math.abs(x2 - x1);
+  const height = Math.abs(y2 - y1);
+  return {
+    left: `${Math.min(92, Math.max(0, left))}%`,
+    top: `${Math.min(92, Math.max(0, top))}%`,
+    width: `${Math.min(100, Math.max(4, width))}%`,
+    height: `${Math.min(100, Math.max(4, height))}%`,
+  };
+}
+
+type AreaHighlightLayer = {
+  polygons: google.maps.Polygon[];
+};
+
+function clearAreaHighlight(layer: AreaHighlightLayer | null) {
+  if (!layer) return;
+  layer.polygons.forEach((polygon) => polygon.setMap(null));
+}
+
+function createSelectedAreaHighlight(map: google.maps.Map, bounds: MapAreaBounds): AreaHighlightLayer {
+  const centerLat = (bounds.north + bounds.south) / 2;
+  const lonScale = 1 / Math.max(0.35, Math.cos((centerLat * Math.PI) / 180));
+
+  const layers = [
+    { latPad: 0.014, lonPad: 0.014 * lonScale, fillOpacity: 0.025 },
+    { latPad: 0.009, lonPad: 0.009 * lonScale, fillOpacity: 0.045 },
+    { latPad: 0.005, lonPad: 0.005 * lonScale, fillOpacity: 0.07 },
+    { latPad: 0, lonPad: 0, fillOpacity: 0.09 },
+  ];
+
+  const polygons = layers.map(({ latPad, lonPad, fillOpacity }) => {
+    const north = bounds.north + latPad;
+    const south = bounds.south - latPad;
+    const east = bounds.east + lonPad;
+    const west = bounds.west - lonPad;
+
+    return new google.maps.Polygon({
+      paths: [
+        { lat: north, lng: west },
+        { lat: north, lng: east },
+        { lat: south, lng: east },
+        { lat: south, lng: west },
+      ],
+      fillColor: '#be185d',
+      fillOpacity,
+      strokeOpacity: 0,
+      clickable: false,
+      map,
+    });
+  });
+
+  return { polygons };
+}
+
+type ViewportPadding = { top: number; right: number; bottom: number; left: number };
+
+type ViewportTarget =
+  | {
+      kind: 'bounds';
+      south: number;
+      west: number;
+      north: number;
+      east: number;
+      padding: ViewportPadding;
+      minZoom?: number;
+    }
+  | { kind: 'center'; lat: number; lng: number; zoom: number };
+
+function enforceMinZoom(map: google.maps.Map, minZoom?: number) {
+  if (minZoom == null) return;
+  const z = map.getZoom();
+  if (z != null && z < minZoom) map.setZoom(minZoom);
+}
+
+function applyViewportTarget(map: google.maps.Map, target: ViewportTarget) {
+  if (target.kind === 'bounds') {
+    map.fitBounds(
+      new google.maps.LatLngBounds(
+        { lat: target.south, lng: target.west },
+        { lat: target.north, lng: target.east }
+      ),
+      target.padding
+    );
+    if (target.minZoom != null) {
+      google.maps.event.addListenerOnce(map, 'idle', () => enforceMinZoom(map, target.minZoom));
+    }
+    return;
+  }
+  map.setCenter({ lat: target.lat, lng: target.lng });
+  map.setZoom(target.zoom);
+}
+
+function scheduleViewportAnimation(map: google.maps.Map, target: ViewportTarget, timers: number[]) {
+  const currentZoom = map.getZoom() ?? 8;
+  map.setZoom(Math.max(3, currentZoom - 2));
+
+  timers.push(
+    window.setTimeout(() => {
+      if (target.kind === 'bounds') {
+        map.panTo({
+          lat: (target.north + target.south) / 2,
+          lng: (target.east + target.west) / 2,
+        });
+        timers.push(window.setTimeout(() => applyViewportTarget(map, target), 300));
+      } else {
+        map.panTo({ lat: target.lat, lng: target.lng });
+        timers.push(window.setTimeout(() => map.setZoom(target.zoom), 300));
+      }
+    }, 200)
+  );
+}
+
+type ViewportComputeInput = {
+  pinsForView: MapPanelBusiness[];
+  mapViewCenter?: { lat: number; lon: number } | null;
+  mapViewport: MapViewportMode;
+  mapAreaZoom: number;
+  radiusMiles: number;
+  isRadiusMode: boolean;
+  userCoords?: { lat: number; lon: number } | null;
+  youOnMap?: { lat: number; lon: number } | null;
+  showSelectedArea: boolean;
+  selectedAreaBounds?: MapAreaBounds | null;
+};
+
+function computeViewportTarget(input: ViewportComputeInput): ViewportTarget | null {
+  const {
+    pinsForView,
+    mapViewCenter,
+    mapViewport,
+    mapAreaZoom,
+    radiusMiles,
+    isRadiusMode,
+    userCoords,
+    youOnMap,
+    showSelectedArea,
+    selectedAreaBounds,
+  } = input;
+
+  const userLatLng = isRadiusMode && userCoords ? { lat: userCoords.lat, lng: userCoords.lon } : null;
+  const myLatLng = youOnMap ? { lat: youOnMap.lat, lng: youOnMap.lon } : null;
+  const anchor = mapViewCenter;
+  const boundsPins = pinsForView;
+  const canFitBounds = boundsPins.length > 0 && boundsPins.length <= MAP_FIT_BOUNDS_MAX_PINS;
+
+  const extendBox = (box: { south: number; west: number; north: number; east: number }) => {
+    let { south, west, north, east } = box;
+    const extend = (lat: number, lng: number) => {
+      south = Math.min(south, lat);
+      north = Math.max(north, lat);
+      west = Math.min(west, lng);
+      east = Math.max(east, lng);
+    };
+    boundsPins.forEach((biz) => extend(biz.lat, biz.lon));
+    if (myLatLng) extend(myLatLng.lat, myLatLng.lng);
+    if (anchor) extend(anchor.lat, anchor.lon);
+    return { south, west, north, east };
+  };
+
+  const boxFromPins = () => {
+    let south = Infinity;
+    let west = Infinity;
+    let north = -Infinity;
+    let east = -Infinity;
+    return extendBox({ south, west, north, east });
+  };
+
+  const areaPad = { top: 40, right: 24, bottom: 56, left: 24 };
+  const radiusPad = { top: 48, right: 32, bottom: 64, left: 32 };
+  const usaPad = { top: 36, right: 20, bottom: 48, left: 20 };
+
+  if (mapViewport === 'usa') {
+    return {
+      kind: 'bounds',
+      south: USA_MAP_BOUNDS.south,
+      west: USA_MAP_BOUNDS.west,
+      north: USA_MAP_BOUNDS.north,
+      east: USA_MAP_BOUNDS.east,
+      padding: usaPad,
+    };
+  }
+
+  if (!userLatLng) {
+    if (mapViewport === 'area' && showSelectedArea && selectedAreaBounds) {
+      const center = anchor ?? {
+        lat: (selectedAreaBounds.north + selectedAreaBounds.south) / 2,
+        lon: (selectedAreaBounds.east + selectedAreaBounds.west) / 2,
+      };
+      // City picks: geocoder viewports are often huge — use a fixed city zoom instead.
+      if (mapAreaZoom >= 9) {
+        return { kind: 'center', lat: center.lat, lng: center.lon, zoom: mapAreaZoom };
+      }
+      return {
+        kind: 'bounds',
+        south: selectedAreaBounds.south,
+        west: selectedAreaBounds.west,
+        north: selectedAreaBounds.north,
+        east: selectedAreaBounds.east,
+        padding: areaPad,
+        minZoom: mapAreaZoom,
+      };
+    }
+    if (mapViewport === 'area' && anchor) {
+      return { kind: 'center', lat: anchor.lat, lng: anchor.lon, zoom: mapAreaZoom };
+    }
+    if (boundsPins.length === 0 && myLatLng) {
+      return { kind: 'center', lat: myLatLng.lat, lng: myLatLng.lng, zoom: 12 };
+    }
+    if (boundsPins.length === 0 && anchor) {
+      return { kind: 'center', lat: anchor.lat, lng: anchor.lon, zoom: mapAreaZoom };
+    }
+    if (boundsPins.length === 1) {
+      return { kind: 'center', lat: boundsPins[0].lat, lng: boundsPins[0].lon, zoom: 13 };
+    }
+    if (canFitBounds) {
+      return { kind: 'bounds', ...boxFromPins(), padding: areaPad };
+    }
+    if (myLatLng) {
+      return { kind: 'center', lat: myLatLng.lat, lng: myLatLng.lng, zoom: 12 };
+    }
+    if (anchor) {
+      return { kind: 'center', lat: anchor.lat, lng: anchor.lon, zoom: mapAreaZoom };
+    }
+    return null;
+  }
+
+  if (canFitBounds) {
+    let box = { south: userLatLng.lat, west: userLatLng.lng, north: userLatLng.lat, east: userLatLng.lng };
+    boundsPins.forEach((biz) => {
+      box = {
+        south: Math.min(box.south, biz.lat),
+        north: Math.max(box.north, biz.lat),
+        west: Math.min(box.west, biz.lon),
+        east: Math.max(box.east, biz.lon),
+      };
+    });
+    return { kind: 'bounds', ...box, padding: radiusPad };
+  }
+
+  return { kind: 'center', lat: userLatLng.lat, lng: userLatLng.lng, zoom: zoomForRadiusMiles(radiusMiles) };
+}
+
 /** Bounds for preview: USA, user + radius, selected area, or business pins. */
 function previewBounds(
   businesses: MapPanelBusiness[],
@@ -123,7 +382,8 @@ function previewBounds(
   mapViewCenter: { lat: number; lon: number } | null | undefined,
   radiusMiles: number,
   isRadiusMode: boolean,
-  mapViewport: MapViewportMode
+  mapViewport: MapViewportMode,
+  selectedAreaBounds?: MapAreaBounds | null
 ) {
   if (mapViewport === 'usa') {
     return computeBounds([
@@ -133,6 +393,14 @@ function previewBounds(
   }
 
   const pts: { lat: number; lon: number }[] = businesses.map((b) => ({ lat: b.lat, lon: b.lon }));
+  if (isValidMapAreaBounds(selectedAreaBounds) && mapViewport === 'area' && !isRadiusMode) {
+    pts.push(
+      { lat: selectedAreaBounds.north, lon: selectedAreaBounds.west },
+      { lat: selectedAreaBounds.south, lon: selectedAreaBounds.east },
+      { lat: selectedAreaBounds.north, lon: selectedAreaBounds.east },
+      { lat: selectedAreaBounds.south, lon: selectedAreaBounds.west }
+    );
+  }
   const youAreHere = mapUserCoords ?? (isRadiusMode && userCoords ? userCoords : null);
   if (youAreHere) {
     pts.push({ lat: youAreHere.lat, lon: youAreHere.lon });
@@ -177,6 +445,7 @@ export default function BusinessesMapPanel({
   mapViewport = 'usa',
   mapAreaZoom = 10,
   isRadiusMode = false,
+  selectedAreaBounds = null,
   defaultExpanded = false,
   expanded: expandedProp,
   onExpandedChange,
@@ -186,27 +455,60 @@ export default function BusinessesMapPanel({
   onRadiusChange,
   selectedId,
   onSelect,
+  selectedBusiness,
   getBusinessHref,
+  locationBar,
   labels,
 }: BusinessesMapPanelProps) {
   const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
+  const suppressExpandRef = useRef(false);
+  const toggleLockRef = useRef(false);
+  const [mapInteractionLocked, setMapInteractionLocked] = useState(false);
   const isExpandedControlled = expandedProp !== undefined;
   const expanded = isExpandedControlled ? expandedProp : internalExpanded;
+
+  useEffect(() => {
+    if (isExpandedControlled && expandedProp !== undefined) {
+      setInternalExpanded(expandedProp);
+    }
+  }, [isExpandedControlled, expandedProp]);
+
   const setExpanded = useCallback(
-    (value: boolean | ((prev: boolean) => boolean)) => {
-      const next = typeof value === 'function' ? value(expanded) : value;
-      if (!isExpandedControlled) setInternalExpanded(next);
-      onExpandedChange?.(next);
+    (value: boolean) => {
+      if (!isExpandedControlled) setInternalExpanded(value);
+      onExpandedChange?.(value);
     },
-    [expanded, isExpandedControlled, onExpandedChange]
+    [isExpandedControlled, onExpandedChange]
   );
+
+  const toggleExpanded = useCallback(() => {
+    if (toggleLockRef.current) return;
+    toggleLockRef.current = true;
+    window.setTimeout(() => {
+      toggleLockRef.current = false;
+    }, 500);
+
+    const next = !expanded;
+    if (!next) {
+      suppressExpandRef.current = true;
+      setMapInteractionLocked(true);
+      window.setTimeout(() => {
+        suppressExpandRef.current = false;
+        setMapInteractionLocked(false);
+      }, 600);
+    }
+    setExpanded(next);
+  }, [expanded, setExpanded]);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const pinOverlaysRef = useRef<Map<string, BusinessPinOverlayHandle>>(new Map());
   const knownPinIdsRef = useRef<Set<string>>(new Set());
   const mapListenersRef = useRef<google.maps.MapsEventListener[]>([]);
   const circleRef = useRef<google.maps.Circle | null>(null);
+  const areaHighlightRef = useRef<AreaHighlightLayer | null>(null);
   const userOverlayRef = useRef<UserPinOverlayHandle | null>(null);
+  const viewportAnimTimersRef = useRef<number[]>([]);
+  const lastLocationViewportKeyRef = useRef<string | null>(null);
   const [scriptReady, setScriptReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -221,6 +523,9 @@ export default function BusinessesMapPanel({
   const youOnMap = mapUserCoords ?? (isRadiusMode && userCoords ? userCoords : null);
   const youAvatar = userAvatarUrl || HANAR_AVATAR_URL;
 
+  const showSelectedArea =
+    mapViewport === 'area' && !isRadiusMode && isValidMapAreaBounds(selectedAreaBounds);
+
   const previewMapBounds = useMemo(
     () =>
       previewBounds(
@@ -230,15 +535,27 @@ export default function BusinessesMapPanel({
         mapViewCenter,
         radiusMiles,
         isRadiusMode,
-        mapViewport
+        mapViewport,
+        selectedAreaBounds
       ),
-    [pinsForView, mapUserCoords, userCoords, mapViewCenter, radiusMiles, isRadiusMode, mapViewport]
+    [pinsForView, mapUserCoords, userCoords, mapViewCenter, radiusMiles, isRadiusMode, mapViewport, selectedAreaBounds]
   );
 
-  const selected = useMemo(
-    () => businesses.find((b) => b.id === selectedId) ?? pinsForView[0] ?? businesses[0] ?? null,
-    [businesses, pinsForView, selectedId]
-  );
+  const previewAreaBox = useMemo(() => {
+    if (!showSelectedArea || !previewMapBounds || !selectedAreaBounds) return null;
+    return areaBoxPercent(selectedAreaBounds, previewMapBounds);
+  }, [showSelectedArea, previewMapBounds, selectedAreaBounds]);
+
+  const selected = useMemo(() => {
+    if (selectedBusiness) return selectedBusiness;
+    if (!selectedId) return null;
+    const id = String(selectedId);
+    return (
+      businesses.find((b) => String(b.id) === id) ??
+      chips.find((b) => String(b.id) === id) ??
+      null
+    );
+  }, [selectedBusiness, businesses, chips, selectedId]);
 
   const clearMapListeners = useCallback(() => {
     mapListenersRef.current.forEach((listener) => listener.remove());
@@ -258,6 +575,7 @@ export default function BusinessesMapPanel({
         streetViewControl: false,
         fullscreenControl: false,
         zoomControl: true,
+        keyboardShortcuts: false,
         styles: [
           { featureType: 'poi', stylers: [{ visibility: 'off' }] },
           { featureType: 'transit', stylers: [{ visibility: 'off' }] },
@@ -274,66 +592,37 @@ export default function BusinessesMapPanel({
     return mapInstanceRef.current;
   }, [clearMapListeners, requestPinRedraw]);
 
+  const cancelViewportAnimation = useCallback(() => {
+    viewportAnimTimersRef.current.forEach((id) => window.clearTimeout(id));
+    viewportAnimTimersRef.current = [];
+  }, []);
+
   const applyViewport = useCallback(
-    (map: google.maps.Map) => {
-      const userLatLng =
-        isRadiusMode && userCoords ? { lat: userCoords.lat, lng: userCoords.lon } : null;
-      const myLatLng = youOnMap ? { lat: youOnMap.lat, lng: youOnMap.lon } : null;
-      const anchor = mapViewCenter;
-      const boundsPins = pinsForView;
-      const canFitBounds = boundsPins.length > 0 && boundsPins.length <= MAP_FIT_BOUNDS_MAX_PINS;
+    (map: google.maps.Map, animate = false) => {
+      const target = computeViewportTarget({
+        pinsForView,
+        mapViewCenter,
+        mapViewport,
+        mapAreaZoom,
+        radiusMiles,
+        isRadiusMode,
+        userCoords,
+        youOnMap,
+        showSelectedArea,
+        selectedAreaBounds,
+      });
+      if (!target) return;
 
-      const extendBounds = (gBounds: google.maps.LatLngBounds) => {
-        boundsPins.forEach((biz) => gBounds.extend({ lat: biz.lat, lng: biz.lon }));
-        if (myLatLng) gBounds.extend(myLatLng);
-        if (anchor) gBounds.extend({ lat: anchor.lat, lng: anchor.lon });
-      };
-
-      if (mapViewport === 'usa') {
-        const usaBounds = new window.google.maps.LatLngBounds(
-          { lat: USA_MAP_BOUNDS.south, lng: USA_MAP_BOUNDS.west },
-          { lat: USA_MAP_BOUNDS.north, lng: USA_MAP_BOUNDS.east }
-        );
-        map.fitBounds(usaBounds, { top: 36, right: 20, bottom: 48, left: 20 });
-      } else if (!userLatLng) {
-        if (mapViewport === 'area' && anchor) {
-          map.setCenter({ lat: anchor.lat, lng: anchor.lon });
-          map.setZoom(mapAreaZoom);
-        } else if (boundsPins.length === 0 && myLatLng) {
-          map.setCenter(myLatLng);
-          map.setZoom(12);
-        } else if (boundsPins.length === 0 && anchor) {
-          map.setCenter({ lat: anchor.lat, lng: anchor.lon });
-          map.setZoom(mapAreaZoom);
-        } else if (boundsPins.length === 1) {
-          map.setCenter({ lat: boundsPins[0].lat, lng: boundsPins[0].lon });
-          map.setZoom(13);
-        } else if (mapViewport === 'area' && canFitBounds) {
-          const gBounds = new window.google.maps.LatLngBounds();
-          extendBounds(gBounds);
-          map.fitBounds(gBounds, { top: 40, right: 24, bottom: 56, left: 24 });
-        } else if (canFitBounds) {
-          const gBounds = new window.google.maps.LatLngBounds();
-          extendBounds(gBounds);
-          map.fitBounds(gBounds, { top: 40, right: 24, bottom: 56, left: 24 });
-        } else if (myLatLng) {
-          map.setCenter(myLatLng);
-          map.setZoom(12);
-        } else if (anchor) {
-          map.setCenter({ lat: anchor.lat, lng: anchor.lon });
-          map.setZoom(mapAreaZoom);
-        }
-      } else if (canFitBounds) {
-        const gBounds = new window.google.maps.LatLngBounds();
-        gBounds.extend(userLatLng);
-        boundsPins.forEach((biz) => gBounds.extend({ lat: biz.lat, lng: biz.lon }));
-        map.fitBounds(gBounds, { top: 48, right: 32, bottom: 64, left: 32 });
+      cancelViewportAnimation();
+      if (animate) {
+        const timers: number[] = [];
+        viewportAnimTimersRef.current = timers;
+        scheduleViewportAnimation(map, target, timers);
       } else {
-        map.setCenter(userLatLng);
-        map.setZoom(zoomForRadiusMiles(radiusMiles));
+        applyViewportTarget(map, target);
       }
     },
-    [pinsForView, mapViewCenter, mapViewport, mapAreaZoom, radiusMiles, isRadiusMode, userCoords, youOnMap]
+    [pinsForView, mapViewCenter, mapViewport, mapAreaZoom, radiusMiles, isRadiusMode, userCoords, youOnMap, showSelectedArea, selectedAreaBounds, cancelViewportAnimation]
   );
 
   const syncUserLocationLayer = useCallback(
@@ -341,6 +630,10 @@ export default function BusinessesMapPanel({
       if (circleRef.current) {
         circleRef.current.setMap(null);
         circleRef.current = null;
+      }
+      if (areaHighlightRef.current) {
+        clearAreaHighlight(areaHighlightRef.current);
+        areaHighlightRef.current = null;
       }
       if (userOverlayRef.current) {
         userOverlayRef.current.setMap(null);
@@ -351,7 +644,9 @@ export default function BusinessesMapPanel({
       const radiusCenter =
         isRadiusMode && userCoords ? { lat: userCoords.lat, lng: userCoords.lon } : null;
 
-      if (radiusCenter) {
+      if (showSelectedArea && selectedAreaBounds) {
+        areaHighlightRef.current = createSelectedAreaHighlight(map, selectedAreaBounds);
+      } else if (radiusCenter) {
         circleRef.current = new window.google.maps.Circle({
           map,
           center: radiusCenter,
@@ -372,7 +667,7 @@ export default function BusinessesMapPanel({
         });
       }
     },
-    [youOnMap, youAvatar, isRadiusMode, userCoords, radiusMiles, labels.youLabel]
+    [youOnMap, youAvatar, isRadiusMode, userCoords, radiusMiles, labels.youLabel, showSelectedArea, selectedAreaBounds]
   );
 
   const syncPins = useCallback(() => {
@@ -397,7 +692,8 @@ export default function BusinessesMapPanel({
     pinsForView.forEach((biz, index) => {
       const existing = overlays.get(biz.id);
       if (existing) {
-        existing.setSelected(selectedId === biz.id);
+        existing.updateBusiness(biz);
+        existing.setSelected(String(selectedId) === String(biz.id));
         return;
       }
 
@@ -405,7 +701,7 @@ export default function BusinessesMapPanel({
       if (isNew) newPinCount += 1;
 
       const overlay = createBusinessPinOverlay(biz, map, {
-        selected: selectedId === biz.id,
+        selected: String(selectedId) === String(biz.id),
         animationDelayMs: Math.min(newPinCount * 40, 800),
         animateEntry: isNew,
         onClick: () => onSelect(biz.id),
@@ -440,6 +736,10 @@ export default function BusinessesMapPanel({
         youOnMap?.lat,
         youOnMap?.lon,
         expanded,
+        selectedAreaBounds?.north,
+        selectedAreaBounds?.south,
+        selectedAreaBounds?.east,
+        selectedAreaBounds?.west,
       ].join('|'),
     [
       mapViewport,
@@ -450,7 +750,24 @@ export default function BusinessesMapPanel({
       userCoords,
       youOnMap,
       expanded,
+      selectedAreaBounds,
     ]
+  );
+
+  const locationViewportKey = useMemo(
+    () =>
+      [
+        mapViewport,
+        mapViewCenter?.lat,
+        mapViewCenter?.lon,
+        selectedAreaBounds?.north,
+        selectedAreaBounds?.south,
+        selectedAreaBounds?.east,
+        selectedAreaBounds?.west,
+        isRadiusMode ? userCoords?.lat : null,
+        isRadiusMode ? userCoords?.lon : null,
+      ].join('|'),
+    [mapViewport, mapViewCenter, selectedAreaBounds, isRadiusMode, userCoords]
   );
 
   const lastViewportKeyRef = useRef('');
@@ -468,16 +785,23 @@ export default function BusinessesMapPanel({
     const viewportChanged = lastViewportKeyRef.current !== viewportKey;
     if (viewportChanged) {
       lastViewportKeyRef.current = viewportKey;
-      applyViewport(map);
+      const hadPreviousLocation = lastLocationViewportKeyRef.current !== null;
+      const locationChanged =
+        hadPreviousLocation && lastLocationViewportKeyRef.current !== locationViewportKey;
+      lastLocationViewportKeyRef.current = locationViewportKey;
+      applyViewport(map, locationChanged);
     }
 
     const t1 = window.setTimeout(requestPinRedraw, 80);
     const t2 = window.setTimeout(requestPinRedraw, 350);
+    const t3 = window.setTimeout(requestPinRedraw, 650);
     const idleListener = map.addListener('idle', () => requestPinRedraw());
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
+      window.clearTimeout(t3);
       idleListener.remove();
+      cancelViewportAnimation();
     };
   }, [
     expanded,
@@ -486,7 +810,9 @@ export default function BusinessesMapPanel({
     ensureMap,
     applyViewport,
     viewportKey,
+    locationViewportKey,
     requestPinRedraw,
+    cancelViewportAnimation,
   ]);
 
   useEffect(() => {
@@ -494,10 +820,12 @@ export default function BusinessesMapPanel({
       pinOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
       pinOverlaysRef.current.clear();
       lastViewportKeyRef.current = '';
+      lastLocationViewportKeyRef.current = null;
+      cancelViewportAnimation();
       clearMapListeners();
       mapInstanceRef.current = null;
     }
-  }, [expanded, clearMapListeners]);
+  }, [expanded, clearMapListeners, cancelViewportAnimation]);
 
   useEffect(() => {
     ensureBusinessMapPinStyles();
@@ -539,15 +867,19 @@ export default function BusinessesMapPanel({
 
   return (
     <section id="businesses-map-panel" className="relative left-1/2 mb-5 w-screen -translate-x-1/2 px-3">
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div className="rounded-lg border border-slate-200 bg-white">
         <button
           type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="flex w-full items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2.5 text-left text-slate-800"
+          onClick={toggleExpanded}
+          aria-expanded={expanded}
+          data-no-translate
+          className="flex w-full touch-manipulation items-center justify-between gap-2 bg-white px-3 py-2.5 text-left text-slate-800"
         >
           <span className="flex items-center gap-2 text-sm font-medium">
             <MapPin className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
-            {expanded ? labels.hideMap : labels.showOnMap}
+            <span key={expanded ? 'hide-map' : 'show-map'}>
+              {expanded ? labels.hideMap : labels.showOnMap}
+            </span>
             <span className="text-xs text-slate-500">
               ({pinsForView.length}
               {matchingCount > pinsForView.length ? ` / ${matchingCount}` : ''}
@@ -570,10 +902,13 @@ export default function BusinessesMapPanel({
           )}
         </button>
 
+        {locationBar ? <div className="relative z-30 overflow-visible">{locationBar}</div> : null}
+
         <div
           className={cn(
-            'relative bg-slate-100 transition-all duration-300 ease-out',
-            expanded ? 'h-[min(52vh,22rem)]' : 'h-32'
+            'relative overflow-hidden bg-slate-100 transition-all duration-300 ease-out',
+            expanded ? 'h-[min(52vh,22rem)]' : 'h-20',
+            mapInteractionLocked && 'pointer-events-none'
           )}
         >
           {apiKey && expanded && (
@@ -586,12 +921,12 @@ export default function BusinessesMapPanel({
             />
           )}
 
-          {onShareMapLocation && (showMapSurface || !expanded) ? (
+          {onShareMapLocation && expanded ? (
             <button
               type="button"
               onClick={onShareMapLocation}
               disabled={sharingMapLocation}
-              className="absolute left-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-md transition hover:bg-white disabled:opacity-60"
+              className="absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-md transition hover:bg-white disabled:opacity-60"
             >
               <Navigation className="h-3.5 w-3.5 shrink-0 text-blue-600" aria-hidden />
               {sharingMapLocation ? '…' : youOnMap ? labels.myLocationOnMap : labels.shareMyLocation}
@@ -599,9 +934,19 @@ export default function BusinessesMapPanel({
           ) : null}
 
           {showMapSurface ? (
-            <div ref={mapRef} className="absolute inset-0" />
+            <div ref={mapRef} className="hanar-businesses-map-surface absolute inset-0" />
           ) : (
             <div className="absolute inset-0 bg-slate-200/80" aria-hidden={showMapSurface}>
+              {previewAreaBox ? (
+                <div
+                  className="pointer-events-none absolute z-[1]"
+                  style={previewAreaBox}
+                  aria-hidden
+                >
+                  <div className="absolute -inset-2 rounded-sm bg-rose-700/35 blur-md" />
+                  <div className="absolute inset-0 bg-rose-600/15" />
+                </div>
+              ) : null}
               {previewMapBounds &&
                 pinsForView.map((biz, index) => {
                   const pos = toPercent(biz.lat, biz.lon, previewMapBounds);
@@ -619,25 +964,29 @@ export default function BusinessesMapPanel({
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelect(biz.id);
-                        if (!expanded) setExpanded(true);
+                        if (!expanded && !suppressExpandRef.current) setExpanded(true);
                       }}
                       className={cn(
-                        'absolute z-10 flex max-w-[88px] -translate-x-1/2 -translate-y-full flex-col items-center gap-0.5 animate-[hanar-pin-drop_0.55s_cubic-bezier(0.34,1.45,0.64,1)_both]',
+                        'absolute z-10 flex -translate-x-1/2 -translate-y-full flex-col items-center gap-0.5 animate-[hanar-pin-drop_0.55s_cubic-bezier(0.34,1.45,0.64,1)_both]',
+                        expanded ? 'max-w-[88px]' : 'max-w-[44px]',
                         active && 'z-20 scale-105'
                       )}
                       aria-label={biz.business_name}
                     >
+                      {expanded ? (
+                        <span
+                          className={cn(
+                            'max-w-full truncate rounded-full bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold text-slate-900 shadow',
+                            active && 'bg-slate-900 text-white'
+                          )}
+                        >
+                          {biz.business_name}
+                        </span>
+                      ) : null}
                       <span
                         className={cn(
-                          'max-w-full truncate rounded-full bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold text-slate-900 shadow',
-                          active && 'bg-slate-900 text-white'
-                        )}
-                      >
-                        {biz.business_name}
-                      </span>
-                      <span
-                        className={cn(
-                          'h-7 w-7 overflow-hidden rounded-full border-2 border-white bg-slate-200 shadow-md',
+                          'overflow-hidden rounded-full border-2 border-white bg-slate-200 shadow-md',
+                          expanded ? 'h-7 w-7' : 'h-5 w-5',
                           active && 'border-violet-600 ring-2 ring-violet-300'
                         )}
                       >
@@ -707,7 +1056,7 @@ export default function BusinessesMapPanel({
           ) : null}
 
           {!expanded && (
-            <p className="absolute bottom-2 left-0 right-0 text-center text-xs text-slate-600">
+            <p className="pointer-events-none absolute bottom-1 left-0 right-0 text-center text-[10px] text-slate-500">
               {labels.tapToExplore}
             </p>
           )}
@@ -719,7 +1068,7 @@ export default function BusinessesMapPanel({
           )}
         </div>
 
-        {isRadiusMode && (
+        {isRadiusMode && expanded && (
         <div className="border-t border-slate-200 bg-white px-3 py-2.5">
             <label className="mb-1 flex items-center justify-between text-xs text-slate-600">
               <span>{labels.radius}</span>
@@ -739,8 +1088,8 @@ export default function BusinessesMapPanel({
           </div>
         )}
 
-        {selected && (
-          <div className="border-t border-slate-200 bg-gradient-to-b from-white to-slate-50 p-2.5">
+        {selected && expanded && (
+          <div className="border-t border-slate-200 bg-gradient-to-b from-white to-slate-50 p-2.5" data-no-translate>
             <div className="mb-2 flex min-w-0 items-center gap-2.5">
               <img
                 src={selected.logo_url || 'https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=200&auto=format&fit=crop'}
@@ -823,6 +1172,7 @@ export default function BusinessesMapPanel({
           </div>
         )}
 
+        {expanded ? (
         <div className="flex gap-2 overflow-x-auto border-t border-slate-200 p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {chips.map((biz) => {
             const active = selectedId === biz.id;
@@ -832,7 +1182,7 @@ export default function BusinessesMapPanel({
                 type="button"
                 onClick={() => {
                   onSelect(biz.id);
-                  if (!expanded) setExpanded(true);
+                  if (!expanded && !suppressExpandRef.current) setExpanded(true);
                 }}
                 className={cn(
                   'shrink-0 rounded-md border px-2.5 py-1 text-xs font-medium transition',
@@ -846,6 +1196,7 @@ export default function BusinessesMapPanel({
             );
           })}
         </div>
+        ) : null}
       </div>
     </section>
   );

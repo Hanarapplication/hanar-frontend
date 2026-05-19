@@ -13,6 +13,7 @@ export type BusinessMapPinData = {
 
 export type BusinessPinOverlayHandle = google.maps.OverlayView & {
   setSelected: (selected: boolean) => void;
+  updateBusiness: (biz: BusinessMapPinData) => void;
   requestDraw: () => void;
 };
 
@@ -26,6 +27,8 @@ export function createBusinessPinOverlay(
     onClick: () => void;
   }
 ): BusinessPinOverlayHandle {
+  let currentBiz = biz;
+
   class BusinessPinOverlay extends google.maps.OverlayView {
     private div: HTMLDivElement | null = null;
     private position: google.maps.LatLng;
@@ -33,7 +36,7 @@ export function createBusinessPinOverlay(
 
     constructor() {
       super();
-      this.position = new google.maps.LatLng(biz.lat, biz.lon);
+      this.position = new google.maps.LatLng(currentBiz.lat, currentBiz.lon);
     }
 
     setSelected(selected: boolean) {
@@ -42,13 +45,44 @@ export function createBusinessPinOverlay(
       this.div.classList.toggle('hanar-business-map-pin--selected', selected);
     }
 
+    updateBusiness(next: BusinessMapPinData) {
+      currentBiz = next;
+      this.position = new google.maps.LatLng(next.lat, next.lon);
+      if (!this.div) return;
+      this.div.setAttribute('aria-label', next.business_name);
+      const nameEl = this.div.querySelector('.hanar-business-map-pin__name');
+      if (nameEl) nameEl.textContent = next.business_name;
+      const img = this.div.querySelector('img');
+      if (img) {
+        const logoUrl = next.logo_url || DEFAULT_BUSINESS_MAP_LOGO;
+        if (img.getAttribute('src') !== logoUrl) {
+          img.classList.remove('hanar-business-map-pin__logo--ready');
+          const preload = new Image();
+          preload.decoding = 'async';
+          preload.referrerPolicy = 'no-referrer';
+          preload.onload = () => {
+            img.src = logoUrl;
+            img.classList.add('hanar-business-map-pin__logo--ready');
+            this.requestDraw();
+          };
+          preload.onerror = () => {
+            img.src = DEFAULT_BUSINESS_MAP_LOGO;
+            img.classList.add('hanar-business-map-pin__logo--ready');
+            this.requestDraw();
+          };
+          preload.src = logoUrl;
+        }
+      }
+      this.requestDraw();
+    }
+
     requestDraw() {
       this.draw();
     }
 
     onAdd() {
-      const logoUrl = biz.logo_url || DEFAULT_BUSINESS_MAP_LOGO;
-      const name = escapeHtml(biz.business_name);
+      const logoUrl = currentBiz.logo_url || DEFAULT_BUSINESS_MAP_LOGO;
+      const name = escapeHtml(currentBiz.business_name);
       const placeholder = DEFAULT_BUSINESS_MAP_LOGO.replace(/"/g, '&quot;');
 
       this.div = document.createElement('div');
@@ -64,7 +98,7 @@ export function createBusinessPinOverlay(
       }
 
       this.div.setAttribute('role', 'button');
-      this.div.setAttribute('aria-label', biz.business_name);
+      this.div.setAttribute('aria-label', currentBiz.business_name);
       this.div.tabIndex = 0;
 
       this.div.innerHTML = `

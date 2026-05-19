@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { Edit, Eye, Crown, BarChart3, Megaphone, ChevronDown, ChevronUp, X, Image, Bell, Trash2, Download, FileText, Palette, CircleHelp, Phone, Settings, LogOut } from 'lucide-react';
+import { Edit, Eye, Crown, BarChart3, Megaphone, ChevronDown, ChevronUp, X, Image, Bell, Trash2, Download, FileText, Palette, CircleHelp, Phone, Settings, LogOut, Heart } from 'lucide-react';
 import {
   DashboardInlineActions,
   dashboardFbOuter,
@@ -62,6 +62,12 @@ type FollowedOrganization = {
   username: string | null;
   logo_url?: string | null;
   address?: string | null;
+};
+
+const getFavoriteItemHref = (item: FavoriteItem) => {
+  const slug = String(item.slug || '').trim();
+  if (slug) return `/marketplace/${encodeURIComponent(slug)}`;
+  return `/marketplace/${item.source}-${item.id}`;
 };
 
 type PlanSettings = {
@@ -252,6 +258,7 @@ function BusinessDashboardContent() {
   const [promotionRequests, setPromotionRequests] = useState<PromotionRequestItem[]>([]);
   const [promotionRequestsLoading, setPromotionRequestsLoading] = useState(true);
   const [promotionBannersExpanded, setPromotionBannersExpanded] = useState(false);
+  const [favoriteItemsExpanded, setFavoriteItemsExpanded] = useState(false);
   const [pageColorsOpen, setPageColorsOpen] = useState(false);
   const [pageColorsMoreBelow, setPageColorsMoreBelow] = useState(false);
   const pageColorsScrollRef = useRef<HTMLDivElement>(null);
@@ -514,6 +521,7 @@ function BusinessDashboardContent() {
         if (!user) {
           setFavorites([]);
           setFollowedOrgs([]);
+          setFavoriteItems([]);
           return;
         }
 
@@ -527,16 +535,15 @@ function BusinessDashboardContent() {
 
         if (businessIds.length === 0) {
           setFavorites([]);
-          return;
+        } else {
+          const { data, error } = await supabase
+            .from('businesses')
+            .select('id, business_name, slug, category, subcategory, logo_url, address')
+            .in('id', businessIds);
+
+          if (error) throw error;
+          setFavorites((data as FavoriteBusiness[]) || []);
         }
-
-        const { data, error } = await supabase
-          .from('businesses')
-          .select('id, business_name, slug, category, subcategory, logo_url, address')
-          .in('id', businessIds);
-
-        if (error) throw error;
-        setFavorites((data as FavoriteBusiness[]) || []);
 
         const { data: followRows, error: followError } = await supabase
           .from('follows')
@@ -549,17 +556,15 @@ function BusinessDashboardContent() {
 
         if (orgOwnerIds.length === 0) {
           setFollowedOrgs([]);
-          return;
+        } else {
+          const { data: orgData, error: orgError } = await supabase
+            .from('organizations')
+            .select('user_id, full_name, username, logo_url, address')
+            .in('user_id', orgOwnerIds);
+
+          if (orgError) throw orgError;
+          setFollowedOrgs((orgData as FollowedOrganization[]) || []);
         }
-
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
-          .select('user_id, full_name, username, logo_url, address')
-          .in('user_id', orgOwnerIds);
-
-        if (orgError) throw orgError;
-
-        setFollowedOrgs((orgData as FollowedOrganization[]) || []);
 
         const { data: favRows } = await supabase
           .from('user_marketplace_favorites')
@@ -601,6 +606,7 @@ function BusinessDashboardContent() {
       return;
     }
     setFavoriteItems((prev) => prev.filter((fav) => fav.key !== itemKey));
+    toast.success(t(effectiveLang, 'Removed'));
   };
 
   const loadNotificationHistory = async () => {
@@ -1646,6 +1652,102 @@ function BusinessDashboardContent() {
                   items={burgerItems}
                   showLanguage
                 />
+
+                <section className={dashboardFbOuter}>
+                  <div className={dashboardFbHeader}>
+                    <h2 className="text-[17px] font-bold leading-tight text-[#050505] dark:text-gray-100">
+                      {t(effectiveLang, 'My Favorites')}
+                    </h2>
+                  </div>
+                  <div className={dashboardFbCanvas}>
+                    <div className={dashboardFbPanelShell}>
+                      <button
+                        type="button"
+                        onClick={() => setFavoriteItemsExpanded((prev) => !prev)}
+                        className={dashboardFbPanelTrigger}
+                        aria-expanded={favoriteItemsExpanded}
+                      >
+                        <span className={dashboardFbIconWrap}>
+                          <Heart className="h-5 w-5 shrink-0" aria-hidden />
+                        </span>
+                        <span className="min-w-0 flex-1 text-left">
+                          <span className={dashboardFbPanelTitle}>{t(effectiveLang, 'Favorite Items')}</span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1.5">
+                          {!favoritesLoading && (
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-gray-700 dark:text-gray-300">
+                              {favoriteItems.length}
+                            </span>
+                          )}
+                          {favoriteItemsExpanded ? (
+                            <ChevronUp className="h-4 w-4 text-slate-500" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-slate-500" />
+                          )}
+                        </span>
+                      </button>
+                      {favoriteItemsExpanded && (
+                        <div className="px-5 pb-5 pt-0">
+                          {favoritesLoading ? (
+                            <p className="text-sm text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading...')}</p>
+                          ) : favoriteItems.length === 0 ? (
+                            <div className="rounded-2xl bg-slate-100/80 p-6 text-center text-sm text-slate-500 dark:bg-gray-700/50 dark:text-gray-400">
+                              {t(effectiveLang, 'You have no favorite items yet. Browse the marketplace and add some.')}
+                            </div>
+                          ) : (
+                            <div className="max-h-[min(24rem,60vh)] space-y-3 overflow-y-auto pr-1">
+                              {favoriteItems.map((item) => (
+                                <div
+                                  key={item.key}
+                                  className="flex gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-gray-600 dark:bg-gray-800"
+                                >
+                                  <Link
+                                    href={getFavoriteItemHref(item)}
+                                    className="block h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-gray-700"
+                                  >
+                                    <img
+                                      src={item.image || '/placeholder.jpg'}
+                                      alt={item.title}
+                                      className="h-full w-full object-cover"
+                                      onError={(e) => {
+                                        e.currentTarget.src = '/placeholder.jpg';
+                                        e.currentTarget.onerror = null;
+                                      }}
+                                    />
+                                  </Link>
+                                  <div className="min-w-0 flex-1">
+                                    <Link
+                                      href={getFavoriteItemHref(item)}
+                                      className="line-clamp-2 text-[15px] font-semibold text-slate-900 transition-colors hover:text-indigo-600 dark:text-gray-100 dark:hover:text-indigo-400"
+                                    >
+                                      {item.title}
+                                    </Link>
+                                    <p className="mt-0.5 text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                                      {typeof item.price === 'number'
+                                        ? `$${Number(item.price).toLocaleString()}`
+                                        : item.price || '—'}
+                                    </p>
+                                    {item.location ? (
+                                      <p className="mt-1 line-clamp-1 text-xs text-slate-500 dark:text-gray-400">{item.location}</p>
+                                    ) : null}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeFavoriteItem(item.key)}
+                                    className="flex h-9 w-9 shrink-0 items-center justify-center self-start rounded-full text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                                    aria-label={t(effectiveLang, 'Remove from favorites')}
+                                  >
+                                    <Heart className="h-4 w-4 fill-current" aria-hidden />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </section>
 
                 {notificationToDelete && typeof document !== 'undefined' && createPortal(
                   <div
