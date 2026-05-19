@@ -581,6 +581,9 @@ export default function BusinessesMapPanel({
         streetViewControl: false,
         fullscreenControl: false,
         zoomControl: true,
+        rotateControl: false,
+        cameraControl: false,
+        clickableIcons: false,
         keyboardShortcuts: false,
         styles: [
           { featureType: 'poi', stylers: [{ visibility: 'off' }] },
@@ -932,7 +935,7 @@ export default function BusinessesMapPanel({
               type="button"
               onClick={onShareMapLocation}
               disabled={sharingMapLocation}
-              className="absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-md transition hover:bg-white disabled:opacity-60"
+              className="absolute bottom-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-md transition hover:bg-white disabled:opacity-60"
             >
               <Navigation className="h-3.5 w-3.5 shrink-0 text-blue-600" aria-hidden />
               {sharingMapLocation ? '…' : youOnMap ? labels.myLocationOnMap : labels.shareMyLocation}

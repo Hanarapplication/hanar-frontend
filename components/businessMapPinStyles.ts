@@ -196,6 +196,18 @@ export const BUSINESS_MAP_PIN_CSS = `
 .hanar-businesses-map-surface img[alt="Google"] {
   display: none !important;
 }
+
+/* Hide Google rotate / directions / camera controls (zoom +/- kept). */
+.hanar-businesses-map-surface .gm-compass,
+.hanar-businesses-map-surface .gm-svpc,
+.hanar-businesses-map-surface button[aria-label*="Rotate"],
+.hanar-businesses-map-surface button[aria-label*="rotate"],
+.hanar-businesses-map-surface button[aria-label*="Directions"],
+.hanar-businesses-map-surface button[aria-label*="directions"],
+.hanar-businesses-map-surface button[title*="Rotate"],
+.hanar-businesses-map-surface button[title*="Directions"] {
+  display: none !important;
+}
 `;
 
 export function escapeHtml(text: string): string {

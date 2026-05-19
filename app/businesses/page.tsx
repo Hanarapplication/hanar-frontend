@@ -2082,7 +2082,7 @@ export default function BusinessesPage() {
             openInMaps: t(effectiveLang, 'Directions'),
             viewProfile: t(effectiveLang, 'View profile'),
             call: t(effectiveLang, 'Call'),
-            shareMyLocation: t(effectiveLang, 'Show my location'),
+            shareMyLocation: t(effectiveLang, 'Show me on the map'),
             myLocationOnMap: t(effectiveLang, 'My location on map'),
             youLabel: t(effectiveLang, 'You'),
           }}
