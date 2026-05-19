@@ -12,6 +12,7 @@ export async function GET(req: Request) {
     const query = searchParams.get('query') || searchParams.get('q');
     const addressDetails = searchParams.get('addressdetails');
     const limit = searchParams.get('limit');
+    const polygonGeojson = searchParams.get('polygon_geojson');
 
     if (!query) {
       return NextResponse.json({ error: 'Missing query' }, { status: 400 });
@@ -23,6 +24,9 @@ export async function GET(req: Request) {
     });
     if (addressDetails) params.set('addressdetails', addressDetails);
     if (limit) params.set('limit', limit);
+    if (polygonGeojson === '1' || polygonGeojson === 'true') {
+      params.set('polygon_geojson', '1');
+    }
 
     const upstreamUrl = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
     const upstreamRes = await fetch(upstreamUrl, {

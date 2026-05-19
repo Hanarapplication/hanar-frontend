@@ -19,6 +19,7 @@ import {
 } from '@/components/businessMapPinStyles';
 import { USA_MAP_BOUNDS } from '@/lib/businessMapCoords';
 import { isValidMapAreaBounds, type MapAreaBounds } from '@/lib/mapAreaBounds';
+import { hasValidAreaRings, type MapAreaRing } from '@/lib/mapAreaPolygon';
 
 export type MapViewportMode = 'usa' | 'area' | 'radius';
 
@@ -57,6 +58,8 @@ type BusinessesMapPanelProps = {
   isRadiusMode?: boolean;
   /** Shaded region for city/state/country search (not used in radius/GPS mode). */
   selectedAreaBounds?: MapAreaBounds | null;
+  /** City administrative boundary (preferred over rectangular bounds when set). */
+  selectedAreaRings?: MapAreaRing[] | null;
   defaultExpanded?: boolean;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
@@ -151,37 +154,37 @@ function clearAreaHighlight(layer: AreaHighlightLayer | null) {
   layer.polygons.forEach((polygon) => polygon.setMap(null));
 }
 
-function createSelectedAreaHighlight(map: google.maps.Map, bounds: MapAreaBounds): AreaHighlightLayer {
-  const centerLat = (bounds.north + bounds.south) / 2;
-  const lonScale = 1 / Math.max(0.35, Math.cos((centerLat * Math.PI) / 180));
+const AREA_HIGHLIGHT_FILL = '#be185d';
 
-  const layers = [
-    { latPad: 0.014, lonPad: 0.014 * lonScale, fillOpacity: 0.025 },
-    { latPad: 0.009, lonPad: 0.009 * lonScale, fillOpacity: 0.045 },
-    { latPad: 0.005, lonPad: 0.005 * lonScale, fillOpacity: 0.07 },
-    { latPad: 0, lonPad: 0, fillOpacity: 0.09 },
+function pathsForArea(bounds: MapAreaBounds, rings?: MapAreaRing[] | null): MapAreaRing[] {
+  if (hasValidAreaRings(rings)) return rings;
+  return [
+    [
+      { lat: bounds.north, lng: bounds.west },
+      { lat: bounds.north, lng: bounds.east },
+      { lat: bounds.south, lng: bounds.east },
+      { lat: bounds.south, lng: bounds.west },
+    ],
   ];
+}
 
-  const polygons = layers.map(({ latPad, lonPad, fillOpacity }) => {
-    const north = bounds.north + latPad;
-    const south = bounds.south - latPad;
-    const east = bounds.east + lonPad;
-    const west = bounds.west - lonPad;
-
-    return new google.maps.Polygon({
-      paths: [
-        { lat: north, lng: west },
-        { lat: north, lng: east },
-        { lat: south, lng: east },
-        { lat: south, lng: west },
-      ],
-      fillColor: '#be185d',
-      fillOpacity,
-      strokeOpacity: 0,
-      clickable: false,
-      map,
-    });
-  });
+function createSelectedAreaHighlight(
+  map: google.maps.Map,
+  bounds: MapAreaBounds,
+  rings?: MapAreaRing[] | null
+): AreaHighlightLayer {
+  const polygons = pathsForArea(bounds, rings).map(
+    (paths) =>
+      new google.maps.Polygon({
+        paths,
+        map,
+        clickable: false,
+        fillColor: AREA_HIGHLIGHT_FILL,
+        fillOpacity: 0.14,
+        strokeOpacity: 0,
+        strokeWeight: 0,
+      })
+  );
 
   return { polygons };
 }
@@ -446,6 +449,7 @@ export default function BusinessesMapPanel({
   mapAreaZoom = 10,
   isRadiusMode = false,
   selectedAreaBounds = null,
+  selectedAreaRings = null,
   defaultExpanded = false,
   expanded: expandedProp,
   onExpandedChange,
@@ -543,8 +547,10 @@ export default function BusinessesMapPanel({
 
   const previewAreaBox = useMemo(() => {
     if (!showSelectedArea || !previewMapBounds || !selectedAreaBounds) return null;
+    // Collapsed map cannot draw the city polygon; skip the misleading bbox overlay.
+    if (hasValidAreaRings(selectedAreaRings)) return null;
     return areaBoxPercent(selectedAreaBounds, previewMapBounds);
-  }, [showSelectedArea, previewMapBounds, selectedAreaBounds]);
+  }, [showSelectedArea, previewMapBounds, selectedAreaBounds, selectedAreaRings]);
 
   const selected = useMemo(() => {
     if (selectedBusiness) return selectedBusiness;
@@ -645,7 +651,7 @@ export default function BusinessesMapPanel({
         isRadiusMode && userCoords ? { lat: userCoords.lat, lng: userCoords.lon } : null;
 
       if (showSelectedArea && selectedAreaBounds) {
-        areaHighlightRef.current = createSelectedAreaHighlight(map, selectedAreaBounds);
+        areaHighlightRef.current = createSelectedAreaHighlight(map, selectedAreaBounds, selectedAreaRings);
       } else if (radiusCenter) {
         circleRef.current = new window.google.maps.Circle({
           map,
@@ -667,7 +673,7 @@ export default function BusinessesMapPanel({
         });
       }
     },
-    [youOnMap, youAvatar, isRadiusMode, userCoords, radiusMiles, labels.youLabel, showSelectedArea, selectedAreaBounds]
+    [youOnMap, youAvatar, isRadiusMode, userCoords, radiusMiles, labels.youLabel, showSelectedArea, selectedAreaBounds, selectedAreaRings]
   );
 
   const syncPins = useCallback(() => {
@@ -943,7 +949,6 @@ export default function BusinessesMapPanel({
                   style={previewAreaBox}
                   aria-hidden
                 >
-                  <div className="absolute -inset-2 rounded-sm bg-rose-700/35 blur-md" />
                   <div className="absolute inset-0 bg-rose-600/15" />
                 </div>
               ) : null}

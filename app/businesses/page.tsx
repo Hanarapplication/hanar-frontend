@@ -33,6 +33,7 @@ import {
   type GeocodeCache,
 } from '@/lib/businessMapCoords';
 import { isValidMapAreaBounds, type MapAreaBounds, type MapAreaScopeLevel } from '@/lib/mapAreaBounds';
+import { hasValidAreaRings, type MapAreaRing } from '@/lib/mapAreaPolygon';
 import { requestLocationWithFallback, readStoredCoords } from '@/lib/getBrowserLocation';
 import { normalizeAvatarUrl } from '@/lib/avatarUrl';
 import {
@@ -55,7 +56,7 @@ const BUSINESSES_CACHE_KEY_LEGACY = 'hanar_businesses_cache';
 const BUSINESSES_UPDATED_EVENT = 'hanar:businesses-updated';
 const BUSINESSES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const MAP_VIEW_CENTER_KEY = 'hanar_map_view_center';
-const MAP_AREA_BOUNDS_CACHE_KEY = 'hanar_map_area_bounds_v1';
+const MAP_AREA_BOUNDS_CACHE_KEY = 'hanar_map_area_bounds_v2';
 const MAP_MY_LOCATION_KEY = 'hanar_map_my_location';
 const BUSINESSES_UI_TRANSLATION_CACHE_PREFIX = 'hanar_businesses_ui_text:';
 const USER_LOCATION_SCOPE_KEY = 'userLocationScope';
@@ -218,6 +219,7 @@ export default function BusinessesPage() {
   const [mapGeocoding, setMapGeocoding] = useState(false);
   const [mapViewCenter, setMapViewCenter] = useState(USA_MAP_CENTER);
   const [locationAreaBounds, setLocationAreaBounds] = useState<MapAreaBounds | null>(null);
+  const [locationAreaRings, setLocationAreaRings] = useState<MapAreaRing[] | null>(null);
   const [myMapLocation, setMyMapLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [sharingMapLocation, setSharingMapLocation] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
@@ -1195,12 +1197,14 @@ export default function BusinessesPage() {
     if (isRadiusLocationMode && userCoords) {
       setMapViewCenter(userCoords);
       setLocationAreaBounds(null);
+      setLocationAreaRings(null);
       lastGeocodedCityQueryRef.current = null;
       return;
     }
     if (!locationAreaQuery) {
       setMapViewCenter(USA_MAP_CENTER);
       setLocationAreaBounds(null);
+      setLocationAreaRings(null);
       lastGeocodedCityQueryRef.current = '__usa__';
       return;
     }
@@ -1211,7 +1215,13 @@ export default function BusinessesPage() {
       try {
         const cachedRaw = localStorage.getItem(MAP_AREA_BOUNDS_CACHE_KEY);
         if (cachedRaw) {
-          const cached = JSON.parse(cachedRaw) as { query?: string; bounds?: MapAreaBounds; lat?: number; lon?: number };
+          const cached = JSON.parse(cachedRaw) as {
+            query?: string;
+            bounds?: MapAreaBounds;
+            rings?: MapAreaRing[];
+            lat?: number;
+            lon?: number;
+          };
           if (
             cached.query === locationAreaQuery &&
             cached.lat != null &&
@@ -1222,6 +1232,7 @@ export default function BusinessesPage() {
             lastGeocodedCityQueryRef.current = locationAreaQuery;
             setMapViewCenter({ lat: cached.lat, lon: cached.lon });
             setLocationAreaBounds(cached.bounds!);
+            setLocationAreaRings(hasValidAreaRings(cached.rings) ? cached.rings : null);
             return;
           }
         }
@@ -1234,6 +1245,7 @@ export default function BusinessesPage() {
       lastGeocodedCityQueryRef.current = locationAreaQuery;
       setMapViewCenter({ lat: area.lat, lon: area.lon });
       setLocationAreaBounds(area.bounds);
+      setLocationAreaRings(hasValidAreaRings(area.rings) ? area.rings : null);
       try {
         localStorage.setItem(MAP_VIEW_CENTER_KEY, JSON.stringify({ lat: area.lat, lon: area.lon }));
         localStorage.setItem(
@@ -1243,6 +1255,7 @@ export default function BusinessesPage() {
             lat: area.lat,
             lon: area.lon,
             bounds: area.bounds,
+            rings: area.rings,
           })
         );
       } catch {
@@ -2040,6 +2053,9 @@ export default function BusinessesPage() {
           mapAreaZoom={mapAreaZoom}
           isRadiusMode={isRadiusLocationMode}
           selectedAreaBounds={mapViewport === 'area' ? locationAreaBounds : null}
+          selectedAreaRings={
+            mapViewport === 'area' && locationAreaScopeLevel === 'city' ? locationAreaRings : null
+          }
           expanded={mapExpanded}
           onExpandedChange={setMapExpanded}
           radiusMiles={radius}

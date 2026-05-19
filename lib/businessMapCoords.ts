@@ -6,6 +6,21 @@ import {
   type MapAreaBounds,
   type MapAreaScopeLevel,
 } from '@/lib/mapAreaBounds';
+import {
+  boundsFromRings,
+  geoJsonToPolygonRings,
+  hasValidAreaRings,
+  type MapAreaRing,
+} from '@/lib/mapAreaPolygon';
+
+export type { MapAreaRing } from '@/lib/mapAreaPolygon';
+
+export type GeocodedLocationArea = {
+  lat: number;
+  lon: number;
+  bounds: MapAreaBounds;
+  rings?: MapAreaRing[];
+};
 
 const GEOCODE_CACHE_KEY = 'hanar_business_geocode_cache';
 
@@ -250,12 +265,127 @@ export async function geocodeAddressQuery(query: string): Promise<{ lat: number;
   return area ? { lat: area.lat, lon: area.lon } : null;
 }
 
+type NominatimRow = {
+  lat?: string;
+  lon?: string;
+  boundingbox?: string[];
+  class?: string;
+  type?: string;
+  importance?: string | number;
+  display_name?: string;
+  geojson?: { type?: string; coordinates?: unknown };
+  address?: {
+    city?: string;
+    town?: string;
+    village?: string;
+    municipality?: string;
+    state?: string;
+    country?: string;
+  };
+};
+
+const CITY_PLACE_TYPES = new Set(['city', 'town', 'borough', 'municipality', 'village']);
+
+function cityNameFromQuery(query: string): string {
+  return query.split(',')[0]?.trim().toLowerCase() ?? '';
+}
+
+function scoreNominatimRow(row: NominatimRow, query: string, scopeLevel: MapAreaScopeLevel): number {
+  let score = parseFloat(String(row.importance ?? 0)) || 0;
+  const cityHint = cityNameFromQuery(query);
+  const rowCity = (
+    row.address?.city ||
+    row.address?.town ||
+    row.address?.village ||
+    row.address?.municipality ||
+    ''
+  )
+    .trim()
+    .toLowerCase();
+  const rowType = (row.type ?? '').toLowerCase();
+  const rowClass = (row.class ?? '').toLowerCase();
+
+  if (scopeLevel === 'city') {
+    if (rowClass === 'place' && CITY_PLACE_TYPES.has(rowType)) score += 20;
+    if (rowClass === 'boundary' && rowType === 'administrative' && row.geojson) score += 16;
+    if (row.geojson) score += 6;
+    if (cityHint && rowCity === cityHint) score += 14;
+    if (cityHint && rowCity.startsWith(cityHint)) score += 6;
+    if (rowType === 'county') score -= 12;
+    if (rowType === 'state' || rowType === 'country') score -= 20;
+    if (rowType === 'postcode') score -= 8;
+  } else if (scopeLevel === 'state') {
+    if (rowType === 'state' || rowType === 'administrative') score += 12;
+    if (rowClass === 'boundary') score += 4;
+  } else if (scopeLevel === 'country') {
+    if (rowType === 'country' || row.address?.country) score += 12;
+  }
+
+  const stateHint = query.toLowerCase().match(/,\s*([a-z]{2})\b/)?.[1];
+  if (stateHint) {
+    const rowState = row.address?.state?.toLowerCase() ?? '';
+    if (rowState === stateHint || rowState.startsWith(stateHint)) score += 8;
+    else score -= 6;
+  }
+
+  return score;
+}
+
+function pickNominatimRow(rows: NominatimRow[], query: string, scopeLevel: MapAreaScopeLevel): NominatimRow | null {
+  if (!rows.length) return null;
+  return rows.reduce((best, row) =>
+    scoreNominatimRow(row, query, scopeLevel) > scoreNominatimRow(best, query, scopeLevel) ? row : best
+  );
+}
+
+function geocodedAreaFromNominatimRow(
+  picked: NominatimRow,
+  scopeLevel: MapAreaScopeLevel
+): GeocodedLocationArea | null {
+  const lat = parseFloat(String(picked.lat));
+  const lon = parseFloat(String(picked.lon));
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+  const center = { lat, lon };
+  const rings = scopeLevel === 'city' ? geoJsonToPolygonRings(picked.geojson) : [];
+  const ringBounds = hasValidAreaRings(rings) ? boundsFromRings(rings) : null;
+  const osmBounds = mapAreaBoundsFromOsmBbox(picked.boundingbox ?? []);
+  const bounds = ringBounds ?? osmBounds ?? approximateMapAreaBounds(center, scopeLevel);
+  return hasValidAreaRings(rings) ? { lat, lon, bounds, rings } : { lat, lon, bounds };
+}
+
+async function geocodeOsmLocationArea(
+  query: string,
+  scopeLevel: MapAreaScopeLevel,
+  withPolygon: boolean
+): Promise<GeocodedLocationArea | null> {
+  const polygonParam = withPolygon ? '&polygon_geojson=1' : '';
+  const res = await fetch(
+    `/api/geocode?query=${encodeURIComponent(query)}&limit=8&addressdetails=1${polygonParam}`
+  );
+  if (!res.ok) return null;
+  const data = (await res.json()) as NominatimRow[];
+  if (!Array.isArray(data) || data.length === 0) return null;
+  const picked = pickNominatimRow(data, query, scopeLevel);
+  if (!picked) return null;
+  return geocodedAreaFromNominatimRow(picked, scopeLevel);
+}
+
 export async function geocodeLocationAreaQuery(
   query: string,
   scopeLevel: MapAreaScopeLevel = 'city'
-): Promise<{ lat: number; lon: number; bounds: MapAreaBounds } | null> {
+): Promise<GeocodedLocationArea | null> {
   const q = query.trim();
   if (!q) return null;
+
+  if (scopeLevel === 'city') {
+    try {
+      const cityBoundary = await geocodeOsmLocationArea(q, scopeLevel, true);
+      if (cityBoundary?.rings?.length) return cityBoundary;
+    } catch {
+      /* fall through */
+    }
+  }
 
   try {
     const googleRes = await fetch(`/api/geocode/forward?query=${encodeURIComponent(q)}`);
@@ -278,34 +408,7 @@ export async function geocodeLocationAreaQuery(
   }
 
   try {
-    const res = await fetch(
-      `/api/geocode?query=${encodeURIComponent(q)}&limit=5&addressdetails=1`
-    );
-    if (!res.ok) return null;
-    const data = (await res.json()) as Array<{
-      lat?: string;
-      lon?: string;
-      boundingbox?: string[];
-      address?: { state?: string };
-    }>;
-    if (!Array.isArray(data) || data.length === 0) return null;
-
-    const stateHint = q.toLowerCase().match(/,\s*([a-z]{2})\b/)?.[1];
-    const picked =
-      data.find((row) => {
-        if (!stateHint) return true;
-        const rowState = row.address?.state?.toLowerCase() ?? '';
-        return rowState === stateHint || rowState.startsWith(stateHint);
-      }) ?? data[0];
-
-    const lat = parseFloat(String(picked.lat));
-    const lon = parseFloat(String(picked.lon));
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-
-    const center = { lat, lon };
-    const osmBounds = mapAreaBoundsFromOsmBbox(picked.boundingbox ?? []);
-    const bounds = osmBounds ?? approximateMapAreaBounds(center, scopeLevel);
-    return { lat, lon, bounds };
+    return await geocodeOsmLocationArea(q, scopeLevel, scopeLevel === 'city');
   } catch {
     return null;
   }
