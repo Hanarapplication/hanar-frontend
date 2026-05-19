@@ -163,6 +163,50 @@ export function itemMatchesCountryFilter(item: ItemLocationFields, selectedCount
   return false;
 }
 
+function cityNamesMatch(a: string, b: string): boolean {
+  const la = a.trim().toLowerCase();
+  const lb = b.trim().toLowerCase();
+  if (!la || !lb) return false;
+  if (la === lb) return true;
+  if (la.length >= 3 && lb.length >= 3 && (la.includes(lb) || lb.includes(la))) return true;
+  return false;
+}
+
+export function itemMatchesCityFilter(
+  item: ItemLocationFields,
+  selectedCity: string,
+  selectedState?: string,
+  selectedCountry?: string
+): boolean {
+  const wantCity = selectedCity.trim();
+  if (!wantCity) return true;
+
+  const itemCity = item.location_city?.trim();
+  if (itemCity && cityNamesMatch(itemCity, wantCity)) {
+    if (selectedState?.trim() && item.location_state?.trim()) {
+      if (!statesMatch(item.location_state, selectedState)) return false;
+    }
+    if (selectedCountry?.trim() && item.location_country?.trim()) {
+      if (!countriesMatch(item.location_country, selectedCountry)) return false;
+    }
+    return true;
+  }
+
+  const h = haystack(item);
+  const cityKey = wantCity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (new RegExp(`\\b${cityKey}\\b`, 'i').test(h)) {
+    if (selectedState?.trim()) {
+      const sk = normalizeUsStateKey(selectedState);
+      const full = US_STATE_ABBREV_TO_NAME[sk] || selectedState.trim().toLowerCase();
+      if (full && !new RegExp(`\\b${full.replace(/ /g, '\\s+')}\\b`, 'i').test(h)) {
+        if (sk.length === 2 && !new RegExp(`\\b${sk}\\b`, 'i').test(h)) return false;
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
 export function itemMatchesStateFilter(
   item: ItemLocationFields,
   selectedState: string,

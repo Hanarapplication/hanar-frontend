@@ -1,7 +1,8 @@
 export async function getLatLonFromAddress(address: string): Promise<{ lat: number; lon: number } | null> {
   try {
     const encodedAddress = encodeURIComponent(address);
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    const apiKey =
+      process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`;
 
     const res = await fetch(url);

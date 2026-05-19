@@ -26,6 +26,7 @@ import AddressAutocomplete, { type AddressResult } from '@/components/AddressAut
 import { MarketplaceCategorySelects } from '@/components/MarketplaceCategorySelects';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
+import { geocodeStoredBusinessAddress } from '@/lib/businessMapCoords';
 import { spokenLanguagesWithDialects, predefinedLanguageCodes } from '@/utils/languages';
 import {
   BUSINESS_CATEGORIES,
@@ -84,17 +85,30 @@ const SUPABASE_STORAGE_URL_PREFIX =
 
 
 /** Normalize address from DB: can be jsonb object or JSON string. Compatible with `businesses.address` as jsonb or text. */
-const parseAddressFromDb = (value: unknown): { street: string; city: string; state: string; zip: string; country: string } => {
+const parseAddressFromDb = (value: unknown): {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+  lat?: number;
+  lng?: number;
+} => {
   const empty = { street: '', city: '', state: '', zip: '', country: '' };
   if (value == null) return empty;
   if (typeof value === 'object' && !Array.isArray(value)) {
     const o = value as Record<string, unknown>;
+    const latRaw = o.lat ?? o.latitude;
+    const lngRaw = o.lng ?? o.lon ?? o.longitude;
+    const lat = typeof latRaw === 'number' ? latRaw : latRaw != null ? parseFloat(String(latRaw)) : NaN;
+    const lng = typeof lngRaw === 'number' ? lngRaw : lngRaw != null ? parseFloat(String(lngRaw)) : NaN;
     return {
       street: typeof o.street === 'string' ? o.street : '',
       city: typeof o.city === 'string' ? o.city : '',
       state: typeof o.state === 'string' ? o.state : '',
       zip: typeof o.zip === 'string' ? o.zip : '',
       country: typeof o.country === 'string' ? o.country : '',
+      ...(Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : {}),
     };
   }
   if (typeof value === 'string') {
@@ -483,6 +497,8 @@ interface BusinessForm {
     state: string;
     zip: string;
     country: string;
+    lat?: number;
+    lng?: number;
   };
   hours: {
     monday: string;
@@ -975,7 +991,15 @@ export default function EditBusinessPage() {
           email: businessData.email || '',
           whatsapp: businessData.whatsapp || '',
           website: businessData.website || '',
-          address: parseAddressFromDb(businessData.address),
+          address: (() => {
+            const parsed = parseAddressFromDb(businessData.address);
+            const tableLat = businessData.lat != null ? Number(businessData.lat) : NaN;
+            const tableLon = businessData.lon != null ? Number(businessData.lon) : NaN;
+            if (Number.isFinite(tableLat) && Number.isFinite(tableLon)) {
+              return { ...parsed, lat: tableLat, lng: tableLon };
+            }
+            return parsed;
+          })(),
           facebook: businessData.facebook || '',
           instagram: businessData.instagram || '',
           twitter: businessData.twitter || '',
@@ -1686,6 +1710,20 @@ export default function EditBusinessPage() {
         country: normalizedCountry,
       };
 
+      let addressForDb: typeof normalizedAddress & { lat?: number; lng?: number } = normalizedAddress;
+      let geocodedLat: number | null = null;
+      let geocodedLon: number | null = null;
+      try {
+        const geocoded = await geocodeStoredBusinessAddress(normalizedAddress);
+        if (geocoded) {
+          addressForDb = geocoded.address as typeof normalizedAddress & { lat?: number; lng?: number };
+          geocodedLat = geocoded.lat;
+          geocodedLon = geocoded.lon;
+        }
+      } catch {
+        // Save address even if geocoding fails; map can retry client-side.
+      }
+
       const updateData: any = {
         business_name: form.business_name,
         description: form.description,
@@ -1695,7 +1733,7 @@ export default function EditBusinessPage() {
         email: form.email,
         whatsapp: form.whatsapp,
         website: form.website,
-        address: normalizedAddress,
+        address: addressForDb,
         facebook: form.facebook,
         instagram: form.instagram,
         twitter: form.twitter,
@@ -1705,6 +1743,7 @@ export default function EditBusinessPage() {
         logo_url: uploadedLogoUrl,
         images: finalGalleryUrls,
         slug: form.slug,
+        ...(geocodedLat != null && geocodedLon != null ? { lat: geocodedLat, lon: geocodedLon } : {}),
       };
 
       console.log('Updating main business entry with data:', updateData);
@@ -1722,6 +1761,13 @@ export default function EditBusinessPage() {
       }
       console.log('Main business entry updated successfully.');
 
+      try {
+        sessionStorage.removeItem('hanar_businesses_cache');
+        sessionStorage.removeItem('hanar_businesses_cache_v2');
+      } catch {
+        /* ignore */
+      }
+      window.dispatchEvent(new Event('hanar:businesses-updated'));
 
       // 3. Handle Menu Items (separate 'menu_items' table)
       if (isFoodCategory(form.category)) {
@@ -2639,11 +2685,15 @@ export default function EditBusinessPage() {
                   setForm((prev) => ({
                     ...prev,
                     address: {
+                      ...prev.address,
                       street: result.street || prev.address.street,
                       city: result.city || prev.address.city,
                       state: result.state || prev.address.state,
                       zip: result.zip || prev.address.zip,
                       country: result.country || prev.address.country,
+                      ...(result.lat != null && result.lng != null
+                        ? { lat: result.lat, lng: result.lng }
+                        : {}),
                     },
                   }));
                 }}

@@ -2,9 +2,12 @@
 
 import { createPortal } from 'react-dom';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { FaSearch, FaHeart, FaRegHeart, FaMapMarkerAlt } from 'react-icons/fa';
-import { Store } from 'lucide-react';
+import { LayoutGrid, List, Sparkles, Store, TrendingUp } from 'lucide-react';
+import type { MapPanelBusiness } from '@/components/BusinessesMapPanel';
+import TrendingBusinessesSlideshow from '@/components/TrendingBusinessesSlideshow';
 import AddressAutocomplete, { type AddressResult } from '@/components/AddressAutocomplete';
 import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
@@ -18,14 +21,38 @@ import {
   writeSavedSearchRadiusMiles,
 } from '@/lib/geoDistance';
 import {
+  addressGeocodeQueryFromTable,
+  geocodeAddressQuery,
+  normalizeAddressInput,
+  readGeocodeCache,
+  resolveBusinessCoords,
+  writeGeocodeCache,
+  USA_MAP_CENTER,
+  type GeocodeCache,
+} from '@/lib/businessMapCoords';
+import { requestLocationWithFallback, readStoredCoords } from '@/lib/getBrowserLocation';
+import { normalizeAvatarUrl } from '@/lib/avatarUrl';
+import {
+  itemMatchesCityFilter,
   itemMatchesCountryFilter,
   itemMatchesStateFilter,
   scopeFromAddressResult,
   type MarketplaceLocationScope,
 } from '@/lib/marketplaceLocationFilter';
 
-const BUSINESSES_CACHE_KEY = 'hanar_businesses_cache';
+const BusinessesMapPanel = dynamic(() => import('@/components/BusinessesMapPanel'), {
+  ssr: false,
+  loading: () => (
+    <div className="mx-3 mb-5 h-[min(52vh,22rem)] animate-pulse rounded-lg bg-gradient-to-br from-violet-100 to-rose-100" />
+  ),
+});
+
+const BUSINESSES_CACHE_KEY = 'hanar_businesses_cache_v2';
+const BUSINESSES_CACHE_KEY_LEGACY = 'hanar_businesses_cache';
+const BUSINESSES_UPDATED_EVENT = 'hanar:businesses-updated';
 const BUSINESSES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const MAP_VIEW_CENTER_KEY = 'hanar_map_view_center';
+const MAP_MY_LOCATION_KEY = 'hanar_map_my_location';
 const BUSINESSES_UI_TRANSLATION_CACHE_PREFIX = 'hanar_businesses_ui_text:';
 const USER_LOCATION_SCOPE_KEY = 'userLocationScope';
 const QUICK_FILTER_LABELS = [
@@ -71,6 +98,7 @@ interface Business {
   distance?: number;
   spoken_languages?: string[] | null;
   plan?: string | null;
+  phone?: string | null;
 }
 
 type BusinessLocationFields = {
@@ -81,7 +109,8 @@ type BusinessLocationFields = {
 };
 
 function businessLatLon(b: Business) {
-  return resolveLatLon({ lat: b.lat, lon: b.lon }, b.address);
+  const normalizedAddress = normalizeAddressInput(b.address);
+  return resolveLatLon({ lat: b.lat, lon: b.lon }, normalizedAddress ?? b.address);
 }
 
 const categoryColors: Record<string, string> = {
@@ -178,38 +207,72 @@ export default function BusinessesPage() {
   const [locationScope, setLocationScope] = useState<MarketplaceLocationScope>({ mode: 'none' });
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(6);
+  const [selectedMapBusinessId, setSelectedMapBusinessId] = useState<string | null>(null);
+  const [listLayout, setListLayout] = useState<'list' | 'cards'>('list');
+  const [mapExpanded, setMapExpanded] = useState(true);
+  const [geocodeCache, setGeocodeCache] = useState<GeocodeCache>(() =>
+    typeof window !== 'undefined' ? readGeocodeCache() : {}
+  );
+  const [mapGeocoding, setMapGeocoding] = useState(false);
+  const [mapViewCenter, setMapViewCenter] = useState(USA_MAP_CENTER);
+  const [myMapLocation, setMyMapLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [sharingMapLocation, setSharingMapLocation] = useState(false);
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
+  const [businessesRefreshing, setBusinessesRefreshing] = useState(false);
+  const triedAutoLocationRef = useRef(false);
+  const lastGeocodedCityQueryRef = useRef<string | null>(null);
+  const geocodeFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const servicesCarouselRef = useRef<HTMLDivElement>(null);
   const searchCacheRef = useRef<Map<string, Set<string>>>(new Map());
   const hasFetchedRef = useRef(false);
 
-  const fetchBusinesses = async () => {
-    const { data, error } = await supabase
-      .from('businesses')
-      .select('id, business_name, category, subcategory, address, description, logo_url, slug, lat, lon, spoken_languages, plan')
-      .eq('moderation_status', 'active')
-      .eq('is_archived', false)
-      .neq('lifecycle_status', 'archived');
+  const fetchBusinesses = useCallback(async () => {
+    setBusinessesRefreshing(true);
+    try {
+      const { data, error } = await supabase
+        .from('businesses')
+        .select(
+          'id, business_name, category, subcategory, address, description, logo_url, slug, lat, lon, spoken_languages, plan, phone'
+        )
+        .eq('moderation_status', 'active')
+        .eq('is_archived', false)
+        .neq('lifecycle_status', 'archived');
 
-    if (error) {
-      console.error('Supabase fetch error:', error);
-      return;
+      if (error) {
+        console.error('Supabase fetch error:', error);
+        return;
+      }
+      setBusinesses(data || []);
+      writeBusinessesCache(data || []);
+    } finally {
+      setBusinessesRefreshing(false);
     }
-    setBusinesses(data || []);
-    writeBusinessesCache(data || []);
-  };
+  }, []);
 
   useEffect(() => {
     if (hasFetchedRef.current) return;
     hasFetchedRef.current = true;
 
+    try {
+      sessionStorage.removeItem(BUSINESSES_CACHE_KEY_LEGACY);
+    } catch {
+      /* ignore */
+    }
+
     const cache = readBusinessesCache();
     if (cache) {
       setBusinesses(cache.businesses);
-    } else {
-      fetchBusinesses();
     }
-  }, []);
+    void fetchBusinesses();
+  }, [fetchBusinesses]);
+
+  useEffect(() => {
+    const onBusinessesUpdated = () => {
+      void fetchBusinesses();
+    };
+    window.addEventListener(BUSINESSES_UPDATED_EVENT, onBusinessesUpdated);
+    return () => window.removeEventListener(BUSINESSES_UPDATED_EVENT, onBusinessesUpdated);
+  }, [fetchBusinesses]);
 
   useEffect(() => {
     let mounted = true;
@@ -255,6 +318,48 @@ export default function BusinessesPage() {
     loadFavorites();
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    const loadAvatar = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user || !mounted) return;
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (mounted) {
+          setUserAvatarUrl(normalizeAvatarUrl(profile?.avatar_url, ['avatars']));
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    void loadAvatar();
+    return () => {
+      mounted = false;
+    };
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    try {
+      const savedCenter = localStorage.getItem(MAP_VIEW_CENTER_KEY);
+      if (savedCenter) {
+        const parsed = JSON.parse(savedCenter) as { lat?: number; lon?: number };
+        if (parsed?.lat != null && parsed?.lon != null) {
+          setMapViewCenter({ lat: parsed.lat, lon: parsed.lon });
+        }
+      }
+      const savedMyLoc = readStoredCoords([MAP_MY_LOCATION_KEY]);
+      if (savedMyLoc) setMyMapLocation(savedMyLoc);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const handleLocationSelect = (result: AddressResult) => {
     const scope = scopeFromAddressResult(result);
     setLocationScope(scope);
@@ -272,36 +377,67 @@ export default function BusinessesPage() {
       if (label) localStorage.setItem('userLocationLabel', label);
     } catch {}
 
-    if (result.lat != null && result.lng != null) {
+    const isCityPick = scope.mode === 'city_radius' && Boolean(scope.city.trim());
+    const isCountryOrState = scope.mode === 'country' || scope.mode === 'state';
+
+    if (result.lat != null && result.lng != null && !isCityPick && !isCountryOrState) {
       const coords = { lat: result.lat, lon: result.lng };
       setUserCoords(coords);
       try {
         localStorage.setItem('userCoords', JSON.stringify(coords));
       } catch {}
-      window.dispatchEvent(new CustomEvent('location:updated', {
-        detail: {
-          ...coords,
-          label,
-          city: result.city,
-          state: result.state,
-          country: result.country,
-          zip: result.zip,
-        },
-      }));
+      window.dispatchEvent(
+        new CustomEvent('location:updated', {
+          detail: {
+            ...coords,
+            label,
+            city: result.city,
+            state: result.state,
+            country: result.country,
+            zip: result.zip,
+          },
+        })
+      );
+    } else if (isCityPick || isCountryOrState) {
+      setUserCoords(null);
+      try {
+        localStorage.removeItem('userCoords');
+      } catch {}
+      window.dispatchEvent(
+        new CustomEvent('location:updated', {
+          detail: {
+            label,
+            city: result.city,
+            state: result.state,
+            country: result.country,
+            zip: result.zip,
+          },
+        })
+      );
     } else {
       setUserCoords(null);
       try {
         localStorage.removeItem('userCoords');
       } catch {}
-      window.dispatchEvent(new CustomEvent('location:updated', {
-        detail: {
-          label,
-          city: result.city,
-          state: result.state,
-          country: result.country,
-          zip: result.zip,
-        },
-      }));
+      window.dispatchEvent(
+        new CustomEvent('location:updated', {
+          detail: {
+            label,
+            city: result.city,
+            state: result.state,
+            country: result.country,
+            zip: result.zip,
+          },
+        })
+      );
+    }
+
+    if (result.lat != null && result.lng != null) {
+      const center = { lat: result.lat, lon: result.lng };
+      setMapViewCenter(center);
+      try {
+        localStorage.setItem(MAP_VIEW_CENTER_KEY, JSON.stringify(center));
+      } catch {}
     }
   };
 
@@ -439,6 +575,66 @@ export default function BusinessesPage() {
   }, []);
 
   useEffect(() => {
+    if (triedAutoLocationRef.current) return;
+    triedAutoLocationRef.current = true;
+
+    let hasSavedCoords = false;
+    let hasSavedScope = false;
+    try {
+      hasSavedCoords = Boolean(localStorage.getItem('userCoords'));
+      hasSavedScope = Boolean(localStorage.getItem(USER_LOCATION_SCOPE_KEY));
+    } catch {
+      /* ignore */
+    }
+    if (hasSavedCoords || hasSavedScope) return;
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        void (async () => {
+          const coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+          let city: string | undefined;
+          let state: string | undefined;
+          let country: string | undefined;
+          let label = t(effectiveLang, 'Your location');
+          try {
+            const res = await fetch(
+              `/api/geocode/reverse?lat=${encodeURIComponent(coords.lat)}&lon=${encodeURIComponent(coords.lon)}`
+            );
+            const data = await res.json().catch(() => ({}));
+            const address = data?.address || {};
+            city =
+              address.city || address.town || address.village || address.hamlet || '';
+            state = address.state || address.county || '';
+            country = address.country || '';
+            const composed = [city, state, country].filter(Boolean).join(', ');
+            label = composed || data?.display_name || label;
+          } catch {
+            /* keep fallback label */
+          }
+
+          setUserCoords(coords);
+          setLocationLabel(label);
+          setLocationSearchValue(label);
+          const geoScope: MarketplaceLocationScope = { mode: 'city_radius', country: '', state: '', city: '' };
+          setLocationScope(geoScope);
+          try {
+            localStorage.setItem('userCoords', JSON.stringify(coords));
+            if (label) localStorage.setItem('userLocationLabel', label);
+            localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(geoScope));
+          } catch {
+            /* ignore */
+          }
+        })();
+      },
+      () => {
+        /* user denied or unavailable */
+      },
+      { enableHighAccuracy: false, timeout: 12000, maximumAge: 300_000 }
+    );
+  }, [effectiveLang]);
+
+  useEffect(() => {
     const term = query.trim().toLowerCase();
     if (!term) {
       setRelatedBusinessIds(new Set());
@@ -555,28 +751,77 @@ export default function BusinessesPage() {
   const normalizedQuery = query.toLowerCase();
   const normalizeCategoryToken = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   const businessCategoryLabel = (b: Business) => formatBusinessCategory(b.subcategory || b.category) || '';
-  const matchesSelectedCategory = (b: Business, key: string | null) => {
-    if (!key) return true;
-    const category = normalizeCategoryToken(businessCategoryLabel(b));
-    if (!category) return false;
+  const categoryTokenMatchesKey = (category: string, key: string) => {
     switch (key) {
       case 'restaurants':
-        return category.includes('restaurant') || category.includes('cafe') || category.includes('coffee');
+        return (
+          category === 'food' ||
+          category.includes('restaurant') ||
+          category.includes('cafe') ||
+          category.includes('coffee') ||
+          category.includes('bakery') ||
+          category.includes('catering') ||
+          category.includes('food truck')
+        );
       case 'dealerships':
-        return category.includes('dealership');
+        return category === 'dealership' || category.includes('dealership') || category.includes('dealer');
       case 'auto_services':
-        return category.includes('auto') || category.includes('repair') || category.includes('mechanic');
+        return (
+          category.includes('auto') ||
+          category.includes('repair') ||
+          category.includes('mechanic') ||
+          category.includes('body shop')
+        );
       case 'home_services':
-        return category.includes('home') || category.includes('clean') || category.includes('plumb') || category.includes('mover');
+        return (
+          category.includes('home') ||
+          category.includes('clean') ||
+          category.includes('plumb') ||
+          category.includes('hvac') ||
+          category.includes('electric') ||
+          category.includes('landscap') ||
+          category.includes('mover') ||
+          category.includes('real estate')
+        );
       case 'transportation':
-        return category.includes('transport') || category.includes('mover') || category.includes('delivery');
+        return (
+          category.includes('transport') ||
+          category.includes('mover') ||
+          category.includes('moving') ||
+          category.includes('delivery') ||
+          category.includes('trucking') ||
+          category.includes('truck')
+        );
       case 'retail':
-        return category.includes('retail') || category.includes('shop') || category.includes('store');
+        return category === 'retail' || category.includes('retail') || category.includes('shop') || category.includes('store');
       case 'beauty':
-        return category.includes('beauty') || category.includes('salon') || category.includes('hair');
-      default:
-        return category === normalizeCategoryToken(key) || category.includes(normalizeCategoryToken(key));
+        return (
+          category.includes('beauty') ||
+          category.includes('salon') ||
+          category.includes('hair') ||
+          category.includes('barber') ||
+          category.includes('nail')
+        );
+      default: {
+        const keyToken = normalizeCategoryToken(key);
+        return category === keyToken || category.includes(keyToken);
+      }
     }
+  };
+
+  const matchesSelectedCategory = (b: Business, key: string | null) => {
+    if (!key) return true;
+    const parentCategory = normalizeCategoryToken(b.category || '');
+    if (parentCategory) {
+      if (key === 'restaurants' && parentCategory === 'food') return true;
+      if (key === 'dealerships' && parentCategory === 'dealership') return true;
+      if (key === 'retail' && parentCategory === 'retail') return true;
+    }
+    const tokens = [businessCategoryLabel(b), b.subcategory || '', b.category || '']
+      .map((v) => normalizeCategoryToken(v))
+      .filter(Boolean);
+    if (tokens.length === 0) return false;
+    return tokens.some((category) => categoryTokenMatchesKey(category, key));
   };
   const speaksUserLang = (b: Business) => {
     const langs = b.spoken_languages;
@@ -584,7 +829,24 @@ export default function BusinessesPage() {
     return langs.includes(effectiveLang);
   };
   const isPremium = (b: Business) => (b.plan || '').toLowerCase() === 'premium';
-  const cityFromLabel = (locationLabel || '').split(',')[0]?.trim().toLowerCase() || '';
+  const cityFromLabelRaw = (locationLabel || '').split(',')[0]?.trim() || '';
+  const hasExplicitCityScope =
+    locationScope.mode === 'city_radius' && Boolean(locationScope.city.trim());
+  const hasCityLabel =
+    Boolean(cityFromLabelRaw) && !isYourLocationLabel(locationLabel || '');
+  const isCityLocationMode = hasExplicitCityScope || hasCityLabel;
+  const isRadiusLocationMode = Boolean(
+    userCoords &&
+      !isCityLocationMode &&
+      (isYourLocationLabel(locationLabel || '') ||
+        (locationScope.mode === 'city_radius' && !locationScope.city.trim()))
+  );
+  const scopedCity = !isCityLocationMode
+    ? ''
+    : hasExplicitCityScope
+      ? locationScope.city.trim()
+      : cityFromLabelRaw;
+  const cityFromLabel = cityFromLabelRaw.toLowerCase();
   const businessLocationFields = (b: Business): BusinessLocationFields => {
     const base: BusinessLocationFields = {
       location: `${getCityState(b.address)} ${typeof b.address === 'string' ? b.address : ''}`.trim(),
@@ -614,20 +876,23 @@ export default function BusinessesPage() {
     }
     return base;
   };
-  const filteredByCategoryAndQuery = businesses
-    .filter((b) => {
-      if (!matchesSelectedCategory(b, selectedCategoryFilter)) return false;
-      if (normalizedQuery) {
-        const matchesText =
-          b.business_name.toLowerCase().includes(normalizedQuery) ||
-          (b.category || '').toLowerCase().includes(normalizedQuery) ||
-          (b.subcategory || '').toLowerCase().includes(normalizedQuery) ||
-          (b.description || '').toLowerCase().includes(normalizedQuery) ||
-          getCityState(b.address).toLowerCase().includes(normalizedQuery);
-        if (!matchesText && !relatedBusinessIds.has(b.id)) return false;
-      }
-      return true;
-    });
+  const filteredByCategoryAndQuery = useMemo(
+    () =>
+      businesses.filter((b) => {
+        if (!matchesSelectedCategory(b, selectedCategoryFilter)) return false;
+        if (normalizedQuery) {
+          const matchesText =
+            b.business_name.toLowerCase().includes(normalizedQuery) ||
+            (b.category || '').toLowerCase().includes(normalizedQuery) ||
+            (b.subcategory || '').toLowerCase().includes(normalizedQuery) ||
+            (b.description || '').toLowerCase().includes(normalizedQuery) ||
+            getCityState(b.address).toLowerCase().includes(normalizedQuery);
+          if (!matchesText && !relatedBusinessIds.has(b.id)) return false;
+        }
+        return true;
+      }),
+    [businesses, selectedCategoryFilter, normalizedQuery, relatedBusinessIds]
+  );
 
   const filtered = filteredByCategoryAndQuery
     .filter((b) => {
@@ -637,19 +902,33 @@ export default function BusinessesPage() {
       if (locationScope.mode === 'state') {
         return itemMatchesStateFilter(businessLocationFields(b), locationScope.state, locationScope.country);
       }
-      if (userCoords) {
+      if (locationScope.mode === 'city_radius' && locationScope.city.trim()) {
+        return itemMatchesCityFilter(
+          businessLocationFields(b),
+          locationScope.city,
+          locationScope.state,
+          locationScope.country
+        );
+      }
+      if (scopedCity && !isYourLocationLabel(scopedCity)) {
+        const scopeState =
+          locationScope.mode === 'city_radius'
+            ? locationScope.state
+            : (locationLabel || '').split(',')[1]?.trim();
+        const scopeCountry = locationScope.mode === 'city_radius' ? locationScope.country : undefined;
+        return itemMatchesCityFilter(businessLocationFields(b), scopedCity, scopeState, scopeCountry);
+      }
+      if (userCoords && isRadiusLocationMode) {
         const ll = businessLatLon(b);
         if (ll) {
           return getDistanceMiles(userCoords.lat, userCoords.lon, ll.lat, ll.lon) <= radius;
         }
-        if (!cityFromLabel || isYourLocationLabel(cityFromLabel)) return false;
-        const loc = `${getCityState(b.address)} ${typeof b.address === 'string' ? b.address : ''}`.toLowerCase();
-        return new RegExp(`\\b${cityFromLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(loc);
+        return false;
       }
       return true;
     })
     .sort((a, b) => {
-      if (userCoords) {
+      if (userCoords && isRadiusLocationMode) {
         const aLL = businessLatLon(a);
         const bLL = businessLatLon(b);
         if (aLL && bLL) {
@@ -675,8 +954,8 @@ export default function BusinessesPage() {
     const areaFilterActive =
       locationScope.mode === 'country' ||
       locationScope.mode === 'state' ||
-      Boolean(userCoords) ||
-      (cityFromLabel.length > 0 && !isYourLocationLabel(cityFromLabel));
+      Boolean(scopedCity) ||
+      Boolean(isRadiusLocationMode && userCoords);
   const nearbyFallbackBusinesses = areaFilterActive && filtered.length === 0
     ? filteredByCategoryAndQuery
         .map((b) => {
@@ -692,10 +971,14 @@ export default function BusinessesPage() {
           if (locationScope.mode === 'state') {
             return !itemMatchesStateFilter(businessLocationFields(business), locationScope.state, locationScope.country);
           }
-          if (userCoords && distance != null) return distance > radius;
-          if (cityFromLabel && !isYourLocationLabel(cityFromLabel)) {
-            const loc = `${getCityState(business.address)} ${typeof business.address === 'string' ? business.address : ''}`.toLowerCase();
-            return !new RegExp(`\\b${cityFromLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(loc);
+          if (userCoords && distance != null && isRadiusLocationMode) return distance > radius;
+          if (scopedCity && !isYourLocationLabel(scopedCity)) {
+            return !itemMatchesCityFilter(
+              businessLocationFields(business),
+              scopedCity,
+              locationScope.mode === 'city_radius' ? locationScope.state : undefined,
+              locationScope.mode === 'city_radius' ? locationScope.country : undefined
+            );
           }
           return true;
         })
@@ -710,34 +993,209 @@ export default function BusinessesPage() {
     : [];
 
   const visible = filtered.slice(0, visibleCount);
-  const servicesShowcaseSource =
-    filtered.length > 0
-      ? filtered
-      : filteredByCategoryAndQuery.length > 0
-        ? filteredByCategoryAndQuery
-        : businesses;
-  const servicesShowcase = servicesShowcaseSource.slice(0, 8);
+  const listBusinesses = filtered.length > 0 ? visible : nearbyFallbackBusinesses;
+
+  const mapCategoryOrSearchActive =
+    selectedCategoryFilter != null || normalizedQuery.trim().length > 0;
+
+  const resolveCoordsForBusiness = useCallback(
+    (biz: Business) => resolveBusinessCoords(biz, geocodeCache),
+    [geocodeCache]
+  );
+
+  const businessToMapPanel = useCallback(
+    (biz: Business): MapPanelBusiness | null => {
+      const coords = resolveCoordsForBusiness(biz);
+      if (!coords) return null;
+      const distanceMi =
+        userCoords && isRadiusLocationMode
+          ? getDistanceMiles(userCoords.lat, userCoords.lon, coords.lat, coords.lon)
+          : null;
+      return {
+        id: biz.id,
+        business_name: biz.business_name,
+        slug: biz.slug,
+        logo_url: biz.logo_url || '',
+        lat: coords.lat,
+        lon: coords.lon,
+        phone: biz.phone,
+        distanceMi,
+      };
+    },
+    [resolveCoordsForBusiness, userCoords, isRadiusLocationMode]
+  );
+
+  /** All geocoded pins — keeps coords when category/search filters change. */
+  const allMapPanelBusinesses = useMemo((): MapPanelBusiness[] => {
+    return businesses
+      .map((biz) => businessToMapPanel(biz))
+      .filter(Boolean) as MapPanelBusiness[];
+  }, [businesses, businessToMapPanel]);
+
+  const categoryOrSearchMatchIds = useMemo(
+    () => new Set(filteredByCategoryAndQuery.map((b) => b.id)),
+    [filteredByCategoryAndQuery]
+  );
+
+  /** Pins shown on map — filter from cached coords, do not rebuild geocode pool. */
+  const mapPanelBusinesses = useMemo((): MapPanelBusiness[] => {
+    if (!mapCategoryOrSearchActive) return allMapPanelBusinesses;
+    return allMapPanelBusinesses.filter((b) => categoryOrSearchMatchIds.has(b.id));
+  }, [allMapPanelBusinesses, mapCategoryOrSearchActive, categoryOrSearchMatchIds]);
+
+  /** Businesses that still need geocoding for the active map filter. */
+  const mapCandidateBusinesses = useMemo(() => {
+    if (!mapCategoryOrSearchActive) return businesses;
+    return filteredByCategoryAndQuery;
+  }, [businesses, filteredByCategoryAndQuery, mapCategoryOrSearchActive]);
+
+  const mapPendingGeocodeCount = useMemo(
+    () => mapCandidateBusinesses.filter((biz) => !resolveCoordsForBusiness(biz)).length,
+    [mapCandidateBusinesses, resolveCoordsForBusiness]
+  );
+
+  /** Count for map empty/loading UI — category/search matches, not location-only list length. */
+  const mapMatchingCount = mapCategoryOrSearchActive
+    ? filteredByCategoryAndQuery.length
+    : filtered.length;
+
+  const mapChipBusinesses = useMemo(() => {
+    const filteredIds = new Set(filtered.map((b) => b.id));
+    return mapPanelBusinesses.filter((b) => filteredIds.has(b.id));
+  }, [mapPanelBusinesses, filtered]);
+
+  const trendingPremiumBusinesses = useMemo(() => businesses.filter(isPremium), [businesses]);
+
+  /** Geocode target from the location box (label, search text, or country/state scope). */
+  const locationAreaQuery = useMemo(() => {
+    if (isRadiusLocationMode) return null;
+    if (locationScope.mode === 'country' && locationScope.country.trim()) {
+      return locationScope.country.trim();
+    }
+    if (locationScope.mode === 'state' && locationScope.state.trim()) {
+      return [locationScope.state, locationScope.country].filter(Boolean).join(', ');
+    }
+    if (locationScope.mode === 'city_radius' && locationScope.city.trim()) {
+      return [locationScope.city, locationScope.state, locationScope.country].filter(Boolean).join(', ');
+    }
+    const label = (locationLabel || locationSearchValue || '').trim();
+    if (!label || isYourLocationLabel(label)) return null;
+    return label;
+  }, [isRadiusLocationMode, locationScope, locationLabel, locationSearchValue]);
+
+  const isUsaMapView = !isRadiusLocationMode && !locationAreaQuery;
+
+  const mapAreaZoom = useMemo(() => {
+    if (locationScope.mode === 'country') return 4;
+    if (locationScope.mode === 'state') return 6;
+    return 10;
+  }, [locationScope.mode]);
+
+  const mapViewport = isRadiusLocationMode ? 'radius' : isUsaMapView ? 'usa' : 'area';
+
+  const geocodeCacheRef = useRef(geocodeCache);
+  geocodeCacheRef.current = geocodeCache;
+  const geocodePendingRef = useRef<Record<string, { lat: number; lon: number }>>({});
+
+  const flushGeocodeCache = useCallback(() => {
+    const pending = geocodePendingRef.current;
+    const keys = Object.keys(pending);
+    if (keys.length === 0) return;
+    geocodePendingRef.current = {};
+    setGeocodeCache((prev) => {
+      const next = { ...prev, ...pending };
+      writeGeocodeCache(next);
+      geocodeCacheRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const queueGeocodeResult = useCallback(
+    (bizId: string, ll: { lat: number; lon: number }) => {
+      geocodePendingRef.current[bizId] = ll;
+      if (geocodeFlushTimerRef.current) clearTimeout(geocodeFlushTimerRef.current);
+      geocodeFlushTimerRef.current = setTimeout(() => {
+        geocodeFlushTimerRef.current = null;
+        flushGeocodeCache();
+      }, 120);
+    },
+    [flushGeocodeCache]
+  );
 
   useEffect(() => {
-    const carousel = servicesCarouselRef.current;
-    if (!carousel || servicesShowcase.length < 2) return;
+    if (isRadiusLocationMode && userCoords) {
+      setMapViewCenter(userCoords);
+      lastGeocodedCityQueryRef.current = null;
+      return;
+    }
+    if (!locationAreaQuery) {
+      setMapViewCenter(USA_MAP_CENTER);
+      lastGeocodedCityQueryRef.current = '__usa__';
+      return;
+    }
+    if (lastGeocodedCityQueryRef.current === locationAreaQuery) return;
 
-    const timer = window.setInterval(() => {
-      const firstCard = carousel.querySelector<HTMLElement>('[data-service-card="true"]');
-      const cardWidth = firstCard?.offsetWidth ?? 168;
-      const gapPx = 12;
-      const step = cardWidth + gapPx;
-      const maxScrollLeft = carousel.scrollWidth - carousel.clientWidth;
-
-      if (carousel.scrollLeft + step >= maxScrollLeft - 2) {
-        carousel.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        carousel.scrollBy({ left: step, behavior: 'smooth' });
+    let cancelled = false;
+    void (async () => {
+      const ll = await geocodeAddressQuery(locationAreaQuery);
+      if (cancelled || !ll) return;
+      lastGeocodedCityQueryRef.current = locationAreaQuery;
+      setMapViewCenter(ll);
+      try {
+        localStorage.setItem(MAP_VIEW_CENTER_KEY, JSON.stringify(ll));
+      } catch {
+        /* ignore */
       }
-    }, 2800);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isRadiusLocationMode, userCoords, locationAreaQuery]);
 
-    return () => window.clearInterval(timer);
-  }, [servicesShowcase.length]);
+  useEffect(() => {
+    let cancelled = false;
+    const missing = mapCandidateBusinesses.filter((biz) => !resolveCoordsForBusiness(biz));
+    if (missing.length === 0) {
+      setMapGeocoding(false);
+      return;
+    }
+
+    setMapGeocoding(true);
+    const geocodeBatch = async (queue: Business[]) => {
+      let index = 0;
+      const workerCount = 3;
+      const worker = async () => {
+        while (!cancelled && index < queue.length) {
+          const biz = queue[index++];
+          const query = addressGeocodeQueryFromTable(biz.address);
+          if (!query) continue;
+          const ll = await geocodeAddressQuery(query);
+          if (cancelled || !ll) continue;
+          queueGeocodeResult(biz.id, ll);
+        }
+      };
+      await Promise.all(Array.from({ length: workerCount }, () => worker()));
+    };
+
+    void geocodeBatch(missing).finally(() => {
+      if (!cancelled) setMapGeocoding(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mapCandidateBusinesses, resolveCoordsForBusiness, queueGeocodeResult]);
+
+  useEffect(() => {
+    if (selectedMapBusinessId && mapPanelBusinesses.some((b) => b.id === selectedMapBusinessId)) return;
+    setSelectedMapBusinessId(mapPanelBusinesses[0]?.id ?? null);
+  }, [mapPanelBusinesses, selectedMapBusinessId]);
+
+  useEffect(() => {
+    if (!selectedMapBusinessId) return;
+    const el = document.getElementById(`business-${selectedMapBusinessId}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [selectedMapBusinessId]);
   const quickFilters: Array<{ label: string; icon: string; key: string; more?: boolean }> = [
     { label: 'Restaurants', icon: '🍽️', key: 'restaurants' },
     { label: 'Dealerships', icon: '🚘', key: 'dealerships' },
@@ -832,69 +1290,287 @@ export default function BusinessesPage() {
   }, [effectiveLang, dynamicUiLabels]);
 
   const handlePullRefresh = useCallback(async () => {
-    try { sessionStorage.removeItem(BUSINESSES_CACHE_KEY); } catch {}
+    try {
+      sessionStorage.removeItem(BUSINESSES_CACHE_KEY);
+    } catch {}
     setVisibleCount(6);
     await fetchBusinesses();
+  }, [fetchBusinesses]);
+
+  const handleMapRadiusChange = useCallback((miles: number) => {
+    setRadius(miles);
+    writeSavedSearchRadiusMiles(miles);
   }, []);
+
+  const handleShareMapLocation = useCallback(() => {
+    const applyCoords = (
+      coords: { lat: number; lon: number },
+      opts?: { approximate?: boolean; fromCache?: boolean }
+    ) => {
+      setMyMapLocation(coords);
+      try {
+        localStorage.setItem(MAP_MY_LOCATION_KEY, JSON.stringify(coords));
+      } catch {
+        /* ignore */
+      }
+      if (opts?.approximate) {
+        toast(
+          t(effectiveLang, 'Showing approximate location based on your IP address'),
+          { icon: 'ℹ️' }
+        );
+      } else if (opts?.fromCache) {
+        toast.success(t(effectiveLang, 'Showing your last known location on the map'));
+      } else {
+        toast.success(t(effectiveLang, 'Your location is shown on the map'));
+      }
+    };
+
+    const locationErrorMessage = (code: string) => {
+      switch (code) {
+        case 'denied':
+          return t(
+            effectiveLang,
+            'Location permission was denied. Allow location for this site in your browser settings, then try again.'
+          );
+        case 'timeout':
+          return t(
+            effectiveLang,
+            'Finding your location took too long. Check that location services are on and try again.'
+          );
+        case 'unsupported':
+          return t(effectiveLang, 'Your browser does not support location sharing.');
+        case 'insecure':
+          return t(
+            effectiveLang,
+            'Location requires HTTPS. Showing approximate location when available.'
+          );
+        default:
+          return t(
+            effectiveLang,
+            'Could not get your location. Check that location services are enabled and try again.'
+          );
+      }
+    };
+
+    setSharingMapLocation(true);
+    const locationPromise = requestLocationWithFallback();
+    void locationPromise
+      .then((result) => {
+        if (result.ok) {
+          applyCoords(
+            { lat: result.lat, lon: result.lon },
+            { approximate: result.approximate }
+          );
+          return;
+        }
+
+        const cached = readStoredCoords([MAP_MY_LOCATION_KEY, 'userCoords']);
+        if (cached) {
+          applyCoords(cached, { fromCache: true });
+          if (result.code === 'denied') {
+            toast(
+              t(
+                effectiveLang,
+                'Using your last saved location. Allow location access for live updates.'
+              ),
+              { icon: 'ℹ️' }
+            );
+          }
+          return;
+        }
+
+        toast.error(locationErrorMessage(result.code));
+      })
+      .finally(() => {
+        setSharingMapLocation(false);
+      });
+  }, [effectiveLang]);
 
   const getBusinessHref = (biz: Business) => {
     const value = String(biz.slug || biz.id || '').trim();
     return value ? `/business/${encodeURIComponent(value)}` : '/businesses';
   };
 
+  const showBusinessOnMap = useCallback(
+    (biz: Business) => {
+      const coords = resolveCoordsForBusiness(biz);
+      if (!coords) {
+        toast.error(t(effectiveLang, 'Location not available'));
+        return;
+      }
+      if (!mapPanelBusinesses.some((b) => b.id === biz.id)) {
+        toast.error(
+          t(effectiveLang, 'This business is not shown on the map with your current filters')
+        );
+        return;
+      }
+      setMapExpanded(true);
+      setSelectedMapBusinessId(biz.id);
+      window.requestAnimationFrame(() => {
+        document
+          .getElementById('businesses-map-panel')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    },
+    [resolveCoordsForBusiness, mapPanelBusinesses, effectiveLang]
+  );
+
   const renderBusinessRow = (biz: Business) => {
     const displayCategory = formatBusinessCategory(biz.subcategory || biz.category);
     const locationText = getCityState(biz.address);
-    const bizCoords = businessLatLon(biz);
+    const bizCoords = resolveCoordsForBusiness(biz);
+    const isMapSelected = selectedMapBusinessId === biz.id;
+    const categoryStyle =
+      categoryColors[displayCategory] || categoryColors[biz.category] || categoryColors.default;
+    const locationLine =
+      locationText === LOCATION_NOT_AVAILABLE ? t(effectiveLang, 'Location not available') : locationText;
+    const distanceLine =
+      userCoords && bizCoords && isRadiusLocationMode
+        ? `${getDistanceMiles(userCoords.lat, userCoords.lon, bizCoords.lat, bizCoords.lon).toFixed(1)} ${t(effectiveLang, 'mi away')}`
+        : null;
+
+    const rowActions = (
+      <div className="flex shrink-0 gap-1.5">
+        <Link
+          href={getBusinessHref(biz)}
+          className="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {t(effectiveLang, 'View')}
+        </Link>
+        {bizCoords ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              showBusinessOnMap(biz);
+            }}
+            className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
+          >
+            {t(effectiveLang, 'On map')}
+          </button>
+        ) : null}
+      </div>
+    );
+
+    if (listLayout === 'cards') {
+      return (
+        <article
+          key={biz.id}
+          id={`business-${biz.id}`}
+          className={`overflow-hidden rounded-xl border bg-white shadow-sm transition hover:shadow-md ${
+            isMapSelected ? 'border-violet-400 ring-2 ring-violet-200' : 'border-slate-200'
+          }`}
+          data-no-translate
+        >
+          <Link href={getBusinessHref(biz)} className="group block">
+            <div className="relative h-28 bg-slate-100">
+              <img
+                src={
+                  biz.logo_url ||
+                  'https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop'
+                }
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+              />
+              <button
+                type="button"
+                onClick={(e) => toggleFavorite(e, biz.id)}
+                className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 shadow"
+                aria-label={t(effectiveLang, 'Toggle favorite')}
+              >
+                {favorites.includes(biz.id) ? (
+                  <FaHeart className="h-3.5 w-3.5 text-rose-500" />
+                ) : (
+                  <FaRegHeart className="h-3.5 w-3.5 text-slate-500" />
+                )}
+              </button>
+            </div>
+          </Link>
+          <div className="space-y-2 p-2">
+            <Link href={getBusinessHref(biz)} className="min-w-0 block">
+              <h3 className="line-clamp-1 text-sm font-bold text-slate-900">{biz.business_name}</h3>
+              {displayCategory ? (
+                <span
+                  className={`mt-1 inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold ${categoryStyle}`}
+                >
+                  {translateUi(displayCategory)}
+                </span>
+              ) : null}
+            </Link>
+            <p className="line-clamp-1 text-[11px] text-slate-500">
+              {locationLine}
+              {distanceLine ? ` · ${distanceLine}` : ''}
+            </p>
+            {rowActions}
+          </div>
+        </article>
+      );
+    }
+
     return (
-      <Link
+      <div
         key={biz.id}
-        href={getBusinessHref(biz)}
-        className="group flex gap-3 px-3 py-3 transition hover:bg-slate-50"
+        id={`business-${biz.id}`}
+        className={`flex gap-3 px-3 py-2.5 transition ${
+          isMapSelected ? 'bg-violet-50' : 'hover:bg-slate-50'
+        }`}
         data-no-translate
       >
-        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-700 bg-slate-100">
-          <img
-            src={biz.logo_url || `https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop`}
-            alt="Business logo"
-            loading="lazy"
-            decoding="async"
-            className="h-full w-full object-cover"
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
+        <Link href={getBusinessHref(biz)} className="group flex min-w-0 flex-1 gap-3">
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+            <img
+              src={
+                biz.logo_url ||
+                'https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop'
+              }
+              alt="Business logo"
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <div className="min-w-0 flex-1">
             <h3
-              className="line-clamp-1 text-lg font-semibold text-slate-900 group-hover:text-[#d32323]"
+              className="line-clamp-1 text-sm font-semibold text-slate-900 group-hover:text-violet-700"
               data-no-translate
             >
               {biz.business_name}
             </h3>
-            <button
-              onClick={(e) => toggleFavorite(e, biz.id)}
-              className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-rose-500"
-              aria-label={t(effectiveLang, 'Toggle favorite')}
-            >
-              {favorites.includes(biz.id) ? <FaHeart className="h-4 w-4 text-rose-500" /> : <FaRegHeart className="h-4 w-4" />}
-            </button>
-          </div>
-          <div className="mt-1 flex flex-col items-start gap-1.5">
-            {displayCategory ? (
-              <span className="block w-fit max-w-full rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-bold leading-tight text-blue-700 break-words whitespace-normal">
-                {translateUi(displayCategory)}
-              </span>
+            <div className="mt-0.5 flex flex-wrap items-center gap-1">
+              {displayCategory ? (
+                <span
+                  className={`rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${categoryStyle}`}
+                >
+                  {translateUi(displayCategory)}
+                </span>
+              ) : null}
+              <span className="text-[11px] text-slate-500">{locationLine}</span>
+            </div>
+            {distanceLine ? (
+              <p className="mt-0.5 text-[11px] font-medium text-violet-600">{distanceLine}</p>
             ) : null}
-            <span className="block w-fit max-w-full rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium leading-tight text-blue-700 break-words whitespace-normal">
-              {locationText === LOCATION_NOT_AVAILABLE ? t(effectiveLang, 'Location not available') : locationText}
-            </span>
           </div>
-          {userCoords && bizCoords && (
-            <p className="mt-0.5 text-xs text-slate-500">
-              {getDistanceMiles(userCoords.lat, userCoords.lon, bizCoords.lat, bizCoords.lon).toFixed(1)} {t(effectiveLang, 'mi away')}
-            </p>
-          )}
+        </Link>
+        <div className="flex flex-col items-end justify-between gap-1">
+          <button
+            type="button"
+            onClick={(e) => toggleFavorite(e, biz.id)}
+            className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-rose-500"
+            aria-label={t(effectiveLang, 'Toggle favorite')}
+          >
+            {favorites.includes(biz.id) ? (
+              <FaHeart className="h-3.5 w-3.5 text-rose-500" />
+            ) : (
+              <FaRegHeart className="h-3.5 w-3.5" />
+            )}
+          </button>
+          {rowActions}
         </div>
-      </Link>
+      </div>
     );
   };
 
@@ -1122,7 +1798,7 @@ export default function BusinessesPage() {
                   if (item.more) {
                     setCategoriesModalOpen(true);
                   } else {
-                    setSelectedCategoryFilter(item.key);
+                    setSelectedCategoryFilter(selected ? null : item.key);
                     setQuery('');
                     setCategoriesModalOpen(false);
                   }
@@ -1158,71 +1834,140 @@ export default function BusinessesPage() {
           </div>
         </section>
 
-        {/* Services & Professionals */}
-        <section className="relative left-1/2 mb-6 w-screen -translate-x-1/2 rounded-none bg-white px-0 py-4">
-          <div className="mb-3 flex items-center justify-between gap-2 pl-4 pr-4">
-            <h2 className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-white px-3 py-1 text-base font-semibold text-slate-900 tracking-tight shadow-sm">
-              <Store className="h-4 w-4" strokeWidth={2} aria-hidden />
-              <span>{t(effectiveLang, 'Services & Professionals')}</span>
-            </h2>
-            {!isLoggedIn && (
-              <Link
-                href="/register"
-                className="shrink-0 rounded-md border border-[#d4af37] bg-black px-3 py-1 text-xs font-semibold text-[#d4af37] transition hover:bg-[#111827]"
-              >
-                {t(effectiveLang, 'Register your business for free')}
-              </Link>
-            )}
-          </div>
-          <div className="bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300 px-3 py-3">
-            <div
-              ref={servicesCarouselRef}
-              className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {servicesShowcase.map((biz) => (
-                <Link
-                  key={`service-${biz.id}`}
-                  href={getBusinessHref(biz)}
-                  className="group min-w-[10.5rem] max-w-[10.5rem] snap-start rounded-xl border border-black bg-white p-2 shadow-sm transition hover:border-black hover:shadow-md"
-                  data-service-card="true"
-                  data-no-translate
-                >
-                  <div className="overflow-hidden rounded-xl bg-slate-100">
-                    <img
-                      src={biz.logo_url || `https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop`}
-                      alt={biz.business_name || 'Business'}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-28 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  </div>
-                  <p className="mt-2 line-clamp-2 text-center text-sm font-semibold leading-snug text-slate-900">
-                    {biz.business_name}
-                  </p>
-                  <p className="mt-1.5 w-full rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-bold leading-tight text-blue-700 break-words whitespace-normal">
-                    {translateUi(formatBusinessCategory(biz.subcategory || biz.category) || 'Business')}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
+        <BusinessesMapPanel
+          businesses={mapPanelBusinesses}
+          chipBusinesses={mapChipBusinesses}
+          totalRegisteredCount={businesses.length}
+          matchingCount={mapMatchingCount}
+          pendingGeocodeCount={mapPendingGeocodeCount}
+          geocoding={
+            mapGeocoding ||
+            businessesRefreshing ||
+            (mapMatchingCount > 0 && mapPanelBusinesses.length === 0 && mapPendingGeocodeCount > 0)
+          }
+          userCoords={isRadiusLocationMode ? userCoords : null}
+          mapUserCoords={myMapLocation ?? (isRadiusLocationMode ? userCoords : null)}
+          userAvatarUrl={userAvatarUrl}
+          onShareMapLocation={handleShareMapLocation}
+          sharingMapLocation={sharingMapLocation}
+          mapViewCenter={mapViewCenter}
+          mapViewport={mapViewport}
+          mapAreaZoom={mapAreaZoom}
+          isRadiusMode={isRadiusLocationMode}
+          defaultExpanded
+          expanded={mapExpanded}
+          onExpandedChange={setMapExpanded}
+          radiusMiles={radius}
+          minRadiusMiles={5}
+          maxRadiusMiles={100}
+          onRadiusChange={handleMapRadiusChange}
+          selectedId={selectedMapBusinessId}
+          onSelect={setSelectedMapBusinessId}
+          getBusinessHref={(biz) => `/business/${encodeURIComponent(biz.slug || biz.id)}`}
+          labels={{
+            showOnMap: t(effectiveLang, 'Show on map'),
+            hideMap: t(effectiveLang, 'Hide map'),
+            onMap: t(effectiveLang, 'on map'),
+            tapToExplore: t(effectiveLang, 'Tap to explore'),
+            noLocations: t(effectiveLang, 'No mapped locations yet'),
+            noLocationsButMatches: t(
+              effectiveLang,
+              'Businesses match your filters but addresses need geocoding'
+            ),
+            geocodingAddresses: t(effectiveLang, 'Geocoding addresses…'),
+            radius: t(effectiveLang, 'Radius'),
+            miles: t(effectiveLang, 'miles'),
+            openInMaps: t(effectiveLang, 'Directions'),
+            viewProfile: t(effectiveLang, 'View profile'),
+            call: t(effectiveLang, 'Call'),
+            shareMyLocation: t(effectiveLang, 'Show my location'),
+            myLocationOnMap: t(effectiveLang, 'My location on map'),
+            youLabel: t(effectiveLang, 'You'),
+          }}
+        />
 
-        {/* Yelp-style nearby list */}
+        {trendingPremiumBusinesses.length > 0 && (
+          <section className="relative left-1/2 mb-4 w-screen -translate-x-1/2 px-3">
+            <div className="overflow-hidden rounded-2xl border border-violet-300/60 bg-gradient-to-br from-violet-500 via-fuchsia-500 to-amber-400 p-2.5 shadow-md shadow-violet-200/50 sm:p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="inline-flex items-center gap-1 rounded-lg bg-white/95 px-2 py-0.5 text-sm font-bold text-violet-900 shadow-sm">
+                  <TrendingUp className="h-3.5 w-3.5 text-amber-500" strokeWidth={2.5} aria-hidden />
+                  <span>{t(effectiveLang, 'Trending businesses')}</span>
+                </h2>
+                {!isLoggedIn && (
+                  <Link
+                    href="/register"
+                    className="shrink-0 rounded-md border border-white/40 bg-slate-900/90 px-2 py-0.5 text-[10px] font-semibold text-amber-200 transition hover:bg-slate-900"
+                  >
+                    {t(effectiveLang, 'Register your business for free')}
+                  </Link>
+                )}
+              </div>
+              <div className="rounded-xl bg-white/90 px-2 py-2 backdrop-blur-sm">
+                <TrendingBusinessesSlideshow
+                  businesses={trendingPremiumBusinesses}
+                  getBusinessHref={(biz) => getBusinessHref(biz as Business)}
+                  formatCategoryLabel={(biz) =>
+                    translateUi(formatBusinessCategory(biz.subcategory || biz.category) || 'Business')
+                  }
+                />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Businesses nearby */}
         <section className="rounded-none border-y border-slate-200 bg-white">
-          <div className="px-3 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-3">
             <h2 className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-white px-3 py-1 text-base font-semibold tracking-tight text-slate-900 shadow-sm">
-              <Store className="h-4 w-4" strokeWidth={2} aria-hidden />
+              <Sparkles className="h-4 w-4 text-violet-500" strokeWidth={2} aria-hidden />
               <span>{t(effectiveLang, 'Businesses nearby')}</span>
             </h2>
+            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+              <button
+                type="button"
+                onClick={() => setListLayout('list')}
+                className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+                  listLayout === 'list'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+                aria-pressed={listLayout === 'list'}
+              >
+                <List className="h-3.5 w-3.5" aria-hidden />
+                {t(effectiveLang, 'List')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setListLayout('cards')}
+                className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+                  listLayout === 'cards'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+                aria-pressed={listLayout === 'cards'}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
+                {t(effectiveLang, 'Cards')}
+              </button>
+            </div>
           </div>
           {areaFilterActive && filtered.length === 0 && (
             <div className="mx-3 mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-              {t(effectiveLang, 'No businesses found in your selected area. Here are similar businesses in nearby cities.')}
+              {t(
+                effectiveLang,
+                'No businesses found in your selected area. Here are similar businesses in nearby cities.'
+              )}
             </div>
           )}
-          <div className="divide-y divide-slate-400">
-            {(filtered.length > 0 ? visible : nearbyFallbackBusinesses).map((biz) => renderBusinessRow(biz))}
+          <div
+            className={
+              listLayout === 'cards'
+                ? 'grid grid-cols-2 gap-2 px-3 pb-3 sm:grid-cols-3'
+                : 'divide-y divide-slate-200'
+            }
+          >
+            {listBusinesses.map((biz) => renderBusinessRow(biz))}
           </div>
         </section>
 

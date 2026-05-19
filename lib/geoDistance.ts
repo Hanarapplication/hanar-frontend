@@ -61,7 +61,7 @@ export function resolveLatLon(
 
 export const SEARCH_RADIUS_MILES_STORAGE_KEY = 'hanar_search_radius_miles';
 
-export function readSavedSearchRadiusMiles(defaultMiles = 40, min = 10, max = 100): number {
+export function readSavedSearchRadiusMiles(defaultMiles = 5, min = 5, max = 100): number {
   if (typeof window === 'undefined') return defaultMiles;
   try {
     const r = localStorage.getItem(SEARCH_RADIUS_MILES_STORAGE_KEY);
@@ -74,7 +74,7 @@ export function readSavedSearchRadiusMiles(defaultMiles = 40, min = 10, max = 10
   }
 }
 
-export function writeSavedSearchRadiusMiles(miles: number, min = 10, max = 100): void {
+export function writeSavedSearchRadiusMiles(miles: number, min = 5, max = 100): void {
   if (typeof window === 'undefined') return;
   try {
     const n = Math.min(max, Math.max(min, Math.round(Number(miles))));
