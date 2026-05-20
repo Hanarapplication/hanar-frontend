@@ -116,8 +116,8 @@ export default function ChildSafetyPage() {
             </li>
           </ul>
           <p>
-            When reporting, choose the reason that best describes the issue (for example &ldquo;Inappropriate
-            content&rdquo;) and add details such as usernames, links, and why you believe a child may be at risk.
+            When reporting, choose &ldquo;Child safety concerns&rdquo; when applicable, or another reason that best
+            describes the issue. Add details such as usernames, links, and why you believe a child may be at risk.
             Logged-in users can submit reports through our reporting system; reports are stored for review by Hanar staff.
           </p>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white pt-1">Review process</h3>

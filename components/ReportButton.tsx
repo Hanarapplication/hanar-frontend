@@ -27,7 +27,7 @@ interface ReportButtonProps {
   marketplaceSeller?: MarketplaceSellerTarget;
 }
 
-const REASONS = [
+const BASE_REASONS = [
   'Spam or misleading',
   'Inappropriate content',
   'Harassment or hate speech',
@@ -37,6 +37,30 @@ const REASONS = [
   'False information',
   'Other',
 ];
+
+const CHILD_SAFETY_REASON = 'Child safety concerns';
+
+const CHILD_SAFETY_ENTITY_TYPES = new Set<EntityType>(['post', 'item', 'business']);
+
+function getReportReasons(
+  entityType: EntityType,
+  reportSubject: 'listing' | 'seller',
+  marketplaceSeller?: MarketplaceSellerTarget
+): string[] {
+  let effectiveType: EntityType = entityType;
+  if (marketplaceSeller && reportSubject === 'seller') {
+    effectiveType = marketplaceSeller.kind === 'business' ? 'business' : 'seller';
+  }
+
+  if (!CHILD_SAFETY_ENTITY_TYPES.has(effectiveType)) {
+    return [...BASE_REASONS];
+  }
+
+  const reasons: string[] = [...BASE_REASONS];
+  const insertAfter = reasons.indexOf('Inappropriate content');
+  reasons.splice(insertAfter >= 0 ? insertAfter + 1 : 1, 0, CHILD_SAFETY_REASON);
+  return reasons;
+}
 
 export default function ReportButton({
   entityType,
@@ -57,11 +81,19 @@ export default function ReportButton({
   const [error, setError] = useState('');
   const dialogRef = useRef<HTMLDialogElement>(null);
 
+  const reportReasons = getReportReasons(entityType, reportSubject, marketplaceSeller);
+
   useEffect(() => {
     if (open && dialogRef.current) {
       dialogRef.current.showModal();
     }
   }, [open]);
+
+  useEffect(() => {
+    if (selectedReason && !reportReasons.includes(selectedReason)) {
+      setSelectedReason('');
+    }
+  }, [reportReasons, selectedReason]);
 
   const handleClose = () => {
     dialogRef.current?.close();
@@ -330,7 +362,7 @@ export default function ReportButton({
                   {marketplaceSeller ? 'Reason' : 'Reason for reporting'}
                 </label>
                 <div className="space-y-2 mb-4">
-                  {REASONS.map((reason) => (
+                  {reportReasons.map((reason) => (
                     <label
                       key={reason}
                       className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm cursor-pointer transition ${
