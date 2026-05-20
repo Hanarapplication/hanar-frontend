@@ -6,6 +6,7 @@ type LegalNavItem = { href: string; label: string };
 const defaultNav: LegalNavItem[] = [
   { href: '/privacy', label: 'Privacy' },
   { href: '/terms', label: 'Terms' },
+  { href: '/child-safety', label: 'Child safety' },
   { href: '/delete-account', label: 'Delete account' },
 ];
 

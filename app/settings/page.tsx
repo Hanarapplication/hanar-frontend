@@ -206,6 +206,14 @@ export default function SettingsPage() {
           </li>
           <li>
             <Link
+              href="/child-safety"
+              className="text-indigo-600 hover:text-indigo-800 underline underline-offset-2 dark:text-indigo-400 dark:hover:text-indigo-300"
+            >
+              Child Safety Standards
+            </Link>
+          </li>
+          <li>
+            <Link
               href="/delete-account"
               className="text-indigo-600 hover:text-indigo-800 underline underline-offset-2 dark:text-indigo-400 dark:hover:text-indigo-300"
             >

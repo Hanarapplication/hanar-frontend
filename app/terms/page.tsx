@@ -256,6 +256,14 @@ export default function TermsPage() {
           </li>
           <li>
             <Link
+              href="/child-safety"
+              className="font-medium text-rose-700 underline underline-offset-2 dark:text-rose-400"
+            >
+              Child Safety Standards
+            </Link>
+          </li>
+          <li>
+            <Link
               href="/delete-account"
               className="font-medium text-rose-700 underline underline-offset-2 dark:text-rose-400"
             >

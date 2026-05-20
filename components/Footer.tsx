@@ -10,6 +10,7 @@ export default function Footer() {
       <p className="space-x-4">
         <a href="/terms" className="hover:underline text-rose-600">{t(effectiveLang, 'Terms of Service')}</a>
         <a href="/privacy" className="hover:underline text-rose-600">{t(effectiveLang, 'Privacy Policy')}</a>
+        <a href="/child-safety" className="hover:underline text-rose-600">Child Safety</a>
         <a href="/contact" className="hover:underline text-rose-600">{t(effectiveLang, 'Contact Us')}</a>
       </p>
       <p className="mt-2 text-xs text-gray-400">© {new Date().getFullYear()} Hanar</p>
