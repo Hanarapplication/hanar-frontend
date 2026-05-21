@@ -4,7 +4,11 @@ export type NotificationWithPostRef = {
   id: string;
   type?: string | null;
   url?: string | null;
-  data?: { post_id?: string | number | null } | null;
+  data?: {
+    post_id?: string | number | null;
+    business_id?: string | null;
+    [key: string]: unknown;
+  } | null;
 };
 
 /** Resolve community post id from notification payload or deep link. */

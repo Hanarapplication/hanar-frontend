@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
-import { removeNotificationsForInactivePosts } from '@/lib/postNotificationCleanup';
+import { removeNotificationsForInactivePosts, type NotificationWithPostRef } from '@/lib/postNotificationCleanup';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -50,7 +50,7 @@ export async function GET(req: Request) {
         .is('read_at', null),
       supabaseAdmin
         .from('notifications')
-        .select('id, type, data')
+        .select('id, type, data, url')
         .eq('user_id', userId)
         .is('read_at', null),
     ]);
@@ -61,7 +61,7 @@ export async function GET(req: Request) {
 
     let bellNotificationsUnread = 0;
     if (!notifErr && notifRows) {
-      const businessFiltered = (notifRows as Array<{ id: string; type?: string | null; data?: { business_id?: string }; url?: string | null }>).filter(
+      const businessFiltered = (notifRows as NotificationWithPostRef[]).filter(
         (row) => {
           if (row.type === 'direct_message') return false;
           const businessId = row.data?.business_id;
