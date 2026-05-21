@@ -16,6 +16,7 @@ import {
   clearBusinessesBackToHomeFeedIntent,
   peekBusinessesEnteredFromBusinessSlug,
 } from '@/lib/businessesDirectoryNav';
+import { removeNotificationsForInactivePosts } from '@/lib/postNotificationCleanup';
 
 /** Facebook-style top bar icon hit target */
 const topNavIconBtn =
@@ -326,16 +327,18 @@ export default function Navbar({
         return;
       }
       const rows = (data || []) as NavbarNotificationRow[];
-      setNotifications(
-        rows
-          .filter((row) => row.type !== 'direct_message')
-          .filter((row) => {
-            const businessId = row.data?.business_id;
-            if (businessId && ownedIds.has(String(businessId))) return false;
-            return true;
-          })
-          .slice(0, 8)
-      );
+      const businessFiltered = rows
+        .filter((row) => row.type !== 'direct_message')
+        .filter((row) => {
+          const businessId = row.data?.business_id;
+          if (businessId && ownedIds.has(String(businessId))) return false;
+          return true;
+        });
+      const { visible, removedIds } = await removeNotificationsForInactivePosts(supabase, businessFiltered);
+      if (removedIds.length > 0 && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('notifications:updated'));
+      }
+      setNotifications(visible.slice(0, 8));
     } finally {
       setNotificationsLoading(false);
     }
@@ -377,12 +380,16 @@ export default function Navbar({
       }
 
       const rows = (data || []) as Array<{ id: string; type?: string | null; data?: { business_id?: string } }>;
-      const visible = rows.filter((row) => {
+      const businessFiltered = rows.filter((row) => {
         if (row.type === 'direct_message') return false;
         const businessId = row.data?.business_id;
         if (businessId && ownedIds.has(String(businessId))) return false;
         return true;
       });
+      const { visible, removedIds } = await removeNotificationsForInactivePosts(supabase, businessFiltered);
+      if (removedIds.length > 0 && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('notifications:updated'));
+      }
       setUnreadCount(visible.length);
     };
 

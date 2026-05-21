@@ -175,7 +175,7 @@ export default function SettingsPage() {
 
       {/* Push Notifications */}
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-gray-100 mb-3">Notifications</h2>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-gray-100 mb-3">{t(effectiveLang, 'Notifications')}</h2>
         <PushNotificationToggle />
       </div>
 

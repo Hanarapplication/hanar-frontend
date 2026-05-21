@@ -1,3 +1,13 @@
+/** Append a cache-busting query param for avatar URLs (same storage path, new bytes). */
+export function withAvatarCacheBust(url: string | null | undefined, version?: string | number): string | null {
+  if (!url) return null;
+  const trimmed = String(url).trim();
+  if (!trimmed) return null;
+  const base = trimmed.split('?')[0];
+  const v = version ?? Date.now();
+  return `${base}?v=${encodeURIComponent(String(v))}`;
+}
+
 export function normalizeAvatarUrl(value?: string | null, buckets: string[] = []): string | null {
   if (!value) return null;
   const trimmed = String(value).trim();

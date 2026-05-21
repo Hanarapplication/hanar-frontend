@@ -27,6 +27,44 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
+type PushPreferenceRow = { user_id: string; push_notifications_enabled: boolean | null };
+
+/** Skip users who turned off push in Settings. Missing rows default to enabled. */
+export async function filterPushEnabledUserIds(userIds: string[]): Promise<string[]> {
+  const ids = Array.from(new Set(userIds.map((id) => String(id || '').trim()).filter(Boolean)));
+  if (ids.length === 0) return [];
+
+  const { data, error } = await supabaseAdmin
+    .from('registeredaccounts')
+    .select('user_id, push_notifications_enabled')
+    .in('user_id', ids);
+
+  if (error) {
+    console.warn('[push] filterPushEnabledUserIds: query failed — sending to all requested ids', error.message);
+    return ids;
+  }
+
+  const disabled = new Set(
+    ((data ?? []) as PushPreferenceRow[])
+      .filter((row) => row.push_notifications_enabled === false)
+      .map((row) => row.user_id),
+  );
+
+  const allowed = ids.filter((id) => !disabled.has(id));
+  if (allowed.length < ids.length) {
+    console.log('[push] filterPushEnabledUserIds: skipped users with push disabled', {
+      requested: ids.length,
+      allowed: allowed.length,
+    });
+  }
+  return allowed;
+}
+
+export async function isPushEnabledForUser(userId: string): Promise<boolean> {
+  const allowed = await filterPushEnabledUserIds([userId]);
+  return allowed.length > 0;
+}
+
 type UserPushTokenRow = { token: string; updated_at: string };
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -53,6 +91,12 @@ export async function sendDmNativePushToRecipient(
 
   const rid = String(recipientUserId || '').trim();
   if (!rid) {
+    return { tokenCount: 0, latestTokenUpdatedAt: null, result: emptyResult };
+  }
+
+  const pushAllowed = await filterPushEnabledUserIds([rid]);
+  if (pushAllowed.length === 0) {
+    console.log('[push] sendDmNativePushToRecipient: recipient has push disabled — skipping', { recipientUserId: rid });
     return { tokenCount: 0, latestTokenUpdatedAt: null, result: emptyResult };
   }
 
@@ -233,15 +277,20 @@ export async function sendPushToUserIds(
     return { successCount: 0, failureCount: 0 };
   }
 
+  const recipientUserIds = await filterPushEnabledUserIds(requestedRecipientIds);
+  if (recipientUserIds.length === 0) {
+    console.log('[push] sendPushToUserIds: all recipients have push disabled — skipping');
+    return { successCount: 0, failureCount: 0 };
+  }
+
   if (!isPushConfigured()) {
     console.warn('[push] sendPushToUserIds: Firebase Admin not configured — skipping send', {
-      requestedRecipientIds,
+      requestedRecipientIds: recipientUserIds,
     });
     return { successCount: 0, failureCount: 0 };
   }
 
-  const { recipientUserIds, appRows, webRows, distinctTokens } =
-    await resolveRecipientFcmRows(requestedRecipientIds);
+  const { appRows, webRows, distinctTokens } = await resolveRecipientFcmRows(recipientUserIds);
 
   const appRowLog = appRows.map((r) => ({
     table: 'user_push_tokens',

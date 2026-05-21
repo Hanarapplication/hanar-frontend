@@ -2,13 +2,16 @@
 
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { User, Users, Globe, Building2, ShoppingBag, PenSquare, Camera, Tag, ImagePlus, Video, X, Ban, CircleHelp, Phone, Settings, LogOut, Languages } from 'lucide-react';
+import { User, Building2, ShoppingBag, PenSquare, Camera, Tag, Ban, CircleHelp, Phone, Settings, LogOut, Languages } from 'lucide-react';
 import { getNativeLanguageName, supportedLanguages } from '@/utils/languages';
 import { Avatar } from '@/components/Avatar';
+import { withAvatarCacheBust } from '@/lib/avatarUrl';
+import DashboardFavoritesSection from '@/components/DashboardFavoritesSection';
+import { SHOW_MARKETPLACE_LISTING_PACKAGING } from '@/lib/dashboardFeatureFlags';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 
@@ -52,27 +55,12 @@ type FollowedOrg = {
   logo_url?: string | null;
 };
 
-type ProfileMediaItem = {
-  id: string;
-  url: string;
-  media_type: 'image' | 'video';
-  created_at: string;
-};
-
 const resolveMarketplaceImageUrls = (raw: unknown): string[] => {
   let arr: string[] = [];
   if (Array.isArray(raw)) arr = raw;
   else if (typeof raw === 'string') { try { const p = JSON.parse(raw); arr = Array.isArray(p) ? p : []; } catch {} }
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
   return arr.map((u) => (u && String(u).startsWith('http') ? u : `${base}/storage/v1/object/public/marketplace-images/${u || ''}`)).filter(Boolean);
-};
-
-const normalizeCategory = (value?: string | null) => {
-  const normalized = (value || '').trim().toLowerCase();
-  if (!normalized) return '';
-  if (normalized === 'something_else' || normalized === 'other') return '';
-  if (normalized === 'retails') return 'Retail';
-  return value || '';
 };
 
 const FREE_LISTING_DAYS = 30;
@@ -100,6 +88,7 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [followedOrgsLoading, setFollowedOrgsLoading] = useState(true);
   const [profilePicUploading, setProfilePicUploading] = useState(false);
+  const [profilePicPreview, setProfilePicPreview] = useState<string | null>(null);
   const [myListings, setMyListings] = useState<MyListing[]>([]);
   const [myListingLoading, setMyListingLoading] = useState(true);
   const [deletingListing, setDeletingListing] = useState<string | null>(null);
@@ -123,10 +112,6 @@ function DashboardContent() {
   }[]>([]);
   const [businessPlansLoading, setBusinessPlansLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [profileMedia, setProfileMedia] = useState<ProfileMediaItem[]>([]);
-  const [profileMediaLoading, setProfileMediaLoading] = useState(false);
-  const [profileMediaUploading, setProfileMediaUploading] = useState(false);
-  const [deletingProfileMediaId, setDeletingProfileMediaId] = useState<string | null>(null);
   const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [editUsername, setEditUsername] = useState('');
   const [editDisplayName, setEditDisplayName] = useState('');
@@ -139,6 +124,7 @@ function DashboardContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    if (!SHOW_MARKETPLACE_LISTING_PACKAGING) return;
     if (searchParams?.get('success') === '1') {
       toast.success(t(effectiveLang, 'Casual Seller Pack active. You can list up to 5 items.'));
       router.replace('/dashboard');
@@ -243,67 +229,6 @@ function DashboardContent() {
 
     load();
   }, [router]);
-
-  useEffect(() => {
-    const loadProfileMedia = async () => {
-      if (!currentUserId) return;
-      setProfileMediaLoading(true);
-      try {
-        const res = await fetch(`/api/profile-media?user_id=${encodeURIComponent(currentUserId)}`);
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && Array.isArray(data.media)) setProfileMedia(data.media);
-        else setProfileMedia([]);
-      } catch {
-        setProfileMedia([]);
-      } finally {
-        setProfileMediaLoading(false);
-      }
-    };
-    loadProfileMedia();
-  }, [currentUserId]);
-
-  const uploadProfileMedia = async (file: File, mediaType: 'image' | 'video') => {
-    if (!currentUserId || profileMediaUploading) return;
-    setProfileMediaUploading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const form = new FormData();
-      form.set('file', file);
-      form.set('media_type', mediaType);
-      const res = await fetch('/api/profile-media', {
-        method: 'POST',
-        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-        body: form,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Upload failed');
-      setProfileMedia((prev) => [data, ...prev]);
-      toast.success(t(effectiveLang, 'Added to your profile'));
-    } catch (err: any) {
-      toast.error(err?.message || t(effectiveLang, 'Upload failed'));
-    } finally {
-      setProfileMediaUploading(false);
-    }
-  };
-
-  const deleteProfileMedia = async (id: string) => {
-    if (!currentUserId || deletingProfileMediaId) return;
-    setDeletingProfileMediaId(id);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`/api/profile-media?id=${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
-      });
-      if (!res.ok) throw new Error('Delete failed');
-      setProfileMedia((prev) => prev.filter((m) => m.id !== id));
-      toast.success(t(effectiveLang, 'Removed'));
-    } catch {
-      toast.error(t(effectiveLang, 'Failed to remove'));
-    } finally {
-      setDeletingProfileMediaId(null);
-    }
-  };
 
   useEffect(() => {
     if (!currentUserId) return;
@@ -604,10 +529,13 @@ function DashboardContent() {
 
   const handleProfilePicChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file || profilePicUploading) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user?.id || !profile?.username) return;
 
+    const localPreview = URL.createObjectURL(file);
+    setProfilePicPreview(localPreview);
     setProfilePicUploading(true);
     try {
       const formData = new FormData();
@@ -622,11 +550,17 @@ function DashboardContent() {
       const json = await res.json();
 
       if (!res.ok) throw new Error(json?.error || 'Upload failed');
-      setProfile((p) => (p ? { ...p, profile_pic_url: json.url } : null));
+      const nextUrl = withAvatarCacheBust(json.url, Date.now());
+      setProfile((p) => (p ? { ...p, profile_pic_url: nextUrl } : null));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('hanar:profile-pic-updated', { detail: { url: nextUrl, userId: user.id } }));
+      }
       toast.success(t(effectiveLang, 'Profile picture updated'));
     } catch (err: any) {
       toast.error(err?.message || t(effectiveLang, 'Failed to update picture'));
     } finally {
+      URL.revokeObjectURL(localPreview);
+      setProfilePicPreview(null);
       setProfilePicUploading(false);
     }
   };
@@ -646,16 +580,6 @@ function DashboardContent() {
     setFavorites((prev) => prev.filter((b) => b.id !== businessId));
     toast.success(t(effectiveLang, 'Removed from favorites'));
   };
-
-  const groupedFavorites = useMemo(() => {
-    const groups: Record<string, FavoriteBusiness[]> = {};
-    favorites.forEach((biz) => {
-      const key = normalizeCategory(biz.subcategory || biz.category);
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(biz);
-    });
-    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
-  }, [favorites]);
 
   if (loading) {
     return (
@@ -695,7 +619,7 @@ function DashboardContent() {
             <label className="relative block shrink-0 cursor-pointer group">
               <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-[#c41e56]/90 bg-slate-100 ring-2 ring-transparent transition group-hover:ring-indigo-200 dark:border-[#e85085]/65 dark:bg-gray-700 dark:group-hover:ring-indigo-500">
                 <Avatar
-                  src={profile?.profile_pic_url}
+                  src={profilePicPreview || profile?.profile_pic_url}
                   alt="Profile"
                   className="h-full w-full rounded-full"
                   unframed
@@ -805,36 +729,10 @@ function DashboardContent() {
           <div className="bg-white px-4 py-3 sm:px-5 dark:bg-gray-800">
             <h2 className="text-[17px] font-bold leading-tight text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Quick actions')}</h2>
             <p className="mt-1 text-[13px] leading-snug text-[#65676B] dark:text-gray-400">
-              {t(effectiveLang, 'Posts, marketplace links, help, and account tools in one place.')}
+              {t(effectiveLang, 'Marketplace, help, and account tools in one place.')}
             </p>
           </div>
           <div className="space-y-4 bg-[#f0f2f5] p-3 dark:bg-gray-950/40">
-            <div>
-              <h3 className="mb-2 px-0.5 text-[15px] font-semibold text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Create a post')}</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <Link
-                  href="/community/post?visibility=profile"
-                  className="flex min-h-[5.25rem] flex-col items-start gap-2 rounded-xl bg-white p-3 text-left shadow-none transition-colors hover:bg-[#f2f3f5] active:bg-[#e4e6eb] dark:bg-gray-800 dark:hover:bg-gray-700 dark:active:bg-gray-600"
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f0f2f5] text-[#65676B] dark:bg-gray-700 dark:text-gray-300">
-                    <Users className="h-6 w-6 shrink-0" aria-hidden />
-                  </span>
-                  <span className="text-[15px] font-semibold leading-snug text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Followers only')}</span>
-                  <span className="text-[13px] leading-snug text-[#65676B] dark:text-gray-400">{t(effectiveLang, 'Post to your profile — only followers see it')}</span>
-                </Link>
-                <Link
-                  href="/community/post?visibility=community"
-                  className="flex min-h-[5.25rem] flex-col items-start gap-2 rounded-xl bg-white p-3 text-left shadow-none transition-colors hover:bg-[#f2f3f5] active:bg-[#e4e6eb] dark:bg-gray-800 dark:hover:bg-gray-700 dark:active:bg-gray-600"
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f0f2f5] text-[#65676B] dark:bg-gray-700 dark:text-gray-300">
-                    <Globe className="h-6 w-6 shrink-0" aria-hidden />
-                  </span>
-                  <span className="text-[15px] font-semibold leading-snug text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Public (Community)')}</span>
-                  <span className="text-[13px] leading-snug text-[#65676B] dark:text-gray-400">{t(effectiveLang, 'Post to Community feed — everyone can see it')}</span>
-                </Link>
-              </div>
-            </div>
-
             <div>
               <h3 className="mb-2 px-0.5 text-[15px] font-semibold text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Marketplace')}</h3>
               <Link
@@ -847,7 +745,9 @@ function DashboardContent() {
                 onClick={(e) => listingLimits != null && !listingLimits.isBusiness && !listingLimits.canAddMore && e.preventDefault()}
                 title={
                   listingLimits != null && !listingLimits.isBusiness && !listingLimits.canAddMore
-                    ? t(effectiveLang, 'Listing limit reached. Delete one or get the Casual Seller Pack.')
+                    ? SHOW_MARKETPLACE_LISTING_PACKAGING
+                      ? t(effectiveLang, 'Listing limit reached. Delete one or get the Casual Seller Pack.')
+                      : t(effectiveLang, 'Listing limit reached. Delete one to post a new item.')
                     : t(effectiveLang, 'Sell an item')
                 }
               >
@@ -860,6 +760,15 @@ function DashboardContent() {
                 </span>
               </Link>
             </div>
+
+            <DashboardFavoritesSection
+              embedded
+              loading={loading}
+              favoriteItems={favoriteItems}
+              favoriteBusinesses={favorites}
+              onRemoveItem={removeFavoriteItem}
+              onRemoveBusiness={removeFavorite}
+            />
 
             <div>
               <h3 className="mb-2 px-0.5 text-[15px] font-semibold text-[#050505] dark:text-gray-100">{t(effectiveLang, 'Account & help')}</h3>
@@ -944,13 +853,14 @@ function DashboardContent() {
           </div>
         </section>
 
-        {/* Items for sale - individual: free 1 (30d) or pack 5 */}
+        {/* Items for sale */}
         <div className="w-full bg-white px-4 py-6 dark:bg-gray-800 sm:px-5 sm:py-8">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{t(effectiveLang, 'Selling')}</p>
               <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-gray-100">{t(effectiveLang, 'Items for Sale')}</h2>
             </div>
+            {SHOW_MARKETPLACE_LISTING_PACKAGING && (
             <span className="text-sm text-slate-500 dark:text-gray-400">
               {listingLimitsLoading || myListingLoading
                 ? t(effectiveLang, 'Loading...')
@@ -958,7 +868,10 @@ function DashboardContent() {
                   ? `${myListings.length} ${t(effectiveLang, 'items')}`
                   : `${listingLimits?.activeCount ?? 0} / ${listingLimits?.maxAllowed ?? 1} ${t(effectiveLang, 'listings')}`}
             </span>
+            )}
           </div>
+          {SHOW_MARKETPLACE_LISTING_PACKAGING && (
+          <>
           <p className="mt-2 text-sm text-slate-500 dark:text-gray-400">
             {listingLimits?.isBusiness
               ? t(effectiveLang, 'Unlimited listings for businesses.')
@@ -982,6 +895,8 @@ function DashboardContent() {
                 </span>
               )}
             </div>
+          )}
+          </>
           )}
           {myListingLoading ? (
             <div className="mt-6 text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading...')}</div>
@@ -1043,7 +958,7 @@ function DashboardContent() {
         </div>
 
         {/* Modal: Listing packages – portal so always in view */}
-        {packModalOpen && typeof document !== 'undefined' && createPortal(
+        {SHOW_MARKETPLACE_LISTING_PACKAGING && packModalOpen && typeof document !== 'undefined' && createPortal(
           <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4" onClick={() => !packPurchasing && setPackModalOpen(false)} role="dialog" aria-modal="true" aria-label={t(effectiveLang, 'Listing packages')}>
             <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md p-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">{t(effectiveLang, 'Listing packages')}</h3>
@@ -1164,80 +1079,6 @@ function DashboardContent() {
           </div>,
           document.body
         )}
-
-        {/* Profile photos & videos (only on profile, not in feed or community) */}
-        <div className="w-full bg-white px-4 py-6 dark:bg-gray-800 sm:px-5 sm:py-8">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">{t(effectiveLang, 'Profile')}</p>
-              <h2 className="mt-1 text-xl font-bold text-slate-900 dark:text-gray-100">{t(effectiveLang, 'Photos & videos')}</h2>
-            </div>
-          </div>
-          <p className="mt-2 text-sm text-slate-500 dark:text-gray-400">
-            {t(effectiveLang, 'Shown only on your profile. Not in home feed or community.')}
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-600 cursor-pointer disabled:opacity-50">
-              <ImagePlus className="h-4 w-4" />
-              {t(effectiveLang, 'Add photo')}
-              <input
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                disabled={profileMediaUploading}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) uploadProfileMedia(f, 'image');
-                  e.target.value = '';
-                }}
-              />
-            </label>
-            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-600 cursor-pointer disabled:opacity-50">
-              <Video className="h-4 w-4" />
-              {t(effectiveLang, 'Add video')}
-              <input
-                type="file"
-                accept="video/*"
-                className="sr-only"
-                disabled={profileMediaUploading}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) uploadProfileMedia(f, 'video');
-                  e.target.value = '';
-                }}
-              />
-            </label>
-            {profileMediaUploading && <span className="text-sm text-slate-500">{t(effectiveLang, 'Uploading...')}</span>}
-          </div>
-          {profileMediaLoading ? (
-            <div className="mt-6 text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading...')}</div>
-          ) : profileMedia.length === 0 ? (
-            <div className="mt-6 rounded-2xl bg-slate-100/80 p-6 text-center text-slate-500 dark:bg-gray-700/50 dark:text-gray-400">
-              {t(effectiveLang, 'No photos or videos yet. Add some to show on your profile.')}
-            </div>
-          ) : (
-            <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {profileMedia.map((item) => (
-                <div key={item.id} className="relative group rounded-xl overflow-hidden bg-slate-100 dark:bg-gray-700 aspect-square">
-                  {item.media_type === 'image' ? (
-                    <img src={item.url} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <video src={item.url} className="h-full w-full object-cover" muted playsInline />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => deleteProfileMedia(item.id)}
-                    disabled={deletingProfileMediaId === item.id}
-                    className="absolute top-2 right-2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70 disabled:opacity-50"
-                    aria-label={t(effectiveLang, 'Remove')}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

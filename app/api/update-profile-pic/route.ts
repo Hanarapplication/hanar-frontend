@@ -28,13 +28,14 @@ export async function POST(req: Request) {
       .withMetadata({ orientation: 1 }) // strip + reset orientation
       .toBuffer();
 
-    const filePath = `${id}/profile.jpeg`;
+    // Unique path per upload so the public URL changes and browsers show the new image.
+    const filePath = `${id}/profile-${Date.now()}.jpeg`;
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
       .upload(filePath, compressed, {
         contentType: 'image/jpeg',
-        upsert: true,
+        upsert: false,
       });
 
     if (uploadError) {

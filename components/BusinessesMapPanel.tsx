@@ -787,7 +787,42 @@ export default function BusinessesMapPanel({
   useEffect(() => {
     if (!expanded || !scriptReady || !apiKey) return;
     syncPins();
-  }, [expanded, scriptReady, apiKey, syncPins, pinsForView, selectedId]);
+  }, [
+    expanded,
+    scriptReady,
+    apiKey,
+    syncPins,
+    pinsForView,
+    selectedId,
+    youOnMap?.lat,
+    youOnMap?.lon,
+    isRadiusMode,
+    userCoords?.lat,
+    userCoords?.lon,
+    radiusMiles,
+  ]);
+
+  useEffect(() => {
+    if (!expanded || !scriptReady || !apiKey) return;
+    const map = ensureMap();
+    if (!map) return;
+    syncUserLocationLayer(map);
+    requestPinRedraw();
+  }, [
+    expanded,
+    scriptReady,
+    apiKey,
+    ensureMap,
+    syncUserLocationLayer,
+    requestPinRedraw,
+    youOnMap?.lat,
+    youOnMap?.lon,
+    isRadiusMode,
+    userCoords?.lat,
+    userCoords?.lon,
+    radiusMiles,
+    youAvatar,
+  ]);
 
   useEffect(() => {
     userOverlayRef.current?.updateAvatar(youAvatar);

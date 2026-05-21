@@ -1,76 +1,147 @@
 'use client';
 
-import { usePushNotifications, type PushStatus } from '@/hooks/usePushNotifications';
-import { Bell, BellOff } from 'lucide-react';
-
-function statusMessage(status: PushStatus): string {
-  switch (status) {
-    case 'unsupported':
-      return 'Push notifications are not supported in this browser.';
-    case 'fcm-unsupported':
-      return 'Web push is not available in this in-app view. Most app WebViews (especially on iOS) do not run FCM web push—use the installed Hanar app’s notification settings, or open the site in Safari/Chrome. Your native app can also register a device token with Hanar (see app bridge).';
-    case 'not-supported':
-      return 'Push is not configured for this site.';
-    case 'permission-denied':
-      return 'Notifications were blocked. Enable them in your browser settings (e.g. site info / Permissions) and refresh.';
-    case 'disabled':
-      return 'Enable push to receive notifications when the app is in the background.';
-    case 'enabled':
-      return 'Push notifications are on.';
-    case 'login-required':
-      return 'Log in to enable push notifications.';
-    case 'error':
-      return 'Something went wrong. Try again or check your browser settings.';
-    case 'loading':
-    default:
-      return '';
-  }
-}
+import { useCallback, useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useLanguage } from '@/context/LanguageContext';
+import { supabase } from '@/lib/supabaseClient';
+import { t } from '@/utils/translations';
 
 export default function PushNotificationToggle() {
+  const { effectiveLang } = useLanguage();
   const { supported, status, error, enablePush } = usePushNotifications();
-  const message = statusMessage(status);
-  const showButton = status === 'disabled' || status === 'login-required' || status === 'error';
-  const isEnabled = status === 'enabled';
-  const isLoading = status === 'loading';
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [prefLoading, setPrefLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  if (!supported && status !== 'loading') {
-    return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 p-4">
-        <p className="text-sm text-amber-800 dark:text-amber-200">{message}</p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        if (!cancelled) {
+          setPushEnabled(false);
+          setPrefLoading(false);
+        }
+        return;
+      }
+      const { data, error: loadError } = await supabase
+        .from('registeredaccounts')
+        .select('push_notifications_enabled')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (loadError) {
+        console.warn('[push] failed to load push_notifications_enabled', loadError.message);
+        setPushEnabled(true);
+      } else {
+        setPushEnabled(data?.push_notifications_enabled !== false);
+      }
+      setPrefLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const savePreference = useCallback(async (enabled: boolean) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error(t(effectiveLang, 'Log in to change push notification settings.'));
+      return false;
+    }
+    const { error: updateError } = await supabase
+      .from('registeredaccounts')
+      .update({ push_notifications_enabled: enabled })
+      .eq('user_id', user.id);
+    if (updateError) {
+      toast.error(t(effectiveLang, 'Failed to save notification setting.'));
+      return false;
+    }
+    return true;
+  }, [effectiveLang]);
+
+  const handleToggle = async () => {
+    if (prefLoading || saving) return;
+    const next = !pushEnabled;
+    setSaving(true);
+    try {
+      if (next) {
+        const saved = await savePreference(true);
+        if (!saved) return;
+        setPushEnabled(true);
+        if (supported && status !== 'enabled' && status !== 'permission-denied') {
+          await enablePush();
+        }
+        toast.success(t(effectiveLang, 'Push notifications turned on.'));
+      } else {
+        const saved = await savePreference(false);
+        if (!saved) return;
+        setPushEnabled(false);
+        toast.success(t(effectiveLang, 'Push notifications turned off.'));
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const message = pushEnabled
+    ? t(effectiveLang, 'Turn this off to stop receiving push notifications on your device.')
+    : t(effectiveLang, 'You will no longer receive push notifications on your device.');
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400">
-          {isEnabled ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-medium text-slate-900 dark:text-gray-100">Push notifications</h3>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-gray-400">
-            {message}
-            {error && (
-              <span className="mt-1 block text-red-600 dark:text-red-400">{error}</span>
-            )}
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <span className="font-medium text-gray-700 dark:text-gray-200">
+            {t(effectiveLang, 'Push notifications')}
+          </span>
+          <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">
+            {prefLoading ? t(effectiveLang, 'Loading...') : message}
           </p>
-          {showButton && (
-            <button
-              type="button"
-              onClick={enablePush}
-              disabled={isLoading}
-              className="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Enabling…' : 'Enable push notifications'}
-            </button>
-          )}
-          {isEnabled && (
-            <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">You will receive push notifications.</p>
-          )}
+          {pushEnabled && error ? (
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
+          ) : null}
         </div>
+        <label className="inline-flex shrink-0 cursor-pointer items-center">
+          <input
+            type="checkbox"
+            checked={pushEnabled}
+            onChange={handleToggle}
+            disabled={prefLoading || saving}
+            className="sr-only"
+          />
+          <div
+            className={`relative h-6 w-11 rounded-full shadow-inner transition ${
+              pushEnabled ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'
+            } ${prefLoading || saving ? 'opacity-50' : ''}`}
+          >
+            <div
+              className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                pushEnabled ? 'translate-x-5' : ''
+              }`}
+            />
+          </div>
+        </label>
       </div>
+
+      {pushEnabled && supported && status === 'disabled' && !prefLoading && (
+        <button
+          type="button"
+          onClick={async () => {
+            setSaving(true);
+            try {
+              await enablePush();
+            } finally {
+              setSaving(false);
+            }
+          }}
+          disabled={saving}
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {saving ? t(effectiveLang, 'Enabling...') : t(effectiveLang, 'Allow notifications in browser')}
+        </button>
+      )}
     </div>
   );
 }

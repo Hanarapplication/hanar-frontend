@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
-import { Edit, Eye, Crown, BarChart3, Megaphone, ChevronDown, ChevronUp, X, Image, Bell, Trash2, Download, FileText, Palette, CircleHelp, Phone, Settings, LogOut, Heart } from 'lucide-react';
+import { Edit, Eye, Crown, BarChart3, Megaphone, ChevronDown, ChevronUp, X, Image, Bell, Trash2, Download, FileText, Palette, CircleHelp, Phone, Settings, LogOut } from 'lucide-react';
 import {
   DashboardInlineActions,
   dashboardFbOuter,
@@ -17,6 +17,7 @@ import {
   dashboardFbIconWrap,
   dashboardFbPanelTitle,
 } from '@/components/DashboardInlineActions';
+import DashboardFavoritesSection from '@/components/DashboardFavoritesSection';
 import { isAppIOS, withAppParam } from '@/utils/isAppIOS';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
@@ -62,12 +63,6 @@ type FollowedOrganization = {
   username: string | null;
   logo_url?: string | null;
   address?: string | null;
-};
-
-const getFavoriteItemHref = (item: FavoriteItem) => {
-  const slug = String(item.slug || '').trim();
-  if (slug) return `/marketplace/${encodeURIComponent(slug)}`;
-  return `/marketplace/${item.source}-${item.id}`;
 };
 
 type PlanSettings = {
@@ -128,14 +123,6 @@ function getUiStatus(biz: {
   if (biz.moderation_status === 'active') return 'approved';
   if (biz.moderation_status === 'on_hold') return 'hold';
   return 'pending';
-}
-
-function normalizeCategory(value?: string | null) {
-  const normalized = (value || '').trim().toLowerCase();
-  if (!normalized) return '';
-  if (normalized === 'something_else' || normalized === 'other') return '';
-  if (normalized === 'retails') return 'Retail';
-  return value || '';
 }
 
 function getDaysRemaining(isoDate: string): number {
@@ -258,7 +245,6 @@ function BusinessDashboardContent() {
   const [promotionRequests, setPromotionRequests] = useState<PromotionRequestItem[]>([]);
   const [promotionRequestsLoading, setPromotionRequestsLoading] = useState(true);
   const [promotionBannersExpanded, setPromotionBannersExpanded] = useState(false);
-  const [favoriteItemsExpanded, setFavoriteItemsExpanded] = useState(false);
   const [pageColorsOpen, setPageColorsOpen] = useState(false);
   const [pageColorsMoreBelow, setPageColorsMoreBelow] = useState(false);
   const pageColorsScrollRef = useRef<HTMLDivElement>(null);
@@ -344,16 +330,6 @@ function BusinessDashboardContent() {
       (planSettings?.max_blast_radius_miles || 0) >= areaBlastRadiusMiles &&
       !areaBlastRequiresApproval
   );
-
-  const groupedFavorites = useMemo(() => {
-    const groups: Record<string, FavoriteBusiness[]> = {};
-    favorites.forEach((biz) => {
-      const key = normalizeCategory(biz.subcategory || biz.category);
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(biz);
-    });
-    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
-  }, [favorites]);
 
   useEffect(() => {
     let mounted = true;
@@ -607,6 +583,22 @@ function BusinessDashboardContent() {
     }
     setFavoriteItems((prev) => prev.filter((fav) => fav.key !== itemKey));
     toast.success(t(effectiveLang, 'Removed'));
+  };
+
+  const removeFavoriteBusiness = async (businessId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('business_favorites')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('business_id', businessId);
+    if (error) {
+      toast.error(t(effectiveLang, 'Failed to remove favorite'));
+      return;
+    }
+    setFavorites((prev) => prev.filter((b) => b.id !== businessId));
+    toast.success(t(effectiveLang, 'Removed from favorites'));
   };
 
   const loadNotificationHistory = async () => {
@@ -1653,101 +1645,14 @@ function BusinessDashboardContent() {
                   showLanguage
                 />
 
-                <section className={dashboardFbOuter}>
-                  <div className={dashboardFbHeader}>
-                    <h2 className="text-[17px] font-bold leading-tight text-[#050505] dark:text-gray-100">
-                      {t(effectiveLang, 'My Favorites')}
-                    </h2>
-                  </div>
-                  <div className={dashboardFbCanvas}>
-                    <div className={dashboardFbPanelShell}>
-                      <button
-                        type="button"
-                        onClick={() => setFavoriteItemsExpanded((prev) => !prev)}
-                        className={dashboardFbPanelTrigger}
-                        aria-expanded={favoriteItemsExpanded}
-                      >
-                        <span className={dashboardFbIconWrap}>
-                          <Heart className="h-5 w-5 shrink-0" aria-hidden />
-                        </span>
-                        <span className="min-w-0 flex-1 text-left">
-                          <span className={dashboardFbPanelTitle}>{t(effectiveLang, 'Favorite Items')}</span>
-                        </span>
-                        <span className="flex shrink-0 items-center gap-1.5">
-                          {!favoritesLoading && (
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-gray-700 dark:text-gray-300">
-                              {favoriteItems.length}
-                            </span>
-                          )}
-                          {favoriteItemsExpanded ? (
-                            <ChevronUp className="h-4 w-4 text-slate-500" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4 text-slate-500" />
-                          )}
-                        </span>
-                      </button>
-                      {favoriteItemsExpanded && (
-                        <div className="px-5 pb-5 pt-0">
-                          {favoritesLoading ? (
-                            <p className="text-sm text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Loading...')}</p>
-                          ) : favoriteItems.length === 0 ? (
-                            <div className="rounded-2xl bg-slate-100/80 p-6 text-center text-sm text-slate-500 dark:bg-gray-700/50 dark:text-gray-400">
-                              {t(effectiveLang, 'You have no favorite items yet. Browse the marketplace and add some.')}
-                            </div>
-                          ) : (
-                            <div className="max-h-[min(24rem,60vh)] space-y-3 overflow-y-auto pr-1">
-                              {favoriteItems.map((item) => (
-                                <div
-                                  key={item.key}
-                                  className="flex gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-gray-600 dark:bg-gray-800"
-                                >
-                                  <Link
-                                    href={getFavoriteItemHref(item)}
-                                    className="block h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100 dark:bg-gray-700"
-                                  >
-                                    <img
-                                      src={item.image || '/placeholder.jpg'}
-                                      alt={item.title}
-                                      className="h-full w-full object-cover"
-                                      onError={(e) => {
-                                        e.currentTarget.src = '/placeholder.jpg';
-                                        e.currentTarget.onerror = null;
-                                      }}
-                                    />
-                                  </Link>
-                                  <div className="min-w-0 flex-1">
-                                    <Link
-                                      href={getFavoriteItemHref(item)}
-                                      className="line-clamp-2 text-[15px] font-semibold text-slate-900 transition-colors hover:text-indigo-600 dark:text-gray-100 dark:hover:text-indigo-400"
-                                    >
-                                      {item.title}
-                                    </Link>
-                                    <p className="mt-0.5 text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-                                      {typeof item.price === 'number'
-                                        ? `$${Number(item.price).toLocaleString()}`
-                                        : item.price || '—'}
-                                    </p>
-                                    {item.location ? (
-                                      <p className="mt-1 line-clamp-1 text-xs text-slate-500 dark:text-gray-400">{item.location}</p>
-                                    ) : null}
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => removeFavoriteItem(item.key)}
-                                    className="flex h-9 w-9 shrink-0 items-center justify-center self-start rounded-full text-rose-500 transition hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                                    aria-label={t(effectiveLang, 'Remove from favorites')}
-                                  >
-                                    <Heart className="h-4 w-4 fill-current" aria-hidden />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </section>
+                <DashboardFavoritesSection
+                  loading={favoritesLoading}
+                  favoriteItems={favoriteItems}
+                  favoriteBusinesses={favorites}
+                  onRemoveItem={removeFavoriteItem}
+                  onRemoveBusiness={removeFavoriteBusiness}
+                  excludeBusinessId={business?.id}
+                />
 
                 {notificationToDelete && typeof document !== 'undefined' && createPortal(
                   <div

@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Suspense, useEffect, useState, useRef, ChangeEvent, FormEvent, FC } from 'react';
 import { UploadCloud, Image as ImageIcon, Instagram, Facebook, Globe, Send, Save, Bell, X, Building, Mail, MapPin, Phone, Tag, Edit, Calendar, Eye, Megaphone, User, Building2, Ban, CircleHelp, Settings, LogOut } from 'lucide-react';
 import { DashboardInlineActions } from '@/components/DashboardInlineActions';
+import DashboardFavoritesSection from '@/components/DashboardFavoritesSection';
 import { Avatar } from '@/components/Avatar';
 import { supabase } from '@/lib/supabaseClient';
 import { compressImage } from '@/lib/imageCompression';
@@ -624,8 +625,28 @@ function OrganizationDashboardContent() {
       .delete()
       .eq('user_id', user.id)
       .eq('item_key', itemKey);
-    if (error) return;
+    if (error) {
+      addNotification(t(effectiveLang, 'Failed to remove'), 'error');
+      return;
+    }
     setFavoriteItems((prev) => prev.filter((fav) => fav.key !== itemKey));
+    addNotification(t(effectiveLang, 'Removed'), 'success');
+  };
+
+  const removeFavoriteBusiness = async (businessId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase
+      .from('business_favorites')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('business_id', businessId);
+    if (error) {
+      addNotification(t(effectiveLang, 'Failed to remove favorite'), 'error');
+      return;
+    }
+    setFavorites((prev) => prev.filter((b) => b.id !== businessId));
+    addNotification(t(effectiveLang, 'Removed from favorites'), 'success');
   };
 
   // Load user liked posts from community_post_likes table
@@ -1591,6 +1612,16 @@ function OrganizationDashboardContent() {
             subtitle={t(effectiveLang, 'Posts, marketplace links, help, and account tools in one place.')}
             items={burgerItems}
             showLanguage
+          />
+        </div>
+
+        <div className="mb-10">
+          <DashboardFavoritesSection
+            loading={favoritesLoading}
+            favoriteItems={favoriteItems}
+            favoriteBusinesses={favorites}
+            onRemoveItem={removeFavoriteItem}
+            onRemoveBusiness={removeFavoriteBusiness}
           />
         </div>
 

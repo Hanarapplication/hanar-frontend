@@ -179,7 +179,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            placeholder={t(effectiveLang, 'Email or phone number')}
+            placeholder={t(effectiveLang, 'Email address')}
             className="relative z-10 pointer-events-auto w-full px-4 py-3 text-base border border-gray-300 rounded-lg placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#1877F2] focus:border-[#1877F2]"
           />
           <input

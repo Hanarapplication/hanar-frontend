@@ -37,6 +37,7 @@ export function Avatar({ src, alt = '', className = '', unframed = false }: Avat
 
   return (
     <img
+      key={effectiveSrc}
       src={effectiveSrc}
       alt={alt}
       className={`${className} ${frame} ${isHanar ? 'grayscale object-contain bg-slate-200 dark:bg-gray-600' : 'object-cover'}`}

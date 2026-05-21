@@ -220,11 +220,14 @@ export default function BusinessesPage() {
   const [mapViewCenter, setMapViewCenter] = useState(USA_MAP_CENTER);
   const [locationAreaBounds, setLocationAreaBounds] = useState<MapAreaBounds | null>(null);
   const [locationAreaRings, setLocationAreaRings] = useState<MapAreaRing[] | null>(null);
-  const [myMapLocation, setMyMapLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [myMapLocation, setMyMapLocation] = useState<{ lat: number; lon: number } | null>(() =>
+    typeof window !== 'undefined' ? readStoredCoords([MAP_MY_LOCATION_KEY, 'userCoords']) : null
+  );
   const [sharingMapLocation, setSharingMapLocation] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [businessesRefreshing, setBusinessesRefreshing] = useState(false);
   const triedAutoLocationRef = useRef(false);
+  const triedAutoMapLocationRef = useRef(false);
   const lastGeocodedCityQueryRef = useRef<string | null>(null);
   const geocodeFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -359,6 +362,15 @@ export default function BusinessesPage() {
     };
   }, [isLoggedIn]);
 
+  const persistMyMapLocation = useCallback((coords: { lat: number; lon: number }) => {
+    setMyMapLocation(coords);
+    try {
+      localStorage.setItem(MAP_MY_LOCATION_KEY, JSON.stringify(coords));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     try {
       const savedCenter = localStorage.getItem(MAP_VIEW_CENTER_KEY);
@@ -368,12 +380,20 @@ export default function BusinessesPage() {
           setMapViewCenter({ lat: parsed.lat, lon: parsed.lon });
         }
       }
-      const savedMyLoc = readStoredCoords([MAP_MY_LOCATION_KEY]);
-      if (savedMyLoc) setMyMapLocation(savedMyLoc);
     } catch {
       /* ignore */
     }
   }, []);
+
+  useEffect(() => {
+    if (triedAutoMapLocationRef.current) return;
+    triedAutoMapLocationRef.current = true;
+
+    void requestLocationWithFallback().then((result) => {
+      if (!result.ok) return;
+      persistMyMapLocation({ lat: result.lat, lon: result.lon });
+    });
+  }, [persistMyMapLocation]);
 
   const handleLocationSelect = (result: AddressResult) => {
     const scope = scopeFromAddressResult(result);
@@ -470,7 +490,9 @@ export default function BusinessesPage() {
     if (stored) {
       try {
         const { lat, lon } = JSON.parse(stored);
-        setUserCoords({ lat, lon });
+        const coords = { lat, lon };
+        setUserCoords(coords);
+        persistMyMapLocation(coords);
         setLocationLabel(t(effectiveLang, 'Your location'));
         const geoScope: MarketplaceLocationScope = { mode: 'city_radius', country: '', state: '', city: '' };
         setLocationScope(geoScope);
@@ -509,6 +531,7 @@ export default function BusinessesPage() {
           }
 
           setUserCoords(coords);
+          persistMyMapLocation(coords);
           setLocationLabel(label);
           setLocationSearchValue(label);
           const geoScope: MarketplaceLocationScope = { mode: 'city_radius', country: '', state: '', city: '' };
@@ -579,7 +602,9 @@ export default function BusinessesPage() {
         radiusMiles?: number;
       } | undefined;
       if (detail?.lat != null && detail?.lon != null) {
-        setUserCoords({ lat: detail.lat, lon: detail.lon });
+        const coords = { lat: detail.lat, lon: detail.lon };
+        setUserCoords(coords);
+        setMyMapLocation((prev) => prev ?? coords);
         if (detail.label) {
           setLocationLabel(detail.label);
           setLocationSearchValue(detail.label);
@@ -654,6 +679,7 @@ export default function BusinessesPage() {
           }
 
           setUserCoords(coords);
+          persistMyMapLocation(coords);
           setLocationLabel(label);
           setLocationSearchValue(label);
           const geoScope: MarketplaceLocationScope = { mode: 'city_radius', country: '', state: '', city: '' };
@@ -672,7 +698,7 @@ export default function BusinessesPage() {
       },
       { enableHighAccuracy: false, timeout: 12000, maximumAge: 300_000 }
     );
-  }, [effectiveLang]);
+  }, [effectiveLang, persistMyMapLocation]);
 
   useEffect(() => {
     const term = query.trim().toLowerCase();
@@ -1518,12 +1544,7 @@ export default function BusinessesPage() {
       coords: { lat: number; lon: number },
       opts?: { approximate?: boolean; fromCache?: boolean }
     ) => {
-      setMyMapLocation(coords);
-      try {
-        localStorage.setItem(MAP_MY_LOCATION_KEY, JSON.stringify(coords));
-      } catch {
-        /* ignore */
-      }
+      persistMyMapLocation(coords);
       if (opts?.approximate) {
         toast(
           t(effectiveLang, 'Showing approximate location based on your IP address'),
@@ -1601,7 +1622,7 @@ export default function BusinessesPage() {
       .finally(() => {
         setSharingMapLocation(false);
       });
-  }, [effectiveLang]);
+  }, [effectiveLang, persistMyMapLocation]);
 
   const getBusinessHref = (biz: Business) => {
     const value = String(biz.slug || biz.id || '').trim();

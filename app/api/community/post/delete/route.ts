@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getAuthenticatedUserId } from '@/lib/authApi';
+import { deleteNotificationsForCommunityPost } from '@/lib/deletePostNotifications';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,6 +46,11 @@ export async function POST(req: Request) {
     if (updateError) {
       console.error('[community post delete]', updateError.message);
       return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 });
+    }
+
+    const { error: notifError } = await deleteNotificationsForCommunityPost(supabaseAdmin, post_id);
+    if (notifError) {
+      console.warn('[community post delete] notification cleanup:', notifError);
     }
 
     return NextResponse.json({ success: true });

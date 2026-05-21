@@ -9,6 +9,7 @@ import { User, Trash2, X, ShoppingBag, Building2, Ban, SendHorizontal } from 'lu
 import PostActionsBar from '@/components/PostActionsBar';
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import { Avatar } from '@/components/Avatar';
+import { normalizeAvatarUrl, withAvatarCacheBust } from '@/lib/avatarUrl';
 import { removeCommentBranch } from '@/lib/communityCommentTree';
 import { coerceLikeCount } from '@/lib/coerceLikeCount';
 import { postIdEquals } from '@/lib/postIdEquals';
@@ -232,6 +233,42 @@ export default function ProfilePage() {
 
     fetchProfile();
   }, [usernameParam, router]);
+
+  useEffect(() => {
+    if (!profile?.id || !currentUser?.id || currentUser.id !== profile.id) return;
+
+    const refreshProfilePic = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('profile_pic_url')
+        .eq('id', profile.id)
+        .maybeSingle();
+      if (!data?.profile_pic_url) return;
+      const nextUrl = withAvatarCacheBust(normalizeAvatarUrl(data.profile_pic_url, ['avatars']), Date.now());
+      setProfile((prev) => (prev ? { ...prev, profile_pic_url: nextUrl } : prev));
+    };
+
+    const onProfilePicUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ url?: string; userId?: string }>).detail;
+      if (detail?.userId && detail.userId !== profile.id) return;
+      if (detail?.url) {
+        setProfile((prev) => (prev ? { ...prev, profile_pic_url: detail.url } : prev));
+        return;
+      }
+      void refreshProfilePic();
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refreshProfilePic();
+    };
+
+    window.addEventListener('hanar:profile-pic-updated', onProfilePicUpdated);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('hanar:profile-pic-updated', onProfilePicUpdated);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [profile?.id, currentUser?.id]);
 
   useEffect(() => {
     const checkFollow = async () => {
@@ -881,7 +918,7 @@ export default function ProfilePage() {
     );
   }
 
-  const profilePicUrl = profile.profile_pic_url || null;
+  const profilePicUrl = normalizeAvatarUrl(profile.profile_pic_url, ['avatars']);
   const canFollow =
     (currentUser?.isIndividual || currentUser?.isOrganization) &&
     currentUser.id !== profile.id &&

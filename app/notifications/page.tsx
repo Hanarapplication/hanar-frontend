@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
+import { removeNotificationsForInactivePosts } from '@/lib/postNotificationCleanup';
 
 type NotificationRow = {
   id: string;
@@ -63,7 +64,14 @@ export default function NotificationsPage() {
         if (businessId && ownedBusinessIds.includes(String(businessId))) return false;
         return true;
       });
-      visible = [...visible, ...filtered];
+      const { visible: activeRows, removedIds } = await removeNotificationsForInactivePosts(
+        supabase,
+        filtered
+      );
+      if (removedIds.length > 0 && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('notifications:updated'));
+      }
+      visible = [...visible, ...activeRows];
       offset += rows.length;
       if (rows.length < PAGE_SIZE) {
         reachedEnd = true;

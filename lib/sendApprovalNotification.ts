@@ -11,7 +11,7 @@ import {
   truncateForPushBody,
   type HanarPushBuilt,
 } from '@/lib/firebaseAdmin';
-import { getPushTokensForUser } from '@/lib/pushForUsers';
+import { getPushTokensForUser, isPushEnabledForUser } from '@/lib/pushForUsers';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -173,7 +173,7 @@ export async function sendApprovalNotification(
     }
 
     const tokens = await getPushTokensForUser(payload.user_id);
-    if (tokens.length > 0 && isPushConfigured()) {
+    if (tokens.length > 0 && isPushConfigured() && (await isPushEnabledForUser(payload.user_id))) {
       await sendPushToTokensBuilt(push, tokens);
     }
 

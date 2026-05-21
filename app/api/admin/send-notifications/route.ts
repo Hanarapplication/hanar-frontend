@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 import { getLatLonFromAddress } from '@/lib/getLatLonFromAddress';
 import { isPushConfigured, sendPushToTokensBuilt, truncateForPushBody, type HanarPushBuilt } from '@/lib/firebaseAdmin';
+import { filterPushEnabledUserIds } from '@/lib/pushForUsers';
 import { graphemeLength, normalizeUserText } from '@/lib/unicodeText';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -293,9 +294,14 @@ export async function POST(req: Request) {
           { status: 503 }
         );
       }
+      const pushRecipientIds = await filterPushEnabledUserIds(recipientIds);
       const [appTokensRes, webTokensRes] = await Promise.all([
-        supabaseAdmin.from('user_push_tokens').select('token').in('user_id', recipientIds),
-        supabaseAdmin.from('push_tokens').select('token').in('user_id', recipientIds),
+        pushRecipientIds.length > 0
+          ? supabaseAdmin.from('user_push_tokens').select('token').in('user_id', pushRecipientIds)
+          : Promise.resolve({ data: [] }),
+        pushRecipientIds.length > 0
+          ? supabaseAdmin.from('push_tokens').select('token').in('user_id', pushRecipientIds)
+          : Promise.resolve({ data: [], error: null }),
       ]);
       const appTokens = (appTokensRes.data || []).map((r: { token: string }) => r.token).filter(Boolean);
       const webTokens = webTokensRes.error ? [] : (webTokensRes.data || []).map((r: { token: string }) => r.token).filter(Boolean);

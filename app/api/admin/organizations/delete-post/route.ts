@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
+import { deleteNotificationsForCommunityPost } from '@/lib/deletePostNotifications';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -34,5 +35,11 @@ export async function POST(req: Request) {
     .eq('id', postId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const { error: notifError } = await deleteNotificationsForCommunityPost(supabaseAdmin, String(postId));
+  if (notifError) {
+    console.warn('[admin delete-post] notification cleanup:', notifError);
+  }
+
   return NextResponse.json({ success: true });
 }
