@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import toast from 'react-hot-toast';
 import Cookies from 'js-cookie';
@@ -37,10 +36,11 @@ export default function AdminLoginPage() {
   const [securityCode, setSecurityCode] = useState('');
   const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [pendingRole, setPendingRole] = useState<string | null>(null);
+  const [needs2fa, setNeeds2fa] = useState(false);
+  const [totpCode, setTotpCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [lockoutUntil, setLockoutUntil] = useState(0);
-  const router = useRouter();
 
   useEffect(() => {
     setLockoutUntil(getLockoutUntil());
@@ -115,6 +115,7 @@ export default function AdminLoginPage() {
 
     const response = await fetch('/api/check-admin', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
@@ -133,7 +134,17 @@ export default function AdminLoginPage() {
     if (!response.ok && result?.requiresPin) {
       setPendingToken(token);
       setPendingRole(result?.role || null);
+      setNeeds2fa(false);
       toast('Enter your 4-digit admin security code.');
+      setLoading(false);
+      return;
+    }
+
+    if (!response.ok && result?.requires2fa) {
+      setPendingToken(token);
+      setPendingRole(result?.role || null);
+      setNeeds2fa(true);
+      toast('Enter your authenticator app code.');
       setLoading(false);
       return;
     }
@@ -165,8 +176,8 @@ export default function AdminLoginPage() {
               ? '/admin/dashboard'
               : '/admin/dashboard';
 
-    await new Promise((r) => setTimeout(r, 100));
-    router.replace(target);
+    // Hard navigation so Supabase session + httpOnly admin cookies are loaded before layout auth check.
+    window.location.href = target;
     } finally {
       setLoading(false);
     }
@@ -183,6 +194,7 @@ export default function AdminLoginPage() {
     try {
       const res = await fetch('/api/admin/auth/pin/verify', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${pendingToken}`,
@@ -195,6 +207,25 @@ export default function AdminLoginPage() {
         return;
       }
       const role = String(data.role || pendingRole || '');
+
+      const checkRes = await fetch('/api/check-admin', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${pendingToken}`,
+        },
+        body: JSON.stringify({}),
+      });
+      const checkData = await checkRes.json();
+      if (!checkRes.ok && checkData?.requires2fa) {
+        setPendingRole(role);
+        setSecurityCode('');
+        setNeeds2fa(true);
+        toast('Enter your authenticator app code.');
+        return;
+      }
+
       Cookies.set('adminRole', role, {
         path: '/',
         sameSite: 'strict',
@@ -211,7 +242,54 @@ export default function AdminLoginPage() {
             : role === 'moderator'
               ? '/admin/community-moderation'
               : '/admin/dashboard';
-      router.replace(target);
+      window.location.href = target;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify2fa = async () => {
+    if (!pendingToken) return;
+    const code = totpCode.replace(/\s+/g, '').trim();
+    if (!/^\d{6}$/.test(code)) {
+      toast.error('Enter a valid 6-digit code.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/2fa/verify-login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${pendingToken}`,
+        },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        toast.error(data?.error || 'Invalid authenticator code.');
+        return;
+      }
+      const role = String(data.role || pendingRole || '');
+      Cookies.set('adminRole', role, {
+        path: '/',
+        sameSite: 'strict',
+        expires: 8 / 24,
+      });
+      toast.success('Two-factor verified.');
+      setPendingToken(null);
+      setTotpCode('');
+      setNeeds2fa(false);
+      const target =
+        role === 'owner' || role === 'ceo' || role === 'topmanager'
+          ? '/admin/owner'
+          : role === 'reviewer'
+            ? '/admin/approvals'
+            : role === 'moderator'
+              ? '/admin/community-moderation'
+              : '/admin/dashboard';
+      window.location.href = target;
     } finally {
       setLoading(false);
     }
@@ -275,6 +353,22 @@ export default function AdminLoginPage() {
               </label>
             </div>
           </>
+        ) : needs2fa ? (
+          <div className="space-y-3">
+            <p className="rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-2 text-sm text-indigo-700">
+              Enter the 6-digit code from your authenticator app.
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="123456"
+              value={totpCode}
+              onChange={(e) => setTotpCode(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 tracking-[0.35em] text-center text-lg"
+              disabled={loading}
+            />
+          </div>
         ) : (
           <div className="space-y-3">
             <p className="rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-2 text-sm text-indigo-700">
@@ -308,6 +402,8 @@ export default function AdminLoginPage() {
               onClick={() => {
                 setPendingToken(null);
                 setSecurityCode('');
+                setTotpCode('');
+                setNeeds2fa(false);
               }}
               className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition"
               disabled={loading}
@@ -316,7 +412,7 @@ export default function AdminLoginPage() {
             </button>
             <button
               type="button"
-              onClick={handleVerifySecurityCode}
+              onClick={needs2fa ? handleVerify2fa : handleVerifySecurityCode}
               disabled={loading}
               className="flex-1 bg-rose-600 text-white py-2 rounded-lg hover:bg-rose-700 transition disabled:opacity-50"
             >

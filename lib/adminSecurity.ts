@@ -6,9 +6,15 @@ const PIN_COOKIE = 'admin_pin_verified';
 const TWO_FA_TTL_SECONDS = 8 * 60 * 60;
 
 function get2faSecret(): string {
-  const secret = process.env.ADMIN_2FA_SECRET || '';
+  const secret =
+    process.env.ADMIN_2FA_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    '';
   if (!secret) {
-    throw new Error('Missing ADMIN_2FA_SECRET');
+    throw new Error('Missing ADMIN_2FA_SECRET (set in env, or ensure SUPABASE_SERVICE_ROLE_KEY is available)');
+  }
+  if (!process.env.ADMIN_2FA_SECRET && process.env.NODE_ENV !== 'production') {
+    console.warn('[adminSecurity] ADMIN_2FA_SECRET not set; using SUPABASE_SERVICE_ROLE_KEY for admin cookie signing.');
   }
   return secret;
 }

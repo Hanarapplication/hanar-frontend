@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
 import { notifyBusinessModerationTransition } from '@/lib/email/businessModerationTransition';
+import { isAdminAddedAccount } from '@/lib/adminAddedAccounts';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -98,7 +99,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     const updatesPayload = body.updates;
     const noteToSave = typeof body.noteToSave === 'string' ? body.noteToSave.trim() : '';
-    const skipEmails = body.skipEmails === true;
+    const skipEmailsRequested = body.skipEmails === true;
 
     const hasKeyedUpdates = ALLOWED_BUSINESS_UPDATE_KEYS.some(
       (key) => key !== 'updated_at' && key in updatesPayload && updatesPayload[key] !== undefined
@@ -109,7 +110,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     const { data: row, error: fetchError } = await supabaseAdmin
       .from('businesses')
-      .select('id, moderation_status, note_history, owner_id, email, business_name, slug')
+      .select('id, moderation_status, note_history, owner_id, email, business_name, slug, admin_added_at')
       .eq('id', businessId)
       .single();
 
@@ -118,6 +119,7 @@ export async function POST(req: Request, context: RouteContext) {
     }
 
     const oldModeration = row.moderation_status;
+    const skipEmails = skipEmailsRequested || isAdminAddedAccount(row);
 
     const finalUpdates: Record<string, unknown> = {
       updated_at: new Date().toISOString(),

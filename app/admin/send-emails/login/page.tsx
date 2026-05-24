@@ -15,15 +15,15 @@ type LoginAudience =
   | 'individual_organization';
 
 const LOGIN_AUDIENCE_OPTIONS: { value: LoginAudience; label: string }[] = [
-  { value: 'all_businesses', label: 'All businesses' },
-  { value: 'all_organizations', label: 'All organizations' },
+  { value: 'all_businesses', label: 'All businesses (excludes admin-added)' },
+  { value: 'all_organizations', label: 'All organizations (excludes admin-added)' },
   { value: 'business_admin_added', label: 'Businesses: Admin-added only' },
   { value: 'organization_admin_added', label: 'Organizations: Admin-added only' },
   { value: 'individual_business', label: 'One business (select below)' },
   { value: 'individual_organization', label: 'One organization (select below)' },
 ];
 
-interface Business { id: string; business_name: string; email: string | null; slug: string }
+interface Business { id: string; business_name: string; email: string | null; slug: string; admin_added_at?: string | null }
 interface Organization { id: string; full_name: string | null; username: string | null; email: string | null }
 
 export default function AdminSendLoginEmailsPage() {
@@ -161,7 +161,11 @@ export default function AdminSendLoginEmailsPage() {
               >
                 <option value="">— Select —</option>
                 {businesses.map((b) => (
-                  <option key={b.id} value={b.id}>{b.business_name || b.slug} {b.email ? `(${b.email})` : ''}</option>
+                  <option key={b.id} value={b.id}>
+                    {b.business_name || b.slug}
+                    {b.admin_added_at ? ' [Admin-added]' : ''}
+                    {b.email ? ` (${b.email})` : ''}
+                  </option>
                 ))}
               </select>
             </div>

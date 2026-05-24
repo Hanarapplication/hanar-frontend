@@ -143,6 +143,8 @@ export async function POST(req: Request) {
       let q = supabaseAdmin.from('businesses').select('id, business_name, email, owner_id');
       if (audience === 'business_admin_added') {
         q = q.not('admin_added_at', 'is', null);
+      } else {
+        q = q.is('admin_added_at', null);
       }
       const { data } = await q;
       for (const b of data || []) {
@@ -157,6 +159,8 @@ export async function POST(req: Request) {
       let q = supabaseAdmin.from('organizations').select('id, full_name, email, user_id');
       if (audience === 'organization_admin_added') {
         q = q.not('admin_added_at', 'is', null);
+      } else {
+        q = q.is('admin_added_at', null);
       }
       const { data } = await q;
       for (const o of data || []) {

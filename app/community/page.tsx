@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo, Fragment } from 'react';
 import { HeartIcon, ChatBubbleLeftIcon, MagnifyingGlassIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/solid';
-import { Trash2, Megaphone, SendHorizontal } from 'lucide-react';
+import { Trash2, SendHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import Link from 'next/link';
@@ -547,24 +547,34 @@ function CommunityFeedPage() {
     const key = String(postId);
     setDeletingPost(key);
     try {
-      const { error } = await supabase
-        .from('community_posts')
-        .update({ deleted: true })
-        .eq('id', key)
-        .eq('user_id', currentUser.id);
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/community/post/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ post_id: key }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Failed to delete post');
 
-      if (error) throw error;
-      setVisiblePosts((prev) => prev.filter((p) => !postIdEquals(p.id, key)));
+      setVisiblePosts((prev) => {
+        const next = prev.filter((p) => !postIdEquals(p.id, key));
+        writeCommunityCache(
+          communityCacheKey(currentUser.id || 'anon', feedLangsCacheKey(feedLangs), sortMode),
+          next,
+          communityBanner
+        );
+        return next;
+      });
+      toast.success(t(effectiveLang, 'Post deleted'));
     } catch (err) {
       console.error('Delete error:', err);
-      alert('Failed to delete post');
+      alert(err instanceof Error ? err.message : 'Failed to delete post');
     } finally {
       setDeletingPost(null);
     }
-  };
-
-  const handlePromotePost = () => {
-    alert('Promote coming soon.');
   };
 
   const handleSharePost = async (postId: string) => {
@@ -922,13 +932,6 @@ function CommunityFeedPage() {
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     Delete
-                  </button>
-                  <button
-                    onClick={handlePromotePost}
-                    className="flex items-center gap-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 px-3 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-300 transition hover:bg-indigo-200 dark:hover:bg-indigo-900/60"
-                  >
-                    <Megaphone className="h-3.5 w-3.5" />
-                    Promote
                   </button>
                 </div>
               )}

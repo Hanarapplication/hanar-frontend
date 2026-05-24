@@ -35,7 +35,9 @@ import { getMainCategory } from '@/utils/businessCategories';
 import { Playfair_Display, DM_Sans } from 'next/font/google';
 import ReportButton from '@/components/ReportButton';
 import BusinessCommunityPostsModal, { type BusinessCommunityPostRow } from '@/components/BusinessCommunityPostsModal';
+import BusinessClaimModal, { type UserClaimInfo } from '@/components/BusinessClaimModal';
 import { BusinessDescriptionText } from '@/components/BusinessDescriptionText';
+import { isClaimableBusiness, showBusinessClaimUi } from '@/lib/businessClaim';
 import { ContactHrefLink } from '@/components/ContactHrefLink';
 import { buildMailtoHref, buildTelHref } from '@/lib/openContactUrl';
 
@@ -134,6 +136,8 @@ interface BusinessType {
     slug: string;
     tags?: string[];
     owner_id?: string | null;
+    admin_added_at?: string | null;
+    claim_status?: 'unclaimed' | 'pending' | 'claimed' | 'rejected' | null;
     slug_primary_color?: string | null;
     slug_secondary_color?: string | null;
     slug_use_gradient?: boolean | null;
@@ -447,6 +451,8 @@ const BusinessProfilePage = () => {
     const [communityCommentCounts, setCommunityCommentCounts] = useState<Record<string, number>>({});
     const [communityPostsLoading, setCommunityPostsLoading] = useState(false);
     const [showCommunityModal, setShowCommunityModal] = useState(false);
+    const [showClaimModal, setShowClaimModal] = useState(false);
+    const [userClaim, setUserClaim] = useState<UserClaimInfo>(null);
     const [slugSidebarMenuOpen, setSlugSidebarMenuOpen] = useState(false);
     /** Portal target ready (avoids SSR/hydration issues; keeps drawer `fixed` to viewport). */
     const [slugSidebarPortalReady, setSlugSidebarPortalReady] = useState(false);
@@ -723,14 +729,12 @@ const BusinessProfilePage = () => {
                 if (businessError || !businessData) {
                     setBusiness(null);
                 } else {
-                    // Unclaimed imported businesses (on_hold + no owner) must not appear publicly
-                    if (businessData.moderation_status === 'on_hold' && !businessData.owner_id) {
-                        setBusiness(null);
-                        setLoading(false);
-                        return;
-                    }
-                    // On-hold businesses: show only to owner
-                    if (businessData.moderation_status === 'on_hold' && businessData.owner_id) {
+                    // On-hold businesses with a real owner: show only to that owner (not admin-added placeholders)
+                    if (
+                        businessData.moderation_status === 'on_hold' &&
+                        businessData.owner_id &&
+                        !businessData.admin_added_at
+                    ) {
                         const { data: { user } } = await supabase.auth.getUser();
                         if (user?.id !== businessData.owner_id) {
                             setBusiness(null);
@@ -939,6 +943,23 @@ const BusinessProfilePage = () => {
                     } else {
                         setIsFavorited(false);
                     }
+
+                    if (isClaimableBusiness(businessData) && businessData.id) {
+                        try {
+                            const { data: { session } } = await supabase.auth.getSession();
+                            const token = session?.access_token;
+                            const claimRes = await fetch(
+                                `/api/business/claim?businessId=${encodeURIComponent(businessData.id)}`,
+                                token ? { headers: { Authorization: `Bearer ${token}` } } : {}
+                            );
+                            const claimJson = await claimRes.json();
+                            setUserClaim(claimJson.claim ?? null);
+                        } catch {
+                            setUserClaim(null);
+                        }
+                    } else {
+                        setUserClaim(null);
+                    }
                 }
             } catch (err) {
                 console.error("Failed to fetch business data:", err);
@@ -950,6 +971,14 @@ const BusinessProfilePage = () => {
         fetchData();
     }, [slug]);
 
+    useEffect(() => {
+        if (!business?.id || !isClaimableBusiness(business)) return;
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('claim') === '1') {
+            setShowClaimModal(true);
+        }
+    }, [business?.id, business?.owner_id, business?.admin_added_at, business?.claim_status]);
 
     const formatBusinessCategory = (value?: string | null) => {
         const normalized = (value || '').trim().toLowerCase();
@@ -1338,6 +1367,39 @@ const BusinessProfilePage = () => {
                     </linearGradient>
                 </defs>
             </svg>
+            {showBusinessClaimUi(business, userClaim?.status ?? null) && (
+                <div className="sticky top-0 z-40 border-b border-amber-300 bg-amber-50 px-4 py-3 shadow-sm dark:border-amber-800 dark:bg-amber-950/90">
+                    <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                                {business.admin_added_at
+                                    ? 'Unclaimed listing — added by Hanar, no real owner yet'
+                                    : 'Unclaimed listing — no owner on Hanar yet'}
+                            </p>
+                            <p className="text-xs text-amber-800/90 dark:text-amber-200/80">
+                                {userClaim?.status === 'pending'
+                                    ? 'Your ownership claim is pending admin review.'
+                                    : userClaim?.status === 'rejected'
+                                      ? 'Your previous claim was rejected. You may submit a new claim with additional proof.'
+                                      : 'Are you the owner? Verify access to the listing email, or contact us if no email is on file.'}
+                            </p>
+                        </div>
+                        {userClaim?.status === 'pending' ? (
+                            <span className="shrink-0 rounded-full bg-amber-200/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-900/60 dark:text-amber-100">
+                                Claim pending
+                            </span>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setShowClaimModal(true)}
+                                className="shrink-0 rounded-lg bg-gradient-to-r from-[#0c1f3c] to-[#6b1515] px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
+                            >
+                                Claim this business
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
             {/* Directory link + business name */}
             {isRetailShopPage ? (
                 <div className="sticky top-0 z-30 flex flex-col border-b border-white/15 shadow-sm">
@@ -1729,6 +1791,19 @@ const BusinessProfilePage = () => {
                     commentCounts={communityCommentCounts}
                     onPostsChange={setCommunityPosts}
                     onCommentCountsChange={setCommunityCommentCounts}
+                />
+            )}
+            {showClaimModal && business && (
+                <BusinessClaimModal
+                    open={showClaimModal}
+                    onClose={() => setShowClaimModal(false)}
+                    businessId={business.id}
+                    businessName={business.business_name}
+                    businessSlug={business.slug}
+                    listingEmail={business.email}
+                    onSubmitted={() => {
+                        setUserClaim({ id: '', status: 'pending', created_at: new Date().toISOString() });
+                    }}
                 />
             )}
 
@@ -2375,7 +2450,7 @@ const BusinessProfilePage = () => {
                         'bg-[#FCF8F1] text-stone-800'
                     )}
                 >
-                    {business.moderation_status !== 'active' && (
+                    {business.moderation_status !== 'active' && business.owner_id && (
                         <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                             Your business is currently pending approval. You can still view and edit your business profile and online
                             shop, but it will not be visible to other users until it has been approved.
@@ -3043,7 +3118,7 @@ const BusinessProfilePage = () => {
                 </motion.div>
             ) : isRetailShopPage ? (
                 <div className="w-full space-y-0 bg-white pb-0 font-inter text-neutral-900">
-                    {business.moderation_status !== 'active' && (
+                    {business.moderation_status !== 'active' && business.owner_id && (
                         <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                             Your business is currently pending approval. You can still view and edit your business profile and online
                             shop, but it will not be visible to other users until it has been approved.
@@ -3308,7 +3383,7 @@ const BusinessProfilePage = () => {
                 </div>
             ) : isRetailBaselPage ? (
                 <div className="w-full space-y-0 bg-white pb-8 font-inter text-neutral-900">
-                    {business.moderation_status !== 'active' && (
+                    {business.moderation_status !== 'active' && business.owner_id && (
                         <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                             Your business is currently pending approval. You can still view and edit your business profile and online
                             shop, but it will not be visible to other users until it has been approved.
@@ -3706,7 +3781,7 @@ const BusinessProfilePage = () => {
                 </div>
             ) : (
                 <div className="w-full space-y-0 bg-gray-100 dark:bg-slate-900/80 backdrop-blur lg:px-6 lg:pt-4">
-                {business.moderation_status !== 'active' && (
+                {business.moderation_status !== 'active' && business.owner_id && (
                     <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                         Your business is currently pending approval. You can still view and edit your business profile and online
                         shop, but it will not be visible to other users until it has been approved.

@@ -51,6 +51,7 @@ export type Database = {
           allow_qr: boolean;
           plan_selected_at: string | null;
           claimed_at: string | null;
+          claim_status: string | null;
           trial_start: string | null;
           trial_end: string | null;
           is_archived: boolean;
@@ -59,6 +60,43 @@ export type Database = {
           profile_template: string;
           theme: string;
           accent_color: string | null;
+        };
+      };
+      business_claims: {
+        Row: {
+          id: string;
+          business_id: string;
+          user_id: string | null;
+          claim_name: string;
+          claim_phone: string;
+          claim_email: string | null;
+          proof_text: string;
+          proof_image_url: string | null;
+          status: string;
+          phone_verified: boolean;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          user_id?: string | null;
+          claim_name: string;
+          claim_phone: string;
+          claim_email?: string | null;
+          proof_text: string;
+          proof_image_url?: string | null;
+          status?: string;
+          phone_verified?: boolean;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          status?: string;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
         };
       };
     };

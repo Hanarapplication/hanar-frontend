@@ -38,7 +38,7 @@ export async function GET() {
 
   const { data, error } = await supabaseAdmin
     .from('businesses')
-    .select('id, business_name, email, slug')
+    .select('id, business_name, email, slug, admin_added_at')
     .order('business_name');
 
   if (error) {

@@ -127,7 +127,8 @@ export async function GET(req: Request) {
       const { count } = await supabaseAdmin
         .from('contact_submissions')
         .select('id', { count: 'exact', head: true })
-        .or('status.is.null,status.eq.pending');
+        .eq('status', 'pending')
+        .eq('source', 'contact');
       contactUs = count ?? 0;
     } catch {
       // table may not exist

@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
 import { notifyBusinessModerationTransition } from '@/lib/email/businessModerationTransition';
+import { isAdminAddedAccount } from '@/lib/adminAddedAccounts';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -65,7 +66,7 @@ export async function POST(req: Request, context: RouteContext) {
     }
 
     const body = (await req.json().catch(() => ({}))) as { skipEmails?: boolean };
-    const skipEmails = body.skipEmails === true;
+    const skipEmailsRequested = body.skipEmails === true;
 
     const { id } = await context.params;
     const businessId = (id || '').trim();
@@ -75,7 +76,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     const { data: business, error: fetchError } = await supabaseAdmin
       .from('businesses')
-      .select('id, moderation_status, owner_id, email, business_name, slug')
+      .select('id, moderation_status, owner_id, email, business_name, slug, admin_added_at')
       .eq('id', businessId)
       .single();
 
@@ -83,6 +84,7 @@ export async function POST(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Business not found' }, { status: 404 });
     }
 
+    const skipEmails = skipEmailsRequested || isAdminAddedAccount(business);
     const previousModeration = business.moderation_status;
 
     const { error: updateError } = await supabaseAdmin

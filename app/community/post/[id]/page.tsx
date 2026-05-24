@@ -749,22 +749,13 @@ export default function CommunityPostPage() {
 
           <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-sm dark:border-gray-600">
             {isPostAuthor && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => toast('Promote coming soon.')}
-                  className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700"
-                >
-                  📢 Promote
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmDeletePost}
-                  className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-red-700"
-                >
-                  🗑️ Delete
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={confirmDeletePost}
+                className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-red-700"
+              >
+                🗑️ Delete
+              </button>
             )}
           </div>
         </article>

@@ -206,6 +206,7 @@ export async function POST(req: Request) {
         plan_selected_at: null,
         admin_added_at: new Date().toISOString(),
         admin_added_by: admin.id,
+        claim_status: 'unclaimed',
         ...freePlanDefaults,
       })
       .select('id')

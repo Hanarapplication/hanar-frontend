@@ -43,6 +43,7 @@ import {
   scopeFromAddressResult,
   type MarketplaceLocationScope,
 } from '@/lib/marketplaceLocationFilter';
+import { isClaimableBusiness } from '@/lib/businessClaim';
 
 const BusinessesMapPanel = dynamic(() => import('@/components/BusinessesMapPanel'), {
   ssr: false,
@@ -51,7 +52,7 @@ const BusinessesMapPanel = dynamic(() => import('@/components/BusinessesMapPanel
   ),
 });
 
-const BUSINESSES_CACHE_KEY = 'hanar_businesses_cache_v2';
+const BUSINESSES_CACHE_KEY = 'hanar_businesses_cache_v4';
 const BUSINESSES_CACHE_KEY_LEGACY = 'hanar_businesses_cache';
 const BUSINESSES_UPDATED_EVENT = 'hanar:businesses-updated';
 const BUSINESSES_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -104,6 +105,10 @@ interface Business {
   spoken_languages?: string[] | null;
   plan?: string | null;
   phone?: string | null;
+  owner_id?: string | null;
+  moderation_status?: string | null;
+  admin_added_at?: string | null;
+  claim_status?: string | null;
 }
 
 type BusinessLocationFields = {
@@ -238,21 +243,37 @@ export default function BusinessesPage() {
   const fetchBusinesses = useCallback(async () => {
     setBusinessesRefreshing(true);
     try {
-      const { data, error } = await supabase
-        .from('businesses')
-        .select(
-          'id, business_name, category, subcategory, address, description, logo_url, slug, lat, lon, spoken_languages, plan, phone'
-        )
-        .eq('moderation_status', 'active')
-        .eq('is_archived', false)
-        .neq('lifecycle_status', 'archived');
+      const selectFields =
+        'id, business_name, category, subcategory, address, description, logo_url, slug, lat, lon, spoken_languages, plan, phone, owner_id, moderation_status, admin_added_at, claim_status';
 
-      if (error) {
-        console.error('Supabase fetch error:', error);
-        return;
+      const baseQuery = () =>
+        supabase
+          .from('businesses')
+          .select(selectFields)
+          .eq('is_archived', false)
+          .neq('lifecycle_status', 'archived');
+
+      const [activeRes, unclaimedRes, adminAddedRes] = await Promise.all([
+        baseQuery().eq('moderation_status', 'active'),
+        baseQuery().eq('moderation_status', 'on_hold').is('owner_id', null),
+        baseQuery().not('admin_added_at', 'is', null).neq('claim_status', 'claimed'),
+      ]);
+
+      if (activeRes.error) console.error('Supabase active businesses fetch error:', activeRes.error);
+      if (unclaimedRes.error) console.error('Supabase unclaimed businesses fetch error:', unclaimedRes.error);
+      if (adminAddedRes.error) console.error('Supabase admin-added businesses fetch error:', adminAddedRes.error);
+
+      const merged = new Map<string, Business>();
+      for (const row of [
+        ...(activeRes.data || []),
+        ...(unclaimedRes.data || []),
+        ...(adminAddedRes.data || []),
+      ]) {
+        merged.set(row.id, row as Business);
       }
-      setBusinesses(data || []);
-      writeBusinessesCache(data || []);
+      const list = Array.from(merged.values());
+      setBusinesses(list);
+      writeBusinessesCache(list);
     } finally {
       setBusinessesRefreshing(false);
     }
@@ -837,7 +858,13 @@ export default function BusinessesPage() {
           category.includes('auto') ||
           category.includes('repair') ||
           category.includes('mechanic') ||
-          category.includes('body shop')
+          category.includes('body shop') ||
+          category.includes('car wash') ||
+          category.includes('tire') ||
+          category.includes('towing') ||
+          category.includes('detailing') ||
+          category.includes('oil change') ||
+          category.includes('lube')
         );
       case 'home_services':
         return (
@@ -848,7 +875,29 @@ export default function BusinessesPage() {
           category.includes('electric') ||
           category.includes('landscap') ||
           category.includes('mover') ||
-          category.includes('real estate')
+          category.includes('real estate') ||
+          category.includes('roof') ||
+          category.includes('paint') ||
+          category.includes('contractor') ||
+          category.includes('pest') ||
+          category.includes('handyman') ||
+          category.includes('floor') ||
+          category.includes('carpet') ||
+          category.includes('appliance') ||
+          category.includes('pool') ||
+          category.includes('garage door') ||
+          category.includes('security') ||
+          category.includes('alarm') ||
+          category.includes('solar') ||
+          category.includes('window') ||
+          category.includes('glass') ||
+          category.includes('tree') ||
+          category.includes('junk') ||
+          category.includes('locksmith') ||
+          category.includes('concrete') ||
+          category.includes('masonry') ||
+          category.includes('welding') ||
+          category.includes('snow')
         );
       case 'transportation':
         return (
@@ -856,8 +905,15 @@ export default function BusinessesPage() {
           category.includes('mover') ||
           category.includes('moving') ||
           category.includes('delivery') ||
+          category.includes('courier') ||
           category.includes('trucking') ||
-          category.includes('truck')
+          category.includes('truck') ||
+          category.includes('taxi') ||
+          category.includes('rideshare') ||
+          category.includes('limousine') ||
+          category.includes('chauffeur') ||
+          category.includes('logistics') ||
+          category.includes('freight')
         );
       case 'retail':
         return category === 'retail' || category.includes('retail') || category.includes('shop') || category.includes('store');
@@ -867,7 +923,22 @@ export default function BusinessesPage() {
           category.includes('salon') ||
           category.includes('hair') ||
           category.includes('barber') ||
-          category.includes('nail')
+          category.includes('nail') ||
+          category.includes('makeup') ||
+          category.includes('spa') ||
+          category.includes('wellness') ||
+          category.includes('health') ||
+          category.includes('dentist') ||
+          category.includes('doctor') ||
+          category.includes('clinic') ||
+          category.includes('pharmacy') ||
+          category.includes('therapy') ||
+          category.includes('gym') ||
+          category.includes('fitness') ||
+          category.includes('veterinar') ||
+          category.includes('optometrist') ||
+          category.includes('chiropractic') ||
+          category.includes('counseling')
         );
       default: {
         const keyToken = normalizeCategoryToken(key);
@@ -883,6 +954,7 @@ export default function BusinessesPage() {
       if (key === 'restaurants' && parentCategory === 'food') return true;
       if (key === 'dealerships' && parentCategory === 'dealership') return true;
       if (key === 'retail' && parentCategory === 'retail') return true;
+      if (key === 'beauty' && parentCategory === 'health') return true;
     }
     const tokens = [businessCategoryLabel(b), b.subcategory || '', b.category || '']
       .map((v) => normalizeCategoryToken(v))
@@ -1624,9 +1696,11 @@ export default function BusinessesPage() {
       });
   }, [effectiveLang, persistMyMapLocation]);
 
-  const getBusinessHref = (biz: Business) => {
+  const getBusinessHref = (biz: Business, opts?: { claim?: boolean }) => {
     const value = String(biz.slug || biz.id || '').trim();
-    return value ? `/business/${encodeURIComponent(value)}` : '/businesses';
+    if (!value) return '/businesses';
+    const base = `/business/${encodeURIComponent(value)}`;
+    return opts?.claim && isClaimableBusiness(biz) ? `${base}?claim=1` : base;
   };
 
   const showBusinessOnMap = useCallback(
@@ -1655,6 +1729,7 @@ export default function BusinessesPage() {
 
   const renderBusinessRow = (biz: Business) => {
     const displayCategory = formatBusinessCategory(biz.subcategory || biz.category);
+    const unclaimed = isClaimableBusiness(biz);
     const locationText = getCityState(biz.address);
     const bizCoords = resolveCoordsForBusiness(biz);
     const isMapSelected = selectedMapBusinessId === biz.id;
@@ -1668,7 +1743,16 @@ export default function BusinessesPage() {
         : null;
 
     const rowActions = (
-      <div className="flex shrink-0 gap-1.5">
+      <div className="flex shrink-0 flex-wrap gap-1.5">
+        {unclaimed ? (
+          <Link
+            href={getBusinessHref(biz, { claim: true })}
+            className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 transition hover:bg-amber-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {t(effectiveLang, 'Claim')}
+          </Link>
+        ) : null}
         <Link
           href={getBusinessHref(biz)}
           className="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
@@ -1726,11 +1810,23 @@ export default function BusinessesPage() {
                   <FaRegHeart className="h-3.5 w-3.5 text-slate-500" />
                 )}
               </button>
+              {unclaimed ? (
+                <span className="absolute left-2 top-2 rounded-full bg-amber-500/95 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow">
+                  {t(effectiveLang, 'Unclaimed')}
+                </span>
+              ) : null}
             </div>
           </Link>
           <div className="space-y-2 p-2">
             <Link href={getBusinessHref(biz)} className="min-w-0 block">
-              <h3 className="line-clamp-1 text-sm font-bold text-slate-900">{biz.business_name}</h3>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <h3 className="line-clamp-1 text-sm font-bold text-slate-900">{biz.business_name}</h3>
+                {unclaimed ? (
+                  <span className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                    {t(effectiveLang, 'Unclaimed')}
+                  </span>
+                ) : null}
+              </div>
               {displayCategory ? (
                 <span
                   className={`mt-1 inline-block rounded-full border px-2 py-0.5 text-[10px] font-bold ${categoryStyle}`}
@@ -1772,12 +1868,19 @@ export default function BusinessesPage() {
             />
           </div>
           <div className="min-w-0 flex-1">
-            <h3
-              className="line-clamp-1 text-sm font-semibold text-slate-900 group-hover:text-violet-700"
-              data-no-translate
-            >
-              {biz.business_name}
-            </h3>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <h3
+                className="line-clamp-1 text-sm font-semibold text-slate-900 group-hover:text-violet-700"
+                data-no-translate
+              >
+                {biz.business_name}
+              </h3>
+              {unclaimed ? (
+                <span className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                  {t(effectiveLang, 'Unclaimed')}
+                </span>
+              ) : null}
+            </div>
             <div className="mt-0.5 flex flex-wrap items-center gap-1">
               {displayCategory ? (
                 <span

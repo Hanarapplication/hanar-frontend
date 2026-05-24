@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useKeenSlider } from 'keen-slider/react';
 import Footer from '@/components/Footer';
-import { Trash2, Megaphone, SendHorizontal, X, Search, ThumbsUp, SlidersHorizontal } from 'lucide-react';
+import { Trash2, SendHorizontal, X, Search, ThumbsUp, SlidersHorizontal } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabaseClient';
 import PostActionsBar from '@/components/PostActionsBar';
@@ -13,7 +13,7 @@ import FeedPostCommentsSheet, { groupCommentsByRoot } from '@/components/FeedPos
 import FeedVideoPlayer from '@/components/FeedVideoPlayer';
 import PullToRefresh from '@/components/PullToRefresh';
 import { Avatar } from '@/components/Avatar';
-import CreateCommunityPostClient from '@/app/community/post/CreateCommunityPostClient';
+import CreateCommunityPostClient, { type PublishedCommunityPost } from '@/app/community/post/CreateCommunityPostClient';
 import { useLanguage } from '@/context/LanguageContext';
 import { getNativeLanguageName, supportedLanguages } from '@/utils/languages';
 import { t } from '@/utils/translations';
@@ -772,6 +772,8 @@ export default function Home() {
   const [expandablePostText, setExpandablePostText] = useState<Set<string>>(new Set());
   const postTextRefs = useRef<Record<string, HTMLParagraphElement | null>>({});
   const latestPostDateRef = useRef<string | null>(null);
+  /** Optimistic post from home composer — kept at top until the next feed fetch includes it. */
+  const recentPublishedPostRef = useRef<CommunityPost | null>(null);
 
   const toggleExpandedPostText = useCallback((postId: string) => {
     setExpandedPostText((prev) => {
@@ -1307,22 +1309,35 @@ export default function Home() {
     cachePostFeedLangKey: string,
     cacheHomeFeedTab: HomeFeedTab
   ) => {
-    setCommunityPosts(data.rawPosts);
+    let rawPosts = data.rawPosts;
+    const recent = recentPublishedPostRef.current;
+    if (recent) {
+      const pid = String(recent.id);
+      const fromApi = rawPosts.find((p) => String(p.id) === pid);
+      if (fromApi) {
+        recentPublishedPostRef.current = null;
+        rawPosts = [fromApi, ...rawPosts.filter((p) => String(p.id) !== pid)];
+      } else {
+        rawPosts = [recent, ...rawPosts.filter((p) => String(p.id) !== pid)];
+      }
+    }
+
+    setCommunityPosts(rawPosts);
     setBusinesses(data.businesses);
     setOrganizations(data.organizations);
     setMarketplaceItems(data.marketplaceItems);
     setFeedBanners(banners);
-    if (data.rawPosts.length > 0) {
-      const newest = data.rawPosts.reduce((a, p) => {
+    if (rawPosts.length > 0) {
+      const newest = rawPosts.reduce((a, p) => {
         const t = new Date(p.created_at || 0).getTime();
         return t > a.t ? { t, iso: p.created_at } : a;
-      }, { t: 0, iso: data.rawPosts[0].created_at });
+      }, { t: 0, iso: rawPosts[0].created_at });
       latestPostDateRef.current = newest.iso;
     }
     writeFeedCache({
       postFeedLangKey: cachePostFeedLangKey,
       homeFeedTab: cacheHomeFeedTab,
-      communityPosts: data.rawPosts,
+      communityPosts: rawPosts,
       businesses: data.businesses,
       organizations: data.organizations,
       marketplaceItems: data.marketplaceItems,
@@ -1344,6 +1359,58 @@ export default function Home() {
       setRefreshing(false);
     }
   };
+
+  const handlePostPublished = useCallback(
+    (post: PublishedCommunityPost) => {
+      setComposerExpanded(false);
+
+      if (post.visibility === 'profile') {
+        toast.success(t(effectiveLang, 'Post published to your profile'));
+        return;
+      }
+
+      const normalized: CommunityPost = {
+        id: String(post.id),
+        title: post.title,
+        body: post.body,
+        language: post.language ?? null,
+        created_at: post.created_at,
+        author: post.author,
+        author_type: post.author_type ?? null,
+        username: post.username ?? null,
+        user_id: post.user_id ?? null,
+        org_id: post.org_id ?? null,
+        image: post.image ?? null,
+        video: post.video ?? null,
+        likes_post: 0,
+        community_comments: [{ count: 0 }],
+        profile_pic_url: currentUser.avatarUrl,
+        logo_url: null,
+      };
+
+      recentPublishedPostRef.current = normalized;
+
+      setCommunityPosts((prev) => {
+        const next = [normalized, ...prev.filter((p) => p.id !== normalized.id)];
+        writeFeedCache({
+          postFeedLangKey: feedLangsCacheKey(postFeedLangsRef.current),
+          homeFeedTab: homeFeedTabRef.current,
+          communityPosts: next,
+          businesses,
+          organizations,
+          marketplaceItems,
+          feedBanners,
+        });
+        return next;
+      });
+
+      latestPostDateRef.current = normalized.created_at;
+      setHasNewContent(false);
+      setVisibleCount((c) => Math.max(c, 12));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    [businesses, organizations, marketplaceItems, feedBanners, currentUser.avatarUrl, effectiveLang]
+  );
 
   // Load feed when post language (dropdown) or tab changes; cache keyed by both.
   useEffect(() => {
@@ -1370,10 +1437,10 @@ export default function Home() {
           latestPostDateRef.current = newest.iso;
         }
         setLoading(false);
-        return;
+      } else {
+        setLoading(true);
       }
 
-      setLoading(true);
       try {
         const [data, banners] = await Promise.all([loadHomeFeed(), loadBanners()]);
         if (cancelled) return;
@@ -2122,24 +2189,41 @@ const formatDateLabel = (value?: string | null) => {
     const key = String(postId);
     setDeletingPost(key);
     try {
-      const { error } = await supabase
-        .from('community_posts')
-        .update({ deleted: true })
-        .eq('id', key)
-        .eq('user_id', uid);
+      const res = await fetch('/api/community/post/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ post_id: key }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Failed to delete post');
 
-      if (error) throw error;
-      setCommunityPosts((prev) => prev.filter((p) => !postIdEquals(p.id, key)));
+      if (recentPublishedPostRef.current && String(recentPublishedPostRef.current.id) === key) {
+        recentPublishedPostRef.current = null;
+      }
+
+      setCommunityPosts((prev) => {
+        const next = prev.filter((p) => !postIdEquals(p.id, key));
+        writeFeedCache({
+          postFeedLangKey: feedLangsCacheKey(postFeedLangsRef.current),
+          homeFeedTab: homeFeedTabRef.current,
+          communityPosts: next,
+          businesses,
+          organizations,
+          marketplaceItems,
+          feedBanners,
+        });
+        return next;
+      });
+      toast.success(t(effectiveLang, 'Post deleted'));
     } catch (err) {
       console.error('Delete error:', err);
-      alert('Failed to delete post');
+      alert(err instanceof Error ? err.message : 'Failed to delete post');
     } finally {
       setDeletingPost(null);
     }
-  };
-
-  const handlePromotePost = () => {
-    alert('Promote coming soon.');
   };
 
   const handleSharePost = async (postId: string) => {
@@ -2692,10 +2776,7 @@ const formatDateLabel = (value?: string | null) => {
                 <CreateCommunityPostClient
                   embed="inline"
                   onCloseRequest={() => setComposerExpanded(false)}
-                  onPublished={() => {
-                    void refreshFeed();
-                    setComposerExpanded(false);
-                  }}
+                  onPublished={handlePostPublished}
                 />
               </Suspense>
             </div>
@@ -2859,13 +2940,6 @@ const formatDateLabel = (value?: string | null) => {
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       {t(effectiveLang, 'Delete')}
-                    </button>
-                    <button
-                      onClick={handlePromotePost}
-                      className="flex items-center gap-1.5 rounded-full bg-indigo-100 dark:bg-indigo-900/40 px-3 py-1.5 text-sm font-semibold text-indigo-600 dark:text-indigo-300 transition hover:bg-indigo-200 dark:hover:bg-indigo-900/60"
-                    >
-                      <Megaphone className="h-3.5 w-3.5" />
-                      {t(effectiveLang, 'Promote')}
                     </button>
                   </div>
                 )}

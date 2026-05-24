@@ -20,17 +20,17 @@ type CustomAudience =
   | 'business_free_trial';
 
 const CUSTOM_AUDIENCE_OPTIONS: { value: CustomAudience; label: string }[] = [
-  { value: 'all_users', label: 'All users (individuals + organizations + businesses)' },
+  { value: 'all_users', label: 'All users (excludes admin-added businesses & orgs)' },
   { value: 'individuals', label: 'Individuals only' },
-  { value: 'organizations', label: 'Organizations only' },
+  { value: 'organizations', label: 'Organizations only (excludes admin-added)' },
   { value: 'organization_admin_added', label: 'Organizations: Admin-added only' },
-  { value: 'businesses', label: 'All businesses' },
+  { value: 'businesses', label: 'All businesses (excludes admin-added)' },
   { value: 'business_admin_added', label: 'Businesses: Admin-added only' },
-  { value: 'business_free', label: 'Businesses: Free plan' },
-  { value: 'business_starter', label: 'Businesses: Starter plan' },
-  { value: 'business_growth', label: 'Businesses: Growth plan' },
-  { value: 'business_premium', label: 'Businesses: Premium plan' },
-  { value: 'business_free_trial', label: 'Businesses: Premium free trial only' },
+  { value: 'business_free', label: 'Businesses: Free plan (excludes admin-added)' },
+  { value: 'business_starter', label: 'Businesses: Starter plan (excludes admin-added)' },
+  { value: 'business_growth', label: 'Businesses: Growth plan (excludes admin-added)' },
+  { value: 'business_premium', label: 'Businesses: Premium plan (excludes admin-added)' },
+  { value: 'business_free_trial', label: 'Businesses: Premium free trial only (excludes admin-added)' },
 ];
 
 export default function AdminSendCustomEmailsPage() {

@@ -131,31 +131,36 @@ export async function POST(req: Request) {
     const detectedLanguage = detectLanguageFromText(`${normalizedTitle}\n${normalizedBody}`, fallbackLang);
 
     // ✅ Insert into Supabase
-    const { error } = await supabaseAdmin.from('community_posts').insert([
-      {
-        title: normalizedTitle,
-        body: normalizedBody,
-        tags: normalizedTags,
-        image: image || null,
-        video: video || null,
-        language: detectedLanguage,
-        author: authorForRow,
-        user_id,
-        org_id: org_id || null,
-        author_type: author_type || null,
-        username: usernameForRow,
-        likes_post: 0,
-        visibility: visibilityValue,
-      },
-    ]);
-    
+    const { data: inserted, error } = await supabaseAdmin
+      .from('community_posts')
+      .insert([
+        {
+          title: normalizedTitle,
+          body: normalizedBody,
+          tags: normalizedTags,
+          image: image || null,
+          video: video || null,
+          language: detectedLanguage,
+          author: authorForRow,
+          user_id,
+          org_id: org_id || null,
+          author_type: author_type || null,
+          username: usernameForRow,
+          likes_post: 0,
+          visibility: visibilityValue,
+        },
+      ])
+      .select(
+        'id, title, body, tags, language, created_at, author, user_id, org_id, author_type, username, image, video, likes_post, visibility'
+      )
+      .single();
 
     if (error) {
       console.error('[Supabase Insert Error]', error.message);
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, post: inserted });
   } catch (err) {
     console.error('[API Error]', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

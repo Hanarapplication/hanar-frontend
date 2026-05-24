@@ -3,7 +3,6 @@
  * promotion, or area blast is approved. Used by admin approval flows.
  */
 
-import { createClient } from '@supabase/supabase-js';
 import {
   buildBusinessApprovedPushContent,
   isPushConfigured,
@@ -12,6 +11,8 @@ import {
   type HanarPushBuilt,
 } from '@/lib/firebaseAdmin';
 import { getPushTokensForUser, isPushEnabledForUser } from '@/lib/pushForUsers';
+import { isAdminAddedAccount } from '@/lib/adminAddedAccounts';
+import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -41,10 +42,10 @@ async function resolveApprovalPayload(
   if (type === 'business') {
     const { data: biz, error } = await supabaseAdmin
       .from('businesses')
-      .select('owner_id, slug, business_name')
+      .select('owner_id, slug, business_name, admin_added_at')
       .eq('id', id)
       .single();
-    if (error || !biz?.owner_id) return null;
+    if (error || !biz?.owner_id || isAdminAddedAccount(biz)) return null;
     return {
       user_id: biz.owner_id,
       push: buildBusinessApprovedPushContent({

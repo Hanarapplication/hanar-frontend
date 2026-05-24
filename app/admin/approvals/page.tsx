@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { useAdminConfirm } from '@/components/AdminConfirmContext';
 
 // ──────────────────────────────────────────────── Types
@@ -44,10 +45,12 @@ interface Business {
   admin_note?: string | null;
   note_history?: NoteEntry[] | null;
   updated_at?: string | null;
+  created_at?: string | null;
 
   // Plan fields (from businesses table)
   plan?: PlanName | null;
   plan_expires_at?: string | null;
+  plan_selected_at?: string | null;
 
   max_gallery_images?: number | null;
   max_menu_items?: number | null;
@@ -97,10 +100,39 @@ function getUiStatus(biz: Business): BusinessStatus {
   return 'pending';
 }
 
+function getBusinessCreatedAt(biz: Business): string | null {
+  return biz.admin_added_at || biz.created_at || null;
+}
+
+function getPlanStartedAt(biz: Business): string | null {
+  if (biz.plan_selected_at) return biz.plan_selected_at;
+  if (biz.admin_added_at) return biz.admin_added_at;
+  return null;
+}
+
+function formatRelativeDate(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  try {
+    return formatDistanceToNow(new Date(iso), { addSuffix: true });
+  } catch {
+    return null;
+  }
+}
+
+function formatShortDate(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleDateString();
+  } catch {
+    return null;
+  }
+}
+
 // ──────────────────────────────────────────────── Main Page
 export default function AdminApprovalsPage() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [filterStatus, setFilterStatus] = useState<'all' | BusinessStatus>('all');
+  const [filterSource, setFilterSource] = useState<'all' | 'admin_added' | 'user'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -120,8 +152,8 @@ export default function AdminApprovalsPage() {
         `
         id, business_name, slug, phone, email, whatsapp, owner_id,
         moderation_status, lifecycle_status, is_archived, verified_info,
-        admin_note, note_history, updated_at,
-        plan, plan_expires_at,
+        admin_note, note_history, updated_at, created_at,
+        plan, plan_expires_at, plan_selected_at,
         max_gallery_images, max_menu_items, max_retail_items, max_car_listings,
         allow_social_links, allow_whatsapp, allow_promoted, allow_reviews, allow_qr,
         admin_added_at
@@ -232,10 +264,14 @@ export default function AdminApprovalsPage() {
     const term = searchTerm.trim().toLowerCase();
     return businesses.filter((b) => {
       const matchStatus = filterStatus === 'all' || getUiStatus(b) === filterStatus;
+      const matchSource =
+        filterSource === 'all' ||
+        (filterSource === 'admin_added' && Boolean(b.admin_added_at)) ||
+        (filterSource === 'user' && !b.admin_added_at);
       const matchSearch = term === '' || (b.business_name || '').toLowerCase().includes(term);
-      return matchStatus && matchSearch;
+      return matchStatus && matchSource && matchSearch;
     });
-  }, [businesses, filterStatus, searchTerm]);
+  }, [businesses, filterStatus, filterSource, searchTerm]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
 
@@ -265,6 +301,25 @@ export default function AdminApprovalsPage() {
               }`}
             >
               {status.charAt(0).toUpperCase() + status.slice(1)}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {(
+            [
+              { value: 'all', label: 'All sources' },
+              { value: 'admin_added', label: 'Admin-added' },
+              { value: 'user', label: 'User-created' },
+            ] as const
+          ).map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => setFilterSource(value)}
+              className={`px-4 py-2 rounded-lg ${
+                filterSource === value ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-800'
+              }`}
+            >
+              {label}
             </button>
           ))}
         </div>
@@ -342,7 +397,7 @@ function BusinessCard({
   const [planYears, setPlanYears] = useState<number>(1);
   const [planLoading, setPlanLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [suppressStatusEmails, setSuppressStatusEmails] = useState(false);
+  const [suppressStatusEmails, setSuppressStatusEmails] = useState(Boolean(biz.admin_added_at));
 
   const [supportSubject, setSupportSubject] = useState('');
   const [supportMessage, setSupportMessage] = useState('');
@@ -357,6 +412,7 @@ function BusinessCard({
     });
     setAdminNote(biz.admin_note || '');
     setSelectedPlan((biz.plan as PlanName) || 'free');
+    setSuppressStatusEmails(Boolean(biz.admin_added_at));
     setSentNotifications([]);
     setSentLoaded(false);
     setEditingSentId(null);
@@ -542,6 +598,11 @@ function BusinessCard({
   };
 
   const historyCount = biz.note_history?.length || 0;
+  const createdAt = getBusinessCreatedAt(biz);
+  const planStartedAt = getPlanStartedAt(biz);
+  const planTenure = formatRelativeDate(planStartedAt);
+  const planExpiresLabel = formatShortDate(biz.plan_expires_at);
+  const createdRelative = formatRelativeDate(createdAt);
 
   const sendSupportEmail = async () => {
     const sub = supportSubject.trim();
@@ -591,14 +652,27 @@ function BusinessCard({
         <div className="flex flex-wrap items-center gap-2 min-w-0">
           <h2 className="text-lg font-semibold text-gray-900">{biz.business_name}</h2>
           {biz.admin_added_at ? (
-            <span className="inline-flex items-center rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800" title="Created by admin">Admin</span>
+            <span
+              className="inline-flex items-center rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-800 ring-1 ring-inset ring-indigo-300"
+              title="Created by admin — excluded from bulk emails; use Email this business below to contact individually"
+            >
+              Admin-added
+            </span>
           ) : (
-            <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600" title="Created by user">User</span>
+            <span className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600" title="Created by user">User-created</span>
           )}
           <StatusBadge status={getUiStatus(biz)} />
           <span className="text-xs text-gray-500">
-            {(biz.plan as PlanName) || 'free'} · {biz.plan_expires_at ? new Date(biz.plan_expires_at).toLocaleDateString() : '—'}
+            {(biz.plan as PlanName) || 'free'}
+            {planTenure ? ` · on plan ${planTenure}` : ''}
+            {planExpiresLabel ? ` · expires ${planExpiresLabel}` : ''}
           </span>
+          {createdAt && (
+            <span className="text-xs text-gray-400" title={new Date(createdAt).toLocaleString()}>
+              Created {formatShortDate(createdAt)}
+              {createdRelative ? ` (${createdRelative})` : ''}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
@@ -636,6 +710,22 @@ function BusinessCard({
       <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-gray-600">
         {biz.phone && <p>📞 {biz.phone}</p>}
         {biz.email && <p>✉️ {biz.email}</p>}
+        {createdAt && (
+          <p>
+            Created: <span className="font-medium">{formatShortDate(createdAt)}</span>
+            {createdRelative ? ` (${createdRelative})` : ''}
+          </p>
+        )}
+        <p>
+          Plan: <span className="font-medium">{(biz.plan as PlanName) || 'free'}</span>
+          {planTenure ? ` · on plan ${planTenure}` : ''}
+          {planExpiresLabel ? ` · expires ${planExpiresLabel}` : ''}
+        </p>
+        {biz.admin_added_at && (
+          <p className="sm:col-span-2 text-indigo-700">
+            Admin-added listing — not included in bulk email blasts. Use &quot;Email this business&quot; below to contact them individually.
+          </p>
+        )}
         <p>Visibility: <span className="font-medium">{getUiStatus(biz)}</span></p>
         <p>Limits: Gallery {biz.max_gallery_images ?? 0} · Menu {biz.max_menu_items ?? 0} · Retail {biz.max_retail_items ?? 0} · Cars {biz.max_car_listings ?? 0} · Real estate {biz.max_real_estate_listings ?? biz.max_car_listings ?? 0}</p>
       </div>
@@ -718,6 +808,14 @@ function BusinessCard({
         </div>
 
         <div className="text-xs text-gray-600">
+          Current:{' '}
+          <span className="font-medium">
+            {(biz.plan as PlanName) || 'free'}
+            {planTenure ? ` · on plan ${planTenure}` : ''}
+            {planExpiresLabel ? ` · expires ${planExpiresLabel}` : ''}
+          </span>
+        </div>
+        <div className="text-xs text-gray-600">
           Features:{' '}
           <span className="font-medium">
             Social {biz.allow_social_links ? 'Yes' : 'No'} · WhatsApp {biz.allow_whatsapp ? 'Yes' : 'No'} · Promoted{' '}
@@ -785,6 +883,7 @@ function BusinessCard({
             <span className="text-gray-600">
               {' '}
               — While checked, approve / hold / reject / archive saves normally but does not email this business or trigger the approval notification.
+              {biz.admin_added_at ? ' On by default for admin-added businesses.' : ''}
             </span>
           </span>
         </label>

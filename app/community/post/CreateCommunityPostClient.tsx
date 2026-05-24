@@ -27,12 +27,29 @@ function postLanguageCodeForApi(): string {
 
 export type CreateCommunityPostEmbed = 'modal' | 'inline';
 
+export type PublishedCommunityPost = {
+  id: string;
+  title: string;
+  body: string;
+  language?: string | null;
+  created_at: string;
+  author: string;
+  author_type?: string | null;
+  username?: string | null;
+  user_id?: string | null;
+  org_id?: string | null;
+  image?: string | null;
+  video?: string | null;
+  visibility?: string | null;
+  tags?: string[] | null;
+};
+
 export type CreateCommunityPostClientProps = {
   /** Compact embed: modal overlay (legacy) or inline expanding panel on home */
   embed?: false | CreateCommunityPostEmbed;
   onCloseRequest?: () => void;
   /** Called after a successful publish (e.g. refresh home feed) */
-  onPublished?: () => void;
+  onPublished?: (post: PublishedCommunityPost) => void;
 };
 
 export default function CreateCommunityPostClient({
@@ -367,8 +384,15 @@ export default function CreateCommunityPostClient({
     if (!res.ok) return alert(result.error || 'Failed to submit post');
 
     if (embedded) {
-      toast.success(t(effectiveLang, 'Post submitted. Redirecting...'));
-      onPublished?.();
+      toast.success(t(effectiveLang, 'Post published!'));
+      if (result.post && typeof result.post.id === 'string') {
+        onPublished?.(result.post as PublishedCommunityPost);
+      }
+      setPostBody('');
+      setTags('');
+      setTagsExpanded(false);
+      clearMedia();
+      setPreview(false);
       onCloseRequest?.();
       return;
     }

@@ -140,11 +140,13 @@ export async function POST(req: Request) {
       }
     }
 
-    // Organizations (all or admin-added only)
+    // Organizations (all or admin-added only; bulk audiences exclude admin-added)
     if (audience === 'all_users' || audience === 'organizations' || audience === 'organization_admin_added') {
-      let orgQuery = supabaseAdmin.from('organizations').select('user_id, email');
+      let orgQuery = supabaseAdmin.from('organizations').select('user_id, email, admin_added_at');
       if (audience === 'organization_admin_added') {
         orgQuery = orgQuery.not('admin_added_at', 'is', null);
+      } else {
+        orgQuery = orgQuery.is('admin_added_at', null);
       }
       const { data: orgs } = await orgQuery;
       for (const o of orgs || []) {
@@ -160,12 +162,15 @@ export async function POST(req: Request) {
       audience === 'business_admin_added' ||
       audience.startsWith('business_');
     if (isBusinessAudience) {
-      let q = supabaseAdmin.from('businesses').select('id, owner_id, email');
+      let q = supabaseAdmin.from('businesses').select('id, owner_id, email, admin_added_at');
       if (audience === 'business_admin_added') {
         q = q.not('admin_added_at', 'is', null);
-      } else if (audience === 'business_free_trial') {
+      } else {
+        q = q.is('admin_added_at', null);
+      }
+      if (audience === 'business_free_trial') {
         q = q.eq('plan', 'premium').not('trial_end', 'is', null);
-      } else if (audience.startsWith('business_') && audience !== 'businesses') {
+      } else if (audience.startsWith('business_') && audience !== 'businesses' && audience !== 'business_admin_added') {
         const plan = audience.replace('business_', '');
         q = q.eq('plan', plan);
       }
