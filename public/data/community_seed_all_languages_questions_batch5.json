@@ -1,0 +1,1314 @@
+[
+  {
+    "title": "Which Texas city felt most welcoming after immigrating?",
+    "body": "Thinking about moving but want somewhere with community and opportunities.",
+    "authorIndex": 8,
+    "language": "en",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "en"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth had many cultural groups and easier networking.",
+        "authorIndex": 0
+      },
+      {
+        "body": "Houston felt the most international to me.",
+        "authorIndex": 16
+      },
+      {
+        "body": "Look at commute times before deciding — Texas is huge.",
+        "authorIndex": 24
+      },
+      {
+        "body": "Choose based on jobs first, community second.",
+        "authorIndex": 32
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Какой город в Техасе показался самым гостеприимным после иммиграции?",
+    "body": "Думаем о переезде — нужны и сообщество, и возможности.",
+    "authorIndex": 9,
+    "language": "ru",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ru"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth — много культурных групп и проще знакомиться.",
+        "authorIndex": 1
+      },
+      {
+        "body": "Houston показался мне самым интернациональным.",
+        "authorIndex": 17
+      },
+      {
+        "body": "Смотрите время в пути — Техас огромный.",
+        "authorIndex": 25
+      },
+      {
+        "body": "Сначала работа, потом сообщество — так надёжнее.",
+        "authorIndex": 33
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "أي مدينة في تكساس كانت الأكثر ترحيباً بعد الهجرة؟",
+    "body": "أفكر بالانتقال وأريد مجتمعاً وفرصاً في آن واحد.",
+    "authorIndex": 10,
+    "language": "ar",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ar"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth فيها مجموعات ثقافية كثيرة وتواصل أسهل.",
+        "authorIndex": 2
+      },
+      {
+        "body": "Houston بدا لي الأكثر تنوعاً دولياً.",
+        "authorIndex": 18
+      },
+      {
+        "body": "انظر أوقات التنقل قبل القرار — تكساس واسعة جداً.",
+        "authorIndex": 26
+      },
+      {
+        "body": "اختر العمل أولاً ثم المجتمع.",
+        "authorIndex": 34
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "이민 후 텍사스에서 어느 도시가 가장 환영받는 느낌이었나요?",
+    "body": "이사를 고민 중인데 커뮤니티와 기회가 있는 곳을 원해요.",
+    "authorIndex": 11,
+    "language": "ko",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ko"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth는 문화 모임이 많고 네트워킹이 쉬웠어요.",
+        "authorIndex": 3
+      },
+      {
+        "body": "Houston이 가장 국제적인 느낌이었습니다.",
+        "authorIndex": 19
+      },
+      {
+        "body": "결정 전 commute 시간 꼭 보세요 — 텍사스는 정말 큽니다.",
+        "authorIndex": 27
+      },
+      {
+        "body": "일자리를 먼저, 커뮤니티는 그다음으로 고르세요.",
+        "authorIndex": 35
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "移民后觉得德州哪个城市最友善？",
+    "body": "考虑搬家，希望既有社区又有机会。",
+    "authorIndex": 12,
+    "language": "zh",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "zh"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth 文化团体多，比较容易建立人脉。",
+        "authorIndex": 4
+      },
+      {
+        "body": "Houston 对我来说最国际化。",
+        "authorIndex": 20
+      },
+      {
+        "body": "决定前先看通勤时间——德州很大。",
+        "authorIndex": 28
+      },
+      {
+        "body": "先选工作机会，再考虑社区。",
+        "authorIndex": 36
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "移民後、テキサスでどの都市が最も居心地よかったですか？",
+    "body": "引越しを考えていて、コミュニティと機会の両方が欲しいです。",
+    "authorIndex": 13,
+    "language": "ja",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ja"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth は文化コミュニティが多くネットワークしやすい。",
+        "authorIndex": 5
+      },
+      {
+        "body": "Houston が最も国際的な印象でした。",
+        "authorIndex": 21
+      },
+      {
+        "body": "決める前に通勤時間を確認 — テキサスは広い。",
+        "authorIndex": 29
+      },
+      {
+        "body": "まず仕事、次にコミュニティで選ぶのが現実的。",
+        "authorIndex": 37
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Göçten sonra Teksas'ta hangi şehir en sıcak karşılandı?",
+    "body": "Taşınmayı düşünüyoruz; topluluk ve fırsat istiyoruz.",
+    "authorIndex": 14,
+    "language": "tr",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "tr"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth'ta kültürel gruplar çok, networking kolay.",
+        "authorIndex": 6
+      },
+      {
+        "body": "Houston bana en uluslararası geldi.",
+        "authorIndex": 22
+      },
+      {
+        "body": "Karar vermeden commute süresine bak — Teksas çok büyük.",
+        "authorIndex": 30
+      },
+      {
+        "body": "Önce iş, sonra topluluk — öyle seçin.",
+        "authorIndex": 38
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "بعد از مهاجرت کدام شهر تگزاس بیشترین احساس خوش‌آمدگویی را داشت؟",
+    "body": "به جابجایی فکر می‌کنم و هم جامعه و هم فرصت می‌خواهم.",
+    "authorIndex": 15,
+    "language": "fa",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "fa"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth گروه‌های فرهنگی زیاد و شبکه‌سازی راحت‌تر بود.",
+        "authorIndex": 7
+      },
+      {
+        "body": "Houston برایم بین‌المللی‌ترین بود.",
+        "authorIndex": 23
+      },
+      {
+        "body": "قبل از تصمیم زمان رفت‌وآمد را ببین — تگزاس خیلی بزرگ است.",
+        "authorIndex": 31
+      },
+      {
+        "body": "اول شغل، بعد جامعه — منطقی‌تر است.",
+        "authorIndex": 39
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "¿Qué ciudad de Texas te pareció más acogedora después de inmigrar?",
+    "body": "Pienso mudarme y quiero comunidad y oportunidades.",
+    "authorIndex": 101,
+    "language": "es",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "es"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth tiene muchos grupos culturales y networking más fácil.",
+        "authorIndex": 100
+      },
+      {
+        "body": "Houston me pareció la más internacional.",
+        "authorIndex": 102
+      },
+      {
+        "body": "Mira tiempos de commute antes de decidir — Texas es enorme.",
+        "authorIndex": 199
+      },
+      {
+        "body": "Elige primero por trabajo, luego comunidad.",
+        "authorIndex": 100
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Quelle ville du Texas vous a semblé la plus accueillante après l'immigration ?",
+    "body": "Je pense déménager et je veux communauté et opportunités.",
+    "authorIndex": 104,
+    "language": "fr",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "fr"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth a beaucoup de groupes culturels et un réseau plus facile.",
+        "authorIndex": 103
+      },
+      {
+        "body": "Houston m'a paru la plus internationale.",
+        "authorIndex": 105
+      },
+      {
+        "body": "Regardez les temps de trajet — le Texas est immense.",
+        "authorIndex": 103
+      },
+      {
+        "body": "Choisissez d'abord l'emploi, puis la communauté.",
+        "authorIndex": 105
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Welche Stadt in Texas wirkte nach der Einwanderung am einladendsten?",
+    "body": "Ich überlege umzuziehen und will Gemeinschaft und Chancen.",
+    "authorIndex": 107,
+    "language": "de",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "de"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth hat viele Kulturgruppen und leichteres Networking.",
+        "authorIndex": 106
+      },
+      {
+        "body": "Houston wirkte mir am internationalsten.",
+        "authorIndex": 108
+      },
+      {
+        "body": "Commute-Zeiten prüfen — Texas ist riesig.",
+        "authorIndex": 106
+      },
+      {
+        "body": "Zuerst Jobs, dann Community wählen.",
+        "authorIndex": 108
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Quale città del Texas vi è sembrata più accogliente dopo l'immigrazione?",
+    "body": "Sto pensando di trasferirmi e voglio comunità e opportunità.",
+    "authorIndex": 110,
+    "language": "it",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "it"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth ha molti gruppi culturali e networking più facile.",
+        "authorIndex": 109
+      },
+      {
+        "body": "Houston mi è sembrata la più internazionale.",
+        "authorIndex": 111
+      },
+      {
+        "body": "Controlla i tempi di pendolarismo — il Texas è enorme.",
+        "authorIndex": 109
+      },
+      {
+        "body": "Scegli prima il lavoro, poi la comunità.",
+        "authorIndex": 111
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Qual cidade do Texas pareceu mais acolhedora depois de imigrar?",
+    "body": "Penso em me mudar e quero comunidade e oportunidades.",
+    "authorIndex": 113,
+    "language": "pt",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "pt"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth tem muitos grupos culturais e networking mais fácil.",
+        "authorIndex": 112
+      },
+      {
+        "body": "Houston pareceu a mais internacional para mim.",
+        "authorIndex": 114
+      },
+      {
+        "body": "Veja tempos de deslocamento — o Texas é enorme.",
+        "authorIndex": 112
+      },
+      {
+        "body": "Escolha primeiro emprego, depois comunidade.",
+        "authorIndex": 114
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Które miasto w Teksasie wydawało się najbardziej gościnne po imigracji?",
+    "body": "Myślimy o przeprowadzce — chcemy społeczności i szans.",
+    "authorIndex": 116,
+    "language": "pl",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "pl"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth ma wiele grup kulturowych i łatwiejszy networking.",
+        "authorIndex": 115
+      },
+      {
+        "body": "Houston wydawał mi się najbardziej międzynarodowy.",
+        "authorIndex": 117
+      },
+      {
+        "body": "Sprawdź dojazdy — Teksas jest ogromny.",
+        "authorIndex": 115
+      },
+      {
+        "body": "Najpierw praca, potem społeczność.",
+        "authorIndex": 117
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Ce oraș din Texas vi s-a părut cel mai primitor după imigrare?",
+    "body": "Mă gândesc să mă mut și vreau comunitate și oportunități.",
+    "authorIndex": 119,
+    "language": "ro",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ro"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth are multe grupuri culturale și networking mai ușor.",
+        "authorIndex": 118
+      },
+      {
+        "body": "Houston mi s-a părut cel mai internațional.",
+        "authorIndex": 120
+      },
+      {
+        "body": "Verifică timpii de navetă — Texas e imens.",
+        "authorIndex": 118
+      },
+      {
+        "body": "Alege mai întâi jobul, apoi comunitatea.",
+        "authorIndex": 120
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Ποια πόλη του Τέξας σας φάνηκε πιο φιλόξενη μετά τη μετανάστευση;",
+    "body": "Σκέφτομαι μετακόμιση και θέλω κοινότητα και ευκαιρίες.",
+    "authorIndex": 122,
+    "language": "el",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "el"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth έχει πολλές πολιτισμικές ομάδες και εύκολο networking.",
+        "authorIndex": 121
+      },
+      {
+        "body": "Το Houston μου φάνηκε το πιο διεθνές.",
+        "authorIndex": 123
+      },
+      {
+        "body": "Δες χρόνους μετακίνησης — το Τέξας είναι τεράστιο.",
+        "authorIndex": 121
+      },
+      {
+        "body": "Διάλεξε πρώτα δουλειά, μετά κοινότητα.",
+        "authorIndex": 123
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "איזו עיר בטקסס הרגישה הכי מקבלת אחרי הגירה?",
+    "body": "חושבים לעבור דירה ורוצים קהילה והזדמנויות.",
+    "authorIndex": 125,
+    "language": "he",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "he"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth — הרבה קבוצות תרבותיות ונטворקינג קל יותר.",
+        "authorIndex": 124
+      },
+      {
+        "body": "Houston הרגישה לי הכי בינלאומית.",
+        "authorIndex": 126
+      },
+      {
+        "body": "בדקו זמני נסיעה — טקסס ענק.",
+        "authorIndex": 124
+      },
+      {
+        "body": "בחרו קודם עבודה, אחר כך קהילה.",
+        "authorIndex": 126
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "आप्रवासन के बाद कौन सा Texas शहर सबसे स्वागत योग्य लगा?",
+    "body": "शिफ्ट होने की सोच रहे हैं — community और opportunities चाहिए।",
+    "authorIndex": 128,
+    "language": "hi",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "hi"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth में cultural groups ज्यादा, networking आसान।",
+        "authorIndex": 127
+      },
+      {
+        "body": "Houston मुझे सबसे international लगा।",
+        "authorIndex": 129
+      },
+      {
+        "body": "फैसले से पहले commute time देखें — Texas बहुत बड़ा है।",
+        "authorIndex": 127
+      },
+      {
+        "body": "पहले job, फिर community चुनें।",
+        "authorIndex": 129
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "অভিবাসনের পর কোন Texas শহর সবচেয়ে স welcoming লাগlo?",
+    "body": "স্থানান্তরের কথা ভাবছি — community ও opportunity চাই।",
+    "authorIndex": 131,
+    "language": "bn",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "bn"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth-এ cultural group বেশি, networking সহজ।",
+        "authorIndex": 130
+      },
+      {
+        "body": "Houston আমার কাছে সবচেয়ে international।",
+        "authorIndex": 132
+      },
+      {
+        "body": "সিদ্ধান্তের আগে commute time দেখুন — Texas বিশাল।",
+        "authorIndex": 130
+      },
+      {
+        "body": "আগে চাকরি, তারপর community বেছে নিন।",
+        "authorIndex": 132
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "குடியேறிய பிறகு எந்த Texas நகரம் warm-ஆ feel ஆனது?",
+    "body": "Moving plan — community + opportunities வேண்டும்.",
+    "authorIndex": 134,
+    "language": "ta",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ta"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth-ல cultural groups நிறைய, networking easy.",
+        "authorIndex": 133
+      },
+      {
+        "body": "Houston எனக்கு most international.",
+        "authorIndex": 135
+      },
+      {
+        "body": "Commute time check பண்ணுங்கள் — Texas huge.",
+        "authorIndex": 133
+      },
+      {
+        "body": "Jobs first, community second.",
+        "authorIndex": 135
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "ਆਪ੍ਰਵਾਸਨ ਤੋਂ ਬਾਅਦ ਕਿਹੜਾ Texas ਸ਼ਹਿਰ ਸਭ ਤੋਂ welcoming ਲੱਗਾ?",
+    "body": "Move ਕਰਨ ਦੀ ਸੋਚ — community ਅਤੇ opportunities ਚਾਹੀਦੇ।",
+    "authorIndex": 137,
+    "language": "pa",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "pa"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth cultural groups ਜ਼ਿਆਦਾ, networking ਆਸਾਨ।",
+        "authorIndex": 136
+      },
+      {
+        "body": "Houston ਮੈਨੂੰ ਸਭ ਤੋਂ international ਲੱਗਾ।",
+        "authorIndex": 138
+      },
+      {
+        "body": "Commute time ਪਹਿਲਾਂ ਦੇਖੋ — Texas ਬਹੁਤ ਵੱਡਾ।",
+        "authorIndex": 136
+      },
+      {
+        "body": "ਪਹਿਲਾਂ job, ਫਿਰ community।",
+        "authorIndex": 138
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "ہجرت کے بعد کون سا Texas شہر سب سے welcoming لگا?",
+    "body": "منتقل ہونے کا سوچ رہے ہیں — community اور opportunities چاہیے۔",
+    "authorIndex": 140,
+    "language": "ur",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ur"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth میں cultural groups زیادہ، networking آسان۔",
+        "authorIndex": 139
+      },
+      {
+        "body": "Houston مجھے سب سے international لگا۔",
+        "authorIndex": 141
+      },
+      {
+        "body": "فیصلے سے پہلے commute time دیکھیں — Texas بہت بڑا ہے۔",
+        "authorIndex": 139
+      },
+      {
+        "body": "پہلے job، پھر community۔",
+        "authorIndex": 141
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "د کډوالۍ وروسته کوم Texas ښار تر ټولو ښه راغلاست?",
+    "body": "د لېږد فکر کوم — community او فرصتونه غواړم.",
+    "authorIndex": 143,
+    "language": "ps",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ps"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth کې cultural groups ډیر دي.",
+        "authorIndex": 142
+      },
+      {
+        "body": "Houston ماته تر ټولو international و.",
+        "authorIndex": 144
+      },
+      {
+        "body": "Commute وخت وګورئ — Texas لوی دی.",
+        "authorIndex": 142
+      },
+      {
+        "body": "لومړی کار، بیا community.",
+        "authorIndex": 144
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Piştî koçberiyê kîjan bajarê Texas herî xêrhatî bû?",
+    "body": "Dixebitim bar bikevim — civak û derfet dixwazim.",
+    "authorIndex": 146,
+    "language": "ku",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ku"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth komên çandî zêde in.",
+        "authorIndex": 145
+      },
+      {
+        "body": "Houston ji min re herî navneteweyî bû.",
+        "authorIndex": 147
+      },
+      {
+        "body": "Demên rêwîtiyê kontrol bike — Texas mezin e.",
+        "authorIndex": 145
+      },
+      {
+        "body": "Pêşî kar, paşê civak.",
+        "authorIndex": 147
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Kota Texas mana yang paling welcoming setelah imigrasi?",
+    "body": "Pikirkan pindah — butuh komunitas dan peluang.",
+    "authorIndex": 149,
+    "language": "id",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "id"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth banyak grup budaya, networking lebih mudah.",
+        "authorIndex": 148
+      },
+      {
+        "body": "Houston paling internasional menurut saya.",
+        "authorIndex": 150
+      },
+      {
+        "body": "Cek waktu commute — Texas sangat besar.",
+        "authorIndex": 148
+      },
+      {
+        "body": "Pilih pekerjaan dulu, komunitas kedua.",
+        "authorIndex": 150
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Bandar Texas mana paling mesra selepas imigrasi?",
+    "body": "Fikir nak pindah — mahukan komuniti dan peluang.",
+    "authorIndex": 152,
+    "language": "ms",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ms"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth banyak kumpulan budaya, networking lebih mudah.",
+        "authorIndex": 151
+      },
+      {
+        "body": "Houston paling antarabangsa bagi saya.",
+        "authorIndex": 153
+      },
+      {
+        "body": "Semak masa commute — Texas sangat besar.",
+        "authorIndex": 151
+      },
+      {
+        "body": "Pilih kerja dulu, komuniti kedua.",
+        "authorIndex": 153
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Thành phố Texas nào cảm thấy thân thiện nhất sau khi nhập cư?",
+    "body": "Đang nghĩ chuyển nhà — muốn cộng đồng và cơ hội.",
+    "authorIndex": 155,
+    "language": "vi",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "vi"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth nhiều nhóm văn hóa, networking dễ hơn.",
+        "authorIndex": 154
+      },
+      {
+        "body": "Houston với tôi quốc tế nhất.",
+        "authorIndex": 156
+      },
+      {
+        "body": "Xem thời gian đi làm — Texas rất rộng.",
+        "authorIndex": 154
+      },
+      {
+        "body": "Chọn việc làm trước, cộng đồng sau.",
+        "authorIndex": 156
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "หลังอพยพ มหานครเทกซัสไหนรู้สึกต้อนรับที่สุด?",
+    "body": "กำลังคิดย้าย อยากได้ชุมชนและโอกาส",
+    "authorIndex": 158,
+    "language": "th",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "th"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth มีกลุ่มวัฒนธรรมเยอะ networking ง่าย",
+        "authorIndex": 157
+      },
+      {
+        "body": "Houston รู้สึกนานาชาติที่สุดสำหรับฉัน",
+        "authorIndex": 159
+      },
+      {
+        "body": "ดูเวลาเดินทางก่อนตัดสิน — เทกซัสใหญ่มาก",
+        "authorIndex": 157
+      },
+      {
+        "body": "เลือกงานก่อน ชุมชนรอง",
+        "authorIndex": 159
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "ရွှေ့ပြောင်းပြီးနောက် Texas ရဲ့ ဘယ်မြို့က အကြိုဆုံဆုံးလို ခံစားရလဲ?",
+    "body": "ပြောင်းရွှေ့ဖို့ စဉ်းစားနေသည် — community နဲ့ opportunity လိုသည်။",
+    "authorIndex": 161,
+    "language": "my",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "my"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth တွင် cultural groups များပြီး networking လွယ်။",
+        "authorIndex": 160
+      },
+      {
+        "body": "Houston က international အများဆုံး။",
+        "authorIndex": 162
+      },
+      {
+        "body": "Commute time ကြည့်ပါ — Texas ကြီးလွန်းသည်။",
+        "authorIndex": 160
+      },
+      {
+        "body": "အလုပ်ကို ဦးစွာ၊ community နောက်မှ။",
+        "authorIndex": 162
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "बसाइसarı पछि कुन Texas शहर सबैभन्दा welcoming लागyo?",
+    "body": "Sarne sochirako — community ra opportunities chahiyo.",
+    "authorIndex": 164,
+    "language": "ne",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ne"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth ma cultural groups dherai, networking sajilo.",
+        "authorIndex": 163
+      },
+      {
+        "body": "Houston malai sabai bhanda international.",
+        "authorIndex": 165
+      },
+      {
+        "body": "Commute time hernu — Texas dherai thulo.",
+        "authorIndex": 163
+      },
+      {
+        "body": "Pahila job, pachi community.",
+        "authorIndex": 165
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "ከሰደድ በኋላ የቴክሳስ cual ከተማ በጣም welcoming ነበር?",
+    "body": "መሸጋገር እያሰብኩ — community እና opportunities እፈልጋለሁ።",
+    "authorIndex": 167,
+    "language": "am",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "am"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth ባህላዊ ቡድኖች ብዙ ናቸው።",
+        "authorIndex": 166
+      },
+      {
+        "body": "Houston በጣም international ተሰማኝ።",
+        "authorIndex": 168
+      },
+      {
+        "body": "Commute time ተመልከት — Texas огромный ነው።",
+        "authorIndex": 166
+      },
+      {
+        "body": "መጀመሪያ job፣ затем community።",
+        "authorIndex": 168
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Magaalo Texas kee ayaa ugu soo dhaweyn badnayd kadib hijra?",
+    "body": "Waxaan ka fekerayaa guuritaan — bulsho iyo fursado ayaan rabaa.",
+    "authorIndex": 170,
+    "language": "so",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "so"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth kooxo dhaqameed badan leh.",
+        "authorIndex": 169
+      },
+      {
+        "body": "Houston ayaa ii ahayd tan ugu caalamiga.",
+        "authorIndex": 171
+      },
+      {
+        "body": "Eeg waqtiga safarka — Texas waa weyn.",
+        "authorIndex": 169
+      },
+      {
+        "body": "Marka hore shaqo, ka dib bulsho.",
+        "authorIndex": 171
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Mji gani wa Texas ulihisi ukaribishaji zaidi baada ya uhamiaji?",
+    "body": "Nafikiria kuhamia — ninataka jamii na fursa.",
+    "authorIndex": 173,
+    "language": "sw",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "sw"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth kuna vikundi vingi vya kitamaduni.",
+        "authorIndex": 172
+      },
+      {
+        "body": "Houston ilionekana ya kimataifa zaidi kwangu.",
+        "authorIndex": 174
+      },
+      {
+        "body": "Angalia muda wa safari — Texas ni kubwa.",
+        "authorIndex": 172
+      },
+      {
+        "body": "Chagua kazi kwanza, jamii pili.",
+        "authorIndex": 174
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Wace birnin Texas ta ji da murna bayan hijira?",
+    "body": "Ina tunanin ƙaura — ina so al'umma da damar.",
+    "authorIndex": 176,
+    "language": "ha",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ha"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth tana da ƙungiyoyi da yawa.",
+        "authorIndex": 175
+      },
+      {
+        "body": "Houston ta yi mini da ta kasa da kasa.",
+        "authorIndex": 177
+      },
+      {
+        "body": "Duba lokacin tafiya — Texas babba ne.",
+        "authorIndex": 175
+      },
+      {
+        "body": "Zaɓi aiki da farko, al'umma biyu.",
+        "authorIndex": 177
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Հ immigracionից հետո Texas-ի որ քաղաքն էր ամենաերկար սիրով ընդունող?",
+    "body": "Մտածում ենք տեղափոխվել — ուզում ենք community և հնարավորություններ.",
+    "authorIndex": 179,
+    "language": "hy",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "hy"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth-ում մշակութային խմբեր շատ են.",
+        "authorIndex": 178
+      },
+      {
+        "body": "Houston-ը ինձ ամենամիջազգային seemed.",
+        "authorIndex": 180
+      },
+      {
+        "body": "Ստուգեք commute — Texas-ը հսկայական է.",
+        "authorIndex": 178
+      },
+      {
+        "body": "Նախ աշխատանք, հետո community.",
+        "authorIndex": 180
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "იმიგრაციის შემდეგ Texas-ის რომელი ქალაქი ყველაზე მომღიმე იყო?",
+    "body": "გადასვლაზე ვფიქრob — community და შესაძლებლობები მინდა.",
+    "authorIndex": 182,
+    "language": "ka",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ka"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth-ში კულტურული ჯგუფები ბევრია.",
+        "authorIndex": 181
+      },
+      {
+        "body": "Houston ყველაზე საერთაშორისო seemed.",
+        "authorIndex": 183
+      },
+      {
+        "body": "commute დრო შეამოწმეთ — Texas დიდია.",
+        "authorIndex": 181
+      },
+      {
+        "body": "ჯერ სამსახური, შემდეგ community.",
+        "authorIndex": 183
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "К immigratsiyadan keiin Qaysi Texas qalasy eng qabylday bolgan?",
+    "body": "Koşu oylaymiz — qogam jańǵaıshtar kerek.",
+    "authorIndex": 185,
+    "language": "kk",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "kk"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth mádeniettik toptar kóp.",
+        "authorIndex": 184
+      },
+      {
+        "body": "Houston halyqaralyq dep sezildi.",
+        "authorIndex": 186
+      },
+      {
+        "body": "Commute uaqytty qarańyz — Texas ulken.",
+        "authorIndex": 184
+      },
+      {
+        "body": "Aldynda jumys, keyin qogam.",
+        "authorIndex": 186
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Köçdən sonra Texasın hansı şəhəri ən qonaqpərvər idi?",
+    "body": "Köçü düşünürük — icma və imkan istəyirik.",
+    "authorIndex": 188,
+    "language": "az",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "az"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth mədəni qruplar çoxdur.",
+        "authorIndex": 187
+      },
+      {
+        "body": "Houston mənə ən beynəlxalq gəldi.",
+        "authorIndex": 189
+      },
+      {
+        "body": "Commute vaxtına bax — Texas nəhəngdir.",
+        "authorIndex": 187
+      },
+      {
+        "body": "Əvvəl iş, sonra icma.",
+        "authorIndex": 189
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Immigratsiyadan keyin Qaysi Texas shahri eng mehmondo'st edi?",
+    "body": "Ko'chishni o'ylaymiz — jamoa va imkoniyat kerak.",
+    "authorIndex": 191,
+    "language": "uz",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "uz"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth madaniy guruhlar ko'p.",
+        "authorIndex": 190
+      },
+      {
+        "body": "Houston menga eng xalqaro tuyuldi.",
+        "authorIndex": 192
+      },
+      {
+        "body": "Commute vaqtini ko'ring — Texas katta.",
+        "authorIndex": 190
+      },
+      {
+        "body": "Avval ish, keyin jamoa.",
+        "authorIndex": 192
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Яке місто Техасу здалося найбільш гостинним після імміграції?",
+    "body": "Думаємо про переїзд — потрібна спільнота і можливості.",
+    "authorIndex": 194,
+    "language": "uk",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "uk"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth — багато культурних груп, легший networking.",
+        "authorIndex": 193
+      },
+      {
+        "body": "Houston здався мені найбільш international.",
+        "authorIndex": 195
+      },
+      {
+        "body": "Дивіться час на commute — Техас величезний.",
+        "authorIndex": 193
+      },
+      {
+        "body": "Спочатку робота, потім спільнота.",
+        "authorIndex": 195
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "كۆچكەندىن كېيىن قaysi Texas شەھىرى eng مېھmondost?",
+    "body": "يۆتكىلىشنى ئoylaymiz — community ۋە پۇرسەت كېرەك.",
+    "authorIndex": 197,
+    "language": "ug",
+    "tags": [
+      "community",
+      "texas",
+      "moving",
+      "question",
+      "ug"
+    ],
+    "comments": [
+      {
+        "body": "Dallas–Fort Worth مەدەنىي گۇرۇپپىlar كۆپ.",
+        "authorIndex": 196
+      },
+      {
+        "body": "Houston ماڭا eng خەلقaro.",
+        "authorIndex": 198
+      },
+      {
+        "body": "Commute ۋaqtini qarang — Texas چوڭ.",
+        "authorIndex": 196
+      },
+      {
+        "body": "Avval ish, keyin community.",
+        "authorIndex": 198
+      }
+    ],
+    "likeCount": 18
+  }
+]

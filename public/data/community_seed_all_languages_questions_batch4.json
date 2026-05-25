@@ -1,0 +1,1314 @@
+[
+  {
+    "title": "What should I know before filing taxes for the first time in the US?",
+    "body": "I have one W-2 and moved mid-year. Is TurboTax enough?",
+    "authorIndex": 16,
+    "language": "en",
+    "tags": [
+      "tax",
+      "finance",
+      "newcomer",
+      "question",
+      "en"
+    ],
+    "comments": [
+      {
+        "body": "Keep every W-2, 1099, and receipt for deductions.",
+        "authorIndex": 0
+      },
+      {
+        "body": "TurboTax or Free File works for simple returns.",
+        "authorIndex": 8
+      },
+      {
+        "body": "Mid-year move may affect state taxes — check both states.",
+        "authorIndex": 24
+      },
+      {
+        "body": "VITA sites offer free help if income is limited.",
+        "authorIndex": 32
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Как перевести водительские права на американские?",
+    "body": "Есть российские права, но срок ограничен?",
+    "authorIndex": 17,
+    "language": "ru",
+    "tags": [
+      "driving",
+      "license",
+      "dmv",
+      "question",
+      "ru"
+    ],
+    "comments": [
+      {
+        "body": "Правила зависят от штата — DMV сайт первым делом.",
+        "authorIndex": 1
+      },
+      {
+        "body": "Часто written test + road test, иногда без waiting period.",
+        "authorIndex": 9
+      },
+      {
+        "body": "Перевод прав может понадобиться нотариально.",
+        "authorIndex": 25
+      },
+      {
+        "body": "Между переводом и тестом не водите без valid license.",
+        "authorIndex": 33
+      }
+    ],
+    "likeCount": 19
+  },
+  {
+    "title": "كيف أختار مدرسة لطفلي في الصف الأول؟",
+    "body": "Public أم charter — الفرق غير واضح.",
+    "authorIndex": 18,
+    "language": "ar",
+    "tags": [
+      "school",
+      "kids",
+      "education",
+      "question",
+      "ar"
+    ],
+    "comments": [
+      {
+        "body": "ابدأ بالمدرسة حسب عنوان السكن zoned school.",
+        "authorIndex": 2
+      },
+      {
+        "body": "زر المدرسة واسأل عن دعم ESL.",
+        "authorIndex": 10
+      },
+      {
+        "body": "GreatSchools مرجع فقط — ليس كل شيء.",
+        "authorIndex": 26
+      },
+      {
+        "body": "اسأل الجيران عن تجربتهم.",
+        "authorIndex": 34
+      }
+    ],
+    "likeCount": 20
+  },
+  {
+    "title": "이사할 때 보증금(deposit) 돌려받으려면?",
+    "body": "집주인이 cleaning fee를 많이 깎았어요.",
+    "authorIndex": 19,
+    "language": "ko",
+    "tags": [
+      "housing",
+      "renting",
+      "legal",
+      "question",
+      "ko"
+    ],
+    "comments": [
+      {
+        "body": "입주·퇴거 시 사진/동영상 필수.",
+        "authorIndex": 3
+      },
+      {
+        "body": "체크리스트로 wall damage vs normal wear 구분.",
+        "authorIndex": 11
+      },
+      {
+        "body": "Texas 등 주별 tenant law 확인.",
+        "authorIndex": 27
+      },
+      {
+        "body": "분쟁 시 small claims court option.",
+        "authorIndex": 35
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "第一次在美国看专科医生需要转诊吗？",
+    "body": "保险说需要 PCP referral，不太懂流程。",
+    "authorIndex": 20,
+    "language": "zh",
+    "tags": [
+      "health",
+      "insurance",
+      "howto",
+      "question",
+      "zh"
+    ],
+    "comments": [
+      {
+        "body": "HMO 通常要 PCP 转诊；PPO 较灵活。",
+        "authorIndex": 4
+      },
+      {
+        "body": "先预约家庭医生说明症状。",
+        "authorIndex": 12
+      },
+      {
+        "body": "In-network 专科费用低很多。",
+        "authorIndex": 28
+      },
+      {
+        "body": "Urgent need 时可问 insurance nurse line。",
+        "authorIndex": 36
+      }
+    ],
+    "likeCount": 22
+  },
+  {
+    "title": "子どもの予防接種スケジュールはどこで確認？",
+    "body": "日本と違って不安です。",
+    "authorIndex": 21,
+    "language": "ja",
+    "tags": [
+      "health",
+      "kids",
+      "vaccines",
+      "question",
+      "ja"
+    ],
+    "comments": [
+      {
+        "body": "CDC schedule を pediatrics が説明してくれます。",
+        "authorIndex": 5
+      },
+      {
+        "body": "School enrollment に immunization record 必要。",
+        "authorIndex": 13
+      },
+      {
+        "body": "County health department で低所得向け無料も。",
+        "authorIndex": 29
+      },
+      {
+        "body": "Pediatrician 初回 visit で list もらう。",
+        "authorIndex": 37
+      }
+    ],
+    "likeCount": 23
+  },
+  {
+    "title": "İlk arabayı kiralama mı satın alma mı mantıklı?",
+    "body": "Kredi skorum henüz yok.",
+    "authorIndex": 22,
+    "language": "tr",
+    "tags": [
+      "cars",
+      "finance",
+      "decisions",
+      "question",
+      "tr"
+    ],
+    "comments": [
+      {
+        "body": "İlk yıl leasing pahalı olabilir — used car düşünün.",
+        "authorIndex": 6
+      },
+      {
+        "body": "Pre-approved loan rate karşılaştırın.",
+        "authorIndex": 14
+      },
+      {
+        "body": "Mechanic inspection şart.",
+        "authorIndex": 30
+      },
+      {
+        "body": "Insurance quote almadan imzalamayın.",
+        "authorIndex": 38
+      }
+    ],
+    "likeCount": 24
+  },
+  {
+    "title": "چطور برای interview آماده شوم؟",
+    "body": "فرهنگ مصاحبه اینجا فرق دارد.",
+    "authorIndex": 23,
+    "language": "fa",
+    "tags": [
+      "jobs",
+      "interview",
+      "career",
+      "question",
+      "fa"
+    ],
+    "comments": [
+      {
+        "body": "STAR method برای behavioral questions.",
+        "authorIndex": 7
+      },
+      {
+        "body": "LinkedIn و resume را با job description match کنید.",
+        "authorIndex": 15
+      },
+      {
+        "body": "Mock interview با دوست تمرین کنید.",
+        "authorIndex": 31
+      },
+      {
+        "body": "Follow-up email 24 ساعت بعد مؤثر است.",
+        "authorIndex": 39
+      }
+    ],
+    "likeCount": 25
+  },
+  {
+    "title": "¿Cómo funciona el permiso de trabajo (EAD)?",
+    "body": "Tengo pending application y no sé qué puedo hacer.",
+    "authorIndex": 102,
+    "language": "es",
+    "tags": [
+      "immigration",
+      "work",
+      "legal",
+      "question",
+      "es"
+    ],
+    "comments": [
+      {
+        "body": "Revisa USCIS processing times online.",
+        "authorIndex": 100
+      },
+      {
+        "body": "No trabajes sin EAD aprobado salvo excepciones.",
+        "authorIndex": 101
+      },
+      {
+        "body": "Keep copies of every receipt notice.",
+        "authorIndex": 199
+      },
+      {
+        "body": "Community legal aid puede orientarte gratis.",
+        "authorIndex": 100
+      }
+    ],
+    "likeCount": 26
+  },
+  {
+    "title": "Comment inscrire un enfant au sport ou à la musique?",
+    "body": "Les options sont nombreuses et chères.",
+    "authorIndex": 105,
+    "language": "fr",
+    "tags": [
+      "kids",
+      "activities",
+      "sports",
+      "question",
+      "fr"
+    ],
+    "comments": [
+      {
+        "body": "Parks & rec city programs souvent moins chers.",
+        "authorIndex": 103
+      },
+      {
+        "body": "Demandez bourses ou paiement échelonné.",
+        "authorIndex": 104
+      },
+      {
+        "body": "Essayez une session avant engagement annuel.",
+        "authorIndex": 103
+      },
+      {
+        "body": "École ou bibliothèque affiche des activités.",
+        "authorIndex": 104
+      }
+    ],
+    "likeCount": 27
+  },
+  {
+    "title": "Brauche ich einen Steuerberater als Angestellter?",
+    "body": "Nur ein Job, keine Investments.",
+    "authorIndex": 108,
+    "language": "de",
+    "tags": [
+      "tax",
+      "finance",
+      "work",
+      "question",
+      "de"
+    ],
+    "comments": [
+      {
+        "body": "Bei einem W-2 reicht oft TurboTax.",
+        "authorIndex": 106
+      },
+      {
+        "body": "Komplex wird es mit freelance, crypto, mehrere Staaten.",
+        "authorIndex": 107
+      },
+      {
+        "body": "Steuerberater lohnt bei Unsicherheit.",
+        "authorIndex": 106
+      },
+      {
+        "body": "VITA/IRS Free File für einfache Fälle.",
+        "authorIndex": 107
+      }
+    ],
+    "likeCount": 28
+  },
+  {
+    "title": "Come funziona l'assistenza sanitaria per bambini (CHIP)?",
+    "body": "Non so se mio figlio qualifica.",
+    "authorIndex": 111,
+    "language": "it",
+    "tags": [
+      "health",
+      "kids",
+      "insurance",
+      "question",
+      "it"
+    ],
+    "comments": [
+      {
+        "body": "CHIP copre bambini se reddito sopra Medicaid ma limitato.",
+        "authorIndex": 109
+      },
+      {
+        "body": "Sito statale o healthcare.gov per info.",
+        "authorIndex": 110
+      },
+      {
+        "body": "Iscrizione spesso tutto l'anno.",
+        "authorIndex": 109
+      },
+      {
+        "body": "Pediatra in-network dopo approvazione.",
+        "authorIndex": 110
+      }
+    ],
+    "likeCount": 29
+  },
+  {
+    "title": "Como alugar carro por mês vale a pena?",
+    "body": "Preciso de carro curto prazo.",
+    "authorIndex": 114,
+    "language": "pt",
+    "tags": [
+      "cars",
+      "transport",
+      "budget",
+      "question",
+      "pt"
+    ],
+    "comments": [
+      {
+        "body": "Compare Turo, rental agencies e lease takeovers.",
+        "authorIndex": 112
+      },
+      {
+        "body": "Seguro do cartão de crédito pode cobrir parcial.",
+        "authorIndex": 113
+      },
+      {
+        "body": "Leia limite de km no contrato.",
+        "authorIndex": 112
+      },
+      {
+        "body": "Comprar usado pode sair mais barato em 6+ meses.",
+        "authorIndex": 113
+      }
+    ],
+    "likeCount": 30
+  },
+  {
+    "title": "Jak zgłosić zmianę adresu do USCIS i DMV?",
+    "body": "Przeprowadziłem się — co muszę zaktualizować?",
+    "authorIndex": 117,
+    "language": "pl",
+    "tags": [
+      "immigration",
+      "moving",
+      "admin",
+      "question",
+      "pl"
+    ],
+    "comments": [
+      {
+        "body": "USCIS online w 10 dni po przeprowadzce.",
+        "authorIndex": 115
+      },
+      {
+        "body": "DMV i prawo jazdy — termin zależy od stanu.",
+        "authorIndex": 116
+      },
+      {
+        "body": "Poczta USPS forward mail tymczasowo.",
+        "authorIndex": 115
+      },
+      {
+        "body": "Bank i praca — update od razu.",
+        "authorIndex": 116
+      }
+    ],
+    "likeCount": 31
+  },
+  {
+    "title": "Cum negociem chiria ca nou venit?",
+    "body": "Proprietarul vrea depozit mare.",
+    "authorIndex": 120,
+    "language": "ro",
+    "tags": [
+      "housing",
+      "renting",
+      "negotiation",
+      "question",
+      "ro"
+    ],
+    "comments": [
+      {
+        "body": "Cere listă scrisă ce include chiria (utilități?).",
+        "authorIndex": 118
+      },
+      {
+        "body": "Negociere 12 luni contract poate reduce rent.",
+        "authorIndex": 119
+      },
+      {
+        "body": "Referințe de la fostul landlord ajută.",
+        "authorIndex": 118
+      },
+      {
+        "body": "Nu plăti cash fără chitanță.",
+        "authorIndex": 119
+      }
+    ],
+    "likeCount": 32
+  },
+  {
+    "title": "Πώς βρίσκω γιατρό που μιλάει ελληνικά;",
+    "body": "Το ασφαλιστικό μου είναι in-network μόνο.",
+    "authorIndex": 123,
+    "language": "el",
+    "tags": [
+      "health",
+      "doctor",
+      "language",
+      "question",
+      "el"
+    ],
+    "comments": [
+      {
+        "body": "Ρώτα community groups για recommendations.",
+        "authorIndex": 121
+      },
+      {
+        "body": "Provider directory της ασφάλειας + filter language.",
+        "authorIndex": 122
+      },
+      {
+        "body": "Telehealth sometimes easier for first visit.",
+        "authorIndex": 121
+      },
+      {
+        "body": "Urgent care δεν αντικαθιστά family doctor.",
+        "authorIndex": 122
+      }
+    ],
+    "likeCount": 33
+  },
+  {
+    "title": "איך מבינים pay stub — מה זה FICA?",
+    "body": "המשכורת הראשונה מבלבלת.",
+    "authorIndex": 126,
+    "language": "he",
+    "tags": [
+      "work",
+      "finance",
+      "payroll",
+      "question",
+      "he"
+    ],
+    "comments": [
+      {
+        "body": "Gross vs net — ניכויי מס, ביטוח, 401k.",
+        "authorIndex": 124
+      },
+      {
+        "body": "FICA = Social Security + Medicare.",
+        "authorIndex": 125
+      },
+      {
+        "body": "שמרו כל pay stub לtax season.",
+        "authorIndex": 124
+      },
+      {
+        "body": "HR יכול להסביר שורה-שורה.",
+        "authorIndex": 125
+      }
+    ],
+    "likeCount": 34
+  },
+  {
+    "title": "Uber/Lyft vs car — नए शहर में क्या better?",
+    "body": "Car खरीदने का budget नहीं।",
+    "authorIndex": 129,
+    "language": "hi",
+    "tags": [
+      "transport",
+      "cars",
+      "budget",
+      "question",
+      "hi"
+    ],
+    "comments": [
+      {
+        "body": "Short term — rideshare + public transit mix.",
+        "authorIndex": 127
+      },
+      {
+        "body": "Car share (Zipcar) weekend trips के लिए.",
+        "authorIndex": 128
+      },
+      {
+        "body": "Insurance + parking hidden costs देखें.",
+        "authorIndex": 127
+      },
+      {
+        "body": "Job stable होने पर used car consider.",
+        "authorIndex": 128
+      }
+    ],
+    "likeCount": 35
+  },
+  {
+    "title": "Apartment এ laundry — in-unit নাকি building?",
+    "body": "Rent difference বুঝতে পারছি না।",
+    "authorIndex": 132,
+    "language": "bn",
+    "tags": [
+      "housing",
+      "apartment",
+      "tips",
+      "question",
+      "bn"
+    ],
+    "comments": [
+      {
+        "body": "In-unit convenience — higher rent usually.",
+        "authorIndex": 130
+      },
+      {
+        "body": "Building laundry — coin/card, schedule peak times.",
+        "authorIndex": 131
+      },
+      {
+        "body": "Lease এ appliances list check করুন.",
+        "authorIndex": 130
+      },
+      {
+        "body": "Neighborhood laundromat sometimes cheaper.",
+        "authorIndex": 131
+      }
+    ],
+    "likeCount": 36
+  },
+  {
+    "title": "Green card process — EAD renew எப்படி?",
+    "body": "Expiry approaching, confused.",
+    "authorIndex": 135,
+    "language": "ta",
+    "tags": [
+      "immigration",
+      "work",
+      "legal",
+      "question",
+      "ta"
+    ],
+    "comments": [
+      {
+        "body": "File renewal 180 days before expiry if eligible.",
+        "authorIndex": 133
+      },
+      {
+        "body": "USCIS receipt extends work auth in many cases.",
+        "authorIndex": 134
+      },
+      {
+        "body": "Keep copy of old EAD + receipt at job.",
+        "authorIndex": 133
+      },
+      {
+        "body": "Community immigration lawyer consult if stuck.",
+        "authorIndex": 134
+      }
+    ],
+    "likeCount": 37
+  },
+  {
+    "title": "Bank account ਬਿਨਾਂ SSN — possible?",
+    "body": "ਨਵੇਂ arrival, SSN pending.",
+    "authorIndex": 138,
+    "language": "pa",
+    "tags": [
+      "banking",
+      "ssn",
+      "newcomer",
+      "question",
+      "pa"
+    ],
+    "comments": [
+      {
+        "body": "ITIN or passport — banks vary on policy.",
+        "authorIndex": 136
+      },
+      {
+        "body": "Credit union sometimes more flexible.",
+        "authorIndex": 137
+      },
+      {
+        "body": "Ask Punjabi-speaking staff at local branch.",
+        "authorIndex": 136
+      },
+      {
+        "body": "Avoid accounts with high monthly fees.",
+        "authorIndex": 137
+      }
+    ],
+    "likeCount": 38
+  },
+  {
+    "title": "Apartment mein noise complaint kaise karein?",
+    "body": "Upstairs neighbors raat ko loud.",
+    "authorIndex": 141,
+    "language": "ur",
+    "tags": [
+      "housing",
+      "neighbors",
+      "life",
+      "question",
+      "ur"
+    ],
+    "comments": [
+      {
+        "body": "Pehle politely baat karein.",
+        "authorIndex": 139
+      },
+      {
+        "body": "Document dates/times — recording laws vary.",
+        "authorIndex": 140
+      },
+      {
+        "body": "Landlord ko written complaint bhejein.",
+        "authorIndex": 139
+      },
+      {
+        "body": "Last resort: city noise ordinance / police non-emergency.",
+        "authorIndex": 140
+      }
+    ],
+    "likeCount": 39
+  },
+  {
+    "title": "د IRS letter ترلاسه شوم — څه وکړم?",
+    "body": "ډارېږم چې غلطي شوې.",
+    "authorIndex": 144,
+    "language": "ps",
+    "tags": [
+      "tax",
+      "legal",
+      "scams",
+      "question",
+      "ps"
+    ],
+    "comments": [
+      {
+        "body": "په آرامه توګه ولیکونه ولولئ — deadline وګورئ.",
+        "authorIndex": 142
+      },
+      {
+        "body": "USCIS/IRS official site یوازې باوري.",
+        "authorIndex": 143
+      },
+      {
+        "body": "Community VITA یا tax clinic مرسته کوي.",
+        "authorIndex": 142
+      },
+      {
+        "body": "Scam letter — gift card demand never legit.",
+        "authorIndex": 143
+      }
+    ],
+    "likeCount": 40
+  },
+  {
+    "title": "Em bixwînin li malê — delivery apps zêde ne?",
+    "body": "Budget teng e.",
+    "authorIndex": 147,
+    "language": "ku",
+    "tags": [
+      "food",
+      "budget",
+      "cooking",
+      "question",
+      "ku"
+    ],
+    "comments": [
+      {
+        "body": "Meal prep yek roj — sê rojan tişt amade.",
+        "authorIndex": 145
+      },
+      {
+        "body": "Store brands û frozen sebze erzan in.",
+        "authorIndex": 146
+      },
+      {
+        "body": "Coupons apps: Kroger, Ibotta.",
+        "authorIndex": 145
+      },
+      {
+        "body": "Bulk rice/beans/eggs base meals.",
+        "authorIndex": 146
+      }
+    ],
+    "likeCount": 41
+  },
+  {
+    "title": "Side hustle legal untuk visa holder?",
+    "body": "Takut melanggar aturan imigrasi.",
+    "authorIndex": 150,
+    "language": "id",
+    "tags": [
+      "immigration",
+      "work",
+      "legal",
+      "question",
+      "id"
+    ],
+    "comments": [
+      {
+        "body": "Cek visa stamp — unauthorized work risky.",
+        "authorIndex": 148
+      },
+      {
+        "body": "EAD or green card needed for most work.",
+        "authorIndex": 149
+      },
+      {
+        "body": "Some passive income gray area — ask lawyer.",
+        "authorIndex": 148
+      },
+      {
+        "body": "Volunteer OK, paid gig needs authorization.",
+        "authorIndex": 149
+      }
+    ],
+    "likeCount": 42
+  },
+  {
+    "title": "Beli rumah vs sewa — bila masuk akal?",
+    "body": "Tetap di sini 3–5 tahun maybe.",
+    "authorIndex": 153,
+    "language": "ms",
+    "tags": [
+      "housing",
+      "buying",
+      "finance",
+      "question",
+      "ms"
+    ],
+    "comments": [
+      {
+        "body": "Rent dulu — kenal area sebelum commit.",
+        "authorIndex": 151
+      },
+      {
+        "body": "Down payment + closing costs besar.",
+        "authorIndex": 152
+      },
+      {
+        "body": "Interest rates affect monthly big time.",
+        "authorIndex": 151
+      },
+      {
+        "body": "Talk to HUD counselor free first.",
+        "authorIndex": 152
+      }
+    ],
+    "likeCount": 43
+  },
+  {
+    "title": "Mời bố mẹ sang thăm — visa thăm thân?",
+    "body": "Không biết loại visa nào.",
+    "authorIndex": 156,
+    "language": "vi",
+    "tags": [
+      "immigration",
+      "family",
+      "travel",
+      "question",
+      "vi"
+    ],
+    "comments": [
+      {
+        "body": "B1/B2 visitor — proof ties to home country.",
+        "authorIndex": 154
+      },
+      {
+        "body": "Invitation letter + your financial support docs.",
+        "authorIndex": 155
+      },
+      {
+        "body": "Consulate interview — honest answers.",
+        "authorIndex": 154
+      },
+      {
+        "body": "Insurance for parents while here recommended.",
+        "authorIndex": 155
+      }
+    ],
+    "likeCount": 44
+  },
+  {
+    "title": "ซื้อบ้านครั้งแรกในอเมริกา เริ่มจากไหน?",
+    "body": "ได้ green card แล้วแต่กลัวเสี่ยง.",
+    "authorIndex": 159,
+    "language": "th",
+    "tags": [
+      "housing",
+      "buying",
+      "mortgage",
+      "question",
+      "th"
+    ],
+    "comments": [
+      {
+        "body": "Pre-approval จาก bank ก่อนดูบ้าน.",
+        "authorIndex": 157
+      },
+      {
+        "body": "Realtor buyer agent ไม่เสียค่า — seller จ่าย.",
+        "authorIndex": 158
+      },
+      {
+        "body": "Inspection ก่อนปิด deal สำคัญ.",
+        "authorIndex": 157
+      },
+      {
+        "body": "HOA fees และ property tax อย่าลืม.",
+        "authorIndex": 158
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Green card holder အနေနဲ့ Burma သို့ travel?",
+    "body": "Passport နဲ့ re-entry rules မသိ.",
+    "authorIndex": 162,
+    "language": "my",
+    "tags": [
+      "immigration",
+      "travel",
+      "legal",
+      "question",
+      "my"
+    ],
+    "comments": [
+      {
+        "body": "Advance parole if pending adjustment — ask lawyer.",
+        "authorIndex": 160
+      },
+      {
+        "body": "Green card = re-entry document usually.",
+        "authorIndex": 161
+      },
+      {
+        "body": "Keep trips short if citizenship path planned.",
+        "authorIndex": 160
+      },
+      {
+        "body": "Check CBP rules before travel.",
+        "authorIndex": 161
+      }
+    ],
+    "likeCount": 19
+  },
+  {
+    "title": "Part-time job + full-time study — allowed?",
+    "body": "F-1 student confused about hours.",
+    "authorIndex": 165,
+    "language": "ne",
+    "tags": [
+      "immigration",
+      "work",
+      "students",
+      "question",
+      "ne"
+    ],
+    "comments": [
+      {
+        "body": "On-campus jobs usually OK within limits.",
+        "authorIndex": 163
+      },
+      {
+        "body": "CPT/OPT rules strict — DSO first.",
+        "authorIndex": 164
+      },
+      {
+        "body": "Unauthorized work visa violation.",
+        "authorIndex": 163
+      },
+      {
+        "body": "Keep pay stubs and authorization docs.",
+        "authorIndex": 164
+      }
+    ],
+    "likeCount": 20
+  },
+  {
+    "title": "Childcare subsidy program እንዴት apply?",
+    "body": "Daycare expensive too much.",
+    "authorIndex": 168,
+    "language": "am",
+    "tags": [
+      "childcare",
+      "family",
+      "assistance",
+      "question",
+      "am"
+    ],
+    "comments": [
+      {
+        "body": "State CCAP — income limits vary.",
+        "authorIndex": 166
+      },
+      {
+        "body": "Waitlists long — apply early.",
+        "authorIndex": 167
+      },
+      {
+        "body": "Employer FSA if available.",
+        "authorIndex": 166
+      },
+      {
+        "body": "Home daycare licensed sometimes cheaper.",
+        "authorIndex": 167
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Sidee baan u helaa caawimaad legal oo la awoodi karo?",
+    "body": "Immigration paperwork adag.",
+    "authorIndex": 171,
+    "language": "so",
+    "tags": [
+      "immigration",
+      "legal",
+      "help",
+      "question",
+      "so"
+    ],
+    "comments": [
+      {
+        "body": "Nonprofit legal aid — city search.",
+        "authorIndex": 169
+      },
+      {
+        "body": "Accredited representatives not fake notaries.",
+        "authorIndex": 170
+      },
+      {
+        "body": "Never sign blank forms.",
+        "authorIndex": 169
+      },
+      {
+        "body": "USCIS.gov only for official forms.",
+        "authorIndex": 170
+      }
+    ],
+    "likeCount": 22
+  },
+  {
+    "title": "Je, ninaweza kufungua biashara ndogo nikiwa na work permit?",
+    "body": "Nataka kuuza chakula cha nyumbani.",
+    "authorIndex": 174,
+    "language": "sw",
+    "tags": [
+      "business",
+      "food",
+      "legal",
+      "question",
+      "sw"
+    ],
+    "comments": [
+      {
+        "body": "Business license na health permit city required.",
+        "authorIndex": 172
+      },
+      {
+        "body": "Home-based food rules strict — check county.",
+        "authorIndex": 173
+      },
+      {
+        "body": "Tax ID na separate bank account.",
+        "authorIndex": 172
+      },
+      {
+        "body": "Immigration work auth must cover self-employment.",
+        "authorIndex": 173
+      }
+    ],
+    "likeCount": 23
+  },
+  {
+    "title": "Yaya ake neman aikin shift na farko?",
+    "body": "Ba na son jira months.",
+    "authorIndex": 177,
+    "language": "ha",
+    "tags": [
+      "jobs",
+      "work",
+      "quickstart",
+      "question",
+      "ha"
+    ],
+    "comments": [
+      {
+        "body": "Retail, warehouse, food service hire fast.",
+        "authorIndex": 175
+      },
+      {
+        "body": "Apply in person sometimes faster.",
+        "authorIndex": 176
+      },
+      {
+        "body": "Dress neat — first impression counts.",
+        "authorIndex": 175
+      },
+      {
+        "body": "Referral daga community member helps.",
+        "authorIndex": 176
+      }
+    ],
+    "likeCount": 24
+  },
+  {
+    "title": "Ինչպե՞ս ընտրել health plan open enrollment-ում",
+    "body": "Employer offers 3 plans — confused.",
+    "authorIndex": 180,
+    "language": "hy",
+    "tags": [
+      "health",
+      "insurance",
+      "work",
+      "question",
+      "hy"
+    ],
+    "comments": [
+      {
+        "body": "Compare premium + deductible + max out-of-pocket.",
+        "authorIndex": 178
+      },
+      {
+        "body": "If young/healthy — higher deductible OK?",
+        "authorIndex": 179
+      },
+      {
+        "body": "Check if your doctors in-network.",
+        "authorIndex": 178
+      },
+      {
+        "body": "HSA plan saves tax if you can contribute.",
+        "authorIndex": 179
+      }
+    ],
+    "likeCount": 25
+  },
+  {
+    "title": "Renters insurance საჭიროა თუ არა?",
+    "body": "Landlord არ მოითხოვს.",
+    "authorIndex": 183,
+    "language": "ka",
+    "tags": [
+      "housing",
+      "insurance",
+      "renting",
+      "question",
+      "ka"
+    ],
+    "comments": [
+      {
+        "body": "Cheap — often $15–20/month.",
+        "authorIndex": 181
+      },
+      {
+        "body": "Covers theft, fire, liability if guest hurt.",
+        "authorIndex": 182
+      },
+      {
+        "body": "Roommates need separate or shared policy clear.",
+        "authorIndex": 181
+      },
+      {
+        "body": "Required by many leases anyway.",
+        "authorIndex": 182
+      }
+    ],
+    "likeCount": 26
+  },
+  {
+    "title": "Жұмысқа orphan documents — diploma recognition?",
+    "body": "Америкада diploma жарамды ма?",
+    "authorIndex": 186,
+    "language": "kk",
+    "tags": [
+      "jobs",
+      "education",
+      "credentials",
+      "question",
+      "kk"
+    ],
+    "comments": [
+      {
+        "body": "Employer often cares experience over apostille.",
+        "authorIndex": 184
+      },
+      {
+        "body": "Credential evaluation services (WES) if needed.",
+        "authorIndex": 185
+      },
+      {
+        "body": "Community college bridge programs exist.",
+        "authorIndex": 184
+      },
+      {
+        "body": "LinkedIn + portfolio sometimes enough for tech.",
+        "authorIndex": 185
+      }
+    ],
+    "likeCount": 27
+  },
+  {
+    "title": "Uşağın pediatrik check-up nə vaxt?",
+    "body": "Insurance card var, confused schedule.",
+    "authorIndex": 189,
+    "language": "az",
+    "tags": [
+      "health",
+      "kids",
+      "pediatrics",
+      "question",
+      "az"
+    ],
+    "comments": [
+      {
+        "body": "Well-child visits schedule from insurer.",
+        "authorIndex": 187
+      },
+      {
+        "body": "First visit within weeks of birth/ move.",
+        "authorIndex": 188
+      },
+      {
+        "body": "Vaccines updated at pediatrics.",
+        "authorIndex": 187
+      },
+      {
+        "body": "Telehealth not for all check-ups.",
+        "authorIndex": 188
+      }
+    ],
+    "likeCount": 28
+  },
+  {
+    "title": "Apartmentda mold muammosi — landlord javobgar?",
+    "body": "Sog'liq uchun xavfli.",
+    "authorIndex": 192,
+    "language": "uz",
+    "tags": [
+      "housing",
+      "health",
+      "repairs",
+      "question",
+      "uz"
+    ],
+    "comments": [
+      {
+        "body": "Document with photos immediately.",
+        "authorIndex": 190
+      },
+      {
+        "body": "Written notice to landlord — keep copy.",
+        "authorIndex": 191
+      },
+      {
+        "body": "Tenant rights vary — local housing org.",
+        "authorIndex": 190
+      },
+      {
+        "body": "Health dept inspect if ignored.",
+        "authorIndex": 191
+      }
+    ],
+    "likeCount": 29
+  },
+  {
+    "title": "Як записати дитину до педіатра без рекомендацій?",
+    "body": "Новий страховий план.",
+    "authorIndex": 195,
+    "language": "uk",
+    "tags": [
+      "health",
+      "kids",
+      "insurance",
+      "question",
+      "uk"
+    ],
+    "comments": [
+      {
+        "body": "Call insurer provider line for in-network list.",
+        "authorIndex": 193
+      },
+      {
+        "body": "Urgent care not replacement for pediatrics.",
+        "authorIndex": 194
+      },
+      {
+        "body": "Bring immunization records translated.",
+        "authorIndex": 193
+      },
+      {
+        "body": "Telehealth for minor questions OK.",
+        "authorIndex": 194
+      }
+    ],
+    "likeCount": 30
+  },
+  {
+    "title": "Balcony دا BBQ قىلىشقا بولامدۇ?",
+    "body": "Apartment rules ئanlamayman.",
+    "authorIndex": 198,
+    "language": "ug",
+    "tags": [
+      "housing",
+      "life",
+      "rules",
+      "question",
+      "ug"
+    ],
+    "comments": [
+      {
+        "body": "Lease ۋa HOA rules ئavval oqiڭ.",
+        "authorIndex": 196
+      },
+      {
+        "body": "Gas vs charcoal — building may ban.",
+        "authorIndex": 197
+      },
+      {
+        "body": "Fire pit balcony — usually not allowed.",
+        "authorIndex": 196
+      },
+      {
+        "body": "Park yaki community grill alternative.",
+        "authorIndex": 197
+      }
+    ],
+    "likeCount": 31
+  }
+]

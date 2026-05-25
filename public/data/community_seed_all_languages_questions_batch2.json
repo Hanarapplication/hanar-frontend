@@ -1,0 +1,1150 @@
+[
+  {
+    "title": "How do I meet people and build a social circle as a newcomer?",
+    "body": "I work from home and feel isolated. What worked for you in your first year?",
+    "authorIndex": 0,
+    "language": "en",
+    "tags": [
+      "community",
+      "social",
+      "newcomer",
+      "question",
+      "en"
+    ],
+    "comments": [
+      {
+        "body": "Check local community center event boards.",
+        "authorIndex": 8
+      },
+      {
+        "body": "Language exchange meetups on Meetup.com helped me a lot.",
+        "authorIndex": 16
+      },
+      {
+        "body": "Volunteering one evening a week led to real friendships.",
+        "authorIndex": 24
+      }
+    ],
+    "likeCount": 15
+  },
+  {
+    "title": "Как получить SSN после переезда в США?",
+    "body": "У меня есть виза и разрешение на работу. Какие документы нужны в SSA?",
+    "authorIndex": 1,
+    "language": "ru",
+    "tags": [
+      "immigration",
+      "ssn",
+      "work",
+      "question",
+      "ru"
+    ],
+    "comments": [
+      {
+        "body": "Запишитесь онлайн на ssa.gov — без записи долго ждать.",
+        "authorIndex": 9
+      },
+      {
+        "body": "Возьмите паспорт, I-94 и письмо от работодателя.",
+        "authorIndex": 17
+      },
+      {
+        "body": "Приходите рано утром, очередь движется быстрее.",
+        "authorIndex": 25
+      }
+    ],
+    "likeCount": 16
+  },
+  {
+    "title": "ما أفضل طريقة لإرسال الأموال للعائلة في الوطن؟",
+    "body": "أبحث عن خيار آمن برسوم معقولة. ما الذي تستخدمونه؟",
+    "authorIndex": 2,
+    "language": "ar",
+    "tags": [
+      "money",
+      "family",
+      "remittance",
+      "question",
+      "ar"
+    ],
+    "comments": [
+      {
+        "body": "قارن Wise و Remitly و Xoom قبل كل تحويل.",
+        "authorIndex": 10
+      },
+      {
+        "body": "احذر من أي شخص يطلب تحويلاً عبر شخص مجهول.",
+        "authorIndex": 18
+      },
+      {
+        "body": "البنوك أغلى — التطبيقات عادة أوفر.",
+        "authorIndex": 26
+      }
+    ],
+    "likeCount": 17
+  },
+  {
+    "title": "미국에서 자동차 보험은 처음에 어떻게 가입하나요?",
+    "body": "차를 샀는데 보험 견적이 너무 달라요. 뭘 기준으로 고르나요?",
+    "authorIndex": 3,
+    "language": "ko",
+    "tags": [
+      "insurance",
+      "driving",
+      "cars",
+      "question",
+      "ko"
+    ],
+    "comments": [
+      {
+        "body": "최소 liability부터 맞추고 deductible을 비교하세요.",
+        "authorIndex": 11
+      },
+      {
+        "body": "미국 운전 경력이 없으면 premium이 높을 수 있어요.",
+        "authorIndex": 19
+      },
+      {
+        "body": "여러 회사에서 같은 조건으로 quote 받아보세요.",
+        "authorIndex": 27
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "在美国怎么准备路考？需要练多久？",
+    "body": "有中国驾照但还没换本地驾照，有点紧张。",
+    "authorIndex": 4,
+    "language": "zh",
+    "tags": [
+      "driving",
+      "license",
+      "tips",
+      "question",
+      "zh"
+    ],
+    "comments": [
+      {
+        "body": "先预约 written test，通过后再约 road test。",
+        "authorIndex": 12
+      },
+      {
+        "body": "找驾校练几次平行停车和 stop sign 很有用。",
+        "authorIndex": 20
+      },
+      {
+        "body": "考试当天带齐证件和保险证明。",
+        "authorIndex": 28
+      }
+    ],
+    "likeCount": 19
+  },
+  {
+    "title": "テキサスの夏の暑さ、新参者はどう乗り切る？",
+    "body": "エアコン代も心配です。節約しつつ快適に過ごすコツは？",
+    "authorIndex": 5,
+    "language": "ja",
+    "tags": [
+      "weather",
+      "texas",
+      "life",
+      "question",
+      "ja"
+    ],
+    "comments": [
+      {
+        "body": "Thermostat は 78°F 前後がバランス良いです。",
+        "authorIndex": 13
+      },
+      {
+        "body": "カーテンで日射を遮ると効果大。",
+        "authorIndex": 21
+      },
+      {
+        "body": "こまめな水分補給を忘れずに。",
+        "authorIndex": 29
+      }
+    ],
+    "likeCount": 20
+  },
+  {
+    "title": "Çocuğum için okul nasıl seçilir?",
+    "body": "Public mu charter mı, yeni geldik karar veremiyoruz.",
+    "authorIndex": 6,
+    "language": "tr",
+    "tags": [
+      "school",
+      "family",
+      "education",
+      "question",
+      "tr"
+    ],
+    "comments": [
+      {
+        "body": "Önce adresinize göre zoned school'u öğrenin.",
+        "authorIndex": 14
+      },
+      {
+        "body": "GreatSchools puanına bakın ama tek kriter olmasın.",
+        "authorIndex": 22
+      },
+      {
+        "body": "Okulu ziyaret edip öğretmenlerle konuşun.",
+        "authorIndex": 30
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "در شهر جدید چطور کار پیدا کنم؟",
+    "body": "رزومه آماده است ولی شبکه آشنایی ندارم.",
+    "authorIndex": 7,
+    "language": "fa",
+    "tags": [
+      "jobs",
+      "career",
+      "networking",
+      "question",
+      "fa"
+    ],
+    "comments": [
+      {
+        "body": "LinkedIn را کامل کنید و هر هفته پیام بفرستید.",
+        "authorIndex": 15
+      },
+      {
+        "body": "رویدادهای حرفه‌ای محلی را امتحان کنید.",
+        "authorIndex": 23
+      },
+      {
+        "body": "کار داوطلبانه رزومه را قوی می‌کند.",
+        "authorIndex": 31
+      }
+    ],
+    "likeCount": 22
+  },
+  {
+    "title": "¿Cómo elijo un plan de seguro médico si nunca lo tuve?",
+    "body": "Me confunden deductible, copay y premium. ¿Por dónde empiezo?",
+    "authorIndex": 100,
+    "language": "es",
+    "tags": [
+      "health",
+      "insurance",
+      "newcomer",
+      "question",
+      "es"
+    ],
+    "comments": [
+      {
+        "body": "Empieza comparando si tus doctores están in-network.",
+        "authorIndex": 101
+      },
+      {
+        "body": "Un deductible alto baja la prima pero pagas más al usarlo.",
+        "authorIndex": 102
+      },
+      {
+        "body": "Pregunta si calificas para subsidio en marketplace.",
+        "authorIndex": 199
+      }
+    ],
+    "likeCount": 23
+  },
+  {
+    "title": "Comment fonctionne l'impôt sur le revenu la première année ?",
+    "body": "Je viens d'arriver en cours d'année. Dois-je déclarer même si j'ai peu gagné ?",
+    "authorIndex": 103,
+    "language": "fr",
+    "tags": [
+      "tax",
+      "finance",
+      "newcomer",
+      "question",
+      "fr"
+    ],
+    "comments": [
+      {
+        "body": "Oui, déclarez si vous avez un revenu imposable.",
+        "authorIndex": 104
+      },
+      {
+        "body": "Gardez tous vos W-2 et 1099.",
+        "authorIndex": 105
+      },
+      {
+        "body": "Un CPA communautaire peut aider gratuitement parfois.",
+        "authorIndex": 104
+      }
+    ],
+    "likeCount": 24
+  },
+  {
+    "title": "Wie finde ich einen zuverlässigen Handwerker für Reparaturen?",
+    "body": "Ich kenne niemanden hier.",
+    "authorIndex": 106,
+    "language": "de",
+    "tags": [
+      "home",
+      "repairs",
+      "tips",
+      "question",
+      "de"
+    ],
+    "comments": [
+      {
+        "body": "Nachbarn fragen ist oft am besten.",
+        "authorIndex": 107
+      },
+      {
+        "body": "Nextdoor und lokale Facebook-Gruppen haben Empfehlungen.",
+        "authorIndex": 108
+      },
+      {
+        "body": "Immer schriftliches Angebot vor Arbeitsbeginn verlangen.",
+        "authorIndex": 107
+      }
+    ],
+    "likeCount": 25
+  },
+  {
+    "title": "Come funziona l'assicurazione auto per chi è appena arrivato?",
+    "body": "Non ho storico di guida americano. I preventivi sono alti.",
+    "authorIndex": 109,
+    "language": "it",
+    "tags": [
+      "insurance",
+      "driving",
+      "cars",
+      "question",
+      "it"
+    ],
+    "comments": [
+      {
+        "body": "Inizia con la responsabilità civile minima legale.",
+        "authorIndex": 110
+      },
+      {
+        "body": "Chiedi preventivi identici a 3 compagnie.",
+        "authorIndex": 111
+      },
+      {
+        "body": "Un corso di guida difensiva può abbassare il premio.",
+        "authorIndex": 110
+      }
+    ],
+    "likeCount": 26
+  },
+  {
+    "title": "Qual a melhor forma de mandar dinheiro para a família no Brasil?",
+    "body": "Quero segurança e taxa baixa. O que vocês usam?",
+    "authorIndex": 112,
+    "language": "pt",
+    "tags": [
+      "money",
+      "family",
+      "remittance",
+      "question",
+      "pt"
+    ],
+    "comments": [
+      {
+        "body": "Compare Wise, Remitly e bancos online.",
+        "authorIndex": 113
+      },
+      {
+        "body": "Evite transferências com desconhecidos.",
+        "authorIndex": 114
+      },
+      {
+        "body": "Confira o câmbio do dia antes de enviar.",
+        "authorIndex": 113
+      }
+    ],
+    "likeCount": 27
+  },
+  {
+    "title": "Jak zapisać dziecko do szkoły publicznej?",
+    "body": "Nie wiem od czego zacząć po przeprowadzce.",
+    "authorIndex": 115,
+    "language": "pl",
+    "tags": [
+      "school",
+      "family",
+      "education",
+      "question",
+      "pl"
+    ],
+    "comments": [
+      {
+        "body": "Sprawdź stronę dystryktu szkolnego wg adresu.",
+        "authorIndex": 116
+      },
+      {
+        "body": "Przygotuj akt urodzenia i dowód zamieszkania.",
+        "authorIndex": 117
+      },
+      {
+        "body": "Zadzwoń do biura szkoły — często pomogą.",
+        "authorIndex": 116
+      }
+    ],
+    "likeCount": 28
+  },
+  {
+    "title": "Cum găsesc un job rapid după relocare?",
+    "body": "Am permis de muncă dar rețea profesională zero.",
+    "authorIndex": 118,
+    "language": "ro",
+    "tags": [
+      "jobs",
+      "career",
+      "networking",
+      "question",
+      "ro"
+    ],
+    "comments": [
+      {
+        "body": "Optimizează LinkedIn și aplică zilnic.",
+        "authorIndex": 119
+      },
+      {
+        "body": "Networking local bate doar aplicările online.",
+        "authorIndex": 120
+      },
+      {
+        "body": "Voluntariatul umple golurile din CV.",
+        "authorIndex": 119
+      }
+    ],
+    "likeCount": 29
+  },
+  {
+    "title": "Πώς στέλνω χρήματα στην οικογένεια στο εξωτερικό;",
+    "body": "Ψάχνω ασφαλή τρόπο με χαμηλά έξοδα.",
+    "authorIndex": 121,
+    "language": "el",
+    "tags": [
+      "money",
+      "family",
+      "remittance",
+      "question",
+      "el"
+    ],
+    "comments": [
+      {
+        "body": "Σύγκρινε Wise και Remitly πριν κάθε αποστολή.",
+        "authorIndex": 122
+      },
+      {
+        "body": "Μην στέλνεις μέσω άγνωστων.",
+        "authorIndex": 123
+      },
+      {
+        "body": "Οι τράπεζες συνήθως χρεώνουν περισσότερο.",
+        "authorIndex": 122
+      }
+    ],
+    "likeCount": 30
+  },
+  {
+    "title": "איך בוחרים ביטוח רכב בפעם הראשונה?",
+    "body": "הצעות המחיר מאוד שונות. מה חשוב לבדוק?",
+    "authorIndex": 124,
+    "language": "he",
+    "tags": [
+      "insurance",
+      "driving",
+      "cars",
+      "question",
+      "he"
+    ],
+    "comments": [
+      {
+        "body": "השווה deductible ו-premium יחד.",
+        "authorIndex": 125
+      },
+      {
+        "body": "בדוק אם יש הנחה על נהיגה defensive.",
+        "authorIndex": 126
+      },
+      {
+        "body": "בקש הצעות מאותם תנאים מ-3 חברות.",
+        "authorIndex": 125
+      }
+    ],
+    "likeCount": 31
+  },
+  {
+    "title": "नए शहर में दोस्त कैसे बनाएं?",
+    "body": "घर से काम करता हूँ और अकela महसूस होता है।",
+    "authorIndex": 127,
+    "language": "hi",
+    "tags": [
+      "community",
+      "social",
+      "newcomer",
+      "question",
+      "hi"
+    ],
+    "comments": [
+      {
+        "body": "Community center की events देखें।",
+        "authorIndex": 128
+      },
+      {
+        "body": "Meetup पर language exchange अच्छा काम करता है।",
+        "authorIndex": 129
+      },
+      {
+        "body": "सप्ताह में एक बार volunteering से जुड़ाव बनता है।",
+        "authorIndex": 128
+      }
+    ],
+    "likeCount": 32
+  },
+  {
+    "title": "প্রথমবারের মতো ট্যাক্স রিটার্ন কীভাবে দেব?",
+    "body": "W-2 পেয়েছি কিন্তু বুঝতে পারছি না।",
+    "authorIndex": 130,
+    "language": "bn",
+    "tags": [
+      "tax",
+      "finance",
+      "newcomer",
+      "question",
+      "bn"
+    ],
+    "comments": [
+      {
+        "body": "TurboTax বা H&R Block দিয়ে শুরু করতে পারেন।",
+        "authorIndex": 131
+      },
+      {
+        "body": "সব W-2 ও 1099 এক জায়গায় রাখুন।",
+        "authorIndex": 132
+      },
+      {
+        "body": "Community tax clinic বিনামূল্যে সাহায্য করে।",
+        "authorIndex": 131
+      }
+    ],
+    "likeCount": 33
+  },
+  {
+    "title": "புதிய நகரத்தில் வேலை எப்படி தேடுவது?",
+    "body": "LinkedIn profile ready ஆனால் contacts இல்லை.",
+    "authorIndex": 133,
+    "language": "ta",
+    "tags": [
+      "jobs",
+      "career",
+      "networking",
+      "question",
+      "ta"
+    ],
+    "comments": [
+      {
+        "body": "தினமும் apply செய்யுங்கள்.",
+        "authorIndex": 134
+      },
+      {
+        "body": "Local networking events attend பண்ணுங்கள்.",
+        "authorIndex": 135
+      },
+      {
+        "body": "Volunteer work CV gap நிரப்ப helpful.",
+        "authorIndex": 134
+      }
+    ],
+    "likeCount": 34
+  },
+  {
+    "title": "ਬੱਚੇ ਨੂੰ public school ਵਿੱਚ ਕਿਵੇਂ ਦਾਖਲ ਕਰੀਏ?",
+    "body": "ਨਵੇਂ ਪਤੇ ਤੇ district ਸਮਝ ਨਹੀਂ ਆ ਰਹੀ।",
+    "authorIndex": 136,
+    "language": "pa",
+    "tags": [
+      "school",
+      "family",
+      "education",
+      "question",
+      "pa"
+    ],
+    "comments": [
+      {
+        "body": "School district website ਤੇ address check ਕਰੋ।",
+        "authorIndex": 137
+      },
+      {
+        "body": "Birth certificate ਅਤੇ proof of address ਲਿਆਓ।",
+        "authorIndex": 138
+      },
+      {
+        "body": "School office call ਕਰੋ — ਕਈ ਵਾਰ Punjabi help ਮਿਲਦੀ ਹੈ।",
+        "authorIndex": 137
+      }
+    ],
+    "likeCount": 35
+  },
+  {
+    "title": "گاڑی کا insurance پہلی دفعہ کیسے لیں?",
+    "body": "Quotes بہت مختلف آ رہی ہیں۔",
+    "authorIndex": 139,
+    "language": "ur",
+    "tags": [
+      "insurance",
+      "driving",
+      "cars",
+      "question",
+      "ur"
+    ],
+    "comments": [
+      {
+        "body": "Pehle liability minimum compare karein.",
+        "authorIndex": 140
+      },
+      {
+        "body": "Teen companies se same terms par quote lein.",
+        "authorIndex": 141
+      },
+      {
+        "body": "Defensive driving course premium kam kar sakta hai.",
+        "authorIndex": 140
+      }
+    ],
+    "likeCount": 36
+  },
+  {
+    "title": "په نوي ښار کې ملګري څنګه پیدا کړم?",
+    "body": "له کوره کار کوم او یوازېتوب احساس کوم.",
+    "authorIndex": 142,
+    "language": "ps",
+    "tags": [
+      "community",
+      "social",
+      "newcomer",
+      "question",
+      "ps"
+    ],
+    "comments": [
+      {
+        "body": "Community center events وګورئ.",
+        "authorIndex": 143
+      },
+      {
+        "body": "Meetup language exchange ډیره مرسته وکړه.",
+        "authorIndex": 144
+      },
+      {
+        "body": "هفته کې یو ځل volunteer friendship رامنځته کوي.",
+        "authorIndex": 143
+      }
+    ],
+    "likeCount": 37
+  },
+  {
+    "title": "Li bajarê nû çawa kar bibînim?",
+    "body": "CV amade ye lê tora profesyonel tune ye.",
+    "authorIndex": 145,
+    "language": "ku",
+    "tags": [
+      "jobs",
+      "career",
+      "networking",
+      "question",
+      "ku"
+    ],
+    "comments": [
+      {
+        "body": "LinkedIn temam bike û her hefte apply bike.",
+        "authorIndex": 146
+      },
+      {
+        "body": "Bûyerên networking ên herêmî biceribîne.",
+        "authorIndex": 147
+      },
+      {
+        "body": "Volunteer CV diqewime dike.",
+        "authorIndex": 146
+      }
+    ],
+    "likeCount": 15
+  },
+  {
+    "title": "Bagaimana cara kirim uang ke keluarga di tanah air?",
+    "body": "Mau yang aman dan biaya rendah.",
+    "authorIndex": 148,
+    "language": "id",
+    "tags": [
+      "money",
+      "family",
+      "remittance",
+      "question",
+      "id"
+    ],
+    "comments": [
+      {
+        "body": "Bandingkan Wise, Remitly, dan Xoom.",
+        "authorIndex": 149
+      },
+      {
+        "body": "Jangan transfer lewat orang tidak dikenal.",
+        "authorIndex": 150
+      },
+      {
+        "body": "Cek kurs sebelum kirim.",
+        "authorIndex": 149
+      }
+    ],
+    "likeCount": 16
+  },
+  {
+    "title": "Macam mana nak pilih sekolah untuk anak?",
+    "body": "Baru pindah, keliru antara public dan charter.",
+    "authorIndex": 151,
+    "language": "ms",
+    "tags": [
+      "school",
+      "family",
+      "education",
+      "question",
+      "ms"
+    ],
+    "comments": [
+      {
+        "body": "Semak sekolah zon ikut alamat rumah.",
+        "authorIndex": 152
+      },
+      {
+        "body": "Lawati sekolah dan bercakap dengan guru.",
+        "authorIndex": 153
+      },
+      {
+        "body": "GreatSchools rujuk saja, bukan satu-satunya faktor.",
+        "authorIndex": 152
+      }
+    ],
+    "likeCount": 17
+  },
+  {
+    "title": "Làm sao kết bạn khi mới đến Mỹ?",
+    "body": "Làm việc tại nhà, cảm thấy cô đơn.",
+    "authorIndex": 154,
+    "language": "vi",
+    "tags": [
+      "community",
+      "social",
+      "newcomer",
+      "question",
+      "vi"
+    ],
+    "comments": [
+      {
+        "body": "Xem sự kiện ở community center.",
+        "authorIndex": 155
+      },
+      {
+        "body": "Meetup language exchange rất hữu ích.",
+        "authorIndex": 156
+      },
+      {
+        "body": "Tình nguyện một buổi/tuần giúp có bạn bè.",
+        "authorIndex": 155
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "ส่งเงินกลับบ้านอย่างไรให้ปลอดภัยและถูก?",
+    "body": "อยากรู้ว่าใครใช้แอปอะไรบ้าง",
+    "authorIndex": 157,
+    "language": "th",
+    "tags": [
+      "money",
+      "family",
+      "remittance",
+      "question",
+      "th"
+    ],
+    "comments": [
+      {
+        "body": "เปรียบเทียบ Wise Remitly ก่อนส่งทุกครั้ง",
+        "authorIndex": 158
+      },
+      {
+        "body": "อย่าโอนผ่านคนแปลกหน้า",
+        "authorIndex": 159
+      },
+      {
+        "body": "ธนาคารมักแพงกว่าแอป",
+        "authorIndex": 158
+      }
+    ],
+    "likeCount": 19
+  },
+  {
+    "title": "အသစ်ရောက်တဲ့အခါ မိတ်ဆွေတွေ ဘယ်လိုရှာမလဲ?",
+    "body": "အိမ်ကနေ အလုပ်လုပ်နေလို့ တစ်ယောက်တည်း ခံစားရတယ်။",
+    "authorIndex": 160,
+    "language": "my",
+    "tags": [
+      "community",
+      "social",
+      "newcomer",
+      "question",
+      "my"
+    ],
+    "comments": [
+      {
+        "body": "community center event တွေ ကြည့်ပါ။",
+        "authorIndex": 161
+      },
+      {
+        "body": "Meetup language exchange ကောင်းပါတယ်။",
+        "authorIndex": 162
+      },
+      {
+        "body": "တစ်ပတ်ကို တစ်ကြိမ် volunteer လုပ်ရင် သူငယ်ချင်းရတယ်။",
+        "authorIndex": 161
+      }
+    ],
+    "likeCount": 20
+  },
+  {
+    "title": "पहिलो पटक car insurance कसरी लिने?",
+    "body": "Quote हरू धेरै फरक छन्।",
+    "authorIndex": 163,
+    "language": "ne",
+    "tags": [
+      "insurance",
+      "driving",
+      "cars",
+      "question",
+      "ne"
+    ],
+    "comments": [
+      {
+        "body": "पहिले liability minimum तुलना गर्नुहोस्।",
+        "authorIndex": 164
+      },
+      {
+        "body": "३ company बाट same terms मा quote लिनुहोस्।",
+        "authorIndex": 165
+      },
+      {
+        "body": "Defensive driving course ले premium घटाउन सक्छ।",
+        "authorIndex": 164
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "በአሜሪካ ገንዘብ ወደ ቤተሰብ እንዴት እላካለሁ?",
+    "body": "ደህንነቱ የተጠበቀ እና ርካሽ መንገድ እፈልጋለሁ።",
+    "authorIndex": 166,
+    "language": "am",
+    "tags": [
+      "money",
+      "family",
+      "remittance",
+      "question",
+      "am"
+    ],
+    "comments": [
+      {
+        "body": "Wise እና Remitly ከመላክ በፊት Compare አድርግ።",
+        "authorIndex": 167
+      },
+      {
+        "body": "በ-unknown ሰው transfer አትደርጉ።",
+        "authorIndex": 168
+      },
+      {
+        "body": "ባንኮች ብዙ ጊዜ ይበልጥ ናቸው።",
+        "authorIndex": 167
+      }
+    ],
+    "likeCount": 22
+  },
+  {
+    "title": "Sidee baan u helaa caymis baabuur markii ugu horreysay?",
+    "body": "Qiimaha way kala duwan yihiin.",
+    "authorIndex": 169,
+    "language": "so",
+    "tags": [
+      "insurance",
+      "driving",
+      "cars",
+      "question",
+      "so"
+    ],
+    "comments": [
+      {
+        "body": "Marka hore liability minimum isbarbar dhig.",
+        "authorIndex": 170
+      },
+      {
+        "body": "Ka codso 3 shirkadood shuruudo isku mid ah.",
+        "authorIndex": 171
+      },
+      {
+        "body": "Koorsada defensive driving waxay dhimi kartaa premium.",
+        "authorIndex": 170
+      }
+    ],
+    "likeCount": 23
+  },
+  {
+    "title": "Ninawezaje kutuma pesa kwa familia nyumbani?",
+    "body": "Nataka salama na ada ndogo.",
+    "authorIndex": 172,
+    "language": "sw",
+    "tags": [
+      "money",
+      "family",
+      "remittance",
+      "question",
+      "sw"
+    ],
+    "comments": [
+      {
+        "body": "Linganisha Wise na Remitly kila mara.",
+        "authorIndex": 173
+      },
+      {
+        "body": "Usitume kupitia watu usiowajua.",
+        "authorIndex": 174
+      },
+      {
+        "body": "Benki mara nyingi ni ghali zaidi.",
+        "authorIndex": 173
+      }
+    ],
+    "likeCount": 24
+  },
+  {
+    "title": "Yaya zan samu abokai a sabon birni?",
+    "body": "Ina aiki daga gida kuma ina jin keɓancewa.",
+    "authorIndex": 175,
+    "language": "ha",
+    "tags": [
+      "community",
+      "social",
+      "newcomer",
+      "question",
+      "ha"
+    ],
+    "comments": [
+      {
+        "body": "Duba events a community center.",
+        "authorIndex": 176
+      },
+      {
+        "body": "Meetup language exchange ya taimaka mini.",
+        "authorIndex": 177
+      },
+      {
+        "body": "Volunteer sau daya a mako yana samar da abokai.",
+        "authorIndex": 176
+      }
+    ],
+    "likeCount": 25
+  },
+  {
+    "title": "Աmericaում առաջին անգամ հարկային հայտարարություն ինչպե՞ս ներկայացնել",
+    "body": "W-2 ունեմ, բայց շփոթված եմ:",
+    "authorIndex": 178,
+    "language": "hy",
+    "tags": [
+      "tax",
+      "finance",
+      "newcomer",
+      "question",
+      "hy"
+    ],
+    "comments": [
+      {
+        "body": "Պարզ դեպքում TurboTax-ը բավարար է:",
+        "authorIndex": 179
+      },
+      {
+        "body": "Պահեք բոլոր W-2 և 1099 ձևերը:",
+        "authorIndex": 180
+      },
+      {
+        "body": "Community VITA clinic-ները երբեմն անվճար են օգնում:",
+        "authorIndex": 179
+      }
+    ],
+    "likeCount": 26
+  },
+  {
+    "title": "როგორ ვიპოვო სამუშაო ახალ ქალაქში?",
+    "body": "CV მზადაა მაგრამ კავშირები არ მაქვს.",
+    "authorIndex": 181,
+    "language": "ka",
+    "tags": [
+      "jobs",
+      "career",
+      "networking",
+      "question",
+      "ka"
+    ],
+    "comments": [
+      {
+        "body": "LinkedIn განაახლე და ყოველდღე apply.",
+        "authorIndex": 182
+      },
+      {
+        "body": "Networking events სცადე.",
+        "authorIndex": 183
+      },
+      {
+        "body": "Volunteering CV-ს აძლიერებს.",
+        "authorIndex": 182
+      }
+    ],
+    "likeCount": 27
+  },
+  {
+    "title": "Жаңа қалада достарды қалай табуға болады?",
+    "body": "Үйден жұмыс істеймін, жалғыз сезінемін.",
+    "authorIndex": 184,
+    "language": "kk",
+    "tags": [
+      "community",
+      "social",
+      "newcomer",
+      "question",
+      "kk"
+    ],
+    "comments": [
+      {
+        "body": "Community center іс-шараларын қараңыз.",
+        "authorIndex": 185
+      },
+      {
+        "body": "Meetup language exchange көмектесті.",
+        "authorIndex": 186
+      },
+      {
+        "body": "Аптасына бір рет volunteer достық әкеледі.",
+        "authorIndex": 185
+      }
+    ],
+    "likeCount": 28
+  },
+  {
+    "title": "Avtomobil sığortasını ilk dəfə necə seçmək olar?",
+    "body": "Təkliflər çox fərqlidir.",
+    "authorIndex": 187,
+    "language": "az",
+    "tags": [
+      "insurance",
+      "driving",
+      "cars",
+      "question",
+      "az"
+    ],
+    "comments": [
+      {
+        "body": "Əvvəlcə minimum liability müqayisə edin.",
+        "authorIndex": 188
+      },
+      {
+        "body": "3 şirkətdən eyni şərtlərlə qiymət alın.",
+        "authorIndex": 189
+      },
+      {
+        "body": "Defensive driving kursu primi azalda bilər.",
+        "authorIndex": 188
+      }
+    ],
+    "likeCount": 29
+  },
+  {
+    "title": "Oilaga pul yuborishning eng xavfsiz yo'li qaysi?",
+    "body": "Past komissiya xohlayman.",
+    "authorIndex": 190,
+    "language": "uz",
+    "tags": [
+      "money",
+      "family",
+      "remittance",
+      "question",
+      "uz"
+    ],
+    "comments": [
+      {
+        "body": "Har safar Wise va Remitly ni solishtiring.",
+        "authorIndex": 191
+      },
+      {
+        "body": "Notanish odamlar orqali yubormang.",
+        "authorIndex": 192
+      },
+      {
+        "body": "Banklar odatda qimmatroq.",
+        "authorIndex": 191
+      }
+    ],
+    "likeCount": 30
+  },
+  {
+    "title": "Як знайти роботу в новому місті?",
+    "body": "Резюме готове, але мережі контактів немає.",
+    "authorIndex": 193,
+    "language": "uk",
+    "tags": [
+      "jobs",
+      "career",
+      "networking",
+      "question",
+      "uk"
+    ],
+    "comments": [
+      {
+        "body": "Оновлюй LinkedIn і подавай щодня.",
+        "authorIndex": 194
+      },
+      {
+        "body": "Місцеві networking events дуже допомагають.",
+        "authorIndex": 195
+      },
+      {
+        "body": "Волонтерство зміцнює CV.",
+        "authorIndex": 194
+      }
+    ],
+    "likeCount": 31
+  },
+  {
+    "title": "يېڭى شەھەردە دوست قانداق تاپىمەن?",
+    "body": "ئۆيدىن ئىشلەيمەن، يALغۇZ his قىلىمەن.",
+    "authorIndex": 196,
+    "language": "ug",
+    "tags": [
+      "community",
+      "social",
+      "newcomer",
+      "question",
+      "ug"
+    ],
+    "comments": [
+      {
+        "body": "Community center پائالىيەتلىرini كۆرۈڭ.",
+        "authorIndex": 197
+      },
+      {
+        "body": "Meetup language exchange بەك ياخshi.",
+        "authorIndex": 198
+      },
+      {
+        "body": "ھەپتىگە bir قېتىم volunteer دوستلىشىشكە ياردەم قىلىدۇ.",
+        "authorIndex": 197
+      }
+    ],
+    "likeCount": 32
+  }
+]

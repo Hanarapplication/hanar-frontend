@@ -1,0 +1,1314 @@
+[
+  {
+    "title": "How did you find your first job in Texas as an immigrant?",
+    "body": "I have experience from back home but not much local experience. What worked for you?",
+    "authorIndex": 8,
+    "language": "en",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "en"
+    ],
+    "comments": [
+      {
+        "body": "My first opportunity came through someone from my community.",
+        "authorIndex": 0
+      },
+      {
+        "body": "Local experience matters — even part-time helped open doors.",
+        "authorIndex": 16
+      },
+      {
+        "body": "Update your resume to U.S. style and apply consistently.",
+        "authorIndex": 24
+      },
+      {
+        "body": "Community groups and small business owners were more willing to give me a chance.",
+        "authorIndex": 32
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Как вы нашли первую работу в Техасе после иммиграции?",
+    "body": "Есть опыт на родине, но мало местного. Что сработало у вас?",
+    "authorIndex": 9,
+    "language": "ru",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ru"
+    ],
+    "comments": [
+      {
+        "body": "Первый шанс дал человек из моего сообщества.",
+        "authorIndex": 1
+      },
+      {
+        "body": "Местный опыт важен — даже part-time открыл двери.",
+        "authorIndex": 17
+      },
+      {
+        "body": "Обновите резюме под американский формат и подавайте регулярно.",
+        "authorIndex": 25
+      },
+      {
+        "body": "Малый бизнес и community groups чаще давали шанс.",
+        "authorIndex": 33
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "كيف وجدت أول وظيفة لك في تكساس كمهاجر؟",
+    "body": "لدي خبرة من الوطن لكن قليلة محلياً. ما الذي نجح معكم؟",
+    "authorIndex": 10,
+    "language": "ar",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ar"
+    ],
+    "comments": [
+      {
+        "body": "أول فرصة جاءت عبر شخص من مجتمعي.",
+        "authorIndex": 2
+      },
+      {
+        "body": "الخبرة المحلية مهمة — حتى دوام جزئي ساعد.",
+        "authorIndex": 18
+      },
+      {
+        "body": "حدّث سيرتك بأسلوب أمريكي وتقدم بانتظام.",
+        "authorIndex": 26
+      },
+      {
+        "body": "مجموعات المجتمع وأصحاب الأعمال الصغيرة أعطوني فرصة أكثر.",
+        "authorIndex": 34
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "이민자로서 텍사스에서 첫 직장은 어떻게 구하셨나요?",
+    "body": "본국 경력은 있는데 현지 경력이 거의 없어요. 어떤 방법이 통했나요?",
+    "authorIndex": 11,
+    "language": "ko",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ko"
+    ],
+    "comments": [
+      {
+        "body": "커뮤니티 지인 소개로 첫 기회가 왔어요.",
+        "authorIndex": 3
+      },
+      {
+        "body": "현지 경력이 중요해요 — 아르바이트도 문을 열어줬습니다.",
+        "authorIndex": 19
+      },
+      {
+        "body": "미국식 이력서로 바꾸고 꾸준히 지원하세요.",
+        "authorIndex": 27
+      },
+      {
+        "body": "동네 커뮤니티와 소상공인이 기회를 더 줬어요.",
+        "authorIndex": 35
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "作为移民，你在德州是怎么找到第一份工作的？",
+    "body": "有国内经验但本地经验很少。什么方法对你有用？",
+    "authorIndex": 12,
+    "language": "zh",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "zh"
+    ],
+    "comments": [
+      {
+        "body": "第一个机会是社区里的人介绍的。",
+        "authorIndex": 4
+      },
+      {
+        "body": "本地经验很重要——兼职也能打开大门。",
+        "authorIndex": 20
+      },
+      {
+        "body": "把简历改成美式风格，坚持投递。",
+        "authorIndex": 28
+      },
+      {
+        "body": "社区团体和小企业主更愿意给我机会。",
+        "authorIndex": 36
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "移民としてテキサスで最初の仕事はどう見つけましたか？",
+    "body": "母国の経験はあるが現地経験が少ない。うまくいった方法は？",
+    "authorIndex": 13,
+    "language": "ja",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ja"
+    ],
+    "comments": [
+      {
+        "body": "最初のチャンスはコミュニティの人の紹介でした。",
+        "authorIndex": 5
+      },
+      {
+        "body": "現地経験が大事 — パートでも道が開きました。",
+        "authorIndex": 21
+      },
+      {
+        "body": "履歴書を米国式に直し、継続的に応募。",
+        "authorIndex": 29
+      },
+      {
+        "body": "地域コミュニティや小規模事業者がチャンスをくれました。",
+        "authorIndex": 37
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Göçmen olarak Teksas'ta ilk işinizi nasıl buldunuz?",
+    "body": "Memlekette deneyim var ama yerel deneyim az. Sizde ne işe yaradı?",
+    "authorIndex": 14,
+    "language": "tr",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "tr"
+    ],
+    "comments": [
+      {
+        "body": "İlk fırsat topluluğumdan birinin aracılığıyla geldi.",
+        "authorIndex": 6
+      },
+      {
+        "body": "Yerel deneyim önemli — yarı zamanlı bile kapı açtı.",
+        "authorIndex": 22
+      },
+      {
+        "body": "Özgeçmişi ABD formatına çevirin, düzenli başvurun.",
+        "authorIndex": 30
+      },
+      {
+        "body": "Topluluk grupları ve küçük işletmeler daha çok şans verdi.",
+        "authorIndex": 38
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "به عنوان مهاجر اولین شغلتان در تگزاس را چطور پیدا کردید؟",
+    "body": "تجربه از وطن دارم ولی تجربه محلی کم است. برای شما چه جواب داد؟",
+    "authorIndex": 15,
+    "language": "fa",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "fa"
+    ],
+    "comments": [
+      {
+        "body": "اولین فرصت از طریق کسی از جامعه‌ام بود.",
+        "authorIndex": 7
+      },
+      {
+        "body": "تجربه محلی مهم است — حتی پاره‌وقت کمک کرد.",
+        "authorIndex": 23
+      },
+      {
+        "body": "رزومه را آمریکایی کنید و مرتب درخواست بدهید.",
+        "authorIndex": 31
+      },
+      {
+        "body": "گروه‌های محلی و صاحبان کسب‌وکارهای کوچک بیشتر شانس دادند.",
+        "authorIndex": 39
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "¿Cómo encontraste tu primer empleo en Texas como inmigrante?",
+    "body": "Tengo experiencia de mi país pero poca local. ¿Qué te funcionó?",
+    "authorIndex": 101,
+    "language": "es",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "es"
+    ],
+    "comments": [
+      {
+        "body": "Mi primera oportunidad vino por alguien de mi comunidad.",
+        "authorIndex": 100
+      },
+      {
+        "body": "La experiencia local importa — incluso medio tiempo abrió puertas.",
+        "authorIndex": 102
+      },
+      {
+        "body": "Actualiza tu currículum al estilo EE.UU. y aplica seguido.",
+        "authorIndex": 199
+      },
+      {
+        "body": "Grupos comunitarios y pequeños negocios me dieron más oportunidades.",
+        "authorIndex": 100
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Comment avez-vous trouvé votre premier emploi au Texas en tant qu'immigrant ?",
+    "body": "J'ai de l'expérience au pays mais peu ici. Qu'est-ce qui a marché pour vous ?",
+    "authorIndex": 104,
+    "language": "fr",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "fr"
+    ],
+    "comments": [
+      {
+        "body": "Ma première opportunité est venue via quelqu'un de ma communauté.",
+        "authorIndex": 103
+      },
+      {
+        "body": "L'expérience locale compte — même un temps partiel a aidé.",
+        "authorIndex": 105
+      },
+      {
+        "body": "Adaptez votre CV au format américain et postulez régulièrement.",
+        "authorIndex": 103
+      },
+      {
+        "body": "Les groupes communautaires et petites entreprises m'ont plus fait confiance.",
+        "authorIndex": 105
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Wie haben Sie als Einwanderer Ihren ersten Job in Texas gefunden?",
+    "body": "Erfahrung von zu Hause, aber wenig lokal. Was hat bei Ihnen funktioniert?",
+    "authorIndex": 107,
+    "language": "de",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "de"
+    ],
+    "comments": [
+      {
+        "body": "Die erste Chance kam über jemanden aus meiner Community.",
+        "authorIndex": 106
+      },
+      {
+        "body": "Lokale Erfahrung zählt — selbst Teilzeit half.",
+        "authorIndex": 108
+      },
+      {
+        "body": "Lebenslauf im US-Format anpassen und regelmäßig bewerben.",
+        "authorIndex": 106
+      },
+      {
+        "body": "Community-Gruppen und Kleinunternehmer gaben mir eher eine Chance.",
+        "authorIndex": 108
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Come avete trovato il primo lavoro in Texas da immigrati?",
+    "body": "Ho esperienza dal paese d'origine ma poca locale. Cosa ha funzionato per voi?",
+    "authorIndex": 110,
+    "language": "it",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "it"
+    ],
+    "comments": [
+      {
+        "body": "La prima opportunità è venuta da qualcuno della mia comunità.",
+        "authorIndex": 109
+      },
+      {
+        "body": "L'esperienza locale conta — anche part-time ha aperto porte.",
+        "authorIndex": 111
+      },
+      {
+        "body": "Aggiornate il CV allo stile USA e candidatevi spesso.",
+        "authorIndex": 109
+      },
+      {
+        "body": "Gruppi comunitari e piccole imprese mi hanno dato più fiducia.",
+        "authorIndex": 111
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Como encontraram o primeiro emprego no Texas como imigrantes?",
+    "body": "Tenho experiência do meu país, mas pouca local. O que funcionou para vocês?",
+    "authorIndex": 113,
+    "language": "pt",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "pt"
+    ],
+    "comments": [
+      {
+        "body": "Minha primeira chance veio por alguém da minha comunidade.",
+        "authorIndex": 112
+      },
+      {
+        "body": "Experiência local importa — até meio período abriu portas.",
+        "authorIndex": 114
+      },
+      {
+        "body": "Atualize o currículo no estilo dos EUA e candidate-se sempre.",
+        "authorIndex": 112
+      },
+      {
+        "body": "Grupos comunitários e pequenos negócios me deram mais chance.",
+        "authorIndex": 114
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Jak znaleźliście pierwszą pracę w Teksasie jako imigranci?",
+    "body": "Mam doświadczenie z kraju, mało lokalnego. Co u was zadziałało?",
+    "authorIndex": 116,
+    "language": "pl",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "pl"
+    ],
+    "comments": [
+      {
+        "body": "Pierwsza szansa przyszła przez kogoś z mojej społeczności.",
+        "authorIndex": 115
+      },
+      {
+        "body": "Lokalne doświadczenie ma znaczenie — nawet pół etatu pomogło.",
+        "authorIndex": 117
+      },
+      {
+        "body": "Dostosuj CV do stylu USA i aplikuj regularnie.",
+        "authorIndex": 115
+      },
+      {
+        "body": "Grupy społeczności i mali przedsiębicy częściej dawali szansę.",
+        "authorIndex": 117
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Cum v-ați găsit primul job în Texas ca imigranți?",
+    "body": "Am experiență din țară, puțină locală. Ce a funcționat la voi?",
+    "authorIndex": 119,
+    "language": "ro",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ro"
+    ],
+    "comments": [
+      {
+        "body": "Prima oportunitate a venit prin cineva din comunitatea mea.",
+        "authorIndex": 118
+      },
+      {
+        "body": "Experiența locală contează — chiar și part-time a ajutat.",
+        "authorIndex": 120
+      },
+      {
+        "body": "Actualizați CV-ul în stil american și aplicați constant.",
+        "authorIndex": 118
+      },
+      {
+        "body": "Grupuri comunitare și mici afaceri mi-au dat mai multă șansă.",
+        "authorIndex": 120
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Πώς βρήκατε την πρώτη δουλειά στο Τέξας ως μετανάστες;",
+    "body": "Έχω εμπειρία από την πατρίδα, λίγη τοπική. Τι δούλεψε για εσάς;",
+    "authorIndex": 122,
+    "language": "el",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "el"
+    ],
+    "comments": [
+      {
+        "body": "Η πρώτη ευκαιρία ήρθε μέσω κάποιου από την κοινότητά μου.",
+        "authorIndex": 121
+      },
+      {
+        "body": "Η τοπική εμπειρία μετράει — ακόμα και part-time βοήθησε.",
+        "authorIndex": 123
+      },
+      {
+        "body": "Ενημερώστε το βιογραφικό σε αμερικανικό στυλ και κάντε αιτήσεις.",
+        "authorIndex": 121
+      },
+      {
+        "body": "Κοινοτικές ομάδες και μικρές επιχειρήσεις μου έδωσαν περισσότερες ευκαιρίες.",
+        "authorIndex": 123
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "איך מצאתם את העבודה הראשונה בטקסס כמהגרים?",
+    "body": "יש לי ניסיון מהארץ אבל מעט מקומי. מה עבד אצלכם?",
+    "authorIndex": 125,
+    "language": "he",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "he"
+    ],
+    "comments": [
+      {
+        "body": "ההזדמנות הראשונה הגיעה דרך מישהו מהקהילה שלי.",
+        "authorIndex": 124
+      },
+      {
+        "body": "ניסיון מקומי חשוב — גם משרה חלקית עזרה.",
+        "authorIndex": 126
+      },
+      {
+        "body": "עדכנו קורות חיים לסגנון אמריקאי והגישו בקביעות.",
+        "authorIndex": 124
+      },
+      {
+        "body": "קבוצות קהילה ובעלי עסקים קטנים נתנו לי יותר סיכוי.",
+        "authorIndex": 126
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "प्रवासी के रूप में Texas में पहली नौकरी कैसे मिली?",
+    "body": "वतन का अनुभव है, स्थानीय कम। आपके लिए क्या काम किया?",
+    "authorIndex": 128,
+    "language": "hi",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "hi"
+    ],
+    "comments": [
+      {
+        "body": "पहला मौका मेरे community के किसी व्यक्ति से आया।",
+        "authorIndex": 127
+      },
+      {
+        "body": "स्थानीय अनुभव matter करता है — part-time ने भी दरवाजे खोले।",
+        "authorIndex": 129
+      },
+      {
+        "body": "Resume US style में अपडेट करें और regularly apply करें।",
+        "authorIndex": 127
+      },
+      {
+        "body": "Community groups और छोटे business owners ने ज्यादा मौका दिया।",
+        "authorIndex": 129
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "অভিবাসী হিসেবে Texas-এ প্রথম চাকরি কীভাবে পেলেন?",
+    "body": "দেশে অভিজ্ঞতা আছে, স্থানীয় কম। আপনার ক্ষেত্রে কী কাজ করেছে?",
+    "authorIndex": 131,
+    "language": "bn",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "bn"
+    ],
+    "comments": [
+      {
+        "body": "প্রথম সুযোগ এসেছিল আমার community-র কারো মাধ্যমে।",
+        "authorIndex": 130
+      },
+      {
+        "body": "স্থানীয় অভিজ্ঞতা গুরুত্বপূর্ণ — part-time-ও দরজা খুলে দিয়েছে।",
+        "authorIndex": 132
+      },
+      {
+        "body": "Resume US style-এ আপডেট করে নিয়মিত apply করুন।",
+        "authorIndex": 130
+      },
+      {
+        "body": "Community group ও ছোট ব্যবসায়ীরা বেশি সুযোগ দিয়েছে।",
+        "authorIndex": 132
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "குடியேறியவராக Texas-ல் முதல் வேலை எப்படி கிடைத்தது?",
+    "body": "நாட்டில் experience உண்டு, local குறைவு. உங்களுக்கு எது worked?",
+    "authorIndex": 134,
+    "language": "ta",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ta"
+    ],
+    "comments": [
+      {
+        "body": "முதல் opportunity என் community நபர் மூலம் வந்தது.",
+        "authorIndex": 133
+      },
+      {
+        "body": "Local experience matter — part-time-um வாய்ப்பு திறந்தது.",
+        "authorIndex": 135
+      },
+      {
+        "body": "Resume US style-க்கு update செய்து consistently apply.",
+        "authorIndex": 133
+      },
+      {
+        "body": "Community groups, small business owners அதிக chance கொடுத்தார்கள்.",
+        "authorIndex": 135
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "ਅਪ੍ਰਵਾਸੀ ਵਜੋਂ Texas ਵਿੱਚ ਪਹਿਲੀ ਨੌਕਰੀ ਕਿਵੇਂ ਮਿਲੀ?",
+    "body": "ਮੂਲ ਦੇਸ਼ ਦਾ experience ਹੈ, local ਘੱਟ। ਤੁਹਾਡੇ ਲਈ ਕੀ ਕੰਮ ਕੀਤਾ?",
+    "authorIndex": 137,
+    "language": "pa",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "pa"
+    ],
+    "comments": [
+      {
+        "body": "ਪਹਿਲਾ ਮੌਕਾ community ਦੇ ਕਿਸੇ ਰਾਹੀਂ ਆਇਆ।",
+        "authorIndex": 136
+      },
+      {
+        "body": "Local experience matter — part-time ਨੇ ਵੀ ਦਰਵਾਜ਼ੇ ਖੋਲ੍ਹੇ।",
+        "authorIndex": 138
+      },
+      {
+        "body": "Resume US style ਵਿੱਚ update ਕਰੋ, consistently apply ਕਰੋ।",
+        "authorIndex": 136
+      },
+      {
+        "body": "Community groups ਅਤੇ small business owners ਨੇ ਜ਼ਿਆਦਾ ਮੌਕਾ ਦਿੱਤਾ।",
+        "authorIndex": 138
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "بطور مهاجر Texas میں پہلی نوکری کیسے ملی?",
+    "body": "وطن کا experience ہے، local کم۔ آپ کے لیے کیا کام کیا?",
+    "authorIndex": 140,
+    "language": "ur",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ur"
+    ],
+    "comments": [
+      {
+        "body": "پہلا موقع community کے کسی فرد سے آیا۔",
+        "authorIndex": 139
+      },
+      {
+        "body": "Local experience اہم — part-time نے بھی دروازے کھولے۔",
+        "authorIndex": 141
+      },
+      {
+        "body": "Resume US style میں update کریں، regularly apply کریں۔",
+        "authorIndex": 139
+      },
+      {
+        "body": "Community groups اور small business owners نے زیادہ موقع دی۔",
+        "authorIndex": 141
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "د کډوال په توګه په Texas کې لومړۍ دنده مو څنګه وموندله?",
+    "body": "د خپل هیواد تجربه لرم، محلي لږ. ستاسو لپاره څه کار وکړ?",
+    "authorIndex": 143,
+    "language": "ps",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ps"
+    ],
+    "comments": [
+      {
+        "body": "لومړۍ فرصت زما د community له یو کس را و.",
+        "authorIndex": 142
+      },
+      {
+        "body": "محلي تجربه مهمه — part-time هم دروازې پرانیستې.",
+        "authorIndex": 144
+      },
+      {
+        "body": "Resume US style ته update کړئ او په منظم ډول apply.",
+        "authorIndex": 142
+      },
+      {
+        "body": "Community groups او کوچني سوداګر زیات چانس ورکړ.",
+        "authorIndex": 144
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Wek koçber li Texas yekem karê we çawa hat?",
+    "body": "Ez tecrubeya welat heye, ya herêmî kêm e. Ji we re çi xebitî?",
+    "authorIndex": 146,
+    "language": "ku",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ku"
+    ],
+    "comments": [
+      {
+        "body": "Yekem derfet ji kesekî ji civaka min hat.",
+        "authorIndex": 145
+      },
+      {
+        "body": "Tecrubeya herêmî girîng e — part-time jî alîkar bû.",
+        "authorIndex": 147
+      },
+      {
+        "body": "Resume bi stîla US nûve bike û bi domdarî apply bike.",
+        "authorIndex": 145
+      },
+      {
+        "body": "Komên civakî û xwediyên karsaziyên biçûk zêdetir şans dan.",
+        "authorIndex": 147
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Bagaimana Anda menemukan pekerjaan pertama di Texas sebagai imigran?",
+    "body": "Punya pengalaman dari negara asal tapi sedikit lokal. Apa yang berhasil?",
+    "authorIndex": 149,
+    "language": "id",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "id"
+    ],
+    "comments": [
+      {
+        "body": "Kesempatan pertama lewat seseorang dari komunitas saya.",
+        "authorIndex": 148
+      },
+      {
+        "body": "Pengalaman lokal penting — part-time pun membuka pintu.",
+        "authorIndex": 150
+      },
+      {
+        "body": "Perbarui resume gaya AS dan apply secara konsisten.",
+        "authorIndex": 148
+      },
+      {
+        "body": "Grup komunitas dan pemilik usaha kecil lebih memberi kesempatan.",
+        "authorIndex": 150
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Bagaimana anda jumpa kerja pertama di Texas sebagai imigran?",
+    "body": "Ada pengalaman dari negara asal, sedikit tempatan. Apa yang berjaya?",
+    "authorIndex": 152,
+    "language": "ms",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ms"
+    ],
+    "comments": [
+      {
+        "body": "Peluang pertama melalui seseorang dari komuniti saya.",
+        "authorIndex": 151
+      },
+      {
+        "body": "Pengalaman tempatan penting — part-time pun membuka pintu.",
+        "authorIndex": 153
+      },
+      {
+        "body": "Kemas kini resume gaya AS dan apply konsisten.",
+        "authorIndex": 151
+      },
+      {
+        "body": "Kumpulan komuniti dan pemilik perniagaan kecil lebih beri peluang.",
+        "authorIndex": 153
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Là người nhập cư, bạn tìm việc đầu tiên ở Texas thế nào?",
+    "body": "Có kinh nghiệm ở quê nhà nhưng ít kinh nghiệm địa phương. Cách nào hiệu quả?",
+    "authorIndex": 155,
+    "language": "vi",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "vi"
+    ],
+    "comments": [
+      {
+        "body": "Cơ hội đầu tiên đến qua người trong cộng đồng.",
+        "authorIndex": 154
+      },
+      {
+        "body": "Kinh nghiệm địa phương quan trọng — part-time cũng mở cửa.",
+        "authorIndex": 156
+      },
+      {
+        "body": "Cập nhật CV theo kiểu Mỹ và nộp đơn đều đặn.",
+        "authorIndex": 154
+      },
+      {
+        "body": "Nhóm cộng đồng và chủ doanh nghiệp nhỏ sẵn sàng cho cơ hội hơn.",
+        "authorIndex": 156
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "ในฐานะผู้อพยพ หางานแรกในเทกซัสอย่างไร?",
+    "body": "มีประสบการณ์จากบ้านเกิด แต่ท้องถิ่นน้อย วิธีไหนได้ผล?",
+    "authorIndex": 158,
+    "language": "th",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "th"
+    ],
+    "comments": [
+      {
+        "body": "โอกาสแรกมาจากคนในชุมชน",
+        "authorIndex": 157
+      },
+      {
+        "body": "ประสบการณ์ท้องถิ่นสำคัญ — part-time ก็เปิดประตู",
+        "authorIndex": 159
+      },
+      {
+        "body": "อัปเดต resume แบบอเมริกาและสมัครสม่ำเสมอ",
+        "authorIndex": 157
+      },
+      {
+        "body": "กลุ่มชุมชนและเจ้าของธุรกิจเล็กให้โอกาสมากกว่า",
+        "authorIndex": 159
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "ရွှေ့ပြောင်းသူအနေနဲ့ Texas မှာ ပထမအလုပ်ကို ဘယ်လိုရှာခဲ့လဲ?",
+    "body": "母国에서 experience ရှိပေမယ့် local နည်းတယ်။ ဘာက အလုပ်ဖြစ်လဲ?",
+    "authorIndex": 161,
+    "language": "my",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "my"
+    ],
+    "comments": [
+      {
+        "body": "ပထမ opportunity က community က လူတစ်ယောက်ကနေ ရခဲ့တယ်။",
+        "authorIndex": 160
+      },
+      {
+        "body": "Local experience အရေးကြီး — part-time ကိုပါ help လုပ်တယ်။",
+        "authorIndex": 162
+      },
+      {
+        "body": "Resume ကို US style ပြောင်းပြီး consistently apply လုပ်ပါ။",
+        "authorIndex": 160
+      },
+      {
+        "body": "Community groups နဲ့ small business owners က chance ပိုပေးတယ်။",
+        "authorIndex": 162
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "आप्रवासीको रूपमा Texas मा पहिलो job कसरी पाउनुभयो?",
+    "body": "देशको experience छ, local कम। तपाईंलाई के ले काम गर्यो?",
+    "authorIndex": 164,
+    "language": "ne",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ne"
+    ],
+    "comments": [
+      {
+        "body": "पहिलो opportunity community को कसैबाट आयो।",
+        "authorIndex": 163
+      },
+      {
+        "body": "Local experience महत्त्वपूर्ण — part-time le pani dhoka kholyo.",
+        "authorIndex": 165
+      },
+      {
+        "body": "Resume US style मा update गरी consistently apply गर्नुहोस्।",
+        "authorIndex": 163
+      },
+      {
+        "body": "Community groups र small business owners le badhi mauka diyen.",
+        "authorIndex": 165
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "እንደ ስደተኛ በቴክሳስ የመጀመሪያ ስራ እንዴት አገኙ?",
+    "body": "ከወንጌል تجربة አለኝ local ግን ጥቂት ነው። ለእናንተ ምን worked?",
+    "authorIndex": 167,
+    "language": "am",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "am"
+    ],
+    "comments": [
+      {
+        "body": "የመጀመሪያው opportunity ከcommunity ሰው በኩል መጣ።",
+        "authorIndex": 166
+      },
+      {
+        "body": "Local experience ጠቃሚ — part-time እንኳ door ከፈተ።",
+        "authorIndex": 168
+      },
+      {
+        "body": "Resume US style አዘምን እና consistently apply አድርግ።",
+        "authorIndex": 166
+      },
+      {
+        "body": "Community groups እና small business owners ተጨማሪ chance ሰጡ።",
+        "authorIndex": 168
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Sidee baad u heshay shaqadaada ugu horreysa ee Texas adigoo tahay muhaajir?",
+    "body": "Waxaan leeyahay waayo-aragnimo dalka, yar oo maxalli ah. Maxaa kuu shaqeeyay?",
+    "authorIndex": 170,
+    "language": "so",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "so"
+    ],
+    "comments": [
+      {
+        "body": "Fursaddii ugu horreysay waxay timid qof ka mid ah bulshadayda.",
+        "authorIndex": 169
+      },
+      {
+        "body": "Waayo-aragnimada maxalliga ah waa muhiim — xitaa part-time way caawisay.",
+        "authorIndex": 171
+      },
+      {
+        "body": "Cusbooneysii resume qaabka Mareykanka oo si joogto ah u codsado.",
+        "authorIndex": 169
+      },
+      {
+        "body": "Kooxaha bulshada iyo ganacsiyada yaryar ayaa fursad badan siiyay.",
+        "authorIndex": 171
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Uliipataje kazi yako ya kwanza Texas ukiwa mhamiaji?",
+    "body": "Nina uzoefu wa nyumbani, kidogo wa hapa. Nini kiliwork kwako?",
+    "authorIndex": 173,
+    "language": "sw",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "sw"
+    ],
+    "comments": [
+      {
+        "body": "Fursa ya kwanza ilitoka kwa mtu wa jamii yangu.",
+        "authorIndex": 172
+      },
+      {
+        "body": "Uzoefu wa ndani muhimu — hata part-time ilisaidia.",
+        "authorIndex": 174
+      },
+      {
+        "body": "Sasisha resume kwa mtindo wa Marekani na omba mara kwa mara.",
+        "authorIndex": 172
+      },
+      {
+        "body": "Vikundi vya jamii na wamiliki wa biashara ndogo walitoa nafasi zaidi.",
+        "authorIndex": 174
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Yaya kuka samu aikin farko a Texas a matsayin baƙin gida?",
+    "body": "Ina da experience daga gida, kadan na gida. Me ya yi aiki a gare ku?",
+    "authorIndex": 176,
+    "language": "ha",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ha"
+    ],
+    "comments": [
+      {
+        "body": "Damarsa ta farko ta zo ta wani daga al'ummata.",
+        "authorIndex": 175
+      },
+      {
+        "body": "Gogewar gida tana da muhimmanci — part-time ma ya taimaka.",
+        "authorIndex": 177
+      },
+      {
+        "body": "Sabunta resume zuwa salon Amurka kuma a apply akai-akai.",
+        "authorIndex": 175
+      },
+      {
+        "body": "Kungiyoyin al'umma da masu kananan kasuwanci sun ba da dama fiye.",
+        "authorIndex": 177
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Immigracionից հետո Texas-ում առաջին աշխատանքը ինչպե՞ս գտաք",
+    "body": "Հայրենիքում փորձ ունեմ, տեղականը քիչ է։ Ձեզ համար ի՞նչն աշխատեց։",
+    "authorIndex": 179,
+    "language": "hy",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "hy"
+    ],
+    "comments": [
+      {
+        "body": "Առաջին հնարավորությունը եկավ իմ community-ից մեկի միջոցով։",
+        "authorIndex": 178
+      },
+      {
+        "body": "Տեղական փորձը կարևոր է — part-time-ը նույնպես օգնեց։",
+        "authorIndex": 180
+      },
+      {
+        "body": "Resume-ը թարմացրեք US ոճով և apply  consistently։",
+        "authorIndex": 178
+      },
+      {
+        "body": "Community groups-ը և small business owners-ը ավելi шans տվեցին։",
+        "authorIndex": 180
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "როგორ იპოვეთ პირველი სამუშაო Texas-ში იმიგრანტად?",
+    "body": "სამშობლოში გამოცდილება მაქვს, ადგილობრივი ცოტა. თქვენთვის რა იმუშავა?",
+    "authorIndex": 182,
+    "language": "ka",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ka"
+    ],
+    "comments": [
+      {
+        "body": "პირველი შანსი community-ის ვინმის მეშვეობით მოვიდა.",
+        "authorIndex": 181
+      },
+      {
+        "body": "ადგილობრივი გამოცდილება მნიშვნელოვანია — part-time-მაც გახსნა კარი.",
+        "authorIndex": 183
+      },
+      {
+        "body": "Resume US სტილზე განაახლეთ და consistently apply.",
+        "authorIndex": 181
+      },
+      {
+        "body": "Community groups-მა და small business owners-მა მეტი шans მომცა.",
+        "authorIndex": 183
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Иmmigrant ретінде Texas-та алғашқы жұмысты қалай таптыңыз?",
+    "body": "Отанда тәжірибе бар, жергілікті аз. Сізде не көмектесті?",
+    "authorIndex": 185,
+    "language": "kk",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "kk"
+    ],
+    "comments": [
+      {
+        "body": "Алғаш мүмкіндік community-дан біреу арқылы келді.",
+        "authorIndex": 184
+      },
+      {
+        "body": "Жергілікті тәжірибе маңызды — part-time да есікті ашты.",
+        "authorIndex": 186
+      },
+      {
+        "body": "Resume US стиліне жаңартып, үнемі apply жасаңыз.",
+        "authorIndex": 184
+      },
+      {
+        "body": "Community groups пен small business owners көбірек мүмкіндік берді.",
+        "authorIndex": 186
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "İmmiqrant kimi Texasda ilk işinizi necə tapdınız?",
+    "body": "Vətəndə təcrübə var, yerli azdır. Sizdə nə işə yaradı?",
+    "authorIndex": 188,
+    "language": "az",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "az"
+    ],
+    "comments": [
+      {
+        "body": "İlk fürsət icmamdan birinin vasitəsilə gəldi.",
+        "authorIndex": 187
+      },
+      {
+        "body": "Yerli təcrübə vacibdir — part-time belə qapı açdı.",
+        "authorIndex": 189
+      },
+      {
+        "body": "Resume US üslubunda yeniləyin və müntəzəm apply edin.",
+        "authorIndex": 187
+      },
+      {
+        "body": "Community qrupları və kiçik sahibkarlar daha çox şans verdi.",
+        "authorIndex": 189
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Immigrant sifatida Texasda birinchi ishni qanday topdingiz?",
+    "body": "Vatandagi tajriba bor, mahalliy kam. Sizda nima ishladi?",
+    "authorIndex": 191,
+    "language": "uz",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "uz"
+    ],
+    "comments": [
+      {
+        "body": "Birinchi imkoniyat jamiyatimdagi birov orqali keldi.",
+        "authorIndex": 190
+      },
+      {
+        "body": "Mahalliy tajriba muhim — part-time ham eshik ochdi.",
+        "authorIndex": 192
+      },
+      {
+        "body": "Resume-ni US uslubida yangilang va doimiy apply qiling.",
+        "authorIndex": 190
+      },
+      {
+        "body": "Community guruhlari va kichik biznes egalari ko'proq imkon berdi.",
+        "authorIndex": 192
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Як ви знайшли першу роботу в Техасі як іммігранти?",
+    "body": "Є досвід з батьківщини, мало місцевого. Що спрацювало у вас?",
+    "authorIndex": 194,
+    "language": "uk",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "uk"
+    ],
+    "comments": [
+      {
+        "body": "Перша можливість прийшла через когось із моєї спільноти.",
+        "authorIndex": 193
+      },
+      {
+        "body": "Місцевий досвід важливий — навіть part-time допоміг.",
+        "authorIndex": 195
+      },
+      {
+        "body": "Оновіть резюме в американському стилі та подавайте регулярно.",
+        "authorIndex": 193
+      },
+      {
+        "body": "Громадські групи та малі бізнеси частіше давали шанс.",
+        "authorIndex": 195
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "كۆچmän بولۇپ Texasتا birinchi ishni qanday tapqansiz?",
+    "body": "Vatanda tajribe bar, yerli az. Sizge nima worked?",
+    "authorIndex": 197,
+    "language": "ug",
+    "tags": [
+      "jobs",
+      "texas",
+      "immigrant",
+      "question",
+      "ug"
+    ],
+    "comments": [
+      {
+        "body": "Birinchi pürsät community دىki bir kishidin keldi.",
+        "authorIndex": 196
+      },
+      {
+        "body": "Yerli tajribe muhim — part-time ham eshik achti.",
+        "authorIndex": 198
+      },
+      {
+        "body": "Resume ni US uslubida yangilang, consistently apply qiling.",
+        "authorIndex": 196
+      },
+      {
+        "body": "Community groups we kichik business owners ko'proq pürsät berdi.",
+        "authorIndex": 198
+      }
+    ],
+    "likeCount": 21
+  }
+]

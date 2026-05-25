@@ -6,7 +6,7 @@ Use this so **author names and spoken languages match**: e.g. only Chinese-name 
 
 ## 1. Profile list (index → language)
 
-**authorIndex** in posts and comments is the **0-based index** into this profiles array (0 = first profile, 99 = 100th).
+**authorIndex** in posts and comments is the **0-based index** into this profiles array (0 = first profile, 199 = 200th).
 
 When generating content:
 - **Post in language X** → use an **authorIndex** whose profile’s language is X.
@@ -130,7 +130,9 @@ Root object:
 }
 ```
 
-- **profiles**: Exactly 100 items. Order matters: index 0 = first item, index 99 = last. `username` must be `seed_001` … `seed_100`. `displayName` is the shown name (any script).
+- **profiles**: **200** items. Order matters: index 0 = first item, index 199 = last. `username` must be `seed_001` … `seed_200`. `displayName` is the shown name (any script).
+  - **Indices 0–99**: original 8-language rotation (en, ru, ar, ko, zh, ja, tr, fa).
+  - **Indices 100–199**: dedicated names for 33 additional app languages (~3 profiles each). See `seed_author_indices_by_language.json`.
 - **posts**: Optional array of local-community posts (same shape as in section 3). Can be empty `[]`.
 
 ---
@@ -157,13 +159,23 @@ A **JSON array** of post objects. Each post:
 |-------------|----------|--------|
 | title       | string   | Post title. |
 | body        | string   | Post body. |
-| authorIndex | number   | **0–99**. Must be the index of a profile whose **language** matches `language` of this post (see table above). |
+| authorIndex | number   | **0–199**. Must be the index of a profile whose **language** matches `language` of this post (see table above or `seed_author_indices_by_language.json`). |
 | language    | string   | One of: `en`, `ar`, `ru`, `ko`, `zh`, `ja`, `tr`, `fa`. |
 | tags        | string[] | e.g. `["immigrant", "texas", "housing"]`. |
-| comments    | array    | Each item: `{ "body": string, "authorIndex": number }`. **authorIndex** 0–99 must match the language of the comment text (e.g. Arabic comment → use an `ar` profile index). |
+| comments    | array    | Each item: `{ "body": string, "authorIndex": number }`. **authorIndex** 0–199 must match the language of the comment text (e.g. Arabic comment → use an `ar` profile index). **Must not equal the post’s authorIndex** (no self-comments). |
 | likeCount   | number   | Non-negative integer. |
 
-**Rule:** For every post and every comment, **authorIndex** must point to a profile whose language matches the language of that post/comment. Example: a post with `"language": "ar"` must have `authorIndex` one of 2, 10, 18, 26, 34, 42, 50, 58, 66, 74, 82, 90, 98. An Arabic comment must use one of those same indices.
+**Rule:** For every post and every comment, **authorIndex** must point to a profile whose language matches the language of that post/comment. Example: a post with `"language": "ar"` must have `authorIndex` one of 2, 10, 18, 26, 34, 42, 50, 58, 66, 74, 82, 90, 98. An Arabic comment must use one of those same indices **except** the post author’s index.
+
+**Validate before seeding:** `node scripts/validate-seed-posts.mjs` — checks language match and no self-comments. **Fix question batches:** `node scripts/fix-seed-post-authors.mjs`. **Generate batches 3–6:** `node scripts/generate-seed-questions-batch.mjs 3` (or `4`, `5`, `6`).
+
+Question batch files (paste one at a time in Admin):
+- `community_seed_all_languages_questions.json` — batch 1
+- `community_seed_all_languages_questions_batch2.json` — batch 2
+- `community_seed_all_languages_questions_batch3.json` — batch 3 (4 comments each)
+- `community_seed_all_languages_questions_batch4.json` — batch 4 (4 comments each)
+- `community_seed_all_languages_questions_batch5.json` — batch 5: Texas welcoming cities (same Q&A theme, all languages)
+- `community_seed_all_languages_questions_batch6.json` — batch 6: first job in Texas as an immigrant
 
 ---
 
@@ -218,4 +230,8 @@ Use these indices for **authorIndex** so names and languages stay consistent:
 - **tr** (Turkish): 6, 14, 22, 30, 38, 46, 54, 62, 70, 78, 86, 94  
 - **fa** (Persian): 7, 15, 23, 31, 39, 47, 55, 63, 71, 79, 87, 95  
 
+**Profiles 100–199** (Spanish, French, German, Hebrew, Hindi, etc.): see **`public/data/seed_author_indices_by_language.json`** for the full map of every app language to authorIndex values.
+
 Copy this file (or the sections you need) into ChatGPT so it generates posts and comments with matching names and languages.
+
+**Full AI brief:** see `public/data/AI_GENERATION_PROMPT.md` (copy-paste prompt + validation checklist).

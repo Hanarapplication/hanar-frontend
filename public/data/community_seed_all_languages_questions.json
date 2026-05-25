@@ -1,0 +1,1109 @@
+[
+  {
+    "title": "How do I find a trustworthy family doctor as a new resident?",
+    "body": "I just moved and don't know anyone locally. What should I look for when choosing a primary care doctor?",
+    "authorIndex": 0,
+    "language": "en",
+    "tags": [
+      "health",
+      "newcomer",
+      "question",
+      "en"
+    ],
+    "comments": [
+      {
+        "body": "Start with your insurance in-network directory and filter by location.",
+        "authorIndex": 8
+      },
+      {
+        "body": "Community WhatsApp groups helped me more than online reviews.",
+        "authorIndex": 16
+      },
+      {
+        "body": "Ask if the clinic offers same-day sick visits before you sign up.",
+        "authorIndex": 24
+      }
+    ],
+    "likeCount": 28
+  },
+  {
+    "title": "Где лучше искать жильё для новых иммигрантов?",
+    "body": "Бюджет ограничен. Стоит ли снимать через Facebook-группы или только официальные сайты?",
+    "authorIndex": 1,
+    "language": "ru",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "ru"
+    ],
+    "comments": [
+      {
+        "body": "Facebook группы работают, но смотрите квартиру лично до оплаты.",
+        "authorIndex": 9
+      },
+      {
+        "body": "Проверьте депозит и срок уведомления о выселении в договоре.",
+        "authorIndex": 17
+      },
+      {
+        "body": "Zillow удобен, но уточняйте включена ли коммуналка.",
+        "authorIndex": 25
+      }
+    ],
+    "likeCount": 31
+  },
+  {
+    "title": "ما أفضل طريقة لبناء سجل ائتماني من الصفر؟",
+    "body": "وصلت حديثاً وليس لدي تاريخ ائتماني. هل البطاقة المضمونة كافية في البداية؟",
+    "authorIndex": 2,
+    "language": "ar",
+    "tags": [
+      "finance",
+      "credit",
+      "question",
+      "ar"
+    ],
+    "comments": [
+      {
+        "body": "نعم، ابدأ ببطاقة مضمونة وادفع الفاتورة كاملة كل شهر.",
+        "authorIndex": 10
+      },
+      {
+        "body": "بعد 6–9 أشهر من الدفع المنتظم يبدأ السجل يتحسن.",
+        "authorIndex": 18
+      },
+      {
+        "body": "لا تفتح أكثر من بطاقتين في نفس الوقت.",
+        "authorIndex": 26
+      }
+    ],
+    "likeCount": 35
+  },
+  {
+    "title": "미국에서 첫 직장 구할 때 이력서는 어떻게 쓰나요?",
+    "body": "한국식 이력서와 형식이 다른 것 같아요. 사진이나 생년월일도 넣어야 하나요?",
+    "authorIndex": 3,
+    "language": "ko",
+    "tags": [
+      "jobs",
+      "resume",
+      "question",
+      "ko"
+    ],
+    "comments": [
+      {
+        "body": "미국 이력서는 보통 사진/나이 없이 경력 중심으로 씁니다.",
+        "authorIndex": 11
+      },
+      {
+        "body": "LinkedIn 프로필도 같이 정리하면 도움이 됩니다.",
+        "authorIndex": 19
+      },
+      {
+        "body": "지원할 때마다 키워드를 맞춰 수정하는 게 좋아요.",
+        "authorIndex": 27
+      }
+    ],
+    "likeCount": 22
+  },
+  {
+    "title": "刚来美国，孩子入学需要准备哪些文件？",
+    "body": "孩子九岁，不确定公立学校报名要帶哪些材料？",
+    "authorIndex": 4,
+    "language": "zh",
+    "tags": [
+      "school",
+      "family",
+      "question",
+      "zh"
+    ],
+    "comments": [
+      {
+        "body": "一般需要住址证明、免疫记录和出生证明。",
+        "authorIndex": 12
+      },
+      {
+        "body": "公立学校通常按住址分配学区。",
+        "authorIndex": 20
+      },
+      {
+        "body": "语言评估是为了安排支持，不是拒绝入学。",
+        "authorIndex": 28
+      }
+    ],
+    "likeCount": 26
+  },
+  {
+    "title": "アメリカで銀行口座を開くのに必要な書類は？",
+    "body": "来日したばかりでクレジット履歴がありません。パスポートだけで開けますか？",
+    "authorIndex": 5,
+    "language": "ja",
+    "tags": [
+      "banking",
+      "newcomer",
+      "question",
+      "ja"
+    ],
+    "comments": [
+      {
+        "body": "パスポート＋住所証明（レンタル契約など）が基本です。",
+        "authorIndex": 13
+      },
+      {
+        "body": "地域の信用組合も検討価値があります。",
+        "authorIndex": 21
+      },
+      {
+        "body": "最初はチェック口座だけでも大丈夫です。",
+        "authorIndex": 29
+      }
+    ],
+    "likeCount": 19
+  },
+  {
+    "title": "ABD'de vergi beyannamesi için muhasebeci şart mı?",
+    "body": "İlk kez gelir vergisi dosyası vereceğim. Kendim yapabilir miyim?",
+    "authorIndex": 6,
+    "language": "tr",
+    "tags": [
+      "tax",
+      "finance",
+      "question",
+      "tr"
+    ],
+    "comments": [
+      {
+        "body": "Gelir basitse TurboTax gibi programlar yeterli olabilir.",
+        "authorIndex": 14
+      },
+      {
+        "body": "Serbest meslek varsa muhasebeci daha güvenli.",
+        "authorIndex": 22
+      },
+      {
+        "body": "WhatsApp gruplarında Türkçe muhasebeci tavsiyesi bulunur.",
+        "authorIndex": 30
+      }
+    ],
+    "likeCount": 24
+  },
+  {
+    "title": "برای گرفتن گواهینامه رانندگی در آمریکا از کجا شروع کنم؟",
+    "body": "تازه مهاجرت کردم. آیا باید کلاس عملی بگیرم یا فقط آزمون کافی است؟",
+    "authorIndex": 7,
+    "language": "fa",
+    "tags": [
+      "driving",
+      "license",
+      "question",
+      "fa"
+    ],
+    "comments": [
+      {
+        "body": "اول manual DMV ایالتت را بخوان.",
+        "authorIndex": 15
+      },
+      {
+        "body": "در بعضی ایالت‌ها کلاس عملی اجباری است.",
+        "authorIndex": 23
+      },
+      {
+        "body": "هزینه بسته به ایالت معمولاً ۳۰ تا ۱۰۰ دلار است.",
+        "authorIndex": 31
+      }
+    ],
+    "likeCount": 30
+  },
+  {
+    "title": "¿Dónde puedo encontrar comida halal fresca en mi ciudad?",
+    "body": "Acabo de llegar y no conozco tiendas confiables. ¿Qué debo preguntar al carnicero?",
+    "authorIndex": 100,
+    "language": "es",
+    "tags": [
+      "food",
+      "halal",
+      "question",
+      "es"
+    ],
+    "comments": [
+      {
+        "body": "Pregunta si el sacrificio es diario y si tienen certificación local.",
+        "authorIndex": 101
+      },
+      {
+        "body": "Los mercados étnicos suelen tener mejor calidad que supermercados grandes.",
+        "authorIndex": 102
+      },
+      {
+        "body": "Compra poca cantidad la primera vez para probar.",
+        "authorIndex": 199
+      }
+    ],
+    "likeCount": 27
+  },
+  {
+    "title": "Comment trouver un logement abordable en tant que nouvel arrivant ?",
+    "body": "Mon budget est limité. Faut-il passer par Facebook ou uniquement des sites officiels ?",
+    "authorIndex": 103,
+    "language": "fr",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "fr"
+    ],
+    "comments": [
+      {
+        "body": "Visitez toujours le logement avant de payer un dépôt.",
+        "authorIndex": 104
+      },
+      {
+        "body": "Vérifiez ce qui est inclus dans le loyer (eau, chauffage).",
+        "authorIndex": 105
+      },
+      {
+        "body": "Les groupes communautaires locaux partagent de bonnes adresses.",
+        "authorIndex": 104
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Wie finde ich als Neuankömmling eine günstige Krankenversicherung?",
+    "body": "Ich verstehe das System mit HMO und PPO noch nicht. Wo fange ich an?",
+    "authorIndex": 106,
+    "language": "de",
+    "tags": [
+      "health",
+      "insurance",
+      "question",
+      "de"
+    ],
+    "comments": [
+      {
+        "body": "Vergleichen Sie zuerst die Netzwerk-Ärzte in Ihrer Nähe.",
+        "authorIndex": 107
+      },
+      {
+        "body": "Marketplace-Pläne können bei niedrigem Einkommen günstiger sein.",
+        "authorIndex": 108
+      },
+      {
+        "body": "Fragen Sie im Community-Center nach Beratung in Ihrer Sprache.",
+        "authorIndex": 107
+      }
+    ],
+    "likeCount": 23
+  },
+  {
+    "title": "Come si apre un conto bancario appena arrivati negli USA?",
+    "body": "Non ho credit history. Basta il passaporto o servono altri documenti?",
+    "authorIndex": 109,
+    "language": "it",
+    "tags": [
+      "banking",
+      "newcomer",
+      "question",
+      "it"
+    ],
+    "comments": [
+      {
+        "body": "Di solito servono passaporto e prova di indirizzo.",
+        "authorIndex": 110
+      },
+      {
+        "body": "Alcune banche accettano ITIN se non hai ancora SSN.",
+        "authorIndex": 111
+      },
+      {
+        "body": "Inizia con un conto corrente base, senza carta di credito.",
+        "authorIndex": 110
+      }
+    ],
+    "likeCount": 20
+  },
+  {
+    "title": "Como conseguir o primeiro emprego nos EUA sem experiência local?",
+    "body": "Meu currículo é do Brasil. Preciso reescrever tudo no formato americano?",
+    "authorIndex": 112,
+    "language": "pt",
+    "tags": [
+      "jobs",
+      "career",
+      "question",
+      "pt"
+    ],
+    "comments": [
+      {
+        "body": "Sim, use formato de 1 página focado em resultados.",
+        "authorIndex": 113
+      },
+      {
+        "body": "LinkedIn ajuda muito para networking inicial.",
+        "authorIndex": 114
+      },
+      {
+        "body": "Voluntariado local pode preencher lacunas no currículo.",
+        "authorIndex": 113
+      }
+    ],
+    "likeCount": 29
+  },
+  {
+    "title": "Jak znaleźć mieszkanie po przyjeździe do USA?",
+    "body": "Nie mam historii kredytowej. Czy wynajmujący wymagają cosignera?",
+    "authorIndex": 115,
+    "language": "pl",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "pl"
+    ],
+    "comments": [
+      {
+        "body": "Często tak, szczególnie bez historii w USA.",
+        "authorIndex": 116
+      },
+      {
+        "body": "Przygotuj depozyt i wypisy z konta jako dowód dochodu.",
+        "authorIndex": 117
+      },
+      {
+        "body": "Grupy na Facebooku bywają tańsze niż duże portale.",
+        "authorIndex": 116
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Cum găsesc un medic de familie de încredere?",
+    "body": "Sunt nou în oraș. Ce ar trebui să verific înainte să mă programez?",
+    "authorIndex": 118,
+    "language": "ro",
+    "tags": [
+      "health",
+      "newcomer",
+      "question",
+      "ro"
+    ],
+    "comments": [
+      {
+        "body": "Verifică dacă medicul acceptă asigurarea ta (in-network).",
+        "authorIndex": 119
+      },
+      {
+        "body": "Recenziile Google ajută, dar întreabă și comunitatea locală.",
+        "authorIndex": 120
+      },
+      {
+        "body": "Programează o vizită de control ca să vezi dacă te simți confortabil.",
+        "authorIndex": 119
+      }
+    ],
+    "likeCount": 17
+  },
+  {
+    "title": "Πού μπορώ να βρω φρέσκο halal κρέας;",
+    "body": "Μόλις έφτασα και δεν ξέρω αξιόπιστα καταστήματα. Τι να ρωτήσω;",
+    "authorIndex": 121,
+    "language": "el",
+    "tags": [
+      "food",
+      "halal",
+      "question",
+      "el"
+    ],
+    "comments": [
+      {
+        "body": "Ρώτα για πιστοποίηση και ημερομηνία σφαγής.",
+        "authorIndex": 122
+      },
+      {
+        "body": "Τα μικρά κρεοπωλεία συχνά έχουν καλύτερη ποιότητα.",
+        "authorIndex": 123
+      },
+      {
+        "body": "Δοκίμασε μικρή ποσότητα πρώτα.",
+        "authorIndex": 122
+      }
+    ],
+    "likeCount": 16
+  },
+  {
+    "title": "איך בונים היסטוריית אשראי מההתחלה?",
+    "body": "הגעתי לאחרונה ואין לי ציון אשראי. האם כרטיס מובטח מספיק?",
+    "authorIndex": 124,
+    "language": "he",
+    "tags": [
+      "finance",
+      "credit",
+      "question",
+      "he"
+    ],
+    "comments": [
+      {
+        "body": "כן, התחל עם כרטיס מובטח ושלם את המלוא החשבון כל חודש.",
+        "authorIndex": 125
+      },
+      {
+        "body": "אחרי 6–9 חודשים הציון usually משתפר.",
+        "authorIndex": 126
+      },
+      {
+        "body": "אל תפתח יותר מדי כרטיסים בבת אחת.",
+        "authorIndex": 125
+      }
+    ],
+    "likeCount": 25
+  },
+  {
+    "title": "नए लोगों के लिए किफायती हाउसिंग कैसे ढूंढें?",
+    "body": "क्रेडिट हिस्ट्री नहीं है। क्या cosigner जरूरी होता है?",
+    "authorIndex": 127,
+    "language": "hi",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "hi"
+    ],
+    "comments": [
+      {
+        "body": "अक्सर हाँ, खासकर बिना US क्रेडिट के।",
+        "authorIndex": 128
+      },
+      {
+        "body": "डिपॉजिट और bank statements तैयार रखें।",
+        "authorIndex": 129
+      },
+      {
+        "body": "Community WhatsApp groups में अच्छे सुझाव मिलते हैं।",
+        "authorIndex": 128
+      }
+    ],
+    "likeCount": 33
+  },
+  {
+    "title": "নতুন আগমনকারীদের জন্য ভাড়া বাড়ি কোথায় পাব?",
+    "body": "আমার ক্রেডিট হিস্ট্রি নেই। কি cosigner লাগবে?",
+    "authorIndex": 130,
+    "language": "bn",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "bn"
+    ],
+    "comments": [
+      {
+        "body": "প্রায়ই লাগে, বিশেষ করে নতুন আগমনকারীদের জন্য।",
+        "authorIndex": 131
+      },
+      {
+        "body": "Facebook গ্রুপে অনেক সময় সস্তা অপশন পাওয়া যায়।",
+        "authorIndex": 132
+      },
+      {
+        "body": "চুক্তি পড়ে ডিপোজিটের শর্ত দেখুন।",
+        "authorIndex": 131
+      }
+    ],
+    "likeCount": 27
+  },
+  {
+    "title": "அமெரிக்காவில் புதியவர்களுக்கு வங்கி கணக்கு எப்படி திறப்பது?",
+    "body": "கடன் வரலாறு இல்லை. பாஸ்போர்ட் மட்டும் போதுமா?",
+    "authorIndex": 133,
+    "language": "ta",
+    "tags": [
+      "banking",
+      "newcomer",
+      "question",
+      "ta"
+    ],
+    "comments": [
+      {
+        "body": "பாஸ்போர்ட் + முகவரி சான்று பொதுவாக தேவை.",
+        "authorIndex": 134
+      },
+      {
+        "body": "சில வங்கிகள் ITIN ஏற்றுக்கொள்ளும்.",
+        "authorIndex": 135
+      },
+      {
+        "body": "முதலில் checking account மட்டும் போதும்.",
+        "authorIndex": 134
+      }
+    ],
+    "likeCount": 22
+  },
+  {
+    "title": "ਅਮਰੀਕਾ ਵਿੱਚ ਪਹਿਲੀ ਨੌਕਰੀ ਕਿਵੇਂ ਲੱਭੀਏ?",
+    "body": "ਮੇਰਾ resume ਭਾਰਤ ਦਾ ਹੈ। ਕੀ american format ਵਿੱਚ ਬਦਲਣਾ ਚਾਹੀਦਾ ਹੈ?",
+    "authorIndex": 136,
+    "language": "pa",
+    "tags": [
+      "jobs",
+      "career",
+      "question",
+      "pa"
+    ],
+    "comments": [
+      {
+        "body": "ਹਾਂ, ਇੱਕ ਪੰਨੇ 'ਤੇ achievements focus ਕਰੋ।",
+        "authorIndex": 137
+      },
+      {
+        "body": "LinkedIn profile update ਕਰਨਾ ਬਹੁਤ ਮਦਦਗਾਰ ਹੈ।",
+        "authorIndex": 138
+      },
+      {
+        "body": "Local volunteering resume gap ਭਰ ਸਕਦੀ ਹੈ।",
+        "authorIndex": 137
+      }
+    ],
+    "likeCount": 19
+  },
+  {
+    "title": "امریکہ میں کریڈٹ ہسٹری کیسے بنائیں؟",
+    "body": "ابھی آیا ہوں اور کوئی credit score نہیں۔ secured card کافی ہے؟",
+    "authorIndex": 139,
+    "language": "ur",
+    "tags": [
+      "finance",
+      "credit",
+      "question",
+      "ur"
+    ],
+    "comments": [
+      {
+        "body": "جی ہاں، secured card سے شروع کریں اور مکمل bill ادا کریں۔",
+        "authorIndex": 140
+      },
+      {
+        "body": "6–9 ماہ بعد score بہتر ہونا شروع ہو جاتا ہے۔",
+        "authorIndex": 141
+      },
+      {
+        "body": "ایک ساتھ زیادہ کارڈز نہ کھولیں۔",
+        "authorIndex": 140
+      }
+    ],
+    "likeCount": 31
+  },
+  {
+    "title": "په امریکا کې د کریډیت تاریخچه څنګه جوړېږي؟",
+    "body": "تازه راغلی یم او کریډیت سکور نلرم. ایا secured card کافي دی؟",
+    "authorIndex": 142,
+    "language": "ps",
+    "tags": [
+      "finance",
+      "credit",
+      "question",
+      "ps"
+    ],
+    "comments": [
+      {
+        "body": "هو، له secured card څخه پیل وکړئ.",
+        "authorIndex": 143
+      },
+      {
+        "body": "هر میاشت بشپړ bill ورکړئ.",
+        "authorIndex": 144
+      },
+      {
+        "body": "له 6 میاشتو وروسته score usually ښه کیږي.",
+        "authorIndex": 143
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Li Amerîkayê çawa dikare mirov kredî biafirîne?",
+    "body": "Ez nû hatime û kredî score min tune ye. Ma karta garantî bes e?",
+    "authorIndex": 145,
+    "language": "ku",
+    "tags": [
+      "finance",
+      "credit",
+      "question",
+      "ku"
+    ],
+    "comments": [
+      {
+        "body": "Erê, bi karta garantî dest pê bike.",
+        "authorIndex": 146
+      },
+      {
+        "body": "Her meh fatura tevahî bidê.",
+        "authorIndex": 147
+      },
+      {
+        "body": "Piştî 6–9 mehan score baştir dibe.",
+        "authorIndex": 146
+      }
+    ],
+    "likeCount": 15
+  },
+  {
+    "title": "Bagaimana cara mencari dokter keluarga yang terpercaya?",
+    "body": "Baru pindah dan belum kenal siapa pun. Mulai dari mana?",
+    "authorIndex": 148,
+    "language": "id",
+    "tags": [
+      "health",
+      "newcomer",
+      "question",
+      "id"
+    ],
+    "comments": [
+      {
+        "body": "Cek direktori asuransi in-network dulu.",
+        "authorIndex": 149
+      },
+      {
+        "body": "Grup komunitas sering memberi rekomendasi lebih jujur.",
+        "authorIndex": 150
+      },
+      {
+        "body": "Tanya apakah klinik punya same-day appointment.",
+        "authorIndex": 149
+      }
+    ],
+    "likeCount": 26
+  },
+  {
+    "title": "Bagaimana cari rumah sewa untuk pendatang baru?",
+    "body": "Tiada sejarah kredit. Adakah perlu cosigner?",
+    "authorIndex": 151,
+    "language": "ms",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "ms"
+    ],
+    "comments": [
+      {
+        "body": "Selalunya ya, terutamanya tanpa kredit AS.",
+        "authorIndex": 152
+      },
+      {
+        "body": "Sediakan deposit dan penyata bank.",
+        "authorIndex": 153
+      },
+      {
+        "body": "Kumpulan Facebook kadang lebih murah.",
+        "authorIndex": 152
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Làm sao mở tài khoản ngân hàng khi mới sang Mỹ?",
+    "body": "Chưa có lịch sử tín dụng. Chỉ hộ chiếu có đủ không?",
+    "authorIndex": 154,
+    "language": "vi",
+    "tags": [
+      "banking",
+      "newcomer",
+      "question",
+      "vi"
+    ],
+    "comments": [
+      {
+        "body": "Thường cần hộ chiếu và giấy chứng minh địa chỉ.",
+        "authorIndex": 155
+      },
+      {
+        "body": "Một số ngân hàng chấp nhận ITIN.",
+        "authorIndex": 156
+      },
+      {
+        "body": "Ban đầu chỉ cần tài khoản checking là đủ.",
+        "authorIndex": 155
+      }
+    ],
+    "likeCount": 28
+  },
+  {
+    "title": "เปิดบัญชีธนาคารในอเมริกาต้องใช้เอกสารอะไรบ้าง?",
+    "body": "เพิ่งย้ายมาและยังไม่มี credit history ใช้แค่ passport ได้ไหม?",
+    "authorIndex": 157,
+    "language": "th",
+    "tags": [
+      "banking",
+      "newcomer",
+      "question",
+      "th"
+    ],
+    "comments": [
+      {
+        "body": "โดยทั่วไปต้องมี passport และ proof of address.",
+        "authorIndex": 158
+      },
+      {
+        "body": "credit union ในท้องถิ่นอาจยืดหยุ่นกว่า.",
+        "authorIndex": 159
+      },
+      {
+        "body": "เริ่มจาก checking account ก่อนก็พอ.",
+        "authorIndex": 158
+      }
+    ],
+    "likeCount": 20
+  },
+  {
+    "title": "အမေရိကန်မှာ ဘဏ်အကောင့် ဘယ်လိုဖွင့်ရမလဲ?",
+    "body": "credit history မရှိသေးပါ။ passport တစ်ခုတည်းနဲ့ ရမလား?",
+    "authorIndex": 160,
+    "language": "my",
+    "tags": [
+      "banking",
+      "newcomer",
+      "question",
+      "my"
+    ],
+    "comments": [
+      {
+        "body": "passport နဲ့ address proof လိုအပ်ပါတယ်။",
+        "authorIndex": 161
+      },
+      {
+        "body": "local credit union တွေကို စမ်းကြည့်ပါ။",
+        "authorIndex": 162
+      },
+      {
+        "body": "checking account တစ်ခုနဲ့ စပြီးရပါတယ်။",
+        "authorIndex": 161
+      }
+    ],
+    "likeCount": 14
+  },
+  {
+    "title": "अमेरिकामा बैंक खाता कसरी खोल्ने?",
+    "body": "credit history छैन। passport मात्र पुग्छ?",
+    "authorIndex": 163,
+    "language": "ne",
+    "tags": [
+      "banking",
+      "newcomer",
+      "question",
+      "ne"
+    ],
+    "comments": [
+      {
+        "body": "passport र address proof चाहिन्छ।",
+        "authorIndex": 164
+      },
+      {
+        "body": "सुरुमा checking account मात्र पर्याप्त छ।",
+        "authorIndex": 165
+      },
+      {
+        "body": "community groups मा सल्लाह माग्नुहोस्।",
+        "authorIndex": 164
+      }
+    ],
+    "likeCount": 17
+  },
+  {
+    "title": "አዲስ ስደተኛ ለሆኑ ተመጣጣኝ ቤት እንዴት ይገኛል?",
+    "body": "credit history የለኝም። cosigner ያስፈልጋል?",
+    "authorIndex": 166,
+    "language": "am",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "am"
+    ],
+    "comments": [
+      {
+        "body": "ብዙ ጊዜ አዎ ነው፣ US credit ሳይኖር።",
+        "authorIndex": 167
+      },
+      {
+        "body": "deposit እና bank statements ይዘው ይሂዱ።",
+        "authorIndex": 168
+      },
+      {
+        "body": "community groups ጠቃሚ ምክር ይሰጣሉ።",
+        "authorIndex": 167
+      }
+    ],
+    "likeCount": 16
+  },
+  {
+    "title": "Sidee baan u helaa guri kirada ah markaan cusub yahay?",
+    "body": "Ma haysto taariikhda deynta. Miyuu qof dammaanad ah u baahan yahay?",
+    "authorIndex": 169,
+    "language": "so",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "so"
+    ],
+    "comments": [
+      {
+        "body": "Inta badan haa, gaar ahaan adigoon credit US lahayn.",
+        "authorIndex": 170
+      },
+      {
+        "body": "Diyaari deposit iyo warqadaha bangiga.",
+        "authorIndex": 171
+      },
+      {
+        "body": "Kooxaha bulshada waxay bixiyaan talo wanaagsan.",
+        "authorIndex": 170
+      }
+    ],
+    "likeCount": 19
+  },
+  {
+    "title": "Ninawezaje kupata nyumba ya kukodisha nikiwa mgeni mpya?",
+    "body": "Sina historia ya mkopo. Je, nahitaji cosigner?",
+    "authorIndex": 172,
+    "language": "sw",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "sw"
+    ],
+    "comments": [
+      {
+        "body": "Mara nyingi ndiyo, hasa bila credit ya US.",
+        "authorIndex": 173
+      },
+      {
+        "body": "Angalia kila kitu kilichojumuishwa kwenye kodi.",
+        "authorIndex": 174
+      },
+      {
+        "body": "Vikundi vya jamii husaidia kupata mapendekezo.",
+        "authorIndex": 173
+      }
+    ],
+    "likeCount": 22
+  },
+  {
+    "title": "Yaya zan iya samun gida na haya a matsayin sabon shiga?",
+    "body": "Ba ni da tarihin kiredit. Shin ana buƙatar cosigner?",
+    "authorIndex": 175,
+    "language": "ha",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "ha"
+    ],
+    "comments": [
+      {
+        "body": "Yawanci eh, musamman ba tare da US credit ba.",
+        "authorIndex": 176
+      },
+      {
+        "body": "Shirya deposit da takardun banki.",
+        "authorIndex": 177
+      },
+      {
+        "body": "Kungiyoyin al'umma suna ba da shawara mai kyau.",
+        "authorIndex": 176
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "ԱմԵրիկայում բանկային հաշիվ ինչպե՞ս բացել",
+    "body": "Կրեդիտ պատմություն չունեմ։ Արդյո՞ք անձնագրով բավական է։",
+    "authorIndex": 178,
+    "language": "hy",
+    "tags": [
+      "banking",
+      "newcomer",
+      "question",
+      "hy"
+    ],
+    "comments": [
+      {
+        "body": "Սովորաբար պահանջվում են անձնագր և հասցեի ապացույց։",
+        "authorIndex": 179
+      },
+      {
+        "body": "Սկզբում checking account-ը բավական է։",
+        "authorIndex": 180
+      },
+      {
+        "body": "Հարցրեք տեղական community groups-ում։",
+        "authorIndex": 179
+      }
+    ],
+    "likeCount": 15
+  },
+  {
+    "title": "აშშ-ში საბანკო ანგარიშის გახსნა როგორ ხდება?",
+    "body": "კრედიტის ისტორია არ მაქვს. პასპორტი საკმარისია?",
+    "authorIndex": 181,
+    "language": "ka",
+    "tags": [
+      "banking",
+      "newcomer",
+      "question",
+      "ka"
+    ],
+    "comments": [
+      {
+        "body": "ჩვეულებრივ სჭირდება პასპორტი და მისამართის დამადასტურებელი.",
+        "authorIndex": 182
+      },
+      {
+        "body": "checking account-ით დაწყება საკმარისია.",
+        "authorIndex": 183
+      },
+      {
+        "body": "community groups-ში რჩევა მოითხოვეთ.",
+        "authorIndex": 182
+      }
+    ],
+    "likeCount": 14
+  },
+  {
+    "title": "Жаңадан келгендерге үй қалай табуға болады?",
+    "body": "Несие тарихым жоқ. Cosigner керек пе?",
+    "authorIndex": 184,
+    "language": "kk",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "kk"
+    ],
+    "comments": [
+      {
+        "body": "Көбінесе иә, әсіресе US несиесіз.",
+        "authorIndex": 185
+      },
+      {
+        "body": "Депозит пен банк үзінділерін дайындаңыз.",
+        "authorIndex": 186
+      },
+      {
+        "body": "Facebook топтары арзанырақ болуы мүмкін.",
+        "authorIndex": 185
+      }
+    ],
+    "likeCount": 20
+  },
+  {
+    "title": "Yeni gələnlər üçün ev necə tapmaq olar?",
+    "body": "Kredit tarixçəm yoxdur. Cosigner lazımdır?",
+    "authorIndex": 187,
+    "language": "az",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "az"
+    ],
+    "comments": [
+      {
+        "body": "Çox vaxt bəli, xüsusən ABŞ krediti olmadan.",
+        "authorIndex": 188
+      },
+      {
+        "body": "Depozit və bank çıxarışlarını hazırlayın.",
+        "authorIndex": 189
+      },
+      {
+        "body": "İcma qrupları yaxşı məsləhət verir.",
+        "authorIndex": 188
+      }
+    ],
+    "likeCount": 19
+  },
+  {
+    "title": "AQShda uy ijaraga qanday topish mumkin?",
+    "body": "Kredit tarixim yo'q. Cosigner kerakmi?",
+    "authorIndex": 190,
+    "language": "uz",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "uz"
+    ],
+    "comments": [
+      {
+        "body": "Ko'pincha ha, ayniqsa US kreditisiz.",
+        "authorIndex": 191
+      },
+      {
+        "body": "Depozit va bank ko'chirmalarini tayyorlang.",
+        "authorIndex": 192
+      },
+      {
+        "body": "Jamoa guruhlarida maslahat so'rang.",
+        "authorIndex": 191
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Як знайти житло для новачків у США?",
+    "body": "Немає кредитної історії. Чи потрібен cosigner?",
+    "authorIndex": 193,
+    "language": "uk",
+    "tags": [
+      "housing",
+      "newcomer",
+      "question",
+      "uk"
+    ],
+    "comments": [
+      {
+        "body": "Часто так, особливо без US credit.",
+        "authorIndex": 194
+      },
+      {
+        "body": "Перевірте депозит і умови договору.",
+        "authorIndex": 195
+      },
+      {
+        "body": "Facebook-групи іноді дешевші.",
+        "authorIndex": 194
+      }
+    ],
+    "likeCount": 24
+  },
+  {
+    "title": "ئامېرىكىدا بانكا ھېسابى قانداق ئېچىلىدۇ؟",
+    "body": "كredit تارىخım يوق. پاسپورتلا چوقۇمدۇ?",
+    "authorIndex": 196,
+    "language": "ug",
+    "tags": [
+      "banking",
+      "newcomer",
+      "question",
+      "ug"
+    ],
+    "comments": [
+      {
+        "body": "ئادەتتە پاسپورت ۋە ئادرېس ئىسپاتى كېرەك.",
+        "authorIndex": 197
+      },
+      {
+        "body": "checking account بىلەن باشلاش يېتەرلىك.",
+        "authorIndex": 198
+      },
+      {
+        "body": "community groups دىن مەسلىھەت سوراڭ.",
+        "authorIndex": 197
+      }
+    ],
+    "likeCount": 13
+  }
+]

@@ -1,0 +1,1314 @@
+[
+  {
+    "title": "How do I find affordable daycare as a new parent?",
+    "body": "Waitlists seem long and prices are shocking. What helped you choose?",
+    "authorIndex": 8,
+    "language": "en",
+    "tags": [
+      "childcare",
+      "family",
+      "parenting",
+      "question",
+      "en"
+    ],
+    "comments": [
+      {
+        "body": "Ask your employer about FSA or dependent care benefits.",
+        "authorIndex": 0
+      },
+      {
+        "body": "Licensed home daycares are sometimes cheaper than centers.",
+        "authorIndex": 16
+      },
+      {
+        "body": "Tour at least three places and check state inspection records.",
+        "authorIndex": 24
+      },
+      {
+        "body": "Community parent groups on Facebook share openings fast.",
+        "authorIndex": 32
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "Как безопасно купить подержанный автомобиль?",
+    "body": "Боюсь скрытых поломок и мошенников.",
+    "authorIndex": 9,
+    "language": "ru",
+    "tags": [
+      "cars",
+      "shopping",
+      "tips",
+      "question",
+      "ru"
+    ],
+    "comments": [
+      {
+        "body": "Обязательно Carfax или аналог перед покупкой.",
+        "authorIndex": 1
+      },
+      {
+        "body": "Независимый механик на осмотр — лучшие $100.",
+        "authorIndex": 17
+      },
+      {
+        "body": "Не платите полностью до оформления title.",
+        "authorIndex": 25
+      },
+      {
+        "body": "Сравните цены на Cars.com и у дилеров рядом.",
+        "authorIndex": 33
+      }
+    ],
+    "likeCount": 19
+  },
+  {
+    "title": "كيف أتأكد أن المطعم halal فعلاً؟",
+    "body": "أرى علامات halal لكن لا أعرف من أصدق.",
+    "authorIndex": 10,
+    "language": "ar",
+    "tags": [
+      "food",
+      "halal",
+      "community",
+      "question",
+      "ar"
+    ],
+    "comments": [
+      {
+        "body": "اسأل عن شهادة halal ومصدر اللحم.",
+        "authorIndex": 2
+      },
+      {
+        "body": "المطاعم المزدحمة من مجتمعنا عادة موثوقة.",
+        "authorIndex": 18
+      },
+      {
+        "body": "تطبيق Zabihah يساعد في بعض المدن.",
+        "authorIndex": 26
+      },
+      {
+        "body": "ابدأ بكمية صغيرة قبل الطلب للعائلة.",
+        "authorIndex": 34
+      }
+    ],
+    "likeCount": 20
+  },
+  {
+    "title": "새 아파트 전기·인터넷은 어떻게 신청하나요?",
+    "body": "입주 전에 미리 해야 하나요?",
+    "authorIndex": 11,
+    "language": "ko",
+    "tags": [
+      "housing",
+      "utilities",
+      "setup",
+      "question",
+      "ko"
+    ],
+    "comments": [
+      {
+        "body": "전기는 local utility 웹사이트에서 계정 개설.",
+        "authorIndex": 3
+      },
+      {
+        "body": "인터넷은 Xfinity/AT&T 등 coverage 확인 후 예약.",
+        "authorIndex": 19
+      },
+      {
+        "body": "입주 당일 연결되도록 1–2주 전 신청.",
+        "authorIndex": 27
+      },
+      {
+        "body": "이웃에게 어떤 provider가 안정적인지 물어보세요.",
+        "authorIndex": 35
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "租客保险（renters insurance）有必要吗？",
+    "body": "房东没要求，但听说应该买。",
+    "authorIndex": 12,
+    "language": "zh",
+    "tags": [
+      "housing",
+      "insurance",
+      "tips",
+      "question",
+      "zh"
+    ],
+    "comments": [
+      {
+        "body": "很多公寓其实要求，合同里可能写了。",
+        "authorIndex": 4
+      },
+      {
+        "body": "不贵，一般每月十几美元，防盗和漏水都保。",
+        "authorIndex": 20
+      },
+      {
+        "body": "Lemonade、State Farm 都可以在线比价。",
+        "authorIndex": 28
+      },
+      {
+        "body": "和室友合租要确认谁的名字在保单上。",
+        "authorIndex": 36
+      }
+    ],
+    "likeCount": 22
+  },
+  {
+    "title": "日本食材はどこで買うのが安い？",
+    "body": "アジア系スーパー以外の選択肢は？",
+    "authorIndex": 13,
+    "language": "ja",
+    "tags": [
+      "food",
+      "shopping",
+      "japanese",
+      "question",
+      "ja"
+    ],
+    "comments": [
+      {
+        "body": "H-Mart や 99 Ranch が定番です。",
+        "authorIndex": 5
+      },
+      {
+        "body": "Amazon で味噌・だし・海苔の定期便もあり。",
+        "authorIndex": 21
+      },
+      {
+        "body": "Trader Joe's の冷凍餃子・枝豆も使えます。",
+        "authorIndex": 29
+      },
+      {
+        "body": "コミュニティの LINE グループで店情報を聞くと早い。",
+        "authorIndex": 37
+      }
+    ],
+    "likeCount": 23
+  },
+  {
+    "title": "Kira dolandırıcılığından nasıl korunurum?",
+    "body": "Facebook'ta çok sahte ilan görüyorum.",
+    "authorIndex": 14,
+    "language": "tr",
+    "tags": [
+      "housing",
+      "safety",
+      "scams",
+      "question",
+      "tr"
+    ],
+    "comments": [
+      {
+        "body": "Görmeden depozito göndermeyin.",
+        "authorIndex": 6
+      },
+      {
+        "body": "Sahibinin kimliğini ve tapu bilgisini isteyin.",
+        "authorIndex": 22
+      },
+      {
+        "body": "Fiyat çok düşükse şüphelenin.",
+        "authorIndex": 30
+      },
+      {
+        "body": "Mümkünse bir arkadaşla birlikte evi gezin.",
+        "authorIndex": 38
+      }
+    ],
+    "likeCount": 24
+  },
+  {
+    "title": "رویدادهای فرهنگی ایرانی را کجا پیدا کنم?",
+    "body": "تازه رسیدم و دلتنگ جمع‌های آشنا هستم.",
+    "authorIndex": 15,
+    "language": "fa",
+    "tags": [
+      "community",
+      "culture",
+      "events",
+      "question",
+      "fa"
+    ],
+    "comments": [
+      {
+        "body": "گروه‌های Telegram و WhatsApp محلی را جستجو کنید.",
+        "authorIndex": 7
+      },
+      {
+        "body": "مراکز فرهنگی و مساجد اغلب برنامه دارند.",
+        "authorIndex": 23
+      },
+      {
+        "body": "Nowruz و شب یلدا معمولاً جشن عمومی دارند.",
+        "authorIndex": 31
+      },
+      {
+        "body": "داوطلب شدن در رویدادها سریع‌تر دوست می‌دهد.",
+        "authorIndex": 39
+      }
+    ],
+    "likeCount": 25
+  },
+  {
+    "title": "¿Qué es un 401(k) y debo unirme en mi primer trabajo?",
+    "body": "Me ofrecen match pero no entiendo las opciones.",
+    "authorIndex": 101,
+    "language": "es",
+    "tags": [
+      "work",
+      "finance",
+      "retirement",
+      "question",
+      "es"
+    ],
+    "comments": [
+      {
+        "body": "Si hay employer match, contribuye al menos hasta el match.",
+        "authorIndex": 100
+      },
+      {
+        "body": "Empieza con target-date fund si no sabes invertir.",
+        "authorIndex": 102
+      },
+      {
+        "body": "No retires antes — hay penalidades.",
+        "authorIndex": 199
+      },
+      {
+        "body": "Pregunta a RR.HH. por materiales en español.",
+        "authorIndex": 100
+      }
+    ],
+    "likeCount": 26
+  },
+  {
+    "title": "Comment utiliser les transports en commun ici?",
+    "body": "Je viens d'une ville sans métro.",
+    "authorIndex": 104,
+    "language": "fr",
+    "tags": [
+      "transport",
+      "commute",
+      "life",
+      "question",
+      "fr"
+    ],
+    "comments": [
+      {
+        "body": "Téléchargez l'app du transit local (bus/rail).",
+        "authorIndex": 103
+      },
+      {
+        "body": "Passes mensuels valent le coup si vous commutez.",
+        "authorIndex": 105
+      },
+      {
+        "body": "Google Maps indique souvent les horaires en direct.",
+        "authorIndex": 103
+      },
+      {
+        "body": "Demandez à des collègues quels lignes sont fiables.",
+        "authorIndex": 105
+      }
+    ],
+    "likeCount": 27
+  },
+  {
+    "title": "Wie bereite ich mich auf den ersten Winter vor?",
+    "body": "Komme aus einem warmen Land.",
+    "authorIndex": 107,
+    "language": "de",
+    "tags": [
+      "weather",
+      "seasonal",
+      "tips",
+      "question",
+      "de"
+    ],
+    "comments": [
+      {
+        "body": "Investieren Sie in Mantel, Handschuhe und wasserdichte Schuhe.",
+        "authorIndex": 106
+      },
+      {
+        "body": "Salz und Schneeschaufel für den Gehweg — je nach Mietvertrag.",
+        "authorIndex": 108
+      },
+      {
+        "body": "Heizkosten steigen — Thermostat sparsam einstellen.",
+        "authorIndex": 106
+      },
+      {
+        "body": "Vitamin D und Tageslicht helfen gegen Winterblues.",
+        "authorIndex": 108
+      }
+    ],
+    "likeCount": 28
+  },
+  {
+    "title": "Come trovo un dentista che accetta il mio assicurazione?",
+    "body": "Non so se devo andare in-network.",
+    "authorIndex": 110,
+    "language": "it",
+    "tags": [
+      "health",
+      "dental",
+      "insurance",
+      "question",
+      "it"
+    ],
+    "comments": [
+      {
+        "body": "Controlla il sito dell'assicurazione per dentisti in rete.",
+        "authorIndex": 109
+      },
+      {
+        "body": "Chiedi preventivo scritto prima di lavori grandi.",
+        "authorIndex": 111
+      },
+      {
+        "body": "Pulizia ogni 6 mesi previene costi alti dopo.",
+        "authorIndex": 109
+      },
+      {
+        "body": "Cliniche comunitarie a volte hanno tariffe ridotte.",
+        "authorIndex": 111
+      }
+    ],
+    "likeCount": 29
+  },
+  {
+    "title": "Para que serve o cartão da biblioteca pública?",
+    "body": "Vi que é grátis mas não sei os benefícios.",
+    "authorIndex": 113,
+    "language": "pt",
+    "tags": [
+      "community",
+      "free",
+      "resources",
+      "question",
+      "pt"
+    ],
+    "comments": [
+      {
+        "body": "Empréstimo de livros, filmes e audiolivros grátis.",
+        "authorIndex": 112
+      },
+      {
+        "body": "Muitas têm Wi-Fi, impressão barata e aulas de inglês.",
+        "authorIndex": 114
+      },
+      {
+        "body": "Programas infantis nos fins de semana.",
+        "authorIndex": 112
+      },
+      {
+        "body": "Leve comprovante de endereço para cadastro.",
+        "authorIndex": 114
+      }
+    ],
+    "likeCount": 30
+  },
+  {
+    "title": "Gdzie znaleźć darmowe kursy angielskiego dla dorosłych?",
+    "body": "Chcę poprawić mówienie, nie tylko gramatykę.",
+    "authorIndex": 116,
+    "language": "pl",
+    "tags": [
+      "education",
+      "english",
+      "esl",
+      "question",
+      "pl"
+    ],
+    "comments": [
+      {
+        "body": "Biblioteki publiczne często mają ESL gratis.",
+        "authorIndex": 115
+      },
+      {
+        "body": "Community college ma tanie wieczorowe klasy.",
+        "authorIndex": 117
+      },
+      {
+        "body": "Wymiana językowa na Meetup działa dobrze.",
+        "authorIndex": 115
+      },
+      {
+        "body": "Kościół lub centrum społecznościowe — pytaj lokalnie.",
+        "authorIndex": 117
+      }
+    ],
+    "likeCount": 31
+  },
+  {
+    "title": "Cum găsesc apartament pet-friendly?",
+    "body": "Am un câine mic și mulți anunțuri spun „no pets”.",
+    "authorIndex": 119,
+    "language": "ro",
+    "tags": [
+      "housing",
+      "pets",
+      "renting",
+      "question",
+      "ro"
+    ],
+    "comments": [
+      {
+        "body": "Caută „pet friendly” explicit pe Zillow/Apartments.com.",
+        "authorIndex": 118
+      },
+      {
+        "body": "Oferă referințe de la fostul proprietar.",
+        "authorIndex": 120
+      },
+      {
+        "body": "Pet deposit e normal — citește contractul.",
+        "authorIndex": 118
+      },
+      {
+        "body": "Asigurare pentru animale poate fi cerută.",
+        "authorIndex": 120
+      }
+    ],
+    "likeCount": 32
+  },
+  {
+    "title": "Πώς μειώνω το μηνιαίο budget για σούπερ μάρκετ;",
+    "body": "Οι τιμές φαίνονται πολύ υψηλές.",
+    "authorIndex": 122,
+    "language": "el",
+    "tags": [
+      "food",
+      "budget",
+      "shopping",
+      "question",
+      "el"
+    ],
+    "comments": [
+      {
+        "body": "Κάνε λίστα και αγόρασε weekly offers.",
+        "authorIndex": 121
+      },
+      {
+        "body": "Store brands συνήθως ίδια ποιότητα, φθηνότερα.",
+        "authorIndex": 123
+      },
+      {
+        "body": "Frozen λαχανικά και ρύζι/φασόλια γεμίζουν οικονομικά.",
+        "authorIndex": 121
+      },
+      {
+        "body": "Σύγκρινε Aldi, Walmart και ethnic markets.",
+        "authorIndex": 123
+      }
+    ],
+    "likeCount": 33
+  },
+  {
+    "title": "מה חשוב לבדוק בחוזה שכירות לפני חתימה?",
+    "body": "המונחים באנגלית מבלבלים.",
+    "authorIndex": 125,
+    "language": "he",
+    "tags": [
+      "housing",
+      "lease",
+      "legal",
+      "question",
+      "he"
+    ],
+    "comments": [
+      {
+        "body": "בדוק notice period, deposit ומה קורה אם יוצאים מוקדם.",
+        "authorIndex": 124
+      },
+      {
+        "body": "צלם/תעד נזקים ביום כניסה.",
+        "authorIndex": 126
+      },
+      {
+        "body": "שאל מי משלם על תיקונים קטנים.",
+        "authorIndex": 124
+      },
+      {
+        "body": "אם אפשר, תן לעורך דין או מלווה קהילתי לעבור.",
+        "authorIndex": 126
+      }
+    ],
+    "likeCount": 34
+  },
+  {
+    "title": "कम बजट में फर्नीचर कहाँ से लें?",
+    "body": "अभी सब कुछ खरीदना मुश्किल है.",
+    "authorIndex": 128,
+    "language": "hi",
+    "tags": [
+      "home",
+      "furniture",
+      "budget",
+      "question",
+      "hi"
+    ],
+    "comments": [
+      {
+        "body": "Facebook Marketplace और OfferUp पर अच्छे deal मिलते हैं।",
+        "authorIndex": 127
+      },
+      {
+        "body": "Habitat ReStore और thrift stores सस्ते हैं।",
+        "authorIndex": 129
+      },
+      {
+        "body": "IKEA budget option है — assembly time लगता है।",
+        "authorIndex": 127
+      },
+      {
+        "body": "पहले mattress और dining basics — बाकी बाद में।",
+        "authorIndex": 129
+      }
+    ],
+    "likeCount": 35
+  },
+  {
+    "title": "চুক্তি ছাড়া ফোন প্ল্যান কোথায় পাব?",
+    "body": "মাসিক বিল কম রাখতে চাই।",
+    "authorIndex": 131,
+    "language": "bn",
+    "tags": [
+      "mobile",
+      "money",
+      "tips",
+      "question",
+      "bn"
+    ],
+    "comments": [
+      {
+        "body": "Mint, Visible, Cricket MVNO সাধারণত সস্তা।",
+        "authorIndex": 130
+      },
+      {
+        "body": "Coverage আপনার এলাকায় আগে চেক করুন।",
+        "authorIndex": 132
+      },
+      {
+        "body": "Unlocked ফোন থাকলে শুধু SIM বদলান।",
+        "authorIndex": 130
+      },
+      {
+        "body": "Family plan roommate দিয়ে share করা যায়।",
+        "authorIndex": 132
+      }
+    ],
+    "likeCount": 36
+  },
+  {
+    "title": "Checking vs savings account — எது முதலில்?",
+    "body": "வங்கி terminologies confuse ஆகுது.",
+    "authorIndex": 134,
+    "language": "ta",
+    "tags": [
+      "banking",
+      "finance",
+      "newcomer",
+      "question",
+      "ta"
+    ],
+    "comments": [
+      {
+        "body": "Checking daily use — debit, bill pay.",
+        "authorIndex": 133
+      },
+      {
+        "body": "Savings emergency fund — small interest.",
+        "authorIndex": 135
+      },
+      {
+        "body": "Many banks no monthly fee with direct deposit.",
+        "authorIndex": 133
+      },
+      {
+        "body": "Overdraft protection opt-in carefully — fees high.",
+        "authorIndex": 135
+      }
+    ],
+    "likeCount": 37
+  },
+  {
+    "title": "ਨਵੇਂ ਸ਼ਹਿਰ ਵਿੱਚ gurdwara ਜਾਂ Punjabi community ਕਿਵੇਂ ਲੱਭੀਏ?",
+    "body": "Support group ਚਾਹੀਦੀ ਹੈ।",
+    "authorIndex": 137,
+    "language": "pa",
+    "tags": [
+      "community",
+      "faith",
+      "support",
+      "question",
+      "pa"
+    ],
+    "comments": [
+      {
+        "body": "Google Maps + community Facebook groups.",
+        "authorIndex": 136
+      },
+      {
+        "body": "Gurdwara langar — free meal, warm welcome.",
+        "authorIndex": 138
+      },
+      {
+        "body": "Sunday programs often have Punjabi speakers.",
+        "authorIndex": 136
+      },
+      {
+        "body": "Volunteer seva good way to meet people.",
+        "authorIndex": 138
+      }
+    ],
+    "likeCount": 38
+  },
+  {
+    "title": "WIC aur food assistance ke liye qualify kaise hota hai?",
+    "body": "Grocery mehngi lag rahi hai.",
+    "authorIndex": 140,
+    "language": "ur",
+    "tags": [
+      "food",
+      "assistance",
+      "family",
+      "question",
+      "ur"
+    ],
+    "comments": [
+      {
+        "body": "WIC pregnant women aur chhote bachon ke liye.",
+        "authorIndex": 139
+      },
+      {
+        "body": "SNAP alag program — income limits check karein.",
+        "authorIndex": 141
+      },
+      {
+        "body": "State website par pre-screening hoti hai.",
+        "authorIndex": 139
+      },
+      {
+        "body": "Community clinic referral bhi de sakti hai.",
+        "authorIndex": 141
+      }
+    ],
+    "likeCount": 39
+  },
+  {
+    "title": "بیمه نلرمه — د غاښونو درملنه څنګه ارزانه?",
+    "body": "د درد لپاره ځنډ نه شم.",
+    "authorIndex": 143,
+    "language": "ps",
+    "tags": [
+      "health",
+      "dental",
+      "budget",
+      "question",
+      "ps"
+    ],
+    "comments": [
+      {
+        "body": "Community dental clinics sliding scale لري.",
+        "authorIndex": 142
+      },
+      {
+        "body": "Dental schools ارزانه خدمت کوي.",
+        "authorIndex": 144
+      },
+      {
+        "body": "په وخت سره cleanings لویې لګښتونه مخه نیسي.",
+        "authorIndex": 142
+      },
+      {
+        "body": "Cash discount sometimes if you ask upfront.",
+        "authorIndex": 144
+      }
+    ],
+    "likeCount": 40
+  },
+  {
+    "title": "Sales tax li vir çawa dixebite?",
+    "body": "Li duka bi şaş fiyat difikirim.",
+    "authorIndex": 146,
+    "language": "ku",
+    "tags": [
+      "shopping",
+      "tax",
+      "tips",
+      "question",
+      "ku"
+    ],
+    "comments": [
+      {
+        "body": "Her eyalet/jî bajar tax cudaye — li kasa binêre.",
+        "authorIndex": 145
+      },
+      {
+        "body": "Groceries tax-free li gelek deran.",
+        "authorIndex": 147
+      },
+      {
+        "body": "Receipt kontrol bike — errors hene.",
+        "authorIndex": 145
+      },
+      {
+        "body": "Online shopping li eyaleta we tax dide.",
+        "authorIndex": 147
+      }
+    ],
+    "likeCount": 41
+  },
+  {
+    "title": "Costco worth it untuk keluarga kecil?",
+    "body": "Membership fee bikin ragu.",
+    "authorIndex": 149,
+    "language": "id",
+    "tags": [
+      "shopping",
+      "food",
+      "budget",
+      "question",
+      "id"
+    ],
+    "comments": [
+      {
+        "body": "Jika beli bulk rutin — sering untung.",
+        "authorIndex": 148
+      },
+      {
+        "body": "Bensin dan roti sometimes cheaper.",
+        "authorIndex": 150
+      },
+      {
+        "body": "Split membership dengan keluarga dekat.",
+        "authorIndex": 148
+      },
+      {
+        "body": "Compare unit price, bukan harga total.",
+        "authorIndex": 150
+      }
+    ],
+    "likeCount": 42
+  },
+  {
+    "title": "Anak nak extracurricular — macam mana daftar?",
+    "body": "Public school offer tapi keliru.",
+    "authorIndex": 152,
+    "language": "ms",
+    "tags": [
+      "school",
+      "kids",
+      "activities",
+      "question",
+      "ms"
+    ],
+    "comments": [
+      {
+        "body": "Tanya pejabat sekolah untuk after-school list.",
+        "authorIndex": 151
+      },
+      {
+        "body": "YMCA dan community center ada program.",
+        "authorIndex": 153
+      },
+      {
+        "body": "Some free, some ada yuran — tanya scholarship.",
+        "authorIndex": 151
+      },
+      {
+        "body": "Jangan overload — satu aktiviti dulu.",
+        "authorIndex": 153
+      }
+    ],
+    "likeCount": 43
+  },
+  {
+    "title": "Lừa đảo nhắm vào người mới thường gặp là gì?",
+    "body": "Sợ bị lừa qua điện thoại.",
+    "authorIndex": 155,
+    "language": "vi",
+    "tags": [
+      "safety",
+      "scams",
+      "newcomer",
+      "question",
+      "vi"
+    ],
+    "comments": [
+      {
+        "body": "IRS không bao giờ đòi tiền qua gift card.",
+        "authorIndex": 154
+      },
+      {
+        "body": "Không chuyển tiền cho người không gặp.",
+        "authorIndex": 156
+      },
+      {
+        "body": "Job scam yêu cầu trả phí trước — red flag.",
+        "authorIndex": 154
+      },
+      {
+        "body": "Verify qua số chính thức, không callback.",
+        "authorIndex": 156
+      }
+    ],
+    "likeCount": 44
+  },
+  {
+    "title": "หาชุมชนคนไทยหรือวัดใกล้บ้านอย่างไร?",
+    "body": "อยากมีที่คุยภาษาไทยบ้าง",
+    "authorIndex": 158,
+    "language": "th",
+    "tags": [
+      "community",
+      "culture",
+      "thai",
+      "question",
+      "th"
+    ],
+    "comments": [
+      {
+        "body": "Facebook กลุ่ม Thai in [city].",
+        "authorIndex": 157
+      },
+      {
+        "body": "วัดไทยมักมีงานเทศกาลและอาหาร.",
+        "authorIndex": 159
+      },
+      {
+        "body": "ร้านอาหารไทยถามพนักงานเรื่องกิจกรรม.",
+        "authorIndex": 157
+      },
+      {
+        "body": "Line groups ช่วยได้มากใน some cities.",
+        "authorIndex": 159
+      }
+    ],
+    "likeCount": 18
+  },
+  {
+    "title": "မြန်မာ community organization ဘယ်ရှာမလဲ?",
+    "body": "အသစ်ရောက်လို့ လူမှုရေးအကူအညီ လိုတယ်။",
+    "authorIndex": 161,
+    "language": "my",
+    "tags": [
+      "community",
+      "support",
+      "myanmar",
+      "question",
+      "my"
+    ],
+    "comments": [
+      {
+        "body": "Facebook Myanmar in [city] groups.",
+        "authorIndex": 160
+      },
+      {
+        "body": "Church/monastery sometimes hosts events.",
+        "authorIndex": 162
+      },
+      {
+        "body": "Restaurant owners often know community leaders.",
+        "authorIndex": 160
+      },
+      {
+        "body": "Volunteer at events — fastest way in.",
+        "authorIndex": 162
+      }
+    ],
+    "likeCount": 19
+  },
+  {
+    "title": "Secured credit card कसरी apply गर्ने?",
+    "body": "Credit history छैन।",
+    "authorIndex": 164,
+    "language": "ne",
+    "tags": [
+      "finance",
+      "credit",
+      "banking",
+      "question",
+      "ne"
+    ],
+    "comments": [
+      {
+        "body": "Chase, Discover, Capital One मा secured options.",
+        "authorIndex": 163
+      },
+      {
+        "body": "Deposit = credit limit usually.",
+        "authorIndex": 165
+      },
+      {
+        "body": "Pay full balance monthly — interest high.",
+        "authorIndex": 163
+      },
+      {
+        "body": "6–12 months पछि unsecured upgrade ask.",
+        "authorIndex": 165
+      }
+    ],
+    "likeCount": 20
+  },
+  {
+    "title": "ኢትዮጵያዊ ቤተክርስቲያን community እንዴት አገኛ?",
+    "body": "Spiritual support እፈልጋለሁ።",
+    "authorIndex": 167,
+    "language": "am",
+    "tags": [
+      "community",
+      "faith",
+      "ethiopian",
+      "question",
+      "am"
+    ],
+    "comments": [
+      {
+        "body": "Search Ethiopian Orthodox church near me.",
+        "authorIndex": 166
+      },
+      {
+        "body": "Holidays like Timket bring community together.",
+        "authorIndex": 168
+      },
+      {
+        "body": "Coffee ceremony events — ask at restaurants.",
+        "authorIndex": 166
+      },
+      {
+        "body": "Youth groups help new families connect.",
+        "authorIndex": 168
+      }
+    ],
+    "likeCount": 21
+  },
+  {
+    "title": "Xarumo Somali ah sidee baan u helaa?",
+    "body": "Caawimaad bulsho ayaan raadinayaa.",
+    "authorIndex": 170,
+    "language": "so",
+    "tags": [
+      "community",
+      "support",
+      "somali",
+      "question",
+      "so"
+    ],
+    "comments": [
+      {
+        "body": "Search Somali community center + city name.",
+        "authorIndex": 169
+      },
+      {
+        "body": "Mosques often host language and job help.",
+        "authorIndex": 171
+      },
+      {
+        "body": "WhatsApp groups — ask at halal shops.",
+        "authorIndex": 169
+      },
+      {
+        "body": "ESL classes at center good starting point.",
+        "authorIndex": 171
+      }
+    ],
+    "likeCount": 22
+  },
+  {
+    "title": "Jinsi ya kujiunga na mtandao wa Waswahili hapa?",
+    "body": "Nataka marafiki na taarifa za kazi.",
+    "authorIndex": 173,
+    "language": "sw",
+    "tags": [
+      "community",
+      "networking",
+      "swahili",
+      "question",
+      "sw"
+    ],
+    "comments": [
+      {
+        "body": "Tafuta Swahili community [city] Facebook.",
+        "authorIndex": 172
+      },
+      {
+        "body": "Churches na masijala ya Kiislamu na mikutano.",
+        "authorIndex": 174
+      },
+      {
+        "body": "Restaurants za Afrika — uliza wateja.",
+        "authorIndex": 172
+      },
+      {
+        "body": "Volunteer kwenye events za kitamaduni.",
+        "authorIndex": 174
+      }
+    ],
+    "likeCount": 23
+  },
+  {
+    "title": "Yaya nake samun Hausa community events?",
+    "body": "Ina so in haɗu da mutane masu yanki.",
+    "authorIndex": 176,
+    "language": "ha",
+    "tags": [
+      "community",
+      "culture",
+      "hausa",
+      "question",
+      "ha"
+    ],
+    "comments": [
+      {
+        "body": "Facebook: Hausa in [city].",
+        "authorIndex": 175
+      },
+      {
+        "body": "Mosques da Islamic centers suna da programs.",
+        "authorIndex": 177
+      },
+      {
+        "body": "Restaurants — tambayi staff game da taruka.",
+        "authorIndex": 175
+      },
+      {
+        "body": "WhatsApp groups daga masu sayar da kayan gida.",
+        "authorIndex": 177
+      }
+    ],
+    "likeCount": 24
+  },
+  {
+    "title": "Հայկական կենտրոն կամ եկեղեցի ինչպե՞ս գտնել",
+    "body": "Նոր եմ և աջակցություն է պետք:",
+    "authorIndex": 179,
+    "language": "hy",
+    "tags": [
+      "community",
+      "culture",
+      "armenian",
+      "question",
+      "hy"
+    ],
+    "comments": [
+      {
+        "body": "Google Armenian church + your city.",
+        "authorIndex": 178
+      },
+      {
+        "body": "Community centers host language school.",
+        "authorIndex": 180
+      },
+      {
+        "body": "Restaurants know event calendars.",
+        "authorIndex": 178
+      },
+      {
+        "body": "Easter and Vardavar big community days.",
+        "authorIndex": 180
+      }
+    ],
+    "likeCount": 25
+  },
+  {
+    "title": "ქართული ორგანიზაციები ახალ ქალაქში სად ვიპოვო?",
+    "body": "თანამოზიარეები მინდა.",
+    "authorIndex": 182,
+    "language": "ka",
+    "tags": [
+      "community",
+      "culture",
+      "georgian",
+      "question",
+      "ka"
+    ],
+    "comments": [
+      {
+        "body": "Facebook Georgian community groups.",
+        "authorIndex": 181
+      },
+      {
+        "body": "Church events — especially holidays.",
+        "authorIndex": 183
+      },
+      {
+        "body": "Restaurants post cultural nights.",
+        "authorIndex": 181
+      },
+      {
+        "body": "Volunteer at festival — meet people fast.",
+        "authorIndex": 183
+      }
+    ],
+    "likeCount": 26
+  },
+  {
+    "title": "Қазақстан diaspora қауымдастығын қалай табамын?",
+    "body": "Жаңа ортада қолдау керек.",
+    "authorIndex": 185,
+    "language": "kk",
+    "tags": [
+      "community",
+      "networking",
+      "kazakh",
+      "question",
+      "kk"
+    ],
+    "comments": [
+      {
+        "body": "Facebook Kazakh in USA groups.",
+        "authorIndex": 184
+      },
+      {
+        "body": "Embassy/cultural events sometimes listed online.",
+        "authorIndex": 186
+      },
+      {
+        "body": "Restaurants — ask about Nauryz gatherings.",
+        "authorIndex": 184
+      },
+      {
+        "body": "Student associations if near university.",
+        "authorIndex": 186
+      }
+    ],
+    "likeCount": 27
+  },
+  {
+    "title": "Azərbaycan icması ABŞ-da harada toplanır?",
+    "body": "Yeni gəlmişəm, tanış yoxdur.",
+    "authorIndex": 188,
+    "language": "az",
+    "tags": [
+      "community",
+      "culture",
+      "azerbaijani",
+      "question",
+      "az"
+    ],
+    "comments": [
+      {
+        "body": "Facebook Azerbaijani community [city].",
+        "authorIndex": 187
+      },
+      {
+        "body": "Novruz events — good entry point.",
+        "authorIndex": 189
+      },
+      {
+        "body": "Restaurants and tea houses — ask staff.",
+        "authorIndex": 187
+      },
+      {
+        "body": "WhatsApp via community shop owners.",
+        "authorIndex": 189
+      }
+    ],
+    "likeCount": 28
+  },
+  {
+    "title": "O'zbek jamiyati va tadbirlari qayerda?",
+    "body": "Vatan tilida gaplashishni sog'inaman.",
+    "authorIndex": 191,
+    "language": "uz",
+    "tags": [
+      "community",
+      "culture",
+      "uzbek",
+      "question",
+      "uz"
+    ],
+    "comments": [
+      {
+        "body": "Telegram/Facebook O'zbeklar in [city].",
+        "authorIndex": 190
+      },
+      {
+        "body": "Nowruz va mustaqillik kuni yig'ilishlari.",
+        "authorIndex": 192
+      },
+      {
+        "body": "Restaurants — so'rang events haqida.",
+        "authorIndex": 190
+      },
+      {
+        "body": "Mosque/community center ESL ham beradi.",
+        "authorIndex": 192
+      }
+    ],
+    "likeCount": 29
+  },
+  {
+    "title": "Де знайти українську community підтримку?",
+    "body": "Новий місто, мало знайомих.",
+    "authorIndex": 194,
+    "language": "uk",
+    "tags": [
+      "community",
+      "support",
+      "ukrainian",
+      "question",
+      "uk"
+    ],
+    "comments": [
+      {
+        "body": "Facebook Ukrainian [city] groups.",
+        "authorIndex": 193
+      },
+      {
+        "body": "Churches and cultural centers — events board.",
+        "authorIndex": 195
+      },
+      {
+        "body": "Restaurants often know volunteer networks.",
+        "authorIndex": 193
+      },
+      {
+        "body": "Language exchange plus job referrals common.",
+        "authorIndex": 195
+      }
+    ],
+    "likeCount": 30
+  },
+  {
+    "title": "ئۇيغۇر جamaئىتى ۋە پائالىيەتلىرini قانداق تاپىمەن?",
+    "body": "يېڭى شەھەردە يالغۇز his قىلىمەن.",
+    "authorIndex": 197,
+    "language": "ug",
+    "tags": [
+      "community",
+      "culture",
+      "uyghur",
+      "question",
+      "ug"
+    ],
+    "comments": [
+      {
+        "body": "Facebook Uyghur community groups.",
+        "authorIndex": 196
+      },
+      {
+        "body": "Restaurants — staff دىن events سoraڭ.",
+        "authorIndex": 198
+      },
+      {
+        "body": "Museums/cultural events sometimes listed.",
+        "authorIndex": 196
+      },
+      {
+        "body": "Volunteer — tez دوست تاپىشىشكە ياردەم.",
+        "authorIndex": 198
+      }
+    ],
+    "likeCount": 31
+  }
+]

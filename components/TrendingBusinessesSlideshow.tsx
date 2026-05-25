@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useKeenSlider } from 'keen-slider/react';
 import { useLanguage } from '@/context/LanguageContext';
@@ -24,34 +24,65 @@ type TrendingBusinessesSlideshowProps = {
 const FALLBACK_LOGO =
   'https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop';
 
+const AUTOPLAY_MS = 4500;
+
+const SLIDER_OPTIONS = {
+  drag: true,
+  rubberband: true,
+  mode: 'free-snap' as const,
+  defaultAnimation: {
+    duration: 600,
+    easing: (t: number) => 1 - Math.pow(1 - t, 3),
+  },
+  slides: { perView: 2.2, spacing: 8 },
+  breakpoints: {
+    '(min-width: 480px)': { slides: { perView: 2.8, spacing: 8 } },
+    '(min-width: 768px)': { slides: { perView: 3.5, spacing: 10 } },
+    '(min-width: 1024px)': { slides: { perView: 4.25, spacing: 10 } },
+  },
+};
+
 export default function TrendingBusinessesSlideshow({
   businesses,
   getBusinessHref,
   formatCategoryLabel,
 }: TrendingBusinessesSlideshowProps) {
   const { effectiveLang } = useLanguage();
+  const isDraggingRef = useRef(false);
+
   const [sliderRef, slider] = useKeenSlider({
+    ...SLIDER_OPTIONS,
     loop: businesses.length > 1,
-    slides: { perView: 2.2, spacing: 8 },
-    breakpoints: {
-      '(min-width: 480px)': { slides: { perView: 2.8, spacing: 8 } },
-      '(min-width: 768px)': { slides: { perView: 3.5, spacing: 10 } },
-      '(min-width: 1024px)': { slides: { perView: 4.25, spacing: 10 } },
+    dragStarted() {
+      isDraggingRef.current = true;
+    },
+    dragEnded() {
+      isDraggingRef.current = false;
     },
   });
 
   useEffect(() => {
+    slider.current?.update();
+  }, [businesses, slider]);
+
+  useEffect(() => {
     if (businesses.length < 2) return;
     const timer = window.setInterval(() => {
+      if (isDraggingRef.current) return;
       slider.current?.next();
-    }, 4500);
+    }, AUTOPLAY_MS);
     return () => window.clearInterval(timer);
   }, [slider, businesses.length]);
 
   if (businesses.length === 0) return null;
 
   return (
-    <div ref={sliderRef} className="keen-slider overflow-hidden">
+    <div
+      ref={sliderRef}
+      className="keen-slider cursor-grab overflow-hidden active:cursor-grabbing touch-pan-y"
+      aria-roledescription="carousel"
+      aria-label={t(effectiveLang, 'Trending businesses')}
+    >
       {businesses.map((biz) => (
         <Link
           key={biz.id}
@@ -66,6 +97,7 @@ export default function TrendingBusinessesSlideshow({
               alt={biz.business_name || 'Business'}
               loading="lazy"
               decoding="async"
+              draggable={false}
               className="h-20 w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:h-24"
             />
             <span className="absolute bottom-1.5 left-1.5 inline-flex items-center rounded-md border border-slate-200/80 bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-700 shadow-sm">
