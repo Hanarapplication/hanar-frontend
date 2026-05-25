@@ -2448,24 +2448,25 @@ const formatDateLabel = (value?: string | null) => {
     }
     updateHomeFeedFilterPanelPos();
     window.addEventListener('resize', updateHomeFeedFilterPanelPos);
-    window.addEventListener('scroll', updateHomeFeedFilterPanelPos, true);
+    window.addEventListener('scroll', updateHomeFeedFilterPanelPos, { passive: true });
+    window.visualViewport?.addEventListener('resize', updateHomeFeedFilterPanelPos);
+    window.visualViewport?.addEventListener('scroll', updateHomeFeedFilterPanelPos);
     return () => {
       window.removeEventListener('resize', updateHomeFeedFilterPanelPos);
-      window.removeEventListener('scroll', updateHomeFeedFilterPanelPos, true);
+      window.removeEventListener('scroll', updateHomeFeedFilterPanelPos);
+      window.visualViewport?.removeEventListener('resize', updateHomeFeedFilterPanelPos);
+      window.visualViewport?.removeEventListener('scroll', updateHomeFeedFilterPanelPos);
     };
   }, [homeFeedFilterOpen, updateHomeFeedFilterPanelPos]);
 
+  /** Keep feed from scrolling behind the filter sheet in mobile WebViews. */
   useEffect(() => {
-    if (!homeFeedFilterOpen) return;
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (homeFeedFilterPanelRef.current?.contains(target)) return;
-      if (homeFeedFilterButtonRef.current?.contains(target)) return;
-      if (homeFeedSearchBoxRef.current?.contains(target)) return;
-      setHomeFeedFilterOpen(false);
+    if (!homeFeedFilterOpen || typeof document === 'undefined') return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
     };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [homeFeedFilterOpen]);
 
   useEffect(() => {
@@ -2524,7 +2525,7 @@ const formatDateLabel = (value?: string | null) => {
           </div>
         )}
 
-        <div className="relative bg-white dark:bg-gray-800">
+        <div className="relative bg-white dark:bg-gray-800" data-no-pull-refresh="true">
           <div className="flex items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4">
             <p
               className="hidden min-w-0 max-w-[38%] truncate text-sm text-slate-600 sm:block dark:text-slate-300"
@@ -2586,102 +2587,113 @@ const formatDateLabel = (value?: string | null) => {
 
         {homeFeedFilterOpen && homeFeedFilterPanelPos && typeof document !== 'undefined'
           ? createPortal(
-              <div
-                ref={homeFeedFilterPanelRef}
-                id="home-feed-filter-panel"
-                role="dialog"
-                aria-label={t(effectiveLang, 'Filter')}
-                style={{
-                  position: 'fixed',
-                  top: homeFeedFilterPanelPos.top,
-                  right: homeFeedFilterPanelPos.right,
-                  zIndex: 130,
-                  maxHeight: `min(28rem, calc(100vh - ${homeFeedFilterPanelPos.top}px - 12px))`,
-                }}
-                className="flex w-[min(20rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-gray-600 dark:bg-gray-800"
-              >
-                <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-gray-700">
-                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{t(effectiveLang, 'Filter')}</p>
-                  <button
-                    type="button"
-                    onClick={() => setHomeFeedFilterOpen(false)}
-                    className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-gray-700 dark:hover:text-slate-200"
-                    aria-label={t(effectiveLang, 'Close')}
-                  >
-                    <X className="h-4 w-4" aria-hidden />
-                  </button>
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto p-3">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    {t(effectiveLang, 'Feed')}
-                  </p>
-                  <div className="mb-4 flex flex-wrap gap-2">
+              <>
+                <button
+                  type="button"
+                  className="fixed inset-0 z-[9998] bg-black/25 [-webkit-tap-highlight-color:transparent]"
+                  aria-label={t(effectiveLang, 'Close')}
+                  data-no-pull-refresh="true"
+                  onClick={() => setHomeFeedFilterOpen(false)}
+                />
+                <div
+                  ref={homeFeedFilterPanelRef}
+                  id="home-feed-filter-panel"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={t(effectiveLang, 'Filter')}
+                  data-no-pull-refresh="true"
+                  style={{
+                    position: 'fixed',
+                    top: homeFeedFilterPanelPos.top,
+                    right: homeFeedFilterPanelPos.right,
+                    maxHeight: `min(28rem, calc(100dvh - ${homeFeedFilterPanelPos.top}px - max(12px, env(safe-area-inset-bottom, 0px))))`,
+                  }}
+                  className="z-[9999] flex w-[min(20rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-gray-600 dark:bg-gray-800"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2 dark:border-gray-700">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{t(effectiveLang, 'Filter')}</p>
                     <button
                       type="button"
-                      onClick={() => setHomeFeedTab('for_you')}
-                      className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
-                        homeFeedTab === 'for_you'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                      }`}
+                      onClick={() => setHomeFeedFilterOpen(false)}
+                      className="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-gray-700 dark:hover:text-slate-200"
+                      aria-label={t(effectiveLang, 'Close')}
                     >
-                      {t(effectiveLang, 'For you')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setHomeFeedTab('popular')}
-                      className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
-                        homeFeedTab === 'popular'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-                      }`}
-                    >
-                      {t(effectiveLang, 'Most Popular')}
+                      <X className="h-4 w-4" aria-hidden />
                     </button>
                   </div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    {t(effectiveLang, 'Languages')}
-                  </p>
-                  <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">{homeFeedLangSummary}</p>
-                  <div className="space-y-0.5">
-                    <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={postFeedLangs.length === 0}
-                        onChange={() => setPostFeedLangs([])}
-                        className="rounded border-slate-300"
-                      />
-                      <span className="text-sm">🌐 {t(effectiveLang, 'All languages')}</span>
-                    </label>
-                    <div className="my-1 border-t border-slate-100 dark:border-gray-700" />
-                    {supportedLanguages
-                      .filter((l) => l.code !== 'auto')
-                      .map((l) => (
-                        <label
-                          key={l.code}
-                          className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-gray-700"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={postFeedLangs.includes(l.code)}
-                            onChange={() =>
-                              setPostFeedLangs((prev) => {
-                                const s = new Set(prev);
-                                if (s.has(l.code)) s.delete(l.code);
-                                else s.add(l.code);
-                                return [...s];
-                              })
-                            }
-                            className="rounded border-slate-300"
-                          />
-                          <span className="text-sm">
-                            {l.emoji} {getNativeLanguageName(l.code, l.name)}
-                          </span>
-                        </label>
-                      ))}
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 [-webkit-overflow-scrolling:touch]">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      {t(effectiveLang, 'Feed')}
+                    </p>
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setHomeFeedTab('for_you')}
+                        className={`min-h-11 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                          homeFeedTab === 'for_you'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        {t(effectiveLang, 'For you')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHomeFeedTab('popular')}
+                        className={`min-h-11 rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                          homeFeedTab === 'popular'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        {t(effectiveLang, 'Most Popular')}
+                      </button>
+                    </div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      {t(effectiveLang, 'Languages')}
+                    </p>
+                    <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">{homeFeedLangSummary}</p>
+                    <div className="space-y-0.5">
+                      <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-gray-700 dark:active:bg-gray-600">
+                        <input
+                          type="checkbox"
+                          checked={postFeedLangs.length === 0}
+                          onChange={() => setPostFeedLangs([])}
+                          className="h-4 w-4 shrink-0 rounded border-slate-300"
+                        />
+                        <span className="text-sm">🌐 {t(effectiveLang, 'All languages')}</span>
+                      </label>
+                      <div className="my-1 border-t border-slate-100 dark:border-gray-700" />
+                      {supportedLanguages
+                        .filter((l) => l.code !== 'auto')
+                        .map((l) => (
+                          <label
+                            key={l.code}
+                            className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-gray-700 dark:active:bg-gray-600"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={postFeedLangs.includes(l.code)}
+                              onChange={() =>
+                                setPostFeedLangs((prev) => {
+                                  const s = new Set(prev);
+                                  if (s.has(l.code)) s.delete(l.code);
+                                  else s.add(l.code);
+                                  return [...s];
+                                })
+                              }
+                              className="h-4 w-4 shrink-0 rounded border-slate-300"
+                            />
+                            <span className="text-sm">
+                              {l.emoji} {getNativeLanguageName(l.code, l.name)}
+                            </span>
+                          </label>
+                        ))}
+                    </div>
                   </div>
                 </div>
-              </div>,
+              </>,
               document.body,
             )
           : null}

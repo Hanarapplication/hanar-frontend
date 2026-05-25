@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Script from 'next/script';
-import Link from 'next/link';
+import BusinessProfileLink from '@/components/BusinessProfileLink';
 import { ChevronDown, ChevronUp, MapPin, Navigation, Phone, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { milesToMeters, zoomForRadiusMiles } from '@/lib/businessMapCoords';
@@ -912,7 +912,7 @@ export default function BusinessesMapPanel({
     'flex h-6 w-6 items-center justify-center rounded-full bg-white/20 ring-1 ring-white/25 transition group-hover:bg-white/30';
   const mapActionIconWrapMuted = 'flex h-6 w-6 items-center justify-center rounded-full bg-slate-200/80';
   const mapActionClass =
-    'group flex min-h-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-semibold leading-tight shadow-sm transition active:scale-[0.97]';
+    'group flex min-h-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-semibold leading-tight shadow-sm transition active:scale-[0.97] [-webkit-tap-highlight-color:transparent]';
 
   const showMapSurface = expanded && Boolean(apiKey);
 
@@ -1182,18 +1182,18 @@ export default function BusinessesMapPanel({
                   <span>{labels.openInMaps}</span>
                 </span>
               )}
-              <Link
+              <BusinessProfileLink
                 href={getBusinessHref(selected)}
                 className={cn(
                   mapActionClass,
-                  'bg-gradient-to-b from-violet-600 to-violet-700 text-white shadow-violet-500/30 hover:from-violet-700 hover:to-violet-800'
+                  'bg-gradient-to-b from-violet-600 to-violet-700 text-white shadow-violet-500/30 active:from-violet-700 active:to-violet-800 md:hover:from-violet-700 md:hover:to-violet-800'
                 )}
               >
                 <span className={mapActionIconWrap}>
                   <User className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
                 </span>
                 <span>{labels.viewProfile}</span>
-              </Link>
+              </BusinessProfileLink>
               {selectedPhone ? (
                 <a
                   href={`tel:${selectedPhone}`}

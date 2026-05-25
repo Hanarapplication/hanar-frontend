@@ -25,8 +25,9 @@ export default function PullToRefresh({ onRefresh, children, className = '' }: P
   const handleTouchStart = useCallback((e: TouchEvent) => {
     const target = eventTargetToNearestElement(e.target);
     if (target?.closest('[data-top-nav="true"]')) return;
-    /** Nested scroll regions (e.g. home Ask composer) — do not steal vertical scroll for pull-to-refresh */
+    /** Nested scroll regions, modals, and filter sheets — do not steal vertical scroll for pull-to-refresh */
     if (target?.closest('[data-no-pull-refresh="true"]')) return;
+    if (target?.closest('[role="dialog"],[aria-modal="true"],#home-feed-filter-panel')) return;
     // Ignore normal taps/clicks on interactive elements (links, buttons, inputs, etc.)
     if (
       target?.closest(

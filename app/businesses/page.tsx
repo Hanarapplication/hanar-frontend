@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 import { LayoutGrid, List, Navigation, Sparkles, TrendingUp, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -15,6 +16,7 @@ import toast from 'react-hot-toast';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
 import PullToRefresh from '@/components/PullToRefresh';
+import BusinessProfileLink from '@/components/BusinessProfileLink';
 import {
   getDistanceMiles,
   readSavedSearchRadiusMiles,
@@ -195,6 +197,7 @@ function getCityState(address: any): string {
 }
 
 export default function BusinessesPage() {
+  const router = useRouter();
   const { effectiveLang } = useLanguage();
   const [dynamicUiTranslations, setDynamicUiTranslations] = useState<Record<string, string>>({});
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -1703,6 +1706,13 @@ export default function BusinessesPage() {
     return opts?.claim && isClaimableBusiness(biz) ? `${base}?claim=1` : base;
   };
 
+  useEffect(() => {
+    const paths = listBusinesses.slice(0, 16).map((biz) => getBusinessHref(biz));
+    for (const path of paths) {
+      router.prefetch(path);
+    }
+  }, [listBusinesses, router]);
+
   const showBusinessOnMap = useCallback(
     (biz: Business) => {
       const coords = resolveCoordsForBusiness(biz);
@@ -1745,21 +1755,19 @@ export default function BusinessesPage() {
     const rowActions = (
       <div className="flex shrink-0 flex-wrap gap-1.5">
         {unclaimed ? (
-          <Link
+          <BusinessProfileLink
             href={getBusinessHref(biz, { claim: true })}
-            className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 transition hover:bg-amber-100"
-            onClick={(e) => e.stopPropagation()}
+            className="relative z-[2] inline-flex min-h-9 items-center rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 transition active:bg-amber-100"
           >
             {t(effectiveLang, 'Claim')}
-          </Link>
+          </BusinessProfileLink>
         ) : null}
-        <Link
+        <BusinessProfileLink
           href={getBusinessHref(biz)}
-          className="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
-          onClick={(e) => e.stopPropagation()}
+          className="relative z-[2] inline-flex min-h-9 items-center rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition active:bg-slate-700"
         >
           {t(effectiveLang, 'View')}
-        </Link>
+        </BusinessProfileLink>
         {bizCoords ? (
           <button
             type="button"
@@ -1768,7 +1776,7 @@ export default function BusinessesPage() {
               e.stopPropagation();
               showBusinessOnMap(biz);
             }}
-            className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
+            className="relative z-[2] min-h-9 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 transition active:bg-violet-100"
           >
             {t(effectiveLang, 'On map')}
           </button>
@@ -1781,44 +1789,50 @@ export default function BusinessesPage() {
         <article
           key={biz.id}
           id={`business-${biz.id}`}
-          className={`overflow-hidden rounded-xl border bg-white shadow-sm transition hover:shadow-md ${
+          className={`relative overflow-hidden rounded-xl border bg-white shadow-sm transition active:shadow-md ${
             isMapSelected ? 'border-violet-400 ring-2 ring-violet-200' : 'border-slate-200'
           }`}
           data-no-translate
         >
-          <Link href={getBusinessHref(biz)} className="group block">
-            <div className="relative h-28 bg-slate-100">
-              <img
-                src={
-                  biz.logo_url ||
-                  'https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop'
-                }
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-              />
-              <button
-                type="button"
-                onClick={(e) => toggleFavorite(e, biz.id)}
-                className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 shadow"
-                aria-label={t(effectiveLang, 'Toggle favorite')}
-              >
-                {favorites.includes(biz.id) ? (
-                  <FaHeart className="h-3.5 w-3.5 text-rose-500" />
-                ) : (
-                  <FaRegHeart className="h-3.5 w-3.5 text-slate-500" />
-                )}
-              </button>
-              {unclaimed ? (
-                <span className="absolute left-2 top-2 rounded-full bg-amber-500/95 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow">
-                  {t(effectiveLang, 'Unclaimed')}
-                </span>
-              ) : null}
-            </div>
-          </Link>
-          <div className="space-y-2 p-2">
-            <Link href={getBusinessHref(biz)} className="min-w-0 block">
+          <BusinessProfileLink
+            stretch
+            href={getBusinessHref(biz)}
+            aria-label={biz.business_name}
+            className="rounded-xl"
+          >
+            <span className="sr-only">{t(effectiveLang, 'View profile')}</span>
+          </BusinessProfileLink>
+          <div className="relative h-28 bg-slate-100">
+            <img
+              src={
+                biz.logo_url ||
+                'https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=800&auto=format&fit=crop'
+              }
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="pointer-events-none h-full w-full object-cover"
+            />
+            <button
+              type="button"
+              onClick={(e) => toggleFavorite(e, biz.id)}
+              className="absolute right-2 top-2 z-[2] rounded-full bg-white/90 p-2 shadow touch-manipulation [-webkit-tap-highlight-color:transparent]"
+              aria-label={t(effectiveLang, 'Toggle favorite')}
+            >
+              {favorites.includes(biz.id) ? (
+                <FaHeart className="h-3.5 w-3.5 text-rose-500" />
+              ) : (
+                <FaRegHeart className="h-3.5 w-3.5 text-slate-500" />
+              )}
+            </button>
+            {unclaimed ? (
+              <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-amber-500/95 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow">
+                {t(effectiveLang, 'Unclaimed')}
+              </span>
+            ) : null}
+          </div>
+          <div className="relative z-0 space-y-2 p-2">
+            <div className="pointer-events-none min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
                 <h3 className="line-clamp-1 text-sm font-bold text-slate-900">{biz.business_name}</h3>
                 {unclaimed ? (
@@ -1834,12 +1848,12 @@ export default function BusinessesPage() {
                   {translateUi(displayCategory)}
                 </span>
               ) : null}
-            </Link>
-            <p className="line-clamp-1 text-[11px] text-slate-500">
+            </div>
+            <p className="pointer-events-none line-clamp-1 text-[11px] text-slate-500">
               {locationLine}
               {distanceLine ? ` · ${distanceLine}` : ''}
             </p>
-            {rowActions}
+            <div className="relative z-[2]">{rowActions}</div>
           </div>
         </article>
       );
@@ -1849,12 +1863,19 @@ export default function BusinessesPage() {
       <div
         key={biz.id}
         id={`business-${biz.id}`}
-        className={`flex gap-3 px-3 py-2.5 transition ${
-          isMapSelected ? 'bg-violet-50' : 'hover:bg-slate-50'
+        className={`relative flex gap-3 px-3 py-2.5 transition active:bg-slate-100/80 ${
+          isMapSelected ? 'bg-violet-50' : 'md:hover:bg-slate-50'
         }`}
         data-no-translate
       >
-        <Link href={getBusinessHref(biz)} className="group flex min-w-0 flex-1 gap-3">
+        <BusinessProfileLink
+          stretch
+          href={getBusinessHref(biz)}
+          aria-label={biz.business_name}
+        >
+          <span className="sr-only">{t(effectiveLang, 'View profile')}</span>
+        </BusinessProfileLink>
+        <div className="pointer-events-none flex min-w-0 flex-1 gap-3">
           <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
             <img
               src={
@@ -1869,10 +1890,7 @@ export default function BusinessesPage() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
-              <h3
-                className="line-clamp-1 text-sm font-semibold text-slate-900 group-hover:text-violet-700"
-                data-no-translate
-              >
+              <h3 className="line-clamp-1 text-sm font-semibold text-slate-900" data-no-translate>
                 {biz.business_name}
               </h3>
               {unclaimed ? (
@@ -1895,12 +1913,12 @@ export default function BusinessesPage() {
               <p className="mt-0.5 text-[11px] font-medium text-violet-600">{distanceLine}</p>
             ) : null}
           </div>
-        </Link>
-        <div className="flex flex-col items-end justify-between gap-1">
+        </div>
+        <div className="relative z-[2] flex flex-col items-end justify-between gap-1">
           <button
             type="button"
             onClick={(e) => toggleFavorite(e, biz.id)}
-            className="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-rose-500"
+            className="min-h-9 min-w-9 rounded-full p-2 text-slate-400 transition active:bg-slate-100 active:text-rose-500 touch-manipulation [-webkit-tap-highlight-color:transparent]"
             aria-label={t(effectiveLang, 'Toggle favorite')}
           >
             {favorites.includes(biz.id) ? (
@@ -1930,7 +1948,7 @@ export default function BusinessesPage() {
     <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
       <div className="mx-auto max-w-[66rem] px-3 pt-0 sm:px-4">
         {/* Search bar */}
-        <div className="sticky top-[calc(4rem+env(safe-area-inset-top,0px))] z-[110] -mx-3 mb-0 border-b border-slate-200 bg-white px-3 pb-3 pt-2.5 shadow-sm sm:px-4 sm:pt-3">
+        <div className="sticky top-[calc(4rem+env(safe-area-inset-top,0px))] z-[110] -mx-3 mb-0 border-b border-slate-200 bg-white px-3 pb-3 pt-2.5 shadow-sm sm:px-4 sm:pt-3" data-no-pull-refresh="true">
           <div className="mx-auto max-w-3xl">
             <div className="relative">
               <Search
@@ -2259,7 +2277,7 @@ export default function BusinessesPage() {
         )}
 
         {/* Businesses nearby */}
-        <section className="rounded-none border-y border-slate-200 bg-white">
+        <section className="rounded-none border-y border-slate-200 bg-white" data-no-pull-refresh="true">
           <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-3">
             <h2 className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-white px-3 py-1 text-base font-semibold tracking-tight text-slate-900 shadow-sm">
               <Sparkles className="h-4 w-4 text-violet-500" strokeWidth={2} aria-hidden />

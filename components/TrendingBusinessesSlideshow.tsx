@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import Link from 'next/link';
+import BusinessProfileLink from '@/components/BusinessProfileLink';
 import { useKeenSlider } from 'keen-slider/react';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
@@ -84,11 +84,11 @@ export default function TrendingBusinessesSlideshow({
       aria-label={t(effectiveLang, 'Trending businesses')}
     >
       {businesses.map((biz) => (
-        <Link
+        <BusinessProfileLink
           key={biz.id}
           href={getBusinessHref(biz)}
           data-keen-slider-clickable
-          className="keen-slider__slide group block min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:border-slate-300 hover:shadow-md"
+          className="keen-slider__slide block min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition active:border-slate-300 active:shadow-md md:hover:border-slate-300 md:hover:shadow-md"
           data-no-translate
         >
           <div className="relative overflow-hidden bg-slate-100">
@@ -98,7 +98,7 @@ export default function TrendingBusinessesSlideshow({
               loading="lazy"
               decoding="async"
               draggable={false}
-              className="h-20 w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:h-24"
+              className="pointer-events-none h-20 w-full object-cover sm:h-24"
             />
             <span className="absolute bottom-1.5 left-1.5 inline-flex items-center rounded-md border border-slate-200/80 bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-700 shadow-sm">
               {t(effectiveLang, 'Premium')}
@@ -112,7 +112,7 @@ export default function TrendingBusinessesSlideshow({
               {formatCategoryLabel(biz)}
             </p>
           </div>
-        </Link>
+        </BusinessProfileLink>
       ))}
     </div>
   );
