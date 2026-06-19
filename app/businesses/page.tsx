@@ -50,7 +50,7 @@ import { isClaimableBusiness } from '@/lib/businessClaim';
 const BusinessesMapPanel = dynamic(() => import('@/components/BusinessesMapPanel'), {
   ssr: false,
   loading: () => (
-    <div className="mx-3 mb-5 h-[min(52vh,22rem)] animate-pulse rounded-lg bg-gradient-to-br from-violet-100 to-rose-100" />
+    <div className="mx-3 mb-5 h-[min(68vh,32rem)] animate-pulse rounded-lg bg-gradient-to-br from-violet-100 to-rose-100" />
   ),
 });
 

@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     if (type === 'business_plan') {
       const plan = (body.plan as string)?.toLowerCase();
       const businessId = (body.businessId as string)?.trim();
-      if (!businessId || !['starter', 'growth', 'premium'].includes(plan)) {
+      if (!businessId || plan !== 'premium') {
         return NextResponse.json({ error: 'Invalid plan or businessId' }, { status: 400 });
       }
 

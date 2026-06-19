@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { filterPublicSelectableBusinessPlans } from '@/lib/businessPlanVisibility';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -76,7 +77,7 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ plans });
+    return NextResponse.json({ plans: filterPublicSelectableBusinessPlans(plans) });
   } catch (err) {
     console.error('[plans-public]', err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });

@@ -10,6 +10,7 @@ import { isAppIOS } from '@/utils/isAppIOS';
 import { openExternalBrowser } from '@/utils/openExternalBrowser';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
+import { filterPublicSelectableBusinessPlans } from '@/lib/businessPlanVisibility';
 
 type Plan = 'free' | 'starter' | 'growth' | 'premium';
 
@@ -122,7 +123,7 @@ function BusinessPlanContent() {
         const trialEnd = data.trial_end ? String(data.trial_end) : null;
 
         if (isMounted) {
-          setPlans((plansData as BusinessPlan[]) || []);
+          setPlans(filterPublicSelectableBusinessPlans((plansData as BusinessPlan[]) || []));
           setBiz({
             id: String(data.id),
             plan: currentPlan,
@@ -279,11 +280,11 @@ function BusinessPlanContent() {
             ) : plans.length === 0 ? (
               <div className="text-center py-10 text-gray-600">{t(effectiveLang, 'Loading plans...')}</div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto">
                 {plans.map((planData) => {
                   const planName = planData.plan as Plan;
                   const isCurrentPlan = currentPlan === planName;
-                  const isPopular = planName === 'growth'; // Growth is marked as popular
+                  const isPopular = planName === 'premium';
                   const currentPlanIndex = currentPlan ? PLAN_ORDER.indexOf(currentPlan as Plan) : -1;
                   const isDowngrade =
                     currentPlanIndex >= 0 &&

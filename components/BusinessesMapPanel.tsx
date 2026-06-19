@@ -958,7 +958,7 @@ export default function BusinessesMapPanel({
         <div
           className={cn(
             'relative overflow-hidden bg-slate-100 transition-all duration-300 ease-out',
-            expanded ? 'h-[min(52vh,22rem)]' : 'h-20',
+            expanded ? 'h-[min(68vh,32rem)]' : 'h-20',
             mapInteractionLocked && 'pointer-events-none'
           )}
         >
