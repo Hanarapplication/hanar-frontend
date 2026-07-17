@@ -396,3 +396,14 @@ html.dark .dashboard-following-orgs .following-orgs-empty * {
     linear-gradient(to right, #2d0610, #c41e56, #2d0610) border-box;
 }
 
+@keyframes hanar-map-detail-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+

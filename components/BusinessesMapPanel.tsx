@@ -1106,12 +1106,12 @@ export default function BusinessesMapPanel({
               className={cn(
                 'absolute left-3 z-20 inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-md transition hover:bg-white disabled:opacity-60',
                 selected && isRadiusMode
-                  ? 'bottom-[14.25rem]'
+                  ? 'bottom-[calc(17.75rem+env(safe-area-inset-bottom,0px))]'
                   : selected
-                    ? 'bottom-[10rem]'
+                    ? 'bottom-[calc(13.5rem+env(safe-area-inset-bottom,0px))]'
                     : isRadiusMode
-                      ? 'bottom-[4.75rem]'
-                      : 'bottom-4'
+                      ? 'bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))]'
+                      : 'bottom-[calc(1rem+env(safe-area-inset-bottom,0px))]'
               )}
             >
               <Navigation className="h-3.5 w-3.5 shrink-0 text-blue-600" aria-hidden />
@@ -1139,7 +1139,9 @@ export default function BusinessesMapPanel({
             <div
               className={cn(
                 'absolute left-3 right-3 z-20 rounded-xl border border-white/90 bg-white/95 px-3 py-2 shadow-md backdrop-blur-sm',
-                selected ? 'bottom-[10rem]' : 'bottom-4'
+                selected
+                  ? 'bottom-[calc(13.5rem+env(safe-area-inset-bottom,0px))]'
+                  : 'bottom-[calc(1rem+env(safe-area-inset-bottom,0px))]'
               )}
             >
               <label className="mb-1 flex items-center justify-between text-[10px] text-slate-600">
@@ -1162,7 +1164,8 @@ export default function BusinessesMapPanel({
 
           {selected && expanded && (
             <div
-              className="absolute inset-x-3 bottom-3 z-30 overflow-hidden rounded-2xl border border-white/30 bg-white/20 p-3 shadow-[0_12px_40px_rgba(15,23,42,0.18)] ring-1 ring-white/35 backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-900/20 dark:ring-white/10"
+              key={selected.id}
+              className="absolute inset-x-3 z-30 overflow-hidden rounded-2xl border border-white/30 bg-white/20 p-3 shadow-[0_12px_40px_rgba(15,23,42,0.18)] ring-1 ring-white/35 backdrop-blur-xl backdrop-saturate-150 animate-[hanar-map-detail-in_0.55s_ease-out_both] dark:border-white/10 dark:bg-slate-900/20 dark:ring-white/10 bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))]"
               data-no-translate
             >
               <div className="mb-2.5 flex min-w-0 items-start gap-2.5">
