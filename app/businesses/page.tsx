@@ -1,12 +1,11 @@
 'use client';
 
-import { createPortal } from 'react-dom';
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { Suspense, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
-import { LayoutGrid, List, Navigation, Sparkles, TrendingUp, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { ChevronDown, LayoutGrid, List, Navigation, Sparkles, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { MapPanelBusiness } from '@/components/BusinessesMapPanel';
 import TrendingBusinessesSlideshow from '@/components/TrendingBusinessesSlideshow';
@@ -46,11 +45,16 @@ import {
   type MarketplaceLocationScope,
 } from '@/lib/marketplaceLocationFilter';
 import { isClaimableBusiness } from '@/lib/businessClaim';
+import {
+  businessesDirectorySearchPath,
+  readBusinessesDirectorySearchQuery,
+} from '@/lib/businessesDirectorySearch';
+import { BUSINESS_CATEGORIES, getBusinessCategoryIcon } from '@/utils/businessCategories';
 
 const BusinessesMapPanel = dynamic(() => import('@/components/BusinessesMapPanel'), {
   ssr: false,
   loading: () => (
-    <div className="mx-3 mb-5 h-[min(68vh,32rem)] animate-pulse rounded-lg bg-gradient-to-br from-violet-100 to-rose-100" />
+    <div className="relative left-1/2 mb-5 w-screen -translate-x-1/2 -mt-[calc(4rem+env(safe-area-inset-top,0px))] h-[100dvh] animate-pulse bg-gradient-to-br from-violet-100 to-rose-100" />
   ),
 });
 
@@ -197,8 +201,30 @@ function getCityState(address: any): string {
 }
 
 export default function BusinessesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-gray-50 pb-10 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+          <div className="mx-auto max-w-[66rem] px-3 pt-6 text-sm text-slate-500">Loading…</div>
+        </div>
+      }
+    >
+      <BusinessesPageContent />
+    </Suspense>
+  );
+}
+
+function BusinessesPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { effectiveLang } = useLanguage();
+  const query = readBusinessesDirectorySearchQuery(searchParams);
+  const setQuery = useCallback(
+    (value: string) => {
+      router.replace(businessesDirectorySearchPath(value, searchParams), { scroll: false });
+    },
+    [router, searchParams]
+  );
   const [dynamicUiTranslations, setDynamicUiTranslations] = useState<Record<string, string>>({});
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const yourLocationLabel = t(effectiveLang, 'Your location');
@@ -207,13 +233,11 @@ export default function BusinessesPage() {
   const translateUi = (label: string) => dynamicUiTranslations[label] || t(effectiveLang, label);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [query, setQuery] = useState('');
   const [relatedBusinessIds, setRelatedBusinessIds] = useState<Set<string>>(new Set());
-  const [searching, setSearching] = useState(false);
   const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [radius, setRadius] = useState(() => readSavedSearchRadiusMiles(40));
-  const [categoriesModalOpen, setCategoriesModalOpen] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [locationSearchValue, setLocationSearchValue] = useState('');
   const [locationScope, setLocationScope] = useState<MarketplaceLocationScope>({ mode: 'none' });
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
@@ -239,7 +263,7 @@ export default function BusinessesPage() {
   const lastGeocodedCityQueryRef = useRef<string | null>(null);
   const geocodeFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const categoryScrollRef = useRef<HTMLDivElement>(null);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const searchCacheRef = useRef<Map<string, Set<string>>>(new Map());
   const hasFetchedRef = useRef(false);
 
@@ -728,14 +752,12 @@ export default function BusinessesPage() {
     const term = query.trim().toLowerCase();
     if (!term) {
       setRelatedBusinessIds(new Set());
-      setSearching(false);
       setVisibleCount(6);
       return;
     }
 
     if (term.length < 2) {
       setRelatedBusinessIds(new Set());
-      setSearching(false);
       setVisibleCount(6);
       return;
     }
@@ -743,12 +765,10 @@ export default function BusinessesPage() {
     const cached = searchCacheRef.current.get(term);
     if (cached) {
       setRelatedBusinessIds(new Set(cached));
-      setSearching(false);
       setVisibleCount(6);
       return;
     }
 
-    setSearching(true);
     let cancelled = false;
     const handle = setTimeout(async () => {
       try {
@@ -796,7 +816,6 @@ export default function BusinessesPage() {
         console.error('Search lookup failed', err);
       } finally {
         if (!cancelled) {
-          setSearching(false);
           setVisibleCount(6);
         }
       }
@@ -1150,10 +1169,10 @@ export default function BusinessesPage() {
     (biz: Business): MapPanelBusiness | null => {
       const coords = resolveCoordsForBusiness(biz);
       if (!coords) return null;
-      const distanceMi =
-        userCoords && isRadiusLocationMode
-          ? getDistanceMiles(userCoords.lat, userCoords.lon, coords.lat, coords.lon)
-          : null;
+      const fromYou = myMapLocation ?? userCoords;
+      const distanceMi = fromYou
+        ? getDistanceMiles(fromYou.lat, fromYou.lon, coords.lat, coords.lon)
+        : null;
       return {
         id: biz.id,
         business_name: biz.business_name,
@@ -1163,9 +1182,11 @@ export default function BusinessesPage() {
         lon: coords.lon,
         phone: biz.phone,
         distanceMi,
+        spoken_languages: biz.spoken_languages ?? null,
+        isPremium: isPremium(biz),
       };
     },
-    [resolveCoordsForBusiness, userCoords, isRadiusLocationMode]
+    [resolveCoordsForBusiness, userCoords, myMapLocation]
   );
 
   /** All geocoded pins — keeps coords when category/search filters change. */
@@ -1421,125 +1442,79 @@ export default function BusinessesPage() {
     setSelectedMapBusinessId(mapPanelBusinesses[0]?.id ?? null);
   }, [mapPanelBusinesses, selectedMapBusinessId]);
 
-  useEffect(() => {
-    if (!selectedMapBusinessId) return;
-    const el = document.getElementById(`business-${selectedMapBusinessId}`);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [selectedMapBusinessId]);
-  const quickFilters: Array<{ label: string; icon: string; key: string; more?: boolean }> = [
-    { label: 'Restaurants', icon: '🍽️', key: 'restaurants' },
-    { label: 'Dealerships', icon: '🚘', key: 'dealerships' },
-    { label: 'Auto Services', icon: '🔧', key: 'auto_services' },
-    { label: 'Home Services', icon: '🏠', key: 'home_services' },
-    { label: 'Transportation', icon: '🚚', key: 'transportation' },
-    { label: 'Retail', icon: '🛍️', key: 'retail' },
-    { label: 'Health & Beauty', icon: '💇', key: 'beauty' },
-    { label: 'More', icon: '⋯', key: 'more', more: true },
+  const quickFilters: Array<{ label: string; icon: string; key: string }> = [
+    { label: 'Restaurants', icon: getBusinessCategoryIcon('restaurants'), key: 'restaurants' },
+    { label: 'Dealerships', icon: getBusinessCategoryIcon('dealerships'), key: 'dealerships' },
+    { label: 'Auto Services', icon: getBusinessCategoryIcon('auto_services'), key: 'auto_services' },
+    { label: 'Home Services', icon: getBusinessCategoryIcon('home_services'), key: 'home_services' },
+    { label: 'Transportation', icon: getBusinessCategoryIcon('transportation'), key: 'transportation' },
+    { label: 'Retail', icon: getBusinessCategoryIcon('retail'), key: 'retail' },
+    { label: 'Health & Beauty', icon: getBusinessCategoryIcon('beauty'), key: 'beauty' },
   ];
-  const [categoryScrollHints, setCategoryScrollHints] = useState({ left: false, right: false });
-  const categoryUserPausedUntilRef = useRef(0);
-  const categoryProgrammaticScrollRef = useRef(false);
 
-  const updateCategoryScrollHints = useCallback(() => {
-    const el = categoryScrollRef.current;
-    if (!el) return;
-    const { scrollLeft, scrollWidth, clientWidth } = el;
-    setCategoryScrollHints({
-      left: scrollLeft > 6,
-      right: scrollLeft + clientWidth < scrollWidth - 6,
-    });
-  }, []);
-
-  const pauseCategoryAutoplay = useCallback((durationMs = 8000) => {
-    categoryUserPausedUntilRef.current = Date.now() + durationMs;
-  }, []);
-
-  const onCategoryScroll = useCallback(() => {
-    updateCategoryScrollHints();
-    if (!categoryProgrammaticScrollRef.current) {
-      pauseCategoryAutoplay();
-    }
-  }, [updateCategoryScrollHints, pauseCategoryAutoplay]);
-
-  const scrollCategories = useCallback(
-    (direction: 'left' | 'right') => {
-      const el = categoryScrollRef.current;
-      if (!el) return;
-      pauseCategoryAutoplay();
-      const step = Math.max(el.clientWidth * 0.72, 160);
-      categoryProgrammaticScrollRef.current = true;
-      el.scrollBy({ left: direction === 'left' ? -step : step, behavior: 'smooth' });
-      window.setTimeout(() => {
-        categoryProgrammaticScrollRef.current = false;
-      }, 450);
-    },
-    [pauseCategoryAutoplay]
-  );
-
-  const advanceCategoryCarousel = useCallback(() => {
-    const el = categoryScrollRef.current;
-    if (!el) return;
-    const { scrollLeft, scrollWidth, clientWidth } = el;
-    if (scrollWidth <= clientWidth + 6) return;
-
-    const step = Math.max(clientWidth * 0.55, 140);
-    const atEnd = scrollLeft + clientWidth >= scrollWidth - 6;
-
-    categoryProgrammaticScrollRef.current = true;
-    if (atEnd) {
-      el.scrollTo({ left: 0, behavior: 'smooth' });
-    } else {
-      el.scrollBy({ left: step, behavior: 'smooth' });
-    }
-    window.setTimeout(() => {
-      categoryProgrammaticScrollRef.current = false;
-    }, 450);
+  const selectCategoryFilter = useCallback((key: string | null) => {
+    setSelectedCategoryFilter(key);
+    setQuery('');
+    setCategoryDropdownOpen(false);
+    setVisibleCount(6);
   }, []);
 
   useEffect(() => {
-    updateCategoryScrollHints();
-    const el = categoryScrollRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(updateCategoryScrollHints);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [updateCategoryScrollHints, businesses.length]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (reducedMotion.matches) return;
-
-    const id = window.setInterval(() => {
-      if (Date.now() < categoryUserPausedUntilRef.current) return;
-      advanceCategoryCarousel();
-    }, 3200);
-
-    return () => window.clearInterval(id);
-  }, [advanceCategoryCarousel]);
+    if (!categoryDropdownOpen) return;
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (categoryDropdownRef.current && target && !categoryDropdownRef.current.contains(target)) {
+        setCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [categoryDropdownOpen]);
 
   const allBusinessCategories = useMemo(
     () =>
       Array.from(
         new Set(
-          businesses
-            .map((b) => businessCategoryLabel(b))
-            .map((v) => v.trim())
-            .filter(Boolean)
+          [
+            ...BUSINESS_CATEGORIES.map((c) => c.label),
+            ...BUSINESS_CATEGORIES.flatMap((c) => c.subcategories.map((s) => s.label)),
+            ...businesses
+              .map((b) => businessCategoryLabel(b))
+              .map((v) => v.trim())
+              .filter(Boolean),
+          ]
         )
       ).sort((a, b) => a.localeCompare(b)),
     [businesses]
   );
   const quickFilterReserved = new Set(
-    quickFilters.filter((f) => !f.more).map((f) => normalizeCategoryToken(f.label))
+    quickFilters.map((f) => normalizeCategoryToken(f.label))
   );
   const moreCategories = allBusinessCategories.filter((name) => {
     const token = normalizeCategoryToken(name);
     if (!token) return false;
     if (quickFilterReserved.has(token)) return false;
-    if (token.includes('restaurant') || token.includes('dealership')) return false;
+    if (token.includes('restaurant') && token === 'restaurants') return false;
+    if (token === 'dealerships') return false;
     return true;
   });
+  const selectedCategoryDisplay = useMemo(() => {
+    if (!selectedCategoryFilter) {
+      return { label: t(effectiveLang, 'All categories'), icon: '🌐' };
+    }
+    const quick = quickFilters.find((item) => item.key === selectedCategoryFilter);
+    if (quick) {
+      return { label: translateUi(quick.label), icon: quick.icon };
+    }
+    return {
+      label: translateUi(selectedCategoryFilter),
+      icon: getBusinessCategoryIcon(selectedCategoryFilter),
+    };
+  }, [effectiveLang, quickFilters, selectedCategoryFilter, dynamicUiTranslations]);
   const dynamicUiLabels = useMemo(
     () =>
       Array.from(
@@ -1757,14 +1732,14 @@ export default function BusinessesPage() {
         {unclaimed ? (
           <BusinessProfileLink
             href={getBusinessHref(biz, { claim: true })}
-            className="relative z-[2] inline-flex min-h-9 items-center rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 transition active:bg-amber-100"
+            className="relative z-[2] inline-flex min-h-8 items-center rounded-full border border-amber-300/80 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-900 transition active:bg-amber-100"
           >
             {t(effectiveLang, 'Claim')}
           </BusinessProfileLink>
         ) : null}
         <BusinessProfileLink
           href={getBusinessHref(biz)}
-          className="relative z-[2] inline-flex min-h-9 items-center rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition active:bg-slate-700"
+          className="relative z-[2] inline-flex min-h-8 items-center rounded-full bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-white transition active:bg-slate-700"
         >
           {t(effectiveLang, 'View')}
         </BusinessProfileLink>
@@ -1776,7 +1751,7 @@ export default function BusinessesPage() {
               e.stopPropagation();
               showBusinessOnMap(biz);
             }}
-            className="relative z-[2] min-h-9 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 transition active:bg-violet-100"
+            className="relative z-[2] min-h-8 rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition active:bg-slate-100"
           >
             {t(effectiveLang, 'On map')}
           </button>
@@ -1789,20 +1764,23 @@ export default function BusinessesPage() {
         <article
           key={biz.id}
           id={`business-${biz.id}`}
-          className={`relative overflow-hidden rounded-xl border bg-white shadow-sm transition active:shadow-md ${
-            isMapSelected ? 'border-violet-400 ring-2 ring-violet-200' : 'border-slate-200'
-          }`}
+          className={cn(
+            'relative overflow-hidden rounded-2xl border bg-slate-100 shadow-[0_6px_20px_rgba(0,0,0,0.18)] ring-1 transition',
+            isMapSelected
+              ? 'border-white/70 ring-white/50'
+              : 'border-slate-200/80 ring-white/30'
+          )}
           data-no-translate
         >
           <BusinessProfileLink
             stretch
             href={getBusinessHref(biz)}
             aria-label={biz.business_name}
-            className="rounded-xl"
+            className="rounded-2xl"
           >
             <span className="sr-only">{t(effectiveLang, 'View profile')}</span>
           </BusinessProfileLink>
-          <div className="relative h-28 bg-slate-100">
+          <div className="relative h-28 bg-slate-200">
             <img
               src={
                 biz.logo_url ||
@@ -1831,15 +1809,10 @@ export default function BusinessesPage() {
               </span>
             ) : null}
           </div>
-          <div className="relative z-0 space-y-2 p-2">
+          <div className="relative z-0 space-y-2 p-2.5">
             <div className="pointer-events-none min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
                 <h3 className="line-clamp-1 text-sm font-bold text-slate-900">{biz.business_name}</h3>
-                {unclaimed ? (
-                  <span className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
-                    {t(effectiveLang, 'Unclaimed')}
-                  </span>
-                ) : null}
               </div>
               {displayCategory ? (
                 <span
@@ -1863,9 +1836,10 @@ export default function BusinessesPage() {
       <div
         key={biz.id}
         id={`business-${biz.id}`}
-        className={`relative flex gap-3 px-3 py-2.5 transition active:bg-slate-100/80 ${
-          isMapSelected ? 'bg-violet-50' : 'md:hover:bg-slate-50'
-        }`}
+        className={cn(
+          'relative mx-3 mb-2 flex gap-3 rounded-2xl border border-slate-200/80 bg-slate-100 px-3 py-2.5 shadow-sm ring-1 ring-white/30 transition',
+          isMapSelected ? 'border-white/70 ring-2 ring-white/40' : 'active:bg-slate-50'
+        )}
         data-no-translate
       >
         <BusinessProfileLink
@@ -1876,7 +1850,7 @@ export default function BusinessesPage() {
           <span className="sr-only">{t(effectiveLang, 'View profile')}</span>
         </BusinessProfileLink>
         <div className="pointer-events-none flex min-w-0 flex-1 gap-3">
-          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-white bg-slate-200 shadow-md ring-1 ring-slate-300/70">
             <img
               src={
                 biz.logo_url ||
@@ -1910,7 +1884,7 @@ export default function BusinessesPage() {
               <span className="text-[11px] text-slate-500">{locationLine}</span>
             </div>
             {distanceLine ? (
-              <p className="mt-0.5 text-[11px] font-medium text-violet-600">{distanceLine}</p>
+              <p className="mt-0.5 text-[11px] font-medium text-slate-600">{distanceLine}</p>
             ) : null}
           </div>
         </div>
@@ -1918,7 +1892,7 @@ export default function BusinessesPage() {
           <button
             type="button"
             onClick={(e) => toggleFavorite(e, biz.id)}
-            className="min-h-9 min-w-9 rounded-full p-2 text-slate-400 transition active:bg-slate-100 active:text-rose-500 touch-manipulation [-webkit-tap-highlight-color:transparent]"
+            className="min-h-9 min-w-9 rounded-full p-2 text-slate-400 transition active:bg-white active:text-rose-500 touch-manipulation [-webkit-tap-highlight-color:transparent]"
             aria-label={t(effectiveLang, 'Toggle favorite')}
           >
             {favorites.includes(biz.id) ? (
@@ -1945,244 +1919,143 @@ export default function BusinessesPage() {
 
   return (
     <PullToRefresh onRefresh={handlePullRefresh}>
-    <div className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
-      <div className="mx-auto max-w-[66rem] px-3 pt-0 sm:px-4">
-        {/* Search bar */}
-        <div className="sticky top-[calc(4rem+env(safe-area-inset-top,0px))] z-[110] -mx-3 mb-0 border-b border-slate-200 bg-white px-3 pb-3 pt-2.5 shadow-sm sm:px-4 sm:pt-3" data-no-pull-refresh="true">
-          <div className="mx-auto max-w-3xl">
-            <div className="relative">
-              <Search
-                className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-rose-500"
-                aria-hidden
-              />
-              <input
-                type="search"
-                placeholder={t(effectiveLang, 'Find a restaurant, salon, gym...')}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && query.trim()) setVisibleCount(6);
-                }}
-                className="w-full rounded-xl border-2 border-rose-200 bg-white py-2.5 pl-10 pr-10 text-sm font-medium text-slate-900 shadow-md ring-1 ring-rose-100 placeholder:font-normal placeholder:text-slate-500 transition focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 dark:border-rose-900/50 dark:bg-gray-800 dark:text-slate-100 dark:placeholder:text-slate-400 dark:focus:border-rose-400"
-              />
-              {searching ? (
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-slate-400">
-                  {t(effectiveLang, 'Searching…')}
-                </span>
-              ) : query ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuery('');
-                    setVisibleCount(6);
-                  }}
-                  className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                  aria-label={t(effectiveLang, 'Clear search')}
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
-        {categoriesModalOpen && typeof document !== 'undefined' && createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/35 p-3 pt-20 backdrop-blur-[2px] sm:pt-24"
-            onClick={() => setCategoriesModalOpen(false)}
-          >
-            <div
-              className="w-full max-w-sm rounded-xl border border-[#d5d9d9] bg-white p-3 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mb-2.5 flex items-center justify-between">
-                <h3 className="text-[15px] font-bold text-[#0f1111]">{t(effectiveLang, 'More categories')}</h3>
-                <button
-                  type="button"
-                  onClick={() => setCategoriesModalOpen(false)}
-                  className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-                  aria-label={t(effectiveLang, 'Close categories')}
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div className="max-h-[52vh] overflow-y-auto pr-1">
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedCategoryFilter(null);
-                      setCategoriesModalOpen(false);
-                      setVisibleCount(6);
-                    }}
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
-                      selectedCategoryFilter === null
-                        ? 'border border-indigo-200 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-500/35 dark:border-indigo-700 dark:bg-indigo-950/55 dark:text-indigo-100 dark:ring-indigo-400/45'
-                        : 'border border-slate-200/90 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <span aria-hidden>🌐</span>
-                    <span>{t(effectiveLang, 'All categories')}</span>
-                  </button>
-                  {moreCategories.map((category) => {
-                    const selected = selectedCategoryFilter === category;
-                    return (
-                      <button
-                        key={`more-cat-${category}`}
-                        type="button"
-                        onClick={() => {
-                          setSelectedCategoryFilter(category);
-                          setCategoriesModalOpen(false);
-                          setVisibleCount(6);
-                        }}
-                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
-                          selected
-                            ? 'border border-indigo-200 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-500/35 dark:border-indigo-700 dark:bg-indigo-950/55 dark:text-indigo-100 dark:ring-indigo-400/45'
-                            : 'border border-slate-200/90 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        <span>{translateUi(category)}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
-
-        {/* Category carousel */}
-        <section
-          className="relative left-1/2 mb-0 w-screen -translate-x-1/2 border-b border-slate-200/80 bg-white/80 py-2.5 backdrop-blur-sm dark:border-slate-700/80 dark:bg-gray-900/80"
-          onMouseEnter={() => pauseCategoryAutoplay(60_000)}
-          onMouseLeave={() => {
-            categoryUserPausedUntilRef.current = Date.now() + 1200;
-          }}
-          onTouchStart={() => pauseCategoryAutoplay()}
-        >
-          <div className="relative">
-            {categoryScrollHints.left ? (
-              <>
-                <div
-                  className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-white via-white/80 to-transparent dark:from-gray-900 dark:via-gray-900/80"
-                  aria-hidden
-                />
-                <button
-                  type="button"
-                  onClick={() => scrollCategories('left')}
-                  className="absolute left-1 top-1/2 z-20 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200/90 bg-white/95 text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-slate-600 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-gray-700"
-                  aria-label={t(effectiveLang, 'Scroll categories left')}
-                >
-                  <ChevronLeft className="h-4 w-4" aria-hidden />
-                </button>
-              </>
-            ) : null}
-
-            {categoryScrollHints.right ? (
-              <>
-                <div
-                  className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-white via-white/80 to-transparent dark:from-gray-900 dark:via-gray-900/80"
-                  aria-hidden
-                />
-                <button
-                  type="button"
-                  onClick={() => scrollCategories('right')}
-                  className="absolute right-1 top-1/2 z-20 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200/90 bg-white/95 text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-slate-600 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-gray-700"
-                  aria-label={t(effectiveLang, 'Scroll categories right')}
-                >
-                  <ChevronRight className="h-4 w-4" aria-hidden />
-                </button>
-              </>
-            ) : null}
-
-            <div
-              ref={categoryScrollRef}
-              onScroll={onCategoryScroll}
-              className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto scroll-smooth px-3 pb-1 scrollbar-hide [scroll-padding-inline:12px] [-webkit-overflow-scrolling:touch]"
-            >
-              {quickFilters.map((item) => {
-                const selected = item.more
-                  ? Boolean(selectedCategoryFilter && moreCategories.includes(selectedCategoryFilter))
-                  : selectedCategoryFilter === item.key;
-                return (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => {
-                      pauseCategoryAutoplay();
-                      if (item.more) {
-                        setCategoriesModalOpen(true);
-                      } else {
-                        setSelectedCategoryFilter(selected ? null : item.key);
-                        setQuery('');
-                        setCategoriesModalOpen(false);
-                      }
-                      setVisibleCount(6);
-                    }}
-                    className={cn(
-                      'inline-flex shrink-0 snap-start snap-always items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold shadow-sm transition',
-                      selected
-                        ? 'border border-indigo-200 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-500/35 dark:border-indigo-700 dark:bg-indigo-950/55 dark:text-indigo-100 dark:ring-indigo-400/45'
-                        : 'border border-slate-200/90 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-gray-800 dark:text-slate-200 dark:hover:bg-gray-700'
-                    )}
-                  >
-                    <span aria-hidden className="text-[17px] leading-none">
-                      {item.icon}
-                    </span>
-                    <span className="whitespace-nowrap">{translateUi(item.label)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
+    <div className="min-h-screen bg-gradient-to-b from-white via-white to-gray-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-10 sm:pb-12">
         <BusinessesMapPanel
-          locationBar={
-            <div className="relative z-30 space-y-2 overflow-visible border-b border-slate-100 bg-white px-3 py-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <p
-                  className={cn(
-                    'text-[10px] font-semibold uppercase tracking-wide',
-                    hasChosenLocation ? 'text-emerald-700' : 'text-slate-500'
-                  )}
+          mapOverlay={
+            <div
+              data-address-search-bar
+              className="flex items-stretch overflow-visible rounded-2xl border border-white/90 bg-white/95 shadow-[0_8px_28px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/70 backdrop-blur-md dark:border-slate-600/80 dark:bg-gray-900/95 dark:ring-slate-700/80"
+            >              <div ref={categoryDropdownRef} className="relative min-w-0 shrink-0 border-r border-slate-200/80 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setCategoryDropdownOpen((open) => !open)}
+                  aria-expanded={categoryDropdownOpen}
+                  aria-haspopup="listbox"
+                  className="flex h-11 max-w-[9.5rem] items-center gap-1.5 px-2.5 text-left sm:max-w-[11rem]"
                 >
-                  {hasChosenLocation
-                    ? t(effectiveLang, 'Selected location')
-                    : t(effectiveLang, 'Search in this area')}
-                </p>
-                {hasChosenLocation ? (
-                  <span className="min-w-0 truncate text-[10px] font-medium text-emerald-800">
-                    {chosenLocationDisplay}
+                  <span aria-hidden className="text-[13px] leading-none">
+                    {selectedCategoryDisplay.icon}
                   </span>
+                  <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-800 dark:text-slate-100">
+                    {selectedCategoryDisplay.label}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      'h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-200',
+                      categoryDropdownOpen && 'rotate-180'
+                    )}
+                    aria-hidden
+                  />
+                </button>
+
+                {categoryDropdownOpen ? (
+                  <div
+                    role="listbox"
+                    aria-label={t(effectiveLang, 'Categories')}
+                    className="absolute left-0 top-full z-40 mt-1.5 w-[min(22rem,calc(100vw-2rem))] max-h-80 overflow-y-auto rounded-xl border border-slate-200 bg-white py-2 shadow-xl dark:border-slate-600 dark:bg-gray-900"
+                  >
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={selectedCategoryFilter === null}
+                      onClick={() => selectCategoryFilter(null)}
+                      className={cn(
+                        'flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-base font-semibold transition hover:bg-slate-50 dark:hover:bg-gray-800',
+                        selectedCategoryFilter === null
+                          ? 'bg-indigo-50 text-indigo-900 dark:bg-indigo-950/55 dark:text-indigo-100'
+                          : 'text-slate-800 dark:text-slate-100'
+                      )}
+                    >
+                      <span aria-hidden className="text-xl leading-none">
+                        🌐
+                      </span>
+                      <span>{t(effectiveLang, 'All categories')}</span>
+                    </button>
+
+                    <p className="px-3.5 pb-1 pt-2.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      {t(effectiveLang, 'Popular')}
+                    </p>
+                    {quickFilters.map((item) => {
+                      const selected = selectedCategoryFilter === item.key;
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          onClick={() => selectCategoryFilter(selected ? null : item.key)}
+                          className={cn(
+                            'flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-base font-semibold transition hover:bg-slate-50 dark:hover:bg-gray-800',
+                            selected
+                              ? 'bg-indigo-50 text-indigo-900 dark:bg-indigo-950/55 dark:text-indigo-100'
+                              : 'text-slate-800 dark:text-slate-100'
+                          )}
+                        >
+                          <span aria-hidden className="text-xl leading-none">
+                            {item.icon}
+                          </span>
+                          <span className="truncate">{translateUi(item.label)}</span>
+                        </button>
+                      );
+                    })}
+
+                    {moreCategories.length > 0 ? (
+                      <>
+                        <div className="my-1.5 border-t border-slate-100 dark:border-slate-700" />
+                        <p className="px-3.5 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          {t(effectiveLang, 'All categories')}
+                        </p>
+                        {moreCategories.map((category) => {
+                          const selected = selectedCategoryFilter === category;
+                          return (
+                            <button
+                              key={`more-cat-${category}`}
+                              type="button"
+                              role="option"
+                              aria-selected={selected}
+                              onClick={() => selectCategoryFilter(selected ? null : category)}
+                              className={cn(
+                                'flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-base font-semibold transition hover:bg-slate-50 dark:hover:bg-gray-800',
+                                selected
+                                  ? 'bg-indigo-50 text-indigo-900 dark:bg-indigo-950/55 dark:text-indigo-100'
+                                  : 'text-slate-800 dark:text-slate-100'
+                              )}
+                            >
+                              <span aria-hidden className="text-xl leading-none">
+                                {getBusinessCategoryIcon(category)}
+                              </span>
+                              <span className="truncate">{translateUi(category)}</span>
+                            </button>
+                          );
+                        })}
+                      </>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
-              <div className="relative z-30 flex items-center gap-2 overflow-visible">
+
+              <div className="relative z-30 flex min-w-0 flex-1 items-center gap-1.5 overflow-visible px-2">
                 <AddressAutocomplete
                   value={locationSearchValue}
                   onSelect={handleLocationSelect}
                   onChange={setLocationSearchValue}
-                  placeholder={t(effectiveLang, 'Search country, state, city, ZIP, or address...')}
-                  mode="locality"
-                  className="min-w-0 flex-1"
-                  inputClassName={cn(
-                    'w-full rounded-lg border px-2.5 py-1.5 text-xs text-slate-900 transition focus:outline-none focus:ring-2 dark:bg-gray-800 dark:text-gray-100',
+                  placeholder={
                     hasChosenLocation
-                      ? 'border-emerald-300 bg-emerald-50/50 focus:border-emerald-400 focus:ring-emerald-500/25'
-                      : 'border-slate-200 bg-slate-50 focus:border-rose-400 focus:bg-white focus:ring-rose-500/25 dark:border-gray-600'
-                  )}
+                      ? chosenLocationDisplay || t(effectiveLang, 'Search location...')
+                      : t(effectiveLang, 'Search location...')
+                  }
+                  mode="locality"
+                  dropdownPlacement="under-search"
+                  className="min-w-0 flex-1"
+                  inputClassName="w-full border-0 bg-transparent px-0 py-2 text-[11px] font-semibold text-slate-800 placeholder:font-medium placeholder:text-slate-400 focus:outline-none focus:ring-0 dark:text-slate-100 dark:placeholder:text-slate-500"
                 />
+                <span className="h-5 w-px shrink-0 bg-slate-200 dark:bg-slate-600" aria-hidden />
                 <button
                   type="button"
                   onClick={handleUseMyLocation}
                   title={t(effectiveLang, 'Use my current location')}
                   aria-label={t(effectiveLang, 'Use my current location')}
-                  className="flex h-[34px] shrink-0 items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 text-[10px] font-semibold leading-none text-blue-800 shadow-sm transition hover:border-blue-300 hover:bg-blue-100 active:scale-[0.98] dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200 dark:hover:bg-blue-900/50"
+                  className="flex h-8 shrink-0 items-center gap-1 rounded-full px-1.5 text-[10px] font-semibold text-blue-700 transition hover:bg-blue-50 active:scale-[0.98] dark:text-blue-300 dark:hover:bg-blue-950/40"
                 >
                   <Navigation className="h-3.5 w-3.5 shrink-0 fill-blue-600 text-blue-600 dark:fill-blue-400 dark:text-blue-400" aria-hidden />
                   <span className="whitespace-nowrap">{t(effectiveLang, 'My location')}</span>
@@ -2237,6 +2110,7 @@ export default function BusinessesPage() {
             geocodingAddresses: t(effectiveLang, 'Geocoding addresses…'),
             radius: t(effectiveLang, 'Radius'),
             miles: t(effectiveLang, 'miles'),
+            away: t(effectiveLang, 'away'),
             openInMaps: t(effectiveLang, 'Directions'),
             viewProfile: t(effectiveLang, 'View profile'),
             call: t(effectiveLang, 'Call'),
@@ -2246,24 +2120,27 @@ export default function BusinessesPage() {
           }}
         />
 
+      <div className="mx-auto max-w-[66rem] px-3 sm:px-4">
         {trendingPremiumBusinesses.length > 0 && (
-          <section className="relative left-1/2 mb-4 w-screen -translate-x-1/2 px-3">
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between gap-2 border-b border-rose-200/80 bg-gradient-to-r from-white via-rose-50 to-rose-200 px-3 py-2.5">
-                <h2 className="inline-flex items-center gap-1.5 rounded-md border border-rose-200/80 bg-white/90 px-2.5 py-1 text-sm font-bold text-rose-950 shadow-sm">
-                  <TrendingUp className="h-4 w-4 text-rose-600" strokeWidth={2} aria-hidden />
+          <section className="relative left-1/2 mb-5 w-screen -translate-x-1/2 px-3">
+            <div className="overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900 shadow-[0_8px_28px_rgba(15,23,42,0.2)] ring-1 ring-white/10">
+              <div className="flex items-center justify-between gap-2 px-3.5 pb-1 pt-3">
+                <h2 className="inline-flex items-center gap-2 text-sm font-bold tracking-tight text-white">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-white shadow-sm ring-1 ring-white/20">
+                    <TrendingUp className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+                  </span>
                   <span>{t(effectiveLang, 'Trending businesses')}</span>
                 </h2>
                 {!isLoggedIn && (
                   <Link
                     href="/register"
-                    className="shrink-0 rounded-md border border-rose-200/80 bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-rose-900 transition hover:bg-white"
+                    className="shrink-0 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-white/90 shadow-sm transition hover:bg-white/20"
                   >
                     {t(effectiveLang, 'Register your business for free')}
                   </Link>
                 )}
               </div>
-              <div className="px-3 py-3">
+              <div className="px-3 pb-3 pt-2">
                 <TrendingBusinessesSlideshow
                   businesses={trendingPremiumBusinesses}
                   getBusinessHref={(biz) => getBusinessHref(biz as Business)}
@@ -2277,63 +2154,72 @@ export default function BusinessesPage() {
         )}
 
         {/* Businesses nearby */}
-        <section className="rounded-none border-y border-slate-200 bg-white" data-no-pull-refresh="true">
-          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-3">
-            <h2 className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-white px-3 py-1 text-base font-semibold tracking-tight text-slate-900 shadow-sm">
-              <Sparkles className="h-4 w-4 text-violet-500" strokeWidth={2} aria-hidden />
-              <span>{t(effectiveLang, 'Businesses nearby')}</span>
-            </h2>
-            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
-              <button
-                type="button"
-                onClick={() => setListLayout('list')}
-                className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
-                  listLayout === 'list'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-                aria-pressed={listLayout === 'list'}
-              >
-                <List className="h-3.5 w-3.5" aria-hidden />
-                {t(effectiveLang, 'List')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setListLayout('cards')}
-                className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
-                  listLayout === 'cards'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-                aria-pressed={listLayout === 'cards'}
-              >
-                <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
-                {t(effectiveLang, 'Cards')}
-              </button>
+        <section
+          className="relative left-1/2 mb-5 w-screen -translate-x-1/2 px-3"
+          data-no-pull-refresh="true"
+        >
+          <div className="overflow-hidden rounded-2xl border border-slate-700/60 bg-slate-900 shadow-[0_8px_28px_rgba(15,23,42,0.2)] ring-1 ring-white/10">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 pb-2 pt-3">
+              <h2 className="inline-flex items-center gap-2 text-sm font-bold tracking-tight text-white">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-white shadow-sm ring-1 ring-white/20">
+                  <Sparkles className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+                </span>
+                <span>{t(effectiveLang, 'Businesses nearby')}</span>
+              </h2>
+              <div className="inline-flex rounded-full border border-white/15 bg-white/10 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setListLayout('list')}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition',
+                    listLayout === 'list'
+                      ? 'bg-slate-100 text-slate-900 shadow-sm'
+                      : 'text-white/70 hover:text-white'
+                  )}
+                  aria-pressed={listLayout === 'list'}
+                >
+                  <List className="h-3.5 w-3.5" aria-hidden />
+                  {t(effectiveLang, 'List')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setListLayout('cards')}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition',
+                    listLayout === 'cards'
+                      ? 'bg-slate-100 text-slate-900 shadow-sm'
+                      : 'text-white/70 hover:text-white'
+                  )}
+                  aria-pressed={listLayout === 'cards'}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" aria-hidden />
+                  {t(effectiveLang, 'Cards')}
+                </button>
+              </div>
             </div>
-          </div>
-          {areaFilterActive && filtered.length === 0 && !isSpecificBusinessSearch && (
-            <div className="mx-3 mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
-              {t(effectiveLang, 'No businesses found in your selected area.')}
+            {areaFilterActive && filtered.length === 0 && !isSpecificBusinessSearch && (
+              <div className="mx-3 mb-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-slate-300">
+                {t(effectiveLang, 'No businesses found in your selected area.')}
+              </div>
+            )}
+            {areaFilterActive && filtered.length === 0 && isSpecificBusinessSearch && (
+              <div className="mx-3 mb-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-slate-300">
+                {t(effectiveLang, 'No matches found')}
+              </div>
+            )}
+            <div
+              className={
+                listLayout === 'cards'
+                  ? 'grid grid-cols-2 gap-2.5 px-3 pb-3 sm:grid-cols-3'
+                  : 'space-y-0 pb-3'
+              }
+            >
+              {listBusinesses.map((biz) => renderBusinessRow(biz))}
             </div>
-          )}
-          {areaFilterActive && filtered.length === 0 && isSpecificBusinessSearch && (
-            <div className="mx-3 mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700">
-              {t(effectiveLang, 'No matches found')}
-            </div>
-          )}
-          <div
-            className={
-              listLayout === 'cards'
-                ? 'grid grid-cols-2 gap-2 px-3 pb-3 sm:grid-cols-3'
-                : 'divide-y divide-slate-200'
-            }
-          >
-            {listBusinesses.map((biz) => renderBusinessRow(biz))}
           </div>
         </section>
 
-        <div ref={bottomRef} className="mt-8 sm:mt-10 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+        <div ref={bottomRef} className="mt-6 text-center text-xs text-slate-500 sm:mt-8 sm:text-sm">
           {!showAllInLocation && filtered.length > 0 && visible.length < filtered.length ? (
             <span className="inline-flex items-center gap-2">
               <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-gray-300 dark:border-gray-600 border-t-rose-500 dark:border-t-rose-400"></div>

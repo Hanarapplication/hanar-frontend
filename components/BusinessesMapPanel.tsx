@@ -20,6 +20,17 @@ import {
 import { USA_MAP_BOUNDS } from '@/lib/businessMapCoords';
 import { isValidMapAreaBounds, type MapAreaBounds } from '@/lib/mapAreaBounds';
 import { hasValidAreaRings, type MapAreaRing } from '@/lib/mapAreaPolygon';
+import { spokenLanguagesWithDialects, supportedLanguages } from '@/utils/languages';
+
+function formatSpokenLanguageLabel(code: string): string {
+  const normalized = code.trim().toLowerCase();
+  if (!normalized) return '';
+  const fromSpoken = spokenLanguagesWithDialects.find((l) => l.code.toLowerCase() === normalized);
+  if (fromSpoken?.label) return fromSpoken.label;
+  const fromSupported = supportedLanguages.find((l) => l.code.toLowerCase() === normalized);
+  if (fromSupported?.name) return fromSupported.name;
+  return code.trim();
+}
 
 export type MapViewportMode = 'usa' | 'area' | 'radius';
 
@@ -36,6 +47,9 @@ export type MapPanelBusiness = {
   lon: number;
   phone?: string | null;
   distanceMi?: number | null;
+  spoken_languages?: string[] | null;
+  /** Premium plan — gold ring on map pin. */
+  isPremium?: boolean;
 };
 
 type BusinessesMapPanelProps = {
@@ -76,6 +90,8 @@ type BusinessesMapPanelProps = {
   getBusinessHref: (biz: MapPanelBusiness) => string;
   /** Rendered at the top of the map card (e.g. location picker). */
   locationBar?: ReactNode;
+  /** Search, filters, etc. overlaid on the map surface. */
+  mapOverlay?: ReactNode;
   labels: {
     showOnMap: string;
     hideMap: string;
@@ -86,6 +102,7 @@ type BusinessesMapPanelProps = {
     geocodingAddresses: string;
     radius: string;
     miles: string;
+    away: string;
     openInMaps: string;
     viewProfile: string;
     call: string;
@@ -304,9 +321,9 @@ function computeViewportTarget(input: ViewportComputeInput): ViewportTarget | nu
     return extendBox({ south, west, north, east });
   };
 
-  const areaPad = { top: 40, right: 24, bottom: 56, left: 24 };
-  const radiusPad = { top: 48, right: 32, bottom: 64, left: 32 };
-  const usaPad = { top: 36, right: 20, bottom: 48, left: 20 };
+  const areaPad = { top: 132, right: 24, bottom: 56, left: 24 };
+  const radiusPad = { top: 132, right: 32, bottom: 64, left: 32 };
+  const usaPad = { top: 132, right: 20, bottom: 48, left: 20 };
 
   if (mapViewport === 'usa') {
     return {
@@ -465,6 +482,7 @@ export default function BusinessesMapPanel({
   selectedBusiness,
   getBusinessHref,
   locationBar,
+  mapOverlay,
   labels,
 }: BusinessesMapPanelProps) {
   const [internalExpanded, setInternalExpanded] = useState(defaultExpanded);
@@ -908,57 +926,33 @@ export default function BusinessesMapPanel({
     : null;
 
   const selectedPhone = selected?.phone?.trim() ?? '';
+  const selectedLanguages = (selected?.spoken_languages || [])
+    .map(formatSpokenLanguageLabel)
+    .filter(Boolean)
+    .slice(0, 2);
+  const languageLine = selectedLanguages.length > 0 ? selectedLanguages.join(' · ') : null;
   const mapActionIconWrap =
-    'flex h-6 w-6 items-center justify-center rounded-full bg-white/20 ring-1 ring-white/25 transition group-hover:bg-white/30';
-  const mapActionIconWrapMuted = 'flex h-6 w-6 items-center justify-center rounded-full bg-slate-200/80';
+    'flex h-5 w-5 items-center justify-center rounded-full bg-white/25 ring-1 ring-white/30 transition group-hover:bg-white/35';
+  const mapActionIconWrapMuted = 'flex h-5 w-5 items-center justify-center rounded-full bg-slate-200/80';
   const mapActionClass =
-    'group flex min-h-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-semibold leading-tight shadow-sm transition active:scale-[0.97] [-webkit-tap-highlight-color:transparent]';
+    'group flex min-h-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-[9px] font-semibold leading-tight shadow-sm transition active:scale-[0.97] [-webkit-tap-highlight-color:transparent]';
 
   const showMapSurface = expanded && Boolean(apiKey);
 
   return (
-    <section id="businesses-map-panel" className="relative left-1/2 mb-5 w-screen -translate-x-1/2 px-3">
-      <div className="rounded-lg border border-slate-200 bg-white">
-        <button
-          type="button"
-          onClick={toggleExpanded}
-          aria-expanded={expanded}
-          data-no-translate
-          className="flex w-full touch-manipulation items-center justify-between gap-2 bg-white px-3 py-2.5 text-left text-slate-800"
-        >
-          <span className="flex items-center gap-2 text-sm font-medium">
-            <MapPin className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
-            <span key={expanded ? 'hide-map' : 'show-map'}>
-              {expanded ? labels.hideMap : labels.showOnMap}
-            </span>
-            <span className="text-xs text-slate-500">
-              ({pinsForView.length}
-              {matchingCount > pinsForView.length ? ` / ${matchingCount}` : ''}
-              {!expanded &&
-              businesses.length > pinsForView.length &&
-              matchingCount <= businesses.length
-                ? ` / ${businesses.length}`
-                : ''}{' '}
-              {labels.onMap}
-              {totalRegisteredCount > businesses.length
-                ? ` · ${totalRegisteredCount} registered`
-                : ''}
-              )
-            </span>
-          </span>
-          {expanded ? (
-            <ChevronUp className="h-5 w-5 shrink-0 text-slate-500" aria-hidden />
-          ) : (
-            <ChevronDown className="h-5 w-5 shrink-0 text-slate-500" aria-hidden />
-          )}
-        </button>
-
-        {locationBar ? <div className="relative z-30 overflow-visible">{locationBar}</div> : null}
-
+    <section
+      id="businesses-map-panel"
+      className="relative left-1/2 mb-5 w-screen -translate-x-1/2 -mt-[calc(4rem+env(safe-area-inset-top,0px))] px-0"
+    >
+      <div className="overflow-hidden rounded-none border-0 bg-white">
         <div
           className={cn(
             'relative overflow-hidden bg-slate-100 transition-all duration-300 ease-out',
-            expanded ? 'h-[min(68vh,32rem)]' : 'h-20',
+            expanded
+              ? 'h-[100dvh]'
+              : mapOverlay || locationBar
+                ? 'h-[calc(4rem+env(safe-area-inset-top,0px)+13rem)]'
+                : 'h-[calc(4rem+env(safe-area-inset-top,0px)+5rem)]',
             mapInteractionLocked && 'pointer-events-none'
           )}
         >
@@ -971,18 +965,6 @@ export default function BusinessesMapPanel({
               onError={() => setMapError('Map failed to load')}
             />
           )}
-
-          {onShareMapLocation && expanded ? (
-            <button
-              type="button"
-              onClick={onShareMapLocation}
-              disabled={sharingMapLocation}
-              className="absolute bottom-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-md transition hover:bg-white disabled:opacity-60"
-            >
-              <Navigation className="h-3.5 w-3.5 shrink-0 text-blue-600" aria-hidden />
-              {sharingMapLocation ? '…' : youOnMap ? labels.myLocationOnMap : labels.shareMyLocation}
-            </button>
-          ) : null}
 
           {showMapSurface ? (
             <div ref={mapRef} className="hanar-businesses-map-surface absolute inset-0" />
@@ -1035,9 +1017,13 @@ export default function BusinessesMapPanel({
                       ) : null}
                       <span
                         className={cn(
-                          'overflow-hidden rounded-full border-2 border-white bg-slate-200 shadow-md',
+                          'overflow-hidden rounded-full border-2 bg-slate-200 shadow-md',
                           expanded ? 'h-7 w-7' : 'h-5 w-5',
-                          active && 'border-violet-600 ring-2 ring-violet-300'
+                          active
+                            ? 'border-violet-600 ring-2 ring-violet-300'
+                            : biz.isPremium
+                              ? 'border-[#e8c547] shadow-[0_0_0_1.5px_rgba(255,255,255,0.95),0_4px_10px_rgba(212,160,23,0.35)]'
+                              : 'border-white'
                         )}
                       >
                         <img
@@ -1050,8 +1036,8 @@ export default function BusinessesMapPanel({
                       </span>
                       <span
                         className={cn(
-                          'h-0 w-0 border-x-[5px] border-t-[6px] border-x-transparent border-t-white',
-                          active && 'border-t-violet-600'
+                          'h-0 w-0 border-x-[5px] border-t-[6px] border-x-transparent',
+                          active ? 'border-t-violet-600' : 'border-t-white'
                         )}
                         aria-hidden
                       />
@@ -1105,6 +1091,176 @@ export default function BusinessesMapPanel({
             </div>
           ) : null}
 
+          {mapOverlay || locationBar ? (
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-3 pb-2 pt-[calc(4rem+env(safe-area-inset-top,0px)+0.75rem)] pr-14">
+              <div className="pointer-events-auto overflow-visible">{mapOverlay}</div>
+              {locationBar ? <div className="pointer-events-auto mt-2 overflow-visible">{locationBar}</div> : null}
+            </div>
+          ) : null}
+
+          {onShareMapLocation && expanded ? (
+            <button
+              type="button"
+              onClick={onShareMapLocation}
+              disabled={sharingMapLocation}
+              className={cn(
+                'absolute left-3 z-20 inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-md transition hover:bg-white disabled:opacity-60',
+                selected && isRadiusMode
+                  ? 'bottom-[14.25rem]'
+                  : selected
+                    ? 'bottom-[10rem]'
+                    : isRadiusMode
+                      ? 'bottom-[4.75rem]'
+                      : 'bottom-4'
+              )}
+            >
+              <Navigation className="h-3.5 w-3.5 shrink-0 text-blue-600" aria-hidden />
+              {sharingMapLocation ? '…' : youOnMap ? labels.myLocationOnMap : labels.shareMyLocation}
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={toggleExpanded}
+            aria-expanded={expanded}
+            data-no-translate
+            className="absolute right-3 z-30 inline-flex touch-manipulation items-center justify-center rounded-full border border-white/80 bg-white/95 p-2 text-slate-700 shadow-md ring-1 ring-slate-200/80 backdrop-blur-sm transition hover:bg-white active:scale-[0.98] dark:border-slate-600/80 dark:bg-gray-900/95 dark:text-slate-100 dark:ring-slate-700/80 top-[calc(4rem+env(safe-area-inset-top,0px)+0.75rem)]"
+            aria-label={expanded ? labels.hideMap : labels.showOnMap}
+            title={expanded ? labels.hideMap : labels.showOnMap}
+          >
+            {expanded ? (
+              <ChevronUp className="h-4 w-4 shrink-0" aria-hidden />
+            ) : (
+              <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
+            )}
+          </button>
+
+          {isRadiusMode && expanded && (
+            <div
+              className={cn(
+                'absolute left-3 right-3 z-20 rounded-xl border border-white/90 bg-white/95 px-3 py-2 shadow-md backdrop-blur-sm',
+                selected ? 'bottom-[10rem]' : 'bottom-4'
+              )}
+            >
+              <label className="mb-1 flex items-center justify-between text-[10px] text-slate-600">
+                <span>{labels.radius}</span>
+                <span className="font-semibold text-slate-800">
+                  {radiusMiles} {labels.miles}
+                </span>
+              </label>
+              <input
+                type="range"
+                min={minRadiusMiles}
+                max={maxRadiusMiles}
+                step={5}
+                value={radiusMiles}
+                onChange={(e) => onRadiusChange(Number(e.target.value))}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-slate-700"
+              />
+            </div>
+          )}
+
+          {selected && expanded && (
+            <div
+              className="absolute inset-x-3 bottom-3 z-30 overflow-hidden rounded-2xl border border-white/30 bg-white/20 p-3 shadow-[0_12px_40px_rgba(15,23,42,0.18)] ring-1 ring-white/35 backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-slate-900/20 dark:ring-white/10"
+              data-no-translate
+            >
+              <div className="mb-2.5 flex min-w-0 items-start gap-2.5">
+                <img
+                  src={
+                    selected.logo_url ||
+                    'https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=200&auto=format&fit=crop'
+                  }
+                  alt=""
+                  className="h-11 w-11 shrink-0 rounded-xl object-cover ring-2 ring-violet-500 ring-offset-1 ring-offset-white/80"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-1 text-[15px] font-bold tracking-tight text-slate-900 dark:text-white">
+                    {selected.business_name}
+                  </p>
+                </div>
+                {(languageLine || selected.distanceMi != null) && (
+                  <div className="max-w-[42%] shrink-0 text-right">
+                    {languageLine ? (
+                      <p className="line-clamp-1 text-[10px] font-semibold text-slate-700 dark:text-slate-200">
+                        {languageLine}
+                      </p>
+                    ) : null}
+                    {selected.distanceMi != null ? (
+                      <p className="mt-0.5 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
+                        {selected.distanceMi.toFixed(1)} {labels.miles} {labels.away}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {mapsDirectionsUrl ? (
+                  <a
+                    href={mapsDirectionsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(
+                      mapActionClass,
+                      'bg-gradient-to-b from-slate-700 to-slate-800 text-white shadow-slate-900/25 hover:from-slate-800 hover:to-slate-900'
+                    )}
+                  >
+                    <span className={mapActionIconWrap}>
+                      <Navigation className="h-3 w-3" strokeWidth={2.25} aria-hidden />
+                    </span>
+                    <span>{labels.openInMaps}</span>
+                  </a>
+                ) : (
+                  <span
+                    className={cn(mapActionClass, 'cursor-not-allowed bg-slate-100/80 text-slate-400 shadow-none')}
+                    aria-disabled
+                  >
+                    <span className={mapActionIconWrapMuted}>
+                      <Navigation className="h-3 w-3" aria-hidden />
+                    </span>
+                    <span>{labels.openInMaps}</span>
+                  </span>
+                )}
+                <BusinessProfileLink
+                  href={getBusinessHref(selected)}
+                  className={cn(
+                    mapActionClass,
+                    'bg-gradient-to-b from-slate-700 to-slate-800 text-white shadow-slate-900/25 active:from-slate-800 active:to-slate-900 md:hover:from-slate-800 md:hover:to-slate-900'
+                  )}
+                >
+                  <span className={mapActionIconWrap}>
+                    <User className="h-3 w-3" strokeWidth={2.25} aria-hidden />
+                  </span>
+                  <span>{labels.viewProfile}</span>
+                </BusinessProfileLink>
+                {selectedPhone ? (
+                  <a
+                    href={`tel:${selectedPhone}`}
+                    className={cn(
+                      mapActionClass,
+                      'bg-gradient-to-b from-slate-700 to-slate-800 text-white shadow-slate-900/25 hover:from-slate-800 hover:to-slate-900'
+                    )}
+                  >
+                    <span className={mapActionIconWrap}>
+                      <Phone className="h-3 w-3" strokeWidth={2.25} aria-hidden />
+                    </span>
+                    <span>{labels.call}</span>
+                  </a>
+                ) : (
+                  <span
+                    className={cn(mapActionClass, 'cursor-not-allowed bg-slate-100/80 text-slate-400 shadow-none')}
+                    aria-disabled
+                  >
+                    <span className={mapActionIconWrapMuted}>
+                      <Phone className="h-3 w-3" aria-hidden />
+                    </span>
+                    <span>{labels.call}</span>
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {!expanded && (
             <p className="pointer-events-none absolute bottom-1 left-0 right-0 text-center text-[10px] text-slate-500">
               {labels.tapToExplore}
@@ -1112,141 +1268,11 @@ export default function BusinessesMapPanel({
           )}
 
           {mapError && expanded && (
-            <p className="absolute inset-0 flex items-center justify-center bg-white/90 p-4 text-center text-sm text-red-600">
+            <p className="absolute inset-0 z-40 flex items-center justify-center bg-white/90 p-4 text-center text-sm text-red-600">
               {mapError}
             </p>
           )}
         </div>
-
-        {isRadiusMode && expanded && (
-        <div className="border-t border-slate-200 bg-white px-3 py-2.5">
-            <label className="mb-1 flex items-center justify-between text-xs text-slate-600">
-              <span>{labels.radius}</span>
-              <span className="font-semibold text-slate-800">
-                {radiusMiles} {labels.miles}
-              </span>
-            </label>
-            <input
-              type="range"
-              min={minRadiusMiles}
-              max={maxRadiusMiles}
-              step={5}
-              value={radiusMiles}
-              onChange={(e) => onRadiusChange(Number(e.target.value))}
-              className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-slate-700"
-            />
-          </div>
-        )}
-
-        {selected && expanded && (
-          <div className="border-t border-slate-200 bg-gradient-to-b from-white to-slate-50 p-2.5" data-no-translate>
-            <div className="mb-2 flex min-w-0 items-center gap-2.5">
-              <img
-                src={selected.logo_url || 'https://images.unsplash.com/photo-1557426272-fc91fdb8f385?w=200&auto=format&fit=crop'}
-                alt=""
-                className="h-9 w-9 shrink-0 rounded-md object-cover ring-1 ring-slate-200"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="line-clamp-2 text-sm font-semibold text-slate-900">{selected.business_name}</p>
-                {selected.distanceMi != null && (
-                  <p className="text-xs text-slate-500">
-                    {selected.distanceMi.toFixed(1)} {labels.miles}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {mapsDirectionsUrl ? (
-                <a
-                  href={mapsDirectionsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(
-                    mapActionClass,
-                    'bg-gradient-to-b from-blue-500 to-blue-600 text-white shadow-blue-500/30 hover:from-blue-600 hover:to-blue-700'
-                  )}
-                >
-                  <span className={mapActionIconWrap}>
-                    <Navigation className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
-                  </span>
-                  <span>{labels.openInMaps}</span>
-                </a>
-              ) : (
-                <span
-                  className={cn(mapActionClass, 'cursor-not-allowed bg-slate-100 text-slate-400 shadow-none')}
-                  aria-disabled
-                >
-                  <span className={mapActionIconWrapMuted}>
-                    <Navigation className="h-3.5 w-3.5" aria-hidden />
-                  </span>
-                  <span>{labels.openInMaps}</span>
-                </span>
-              )}
-              <BusinessProfileLink
-                href={getBusinessHref(selected)}
-                className={cn(
-                  mapActionClass,
-                  'bg-gradient-to-b from-violet-600 to-violet-700 text-white shadow-violet-500/30 active:from-violet-700 active:to-violet-800 md:hover:from-violet-700 md:hover:to-violet-800'
-                )}
-              >
-                <span className={mapActionIconWrap}>
-                  <User className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
-                </span>
-                <span>{labels.viewProfile}</span>
-              </BusinessProfileLink>
-              {selectedPhone ? (
-                <a
-                  href={`tel:${selectedPhone}`}
-                  className={cn(
-                    mapActionClass,
-                    'bg-gradient-to-b from-emerald-500 to-emerald-600 text-white shadow-emerald-500/30 hover:from-emerald-600 hover:to-emerald-700'
-                  )}
-                >
-                  <span className={mapActionIconWrap}>
-                    <Phone className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
-                  </span>
-                  <span>{labels.call}</span>
-                </a>
-              ) : (
-                <span
-                  className={cn(mapActionClass, 'cursor-not-allowed bg-slate-100 text-slate-400 shadow-none')}
-                  aria-disabled
-                >
-                  <span className={mapActionIconWrapMuted}>
-                    <Phone className="h-3.5 w-3.5" aria-hidden />
-                  </span>
-                  <span>{labels.call}</span>
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {expanded ? (
-        <div className="flex gap-2 overflow-x-auto border-t border-slate-200 p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {chips.map((biz) => {
-            const active = selectedId === biz.id;
-            return (
-              <button
-                key={`chip-${biz.id}`}
-                type="button"
-                onClick={() => {
-                  onSelect(biz.id);
-                  if (!expanded && !suppressExpandRef.current) setExpanded(true);
-                }}
-                className={cn(
-                  'shrink-0 rounded-md border px-2.5 py-1 text-xs font-medium transition',
-                  active
-                    ? 'border-slate-800 bg-slate-800 text-white'
-                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'
-                )}
-              >
-                {biz.business_name}
-              </button>
-            );
-          })}
-        </div>
-        ) : null}
       </div>
     </section>
   );

@@ -9,6 +9,7 @@ export type BusinessMapPinData = {
   logo_url: string;
   lat: number;
   lon: number;
+  isPremium?: boolean;
 };
 
 export type BusinessPinOverlayHandle = google.maps.OverlayView & {
@@ -49,6 +50,7 @@ export function createBusinessPinOverlay(
       currentBiz = next;
       this.position = new google.maps.LatLng(next.lat, next.lon);
       if (!this.div) return;
+      this.div.classList.toggle('hanar-business-map-pin--premium', Boolean(next.isPremium));
       this.div.setAttribute('aria-label', next.business_name);
       const nameEl = this.div.querySelector('.hanar-business-map-pin__name');
       if (nameEl) nameEl.textContent = next.business_name;
@@ -90,6 +92,7 @@ export function createBusinessPinOverlay(
         'hanar-business-map-pin',
         options.animateEntry ? '' : 'hanar-business-map-pin--instant',
         this.selected ? 'hanar-business-map-pin--selected' : '',
+        currentBiz.isPremium ? 'hanar-business-map-pin--premium' : '',
       ]
         .filter(Boolean)
         .join(' ');

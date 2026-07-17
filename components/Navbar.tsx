@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ArrowLeft, Bell, CircleUserRound, MessageCircle, ShoppingCart, Store } from 'lucide-react';
+import { ArrowLeft, Bell, CircleUserRound, MapPin, MessageCircle, ShoppingCart, Store } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Avatar } from '@/components/Avatar';
 import { writeSavedSearchRadiusMiles } from '@/lib/geoDistance';
@@ -582,38 +582,11 @@ export default function Navbar({
     }
   }, [dashboardIdentity.loggedIn, dashboardIdentity.publicProfileHref, router]);
 
-  /** Home bottom bar — white chips without borders. */
-  const homeBottomBarChip =
-    'relative flex h-full min-h-[3.25rem] w-full min-w-0 flex-col items-center justify-center gap-0.5 overflow-visible rounded-2xl bg-white px-0.5 py-1 text-slate-800 transition-all duration-200 ease-out hover:bg-slate-50/60 active:scale-[0.97] active:bg-pink-200/55 active:text-pink-700 active:[&_span]:text-pink-700 active:[&_svg]:text-pink-600 [-webkit-tap-highlight-color:transparent]';
-  const homeBottomBarChipActive =
-    'bg-white text-pink-700 hover:bg-pink-50/40 [&_span]:text-pink-700 [&_svg]:text-pink-600';
-  const homeBottomBarChipSplash =
-    'bg-pink-100 text-pink-700 [&_span]:text-pink-700 [&_svg]:text-pink-600';
+  /** Home bottom bar — destination CTAs (not tab chrome). */
+  const homeBottomBarCta =
+    'relative flex min-h-[4.75rem] w-full items-center gap-2 overflow-hidden rounded-2xl px-2.5 py-2.5 text-left transition active:scale-[0.98] sm:min-h-[5rem] sm:gap-3 sm:px-3.5 sm:py-3 [-webkit-tap-highlight-color:transparent]';
+  const homeBottomBarCtaSplash = 'ring-2 ring-pink-400/70';
   const homeBottomBarIconClass = 'h-6 w-6 shrink-0 text-slate-700';
-  const homeBottomBarIconWrap = 'relative inline-flex shrink-0 items-center justify-center';
-  const homeBottomBarIconBadge =
-    'pointer-events-none absolute -right-2 -top-1.5 z-10 inline-flex h-[15px] min-w-[15px] max-w-none shrink-0 items-center justify-center rounded-full bg-pink-500 px-0.5 text-[9px] font-bold leading-none text-white ring-2 ring-white shadow-sm whitespace-nowrap';
-  const homeBottomBarTabStack = 'flex w-full min-w-0 max-w-full flex-col items-center justify-center gap-0.5';
-  const homeBottomBarChipLabel =
-    'block w-full min-w-0 max-w-full px-0.5 text-center text-[8px] font-semibold leading-[1.15] tracking-tight text-inherit hyphens-auto whitespace-normal break-words [overflow-wrap:anywhere] sm:text-[9px]';
-
-  const renderHomeBottomBarTab = (
-    icon: React.ReactNode,
-    label: string,
-    badgeCount?: number
-  ) => (
-    <span className={homeBottomBarTabStack}>
-      <span className={homeBottomBarIconWrap}>
-        {icon}
-        {badgeCount != null && badgeCount > 0 ? (
-          <span className={homeBottomBarIconBadge}>{badgeCount > 99 ? '99+' : badgeCount}</span>
-        ) : null}
-      </span>
-      <span className={homeBottomBarChipLabel} title={label}>
-        {label}
-      </span>
-    </span>
-  );
 
   const goToQuickAction = (href: string) => {
     setNotificationsOpen(false);
@@ -627,6 +600,13 @@ export default function Navbar({
       return next;
     });
   };
+
+  const topHeaderActionBtn = cn(
+    topNavIconBtn,
+    'text-slate-800 dark:text-[#e4e6eb]'
+  );
+  const topHeaderBadge =
+    'pointer-events-none absolute right-1.5 top-1.5 z-10 inline-flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-pink-500 px-0.5 text-[9px] font-bold leading-none text-white ring-2 ring-white';
 
   const primaryNavItems: {
     key: string;
@@ -805,18 +785,24 @@ export default function Navbar({
     onHomeBottomBarDocked?.(docked);
   }, [isHomeFeedRoute, hidden, homeBottomBarScrollHidden, onHomeBottomBarDocked]);
 
-  const homeBottomBarOffScreen = hidden || homeBottomBarScrollHidden;
-
   return (
     <>
       <nav
         data-top-nav="true"
         className={cn(
-          'fixed top-0 left-0 right-0 z-[120] bg-white pt-[env(safe-area-inset-top,0px)] transition-all duration-200',
-          isDirectorySearchChromeRoute || isHomeFeedRoute
-            ? 'border-b-0 shadow-none dark:border-b-0 dark:bg-white dark:shadow-none'
-            : 'border-b border-[#e4e6eb] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:border-[#e4e6eb] dark:bg-white dark:shadow-[0_1px_2px_rgba(0,0,0,0.05)]',
-          hidden ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100',
+          'left-0 right-0 top-0 z-[120] pt-[env(safe-area-inset-top,0px)] transition-all duration-200',
+          // Businesses: overlay the map, but scroll away with the page (not sticky/fixed).
+          isBusinessesDirectoryPage ? 'absolute' : 'fixed',
+          isBusinessesDirectoryPage
+            ? 'border-b-0 bg-transparent shadow-none backdrop-blur-none dark:border-b-0 dark:bg-transparent dark:shadow-none'
+            : isDirectorySearchChromeRoute || isHomeFeedRoute
+              ? 'border-b-0 bg-white shadow-none dark:border-b-0 dark:bg-white dark:shadow-none'
+              : 'border-b border-[#e4e6eb] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:border-[#e4e6eb] dark:bg-white dark:shadow-[0_1px_2px_rgba(0,0,0,0.05)]',
+          isBusinessesDirectoryPage
+            ? 'translate-y-0 opacity-100'
+            : hidden
+              ? '-translate-y-full opacity-0 pointer-events-none'
+              : 'translate-y-0 opacity-100',
         )}
       >
         <div className="relative mx-auto flex h-16 min-h-16 max-w-[1920px] items-center justify-between gap-2.5 px-3 sm:gap-3 sm:px-4">
@@ -837,21 +823,63 @@ export default function Navbar({
                 title={t(effectiveLang, 'Back')}
                 onClick={goBackSmart}
                 className={cn(
-                  topNavIconBtn,
-                  'text-pink-600 opacity-80 hover:opacity-100 dark:text-pink-400',
+                  'relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                  'bg-pink-500 text-white shadow-[0_4px_14px_rgba(236,72,153,0.45)]',
+                  'ring-1 ring-pink-400/40 transition',
+                  'hover:bg-pink-600 hover:shadow-[0_6px_18px_rgba(236,72,153,0.55)]',
+                  'active:scale-[0.96] [-webkit-tap-highlight-color:transparent]',
+                  'dark:bg-pink-500 dark:text-white dark:hover:bg-pink-400',
                 )}
               >
-                <ArrowLeft className="h-7 w-7" strokeWidth={2} aria-hidden />
+                <ArrowLeft className="h-5 w-5" strokeWidth={2.5} aria-hidden />
               </button>
             )}
           </div>
           {isBusinessesDirectoryPage || isMarketplaceDirectoryPage ? (
-            <h1 className="pointer-events-none absolute inset-x-0 truncate px-16 text-center text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+            <h1
+              className={cn(
+                'pointer-events-none absolute inset-x-0 truncate px-16 text-center text-lg font-bold tracking-tight text-slate-900 dark:text-white',
+                isBusinessesDirectoryPage && 'drop-shadow-[0_1px_2px_rgba(255,255,255,0.85)]',
+              )}
+            >
               {isBusinessesDirectoryPage ? t(effectiveLang, 'Businesses') : t(effectiveLang, 'Marketplace')}
             </h1>
           ) : null}
-          <div className="relative z-[1] flex min-w-0 flex-1 items-center justify-end gap-1 sm:gap-1.5">
+          <div className="relative z-[1] flex min-w-0 flex-1 items-center justify-end gap-0.5 sm:gap-1">
             <NavbarEntitySearch effectiveLang={effectiveLang} />
+            {isHomeFeedRoute ? (
+              <>
+                <Link
+                  href="/messages?view=inbox"
+                  aria-label={t(effectiveLang, 'Messages')}
+                  title={t(effectiveLang, 'Messages')}
+                  onClick={() => setNotificationsOpen(false)}
+                  className={topHeaderActionBtn}
+                >
+                  <MessageCircle className="h-6 w-6" strokeWidth={2} aria-hidden />
+                  {unreadMessageCount > 0 ? (
+                    <span className={topHeaderBadge}>
+                      {unreadMessageCount > 99 ? '99+' : unreadMessageCount}
+                    </span>
+                  ) : null}
+                </Link>
+                <button
+                  ref={notificationsBellRef}
+                  type="button"
+                  onClick={toggleNotifications}
+                  className={cn(topHeaderActionBtn, notificationsOpen && 'bg-[#f2f2f2] dark:bg-white/10')}
+                  aria-label={t(effectiveLang, 'Notifications')}
+                  title={t(effectiveLang, 'Notifications')}
+                  aria-expanded={notificationsOpen}
+                  aria-haspopup="dialog"
+                >
+                  <Bell className="h-6 w-6" strokeWidth={2} aria-hidden />
+                  {unreadCount > 0 ? (
+                    <span className={topHeaderBadge}>{unreadCount > 99 ? '99+' : unreadCount}</span>
+                  ) : null}
+                </button>
+              </>
+            ) : null}
             <Link
               href={profileNav.href}
               aria-label={t(effectiveLang, 'Dashboard')}
@@ -867,8 +895,8 @@ export default function Navbar({
 
       {isHomeFeedRoute ? (
         <nav
-          aria-label="Home feed quick actions"
-          className={`fixed bottom-0 left-0 right-0 z-[115] overflow-visible border-t border-slate-200/60 bg-white pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_32px_rgba(15,23,42,0.08)] dark:border-slate-200/60 dark:bg-white ${
+          aria-label="Explore nearby"
+          className={`fixed bottom-0 left-0 right-0 z-[115] overflow-visible border-t border-slate-200/70 bg-white/95 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-10px_36px_rgba(15,23,42,0.1)] backdrop-blur-md dark:border-slate-200/70 dark:bg-white/95 ${
             hidden
               ? 'translate-y-full opacity-0 pointer-events-none transition-all duration-200'
               : homeBottomBarScrollHidden
@@ -876,86 +904,66 @@ export default function Navbar({
                 : 'translate-y-0 transition-transform duration-300 [transition-timing-function:cubic-bezier(0.4,0,0.2,1)]'
           }`}
         >
-          <div className="mx-auto grid min-h-[4.25rem] w-full max-w-[1920px] auto-rows-fr grid-cols-4 items-stretch gap-1 overflow-visible px-1.5 py-1.5 sm:gap-1.5 sm:px-2.5">
+          <div className="mx-auto grid w-full max-w-[1920px] grid-cols-2 gap-2 px-2 py-2 sm:gap-3 sm:px-3 sm:py-2.5">
             <Link
               href={businessesItem.href}
-              aria-label={businessesItem.label}
+              aria-label={t(effectiveLang, 'Businesses near you')}
               onClick={() => {
                 triggerHomeBottomBarSplash('businesses');
                 setNotificationsOpen(false);
               }}
               className={cn(
-                homeBottomBarChip,
-                businessesItem.isActive(pathname) && homeBottomBarChipActive,
-                homeBottomBarSplash === 'businesses' && homeBottomBarChipSplash,
+                homeBottomBarCta,
+                'border border-pink-200/80 bg-gradient-to-br from-pink-50 via-white to-rose-50 shadow-sm ring-1 ring-pink-100/80',
+                'hover:border-pink-300 hover:shadow-md',
+                homeBottomBarSplash === 'businesses' && homeBottomBarCtaSplash
               )}
             >
-              {renderHomeBottomBarTab(
-                businessesItem.icon(businessesItem.isActive(pathname)),
-                businessesItem.label
-              )}
+              <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-pink-500 text-white shadow-[0_6px_16px_rgba(236,72,153,0.35)] sm:h-12 sm:w-12 sm:rounded-2xl">
+                <Store className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.25} aria-hidden />
+                <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-pink-600 shadow-sm ring-1 ring-pink-200">
+                  <MapPin className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+                </span>
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-bold leading-snug tracking-tight text-slate-900 sm:text-base">
+                  {t(effectiveLang, 'Businesses near you')}
+                </span>
+                <span className="mt-0.5 block text-xs font-medium leading-snug text-slate-600 sm:text-[13px]">
+                  {t(effectiveLang, 'Find local shops on the map')}
+                </span>
+              </span>
             </Link>
+
             <Link
               href={marketplaceItem.href}
-              aria-label={marketplaceItem.label}
+              aria-label={t(effectiveLang, 'Marketplace nearby')}
               onClick={() => {
                 triggerHomeBottomBarSplash('marketplace');
                 setNotificationsOpen(false);
               }}
               className={cn(
-                homeBottomBarChip,
-                marketplaceItem.isActive(pathname) && homeBottomBarChipActive,
-                homeBottomBarSplash === 'marketplace' && homeBottomBarChipSplash,
+                homeBottomBarCta,
+                'border border-slate-200/90 bg-gradient-to-br from-slate-50 via-white to-indigo-50/60 shadow-sm ring-1 ring-slate-100',
+                'hover:border-slate-300 hover:shadow-md',
+                homeBottomBarSplash === 'marketplace' && homeBottomBarCtaSplash
               )}
             >
-              {renderHomeBottomBarTab(
-                marketplaceItem.icon(marketplaceItem.isActive(pathname)),
-                marketplaceItem.label
-              )}
+              <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-white shadow-[0_6px_16px_rgba(15,23,42,0.28)] sm:h-12 sm:w-12 sm:rounded-2xl">
+                <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.25} aria-hidden />
+                <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200">
+                  <MapPin className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+                </span>
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-bold leading-snug tracking-tight text-slate-900 sm:text-base">
+                  {t(effectiveLang, 'Marketplace nearby')}
+                </span>
+                <span className="mt-0.5 block text-xs font-medium leading-snug text-slate-600 sm:text-[13px]">
+                  {t(effectiveLang, 'Browse listings around you')}
+                </span>
+              </span>
             </Link>
-            <button
-              type="button"
-              onClick={() => {
-                triggerHomeBottomBarSplash('messages');
-                goToQuickAction('/messages?view=inbox');
-              }}
-              className={cn(
-                homeBottomBarChip,
-                pathname.startsWith('/messages') && homeBottomBarChipActive,
-                homeBottomBarSplash === 'messages' && homeBottomBarChipSplash,
-              )}
-              aria-label={t(effectiveLang, 'Messages')}
-              title={t(effectiveLang, 'Messages')}
-            >
-              {renderHomeBottomBarTab(
-                <MessageCircle className={homeBottomBarIconClass} strokeWidth={2} aria-hidden />,
-                t(effectiveLang, 'Messages'),
-                unreadMessageCount
-              )}
-            </button>
-            <button
-              ref={notificationsBellRef}
-              type="button"
-              onClick={() => {
-                triggerHomeBottomBarSplash('notifications');
-                toggleNotifications();
-              }}
-              className={cn(
-                homeBottomBarChip,
-                notificationsOpen && homeBottomBarChipActive,
-                homeBottomBarSplash === 'notifications' && homeBottomBarChipSplash,
-              )}
-              aria-label={t(effectiveLang, 'Notifications')}
-              title={t(effectiveLang, 'Notifications')}
-              aria-expanded={notificationsOpen}
-              aria-haspopup="dialog"
-            >
-              {renderHomeBottomBarTab(
-                <Bell className={homeBottomBarIconClass} strokeWidth={2} aria-hidden />,
-                t(effectiveLang, 'Notifications'),
-                unreadCount
-              )}
-            </button>
           </div>
         </nav>
       ) : null}
@@ -965,18 +973,10 @@ export default function Navbar({
         role="dialog"
         aria-label="Notifications"
         aria-hidden={!notificationsOpen}
-        className={`fixed right-2 z-[125] w-[min(19rem,calc(100vw-1rem))] rounded-xl border border-[#e4e6eb] bg-white shadow-2xl transition-all duration-200 dark:border-[#3e4042] dark:bg-[#242526] sm:right-3 ${
-          isHomeFeedRoute
-            ? `origin-bottom-right ${notificationsOpen ? 'pointer-events-auto translate-y-0 scale-100 opacity-100' : 'pointer-events-none translate-y-2 scale-95 opacity-0'} ${
-                homeBottomBarOffScreen
-                  ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+10px)]'
-                  : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px)+6px)]'
-              }`
-            : `origin-top-right top-[calc(env(safe-area-inset-top,0px)+4rem+2px)] ${
-                notificationsOpen
-                  ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
-                  : 'pointer-events-none -translate-y-2 scale-95 opacity-0'
-              }`
+        className={`fixed right-2 z-[125] w-[min(19rem,calc(100vw-1rem))] origin-top-right rounded-xl border border-[#e4e6eb] bg-white shadow-2xl transition-all duration-200 dark:border-[#3e4042] dark:bg-[#242526] sm:right-3 top-[calc(env(safe-area-inset-top,0px)+4rem+2px)] ${
+          notificationsOpen
+            ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+            : 'pointer-events-none -translate-y-2 scale-95 opacity-0'
         }`}
       >
         <div className="flex items-center justify-between border-b border-[#e4e6eb] px-2.5 py-2 dark:border-[#3e4042]">

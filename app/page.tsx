@@ -43,12 +43,12 @@ const HOME_FEED_BETWEEN_ROW =
   'h-px w-full shrink-0 bg-slate-300 dark:bg-gray-600';
 
 /**
- * Home "Ask" composer — height fits between fixed top nav and fixed bottom tab bar (both `h-16`
- * plus safe-area insets; see Navbar + ConditionalAppShell). `100svh` keeps the panel above the
+ * Home "Ask" composer — height fits between fixed top nav and fixed bottom explore CTAs
+ * plus safe-area insets; see Navbar + ConditionalAppShell. `100svh` keeps the panel above the
  * bottom bar when mobile browser chrome resizes the viewport.
  */
 const HOME_ASK_COMPOSER_MAX_HEIGHT =
-  'min(calc(100svh - 4rem - env(safe-area-inset-top,0px) - 4rem - env(safe-area-inset-bottom,0px) - 0.75rem), 940px)';
+  'min(calc(100svh - 4rem - env(safe-area-inset-top,0px) - 7.75rem - env(safe-area-inset-bottom,0px) - 0.75rem), 940px)';
 
 type CommunityPost = {
   id: string;

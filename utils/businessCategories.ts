@@ -271,3 +271,161 @@ export function getMainCategoryForSubcategory(subcategory?: string | null): stri
   }
   return null;
 }
+
+/** Subcategory-specific icons (falls back to parent category icon). */
+const SUBCATEGORY_ICONS: Record<string, string> = {
+  bakery: '🥐',
+  'bar / lounge': '🍸',
+  'butcher shop': '🥩',
+  'cafe / coffee shop': '☕',
+  catering: '🍱',
+  'dessert shop': '🍰',
+  'fast food': '🍔',
+  'food truck': '🚚',
+  'grocery / market': '🛒',
+  'ice cream shop': '🍦',
+  'juice bar': '🧃',
+  pizzeria: '🍕',
+  restaurant: '🍽️',
+  'specialty / ethnic grocery': '🛒',
+  'car dealer': '🚗',
+  'truck dealer': '🚛',
+  'boat dealer': '🚤',
+  'motorcycle dealer': '🏍️',
+  'rv / camper dealer': '🚐',
+  'trailer dealer': '🚛',
+  'atv / utv dealer': '🏎️',
+  'heavy equipment dealer': '🚜',
+  dentist: '🦷',
+  doctor: '🩺',
+  'clinic / urgent care': '🏥',
+  'hospital / medical center': '🏥',
+  pharmacy: '💊',
+  veterinarian: '🐾',
+  'gym / fitness center': '🏋️',
+  'spa / wellness center': '💆',
+  'optometrist / eye care': '👓',
+  chiropractic: '🦴',
+  'mental health / counseling': '🧠',
+  'physical therapy': '🧘',
+  'hair salon': '💇',
+  'barber shop': '💈',
+  'nail salon': '💅',
+  'makeup artist': '💄',
+  'beauty supply': '🧴',
+  'auto repair': '🔧',
+  'auto body shop': '🛠️',
+  'auto detailing': '✨',
+  'car wash': '🚿',
+  'oil change / lube': '🛢️',
+  'tire shop': '🛞',
+  'towing service': '🚛',
+  plumbing: '🔧',
+  hvac: '❄️',
+  electrical: '⚡',
+  landscaping: '🌳',
+  roofing: '🏠',
+  painting: '🖌️',
+  'pest control': '🐛',
+  handyman: '🛠️',
+  'cleaning service': '🧹',
+  'moving company': '📦',
+  'taxi / rideshare': '🚕',
+  'limousine / chauffeur': '🚗',
+  'courier / delivery service': '📦',
+  'trucking company': '🚛',
+  'logistics / freight': '📦',
+  bank: '🏦',
+  'credit union': '🏦',
+  'loan lender': '💵',
+  'mortgage lender': '🏠',
+  'financial advisor': '📊',
+  'real estate agency': '🏡',
+  'real estate broker': '🏡',
+  'real estate agent': '🔑',
+  'property management': '🏢',
+  'clothing store': '👕',
+  'electronics store': '📱',
+  florist: '💐',
+  'furniture store': '🛋️',
+  'jewelry store': '💎',
+  'pet store': '🐾',
+  'shoe store': '👟',
+  bookstore: '📚',
+  photography: '📷',
+  videography: '🎥',
+  daycare: '👶',
+  'daycare / childcare': '👶',
+  tutoring: '📚',
+  'legal services': '⚖️',
+  'insurance agency': '🛡️',
+  'it services': '💻',
+  'marketing agency': '📣',
+  'travel agency': '✈️',
+  'pet grooming': '🐶',
+  locksmith: '🔑',
+  'funeral home': '🕯️',
+};
+
+/**
+ * Emoji icon for a business category or subcategory label / quick-filter key.
+ */
+export function getBusinessCategoryIcon(label: string | null | undefined): string {
+  const raw = String(label || '').trim();
+  if (!raw) return '🏷️';
+  const lower = raw.toLowerCase();
+
+  // Quick-filter keys used on the businesses map
+  if (lower === 'restaurants' || lower === 'restaurant') return '🍽️';
+  if (lower === 'dealerships' || lower === 'dealership') return '🚘';
+  if (lower === 'auto_services' || lower === 'auto services') return '🔧';
+  if (lower === 'home_services' || lower === 'home services') return '🏠';
+  if (lower === 'transportation') return '🚚';
+  if (lower === 'retail') return '🛍️';
+  if (lower === 'beauty' || lower === 'health & beauty') return '💇';
+  if (lower === 'all categories' || lower === 'all') return '🌐';
+
+  const exactMain = BUSINESS_CATEGORIES.find(
+    (c) => c.value.toLowerCase() === lower || c.label.toLowerCase() === lower
+  );
+  if (exactMain) return exactMain.icon;
+
+  if (SUBCATEGORY_ICONS[lower]) return SUBCATEGORY_ICONS[lower]!;
+
+  const parent = getMainCategoryForSubcategory(raw);
+  if (parent) {
+    const parentCat = BUSINESS_CATEGORIES.find((c) => c.value === parent);
+    if (parentCat) return parentCat.icon;
+  }
+
+  // Fuzzy fallbacks
+  if (lower.includes('restaurant') || lower.includes('food') || lower.includes('cafe') || lower.includes('pizza')) {
+    return '🍽️';
+  }
+  if (lower.includes('dealer') || lower.includes('dealership')) return '🚘';
+  if (lower.includes('salon') || lower.includes('barber') || lower.includes('beauty') || lower.includes('nail')) {
+    return '💇';
+  }
+  if (lower.includes('health') || lower.includes('clinic') || lower.includes('doctor') || lower.includes('dental') || lower.includes('dentist')) {
+    return '🏥';
+  }
+  if (lower.includes('finance') || lower.includes('bank') || lower.includes('loan') || lower.includes('credit')) {
+    return '💰';
+  }
+  if (lower.includes('real estate') || lower.includes('property') || lower.includes('realtor')) return '🏠';
+  if (lower.includes('retail') || lower.includes('store') || lower.includes('shop')) return '🛍️';
+  if (lower.includes('auto') || lower.includes('repair') || lower.includes('mechanic') || lower.includes('service')) {
+    return '🔧';
+  }
+  if (lower.includes('transport') || lower.includes('truck') || lower.includes('taxi') || lower.includes('moving') || lower.includes('delivery')) {
+    return '🚚';
+  }
+  if (lower.includes('gym') || lower.includes('fitness')) return '🏋️';
+  if (lower.includes('church') || lower.includes('mosque') || lower.includes('temple') || lower.includes('religious')) {
+    return '🙏';
+  }
+  if (lower.includes('school') || lower.includes('education') || lower.includes('tutor')) return '🎓';
+  if (lower.includes('hotel') || lower.includes('motel') || lower.includes('lodging')) return '🏨';
+
+  return '🏷️';
+}

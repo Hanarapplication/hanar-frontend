@@ -67,6 +67,8 @@ export default function CreateCommunityPostClient({
 
   const [image, setImage] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  /** Local blob URL so the writing section can show the full photo right after resize. */
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [postAs, setPostAs] = useState('personal');
   const [visibility, setVisibility] = useState<'profile' | 'community'>('community');
   const [tags, setTags] = useState('');
@@ -91,6 +93,7 @@ export default function CreateCommunityPostClient({
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [videoUploading, setVideoUploading] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [videoUploadPercent, setVideoUploadPercent] = useState<number | null>(null);
   /** True while reading local file (length) after pick — before preview or trim studio. */
   const [videoReading, setVideoReading] = useState(false);
@@ -115,6 +118,12 @@ export default function CreateCommunityPostClient({
       return () => cancelAnimationFrame(id);
     }
   }, [tagsExpanded]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    };
+  }, [imagePreviewUrl]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -180,34 +189,73 @@ export default function CreateCommunityPostClient({
   }, [router, embedded]);
 
   const handleImageUpload = async (file: File) => {
-    const compressed = await compressImage(file, {
-      maxSizeMB: 0.6,
-      maxWidthOrHeight: 1200,
-      initialQuality: 0.82,
-    });
-
-    const fileName = `${Date.now()}.${compressed.name.split('.').pop()}`;
+    const mime = file.type || 'image/jpeg';
+    const extFromMime = mime.includes('png')
+      ? 'png'
+      : mime.includes('webp')
+        ? 'webp'
+        : mime.includes('gif')
+          ? 'gif'
+          : 'jpg';
+    const fileName = `${Date.now()}.${extFromMime}`;
     const filePath = `community/${fileName}`;
 
-    const { error: uploadError } = await supabase.storage.from('community-images').upload(filePath, compressed);
+    const { error: uploadError } = await supabase.storage
+      .from('community-images')
+      .upload(filePath, file, { contentType: mime, upsert: false });
     if (uploadError) throw new Error('Image upload failed');
 
     const { data } = supabase.storage.from('community-images').getPublicUrl(filePath);
     return data.publicUrl;
   };
 
+  const clearImagePreview = () => {
+    setImagePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  };
+
   const processImageFile = async (file: File) => {
-    if (file.size > 4 * 1024 * 1024) {
-      alert(t(effectiveLang, 'Image must be less than 4MB'));
+    if (!file.type.startsWith('image/')) {
+      alert('Please choose a photo or video.');
       return;
     }
+
+    // Accept any original size — we resize/compress client-side before upload.
+    // Soft ceiling only to avoid browser OOM on extreme camera dumps.
+    const RAW_MAX_BYTES = 50 * 1024 * 1024;
+    if (file.size > RAW_MAX_BYTES) {
+      alert('Image is too large to process on this device. Try a smaller photo.');
+      return;
+    }
+
     clearVideo();
+    clearImagePreview();
+    setImage(null);
+    setImageUrl(null);
+    setImageUploading(true);
     try {
-      const url = await handleImageUpload(file);
-      setImageUrl(url);
-      setImage(file);
+      const compressed = await compressImage(file, {
+        maxSizeMB: 0.7,
+        maxWidthOrHeight: 1600,
+        initialQuality: 0.82,
+      });
+
+      // Show the full resized photo in the writing section immediately.
+      const localPreview = URL.createObjectURL(compressed);
+      setImagePreviewUrl(localPreview);
+      setImage(compressed);
+
+      const publicUrl = await handleImageUpload(compressed);
+      setImageUrl(publicUrl);
     } catch {
+      clearImagePreview();
+      setImage(null);
+      setImageUrl(null);
       alert(t(effectiveLang, 'Image processing failed'));
+    } finally {
+      setImageUploading(false);
     }
   };
 
@@ -254,6 +302,7 @@ export default function CreateCommunityPostClient({
       if (overDuration || overSize) {
         setImage(null);
         setImageUrl(null);
+        clearImagePreview();
         setVideoStudioFile(file);
         if (mediaInputRef.current) mediaInputRef.current.value = '';
         setVideoReading(false);
@@ -266,6 +315,7 @@ export default function CreateCommunityPostClient({
 
       setImage(null);
       setImageUrl(null);
+      clearImagePreview();
 
       setVideoReading(false);
       setVideoUploading(true);
@@ -298,6 +348,7 @@ export default function CreateCommunityPostClient({
   const clearMedia = () => {
     setImage(null);
     setImageUrl(null);
+    clearImagePreview();
     clearVideo();
     if (mediaInputRef.current) mediaInputRef.current.value = '';
   };
@@ -356,6 +407,11 @@ export default function CreateCommunityPostClient({
 
     if (videoFile && !videoUrl) {
       alert('Video is still uploading. Please wait.');
+      return;
+    }
+
+    if (imageUploading) {
+      alert('Photo is still uploading. Please wait.');
       return;
     }
 
@@ -559,8 +615,12 @@ export default function CreateCommunityPostClient({
                     className="max-h-72 w-full rounded-xl object-contain bg-black"
                   />
                 )}
-                {imageUrl && !videoPreviewUrl && (
-                  <img src={imageUrl} alt="Preview" className="max-h-72 w-full rounded-xl object-cover" />
+                { (imagePreviewUrl || imageUrl) && !videoPreviewUrl && (
+                  <img
+                    src={imagePreviewUrl || imageUrl || ''}
+                    alt="Preview"
+                    className="h-auto w-full rounded-xl bg-slate-100 object-contain dark:bg-slate-900"
+                  />
                 )}
                 <p className="whitespace-pre-wrap text-base leading-7 text-slate-800 dark:text-gray-100">
                   {postBody}
@@ -597,7 +657,7 @@ export default function CreateCommunityPostClient({
                     accept="image/*,video/*"
                     className="hidden"
                     onChange={handleMediaChange}
-                    disabled={videoReading || videoUploading || !!videoStudioFile}
+                    disabled={videoReading || videoUploading || imageUploading || !!videoStudioFile}
                   />
                   <textarea
                     id="post-body"
@@ -627,7 +687,7 @@ export default function CreateCommunityPostClient({
                           className={cn(
                             'inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors',
                             'text-[#45bd62] hover:bg-[#45bd62]/10 dark:text-[#5fd47a] dark:hover:bg-[#45bd62]/15',
-                            (videoReading || videoUploading || !!videoStudioFile) &&
+                            (videoReading || videoUploading || imageUploading || !!videoStudioFile) &&
                               'pointer-events-none cursor-not-allowed opacity-40'
                           )}
                           title="Photo or video"
@@ -660,6 +720,12 @@ export default function CreateCommunityPostClient({
                           />
                           <span className="sr-only">{t(effectiveLang, 'Tags')}</span>
                         </button>
+                        {imageUploading && (
+                          <span className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-indigo-600 dark:text-indigo-400" />
+                            {imagePreviewUrl ? 'Uploading photo…' : 'Resizing photo…'}
+                          </span>
+                        )}
                         {videoReading && (
                           <span className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                             <Loader2 className="h-4 w-4 shrink-0 animate-spin text-indigo-600 dark:text-indigo-400" />
@@ -722,6 +788,7 @@ export default function CreateCommunityPostClient({
                             setVideoUrl(null);
                             setImage(null);
                             setImageUrl(null);
+                            clearImagePreview();
                             if (mediaInputRef.current) mediaInputRef.current.value = '';
                             setVideoStudioFile(null);
 
@@ -745,17 +812,19 @@ export default function CreateCommunityPostClient({
 
                   {!videoStudioFile && (
                     <>
-                      {imageUrl && !videoPreviewUrl && (
-                        <div className={cn('relative', compact ? 'mt-2' : 'mt-3')}>
+                      {(imagePreviewUrl || imageUrl) && !videoPreviewUrl && (
+                        <div
+                          className={cn(
+                            'relative w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-900',
+                            compact ? 'mt-2' : 'mt-3'
+                          )}
+                        >
                           <img
-                            src={imageUrl}
+                            src={imagePreviewUrl || imageUrl || ''}
                             alt=""
-                            className={cn(
-                              'w-full rounded-lg border border-slate-200 object-cover dark:border-slate-600',
-                              compact ? 'h-28' : 'h-32'
-                            )}
+                            className="block h-auto w-full object-contain"
                           />
-                          {!videoUploading && (
+                          {!imageUploading && (
                             <button
                               type="button"
                               onClick={clearMedia}
@@ -764,6 +833,12 @@ export default function CreateCommunityPostClient({
                             >
                               <X className="h-4 w-4" />
                             </button>
+                          )}
+                          {imageUploading && (
+                            <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-black/55 px-3 py-2 text-xs font-medium text-white">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                              Uploading photo…
+                            </div>
                           )}
                         </div>
                       )}
@@ -916,12 +991,16 @@ export default function CreateCommunityPostClient({
                 <button
                   type="submit"
                   id="post-to-community-submit"
+                  disabled={imageUploading || videoUploading || videoReading}
                   className={cn(
                     'btn-primary w-full scroll-mt-2 scroll-mb-6',
-                    compact ? 'mb-3' : 'mb-1'
+                    compact ? 'mb-3' : 'mb-1',
+                    (imageUploading || videoUploading || videoReading) && 'cursor-not-allowed opacity-60'
                   )}
                 >
-                  {t(effectiveLang, 'Post to Community')}
+                  {imageUploading
+                    ? 'Uploading photo…'
+                    : t(effectiveLang, 'Post to Community')}
                 </button>
               </form>
             )}

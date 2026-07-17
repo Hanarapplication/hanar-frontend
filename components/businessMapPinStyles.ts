@@ -100,6 +100,23 @@ export const BUSINESS_MAP_PIN_CSS = `
   border-color: #7c3aed;
 }
 
+.hanar-business-map-pin--premium {
+  z-index: 20;
+}
+
+.hanar-business-map-pin--premium:not(.hanar-business-map-pin--selected) .hanar-business-map-pin__logo-wrap {
+  border: 3px solid #e8c547;
+  box-shadow:
+    0 0 0 1.5px rgba(255, 255, 255, 0.95),
+    0 4px 14px rgba(15, 23, 42, 0.22),
+    0 0 10px rgba(212, 160, 23, 0.35);
+}
+
+.hanar-business-map-pin--premium.hanar-business-map-pin--selected .hanar-business-map-pin__logo-wrap {
+  border-color: #7c3aed;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.22);
+}
+
 .hanar-business-map-pin__logo-wrap img {
   display: block;
   width: 100%;

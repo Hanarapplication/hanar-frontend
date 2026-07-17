@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useLayoutEffect, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
+import { cn } from '@/lib/utils';
 
 export type AddressResult = {
   formatted_address: string;
@@ -22,6 +24,13 @@ type AddressAutocompleteProps = {
   placeholder?: string;
   className?: string;
   inputClassName?: string;
+  /** Extra classes for the suggestions dropdown (e.g. width / alignment). */
+  dropdownClassName?: string;
+  /**
+   * 'anchored' (default) = under the input, left-aligned in-flow.
+   * 'under-search' = portaled under the `[data-address-search-bar]` (or input), matching its width.
+   */
+  dropdownPlacement?: 'anchored' | 'under-search' | 'viewport-center';
   disabled?: boolean;
   /** 'full' = addresses + places (default). 'locality' = bias to cities/regions for location/zip. */
   mode?: 'full' | 'locality';
@@ -30,6 +39,7 @@ type AddressAutocompleteProps = {
 };
 
 const DEBOUNCE_MS = 300;
+const DROPDOWN_GAP_PX = 4;
 
 export default function AddressAutocomplete({
   value,
@@ -38,6 +48,8 @@ export default function AddressAutocomplete({
   placeholder = 'Start typing address or city...',
   className = '',
   inputClassName = '',
+  dropdownClassName = '',
+  dropdownPlacement = 'anchored',
   disabled = false,
   mode = 'full',
   minLength = 2,
@@ -47,15 +59,25 @@ export default function AddressAutocomplete({
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties | undefined>();
+  const [mounted, setMounted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const usePortal =
+    dropdownPlacement === 'under-search' || dropdownPlacement === 'viewport-center';
 
   const dismissKeyboard = useCallback(() => {
     inputRef.current?.blur();
     if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
+  }, []);
+
+  useEffect(() => {
+    setMounted(true);
   }, []);
 
   useEffect(() => {
@@ -70,13 +92,55 @@ export default function AddressAutocomplete({
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (containerRef.current?.contains(target) || listRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const updateUnderSearchDropdown = useCallback(() => {
+    if (!usePortal || !inputRef.current) {
+      setDropdownStyle(undefined);
+      return;
+    }
+
+    const searchBar = containerRef.current?.closest(
+      '[data-address-search-bar]'
+    ) as HTMLElement | null;
+    const anchor = searchBar ?? inputRef.current;
+    const rect = anchor.getBoundingClientRect();
+
+    // Match the search bar box exactly — directly underneath, same left/width.
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + DROPDOWN_GAP_PX,
+      left: rect.left,
+      width: rect.width,
+      right: 'auto',
+      margin: 0,
+      zIndex: 9999,
+    });
+  }, [usePortal]);
+
+  useLayoutEffect(() => {
+    if (!open || predictions.length === 0 || !usePortal) {
+      setDropdownStyle(undefined);
+      return;
+    }
+    updateUnderSearchDropdown();
+    window.addEventListener('resize', updateUnderSearchDropdown);
+    window.addEventListener('scroll', updateUnderSearchDropdown, true);
+    window.visualViewport?.addEventListener('resize', updateUnderSearchDropdown);
+    window.visualViewport?.addEventListener('scroll', updateUnderSearchDropdown);
+    return () => {
+      window.removeEventListener('resize', updateUnderSearchDropdown);
+      window.removeEventListener('scroll', updateUnderSearchDropdown, true);
+      window.visualViewport?.removeEventListener('resize', updateUnderSearchDropdown);
+      window.visualViewport?.removeEventListener('scroll', updateUnderSearchDropdown);
+    };
+  }, [open, predictions.length, usePortal, updateUnderSearchDropdown]);
 
   const fetchPredictions = useCallback(
     async (query: string) => {
@@ -177,6 +241,45 @@ export default function AddressAutocomplete({
     }
   };
 
+  const suggestionsList =
+    open && predictions.length > 0 ? (
+      <ul
+        ref={listRef}
+        id="address-suggestions-list"
+        role="listbox"
+        style={usePortal ? dropdownStyle : undefined}
+        className={cn(
+          'max-h-60 overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800',
+          usePortal
+            ? 'fixed'
+            : 'absolute left-0 z-[100] mt-1 min-w-full w-[min(28rem,calc(100vw-1.5rem))]',
+          dropdownClassName
+        )}
+      >
+        {predictions.map((p, i) => (
+          <li
+            key={p.place_id}
+            role="option"
+            aria-selected={i === selectedIndex}
+            className={cn(
+              'cursor-pointer px-3 py-2.5 text-left text-sm leading-snug text-slate-800 dark:text-gray-200',
+              i === selectedIndex
+                ? 'bg-rose-100 dark:bg-rose-900/40'
+                : 'hover:bg-slate-100 dark:hover:bg-gray-700'
+            )}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handleSelect(p);
+            }}
+          >
+            <span className="block whitespace-normal break-words line-clamp-2">
+              {p.description}
+            </span>
+          </li>
+        ))}
+      </ul>
+    ) : null;
+
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <input
@@ -197,30 +300,11 @@ export default function AddressAutocomplete({
       {loading && (
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">...</span>
       )}
-      {open && predictions.length > 0 && (
-        <ul
-          id="address-suggestions-list"
-          role="listbox"
-          className="absolute z-[100] mt-1 w-full max-h-60 overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
-        >
-          {predictions.map((p, i) => (
-            <li
-              key={p.place_id}
-              role="option"
-              aria-selected={i === selectedIndex}
-              className={`cursor-pointer px-3 py-2 text-sm text-slate-800 dark:text-gray-200 ${
-                i === selectedIndex ? 'bg-rose-100 dark:bg-rose-900/40' : 'hover:bg-slate-100 dark:hover:bg-gray-700'
-              }`}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handleSelect(p);
-              }}
-            >
-              {p.description}
-            </li>
-          ))}
-        </ul>
-      )}
+      {usePortal
+        ? mounted && suggestionsList
+          ? createPortal(suggestionsList, document.body)
+          : null
+        : suggestionsList}
     </div>
   );
 }

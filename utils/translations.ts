@@ -73,7 +73,12 @@ const translations: Record<string, Record<string, string>> = {
       "News": "News",
       "Marketplace": "Marketplace",
       "Businesses": "Businesses",
+      "Businesses near you": "Businesses near you",
+      "Find local shops on the map": "Find local shops on the map",
+      "Marketplace nearby": "Marketplace nearby",
+      "Browse listings around you": "Browse listings around you",
       "Messages": "Messages",
+      "Notifications": "Notifications",
 
       "Go to messages": "Go to messages",
 

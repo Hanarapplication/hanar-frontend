@@ -1,10 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import { t } from '@/utils/translations';
 import { cn } from '@/lib/utils';
+import {
+  businessesDirectorySearchPath,
+  readBusinessesDirectorySearchQuery,
+} from '@/lib/businessesDirectorySearch';
 
 type SearchResultItem = {
   type: 'user' | 'business' | 'organization';
@@ -23,8 +27,11 @@ function typeLabel(lang: string, type: SearchResultItem['type']): string {
 const searchToggleBtn =
   'relative inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-black transition-colors hover:bg-[#f2f2f2] active:scale-[0.97] dark:text-[#e4e6eb] dark:hover:bg-white/10 [-webkit-tap-highlight-color:transparent]';
 
-export default function NavbarEntitySearch({ effectiveLang }: { effectiveLang: string }) {
+function NavbarEntitySearchContent({ effectiveLang }: { effectiveLang: string }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const isBusinessesDirectory = pathname.startsWith('/businesses');
   const [expanded, setExpanded] = useState(false);
   const [query, setQuery] = useState('');
   const [resultsOpen, setResultsOpen] = useState(false);
@@ -34,18 +41,29 @@ export default function NavbarEntitySearch({ effectiveLang }: { effectiveLang: s
   const inputRef = useRef<HTMLInputElement | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    if (!isBusinessesDirectory) return;
+    setQuery(readBusinessesDirectorySearchQuery(searchParams));
+  }, [isBusinessesDirectory, searchParams]);
+
   const collapse = useCallback(() => {
+    if (isBusinessesDirectory && query.trim()) {
+      router.replace('/businesses', { scroll: false });
+    }
     setExpanded(false);
     setResultsOpen(false);
     setQuery('');
     setResults([]);
     setLoading(false);
-  }, []);
+  }, [isBusinessesDirectory, query, router]);
 
   const expand = useCallback(() => {
     setExpanded(true);
+    if (isBusinessesDirectory) {
+      setQuery(readBusinessesDirectorySearchQuery(searchParams));
+    }
     requestAnimationFrame(() => inputRef.current?.focus());
-  }, []);
+  }, [isBusinessesDirectory, searchParams]);
 
   const runSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
@@ -66,7 +84,25 @@ export default function NavbarEntitySearch({ effectiveLang }: { effectiveLang: s
     }
   }, []);
 
+  const handleQueryChange = useCallback(
+    (value: string) => {
+      setQuery(value);
+      if (isBusinessesDirectory) {
+        router.replace(businessesDirectorySearchPath(value, searchParams), { scroll: false });
+        setResultsOpen(false);
+        return;
+      }
+      setResultsOpen(true);
+    },
+    [isBusinessesDirectory, router, searchParams]
+  );
+
   useEffect(() => {
+    if (isBusinessesDirectory) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (query.trim().length < 2) {
       setResults([]);
@@ -79,7 +115,7 @@ export default function NavbarEntitySearch({ effectiveLang }: { effectiveLang: s
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, runSearch]);
+  }, [query, runSearch, isBusinessesDirectory]);
 
   useEffect(() => {
     if (!expanded) return;
@@ -106,7 +142,8 @@ export default function NavbarEntitySearch({ effectiveLang }: { effectiveLang: s
     router.push(href);
   };
 
-  const showResultsPanel = expanded && resultsOpen && (query.trim().length >= 2 || loading);
+  const showResultsPanel =
+    !isBusinessesDirectory && expanded && resultsOpen && (query.trim().length >= 2 || loading);
 
   return (
     <div
@@ -137,15 +174,18 @@ export default function NavbarEntitySearch({ effectiveLang }: { effectiveLang: s
             ref={inputRef}
             type="search"
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setResultsOpen(true);
+            onChange={(e) => handleQueryChange(e.target.value)}
+            onFocus={() => {
+              if (!isBusinessesDirectory) setResultsOpen(true);
             }}
-            onFocus={() => setResultsOpen(true)}
-            placeholder={t(effectiveLang, 'Search businesses, people, etc.')}
+            placeholder={
+              isBusinessesDirectory
+                ? t(effectiveLang, 'Find a restaurant, salon, gym...')
+                : t(effectiveLang, 'Search businesses, people, etc.')
+            }
             autoComplete="off"
             spellCheck={false}
-            aria-autocomplete="list"
+            aria-autocomplete={isBusinessesDirectory ? 'none' : 'list'}
             aria-expanded={showResultsPanel}
             aria-label={t(effectiveLang, 'Search')}
             className="h-10 w-full min-w-0 rounded-full border border-[#e4e6eb] bg-[#f0f2f5] py-1.5 pl-8 pr-9 text-xs leading-snug text-[#050505] placeholder:text-xs placeholder:text-[#65676B] outline-none ring-[#1877F2] transition focus:border-[#1877F2] focus:bg-white focus:ring-2 sm:h-11 sm:pl-9 sm:pr-10 dark:border-[#3e4042] dark:bg-[#3a3b3c] dark:text-[#e4e6eb] dark:placeholder:text-[#b0b3b8] dark:focus:border-[#4599ff] dark:focus:bg-[#242526]"
@@ -213,3 +253,10 @@ export default function NavbarEntitySearch({ effectiveLang }: { effectiveLang: s
   );
 }
 
+export default function NavbarEntitySearch({ effectiveLang }: { effectiveLang: string }) {
+  return (
+    <Suspense fallback={null}>
+      <NavbarEntitySearchContent effectiveLang={effectiveLang} />
+    </Suspense>
+  );
+}

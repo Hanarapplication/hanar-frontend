@@ -5,6 +5,7 @@ import BusinessProfileLink from '@/components/BusinessProfileLink';
 import { useKeenSlider } from 'keen-slider/react';
 import { useLanguage } from '@/context/LanguageContext';
 import { t } from '@/utils/translations';
+import { cn } from '@/lib/utils';
 
 export type TrendingBusinessSlide = {
   id: string;
@@ -34,11 +35,11 @@ const SLIDER_OPTIONS = {
     duration: 600,
     easing: (t: number) => 1 - Math.pow(1 - t, 3),
   },
-  slides: { perView: 2.2, spacing: 8 },
+  slides: { perView: 2.35, spacing: 10 },
   breakpoints: {
-    '(min-width: 480px)': { slides: { perView: 2.8, spacing: 8 } },
-    '(min-width: 768px)': { slides: { perView: 3.5, spacing: 10 } },
-    '(min-width: 1024px)': { slides: { perView: 4.25, spacing: 10 } },
+    '(min-width: 480px)': { slides: { perView: 2.9, spacing: 10 } },
+    '(min-width: 768px)': { slides: { perView: 3.6, spacing: 12 } },
+    '(min-width: 1024px)': { slides: { perView: 4.4, spacing: 12 } },
   },
 };
 
@@ -79,7 +80,7 @@ export default function TrendingBusinessesSlideshow({
   return (
     <div
       ref={sliderRef}
-      className="keen-slider cursor-grab overflow-hidden active:cursor-grabbing touch-pan-y"
+      className="keen-slider cursor-grab overflow-visible active:cursor-grabbing touch-pan-y"
       aria-roledescription="carousel"
       aria-label={t(effectiveLang, 'Trending businesses')}
     >
@@ -88,27 +89,34 @@ export default function TrendingBusinessesSlideshow({
           key={biz.id}
           href={getBusinessHref(biz)}
           data-keen-slider-clickable
-          className="keen-slider__slide block min-h-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition active:border-slate-300 active:shadow-md md:hover:border-slate-300 md:hover:shadow-md"
+          className={cn(
+            'keen-slider__slide group block min-h-0 overflow-hidden rounded-2xl',
+            'border border-slate-200/80 bg-slate-100 shadow-[0_6px_20px_rgba(0,0,0,0.2)]',
+            'ring-1 ring-white/40 transition',
+            'active:scale-[0.98] md:hover:bg-slate-50 md:hover:shadow-[0_8px_24px_rgba(0,0,0,0.28)]'
+          )}
           data-no-translate
         >
-          <div className="relative overflow-hidden bg-slate-100">
-            <img
-              src={biz.logo_url || FALLBACK_LOGO}
-              alt={biz.business_name || 'Business'}
-              loading="lazy"
-              decoding="async"
-              draggable={false}
-              className="pointer-events-none h-20 w-full object-cover sm:h-24"
-            />
-            <span className="absolute bottom-1.5 left-1.5 inline-flex items-center rounded-md border border-slate-200/80 bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-700 shadow-sm">
-              {t(effectiveLang, 'Premium')}
-            </span>
-          </div>
-          <div className="px-2 py-2">
-            <p className="line-clamp-2 text-center text-xs font-semibold leading-tight text-slate-900">
+          <div className="relative flex flex-col items-center px-2.5 pb-2.5 pt-3">
+            <div className="relative">
+              <div className="h-14 w-14 overflow-hidden rounded-full border-2 border-white bg-slate-200 shadow-md ring-1 ring-slate-300/80">
+                <img
+                  src={biz.logo_url || FALLBACK_LOGO}
+                  alt={biz.business_name || 'Business'}
+                  loading="lazy"
+                  decoding="async"
+                  draggable={false}
+                  className="pointer-events-none h-full w-full object-cover"
+                />
+              </div>
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-slate-800 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white shadow-sm">
+                {t(effectiveLang, 'Premium')}
+              </span>
+            </div>
+            <p className="mt-3 line-clamp-2 min-h-[2rem] w-full text-center text-[11px] font-bold leading-tight tracking-tight text-slate-900">
               {biz.business_name}
             </p>
-            <p className="mt-1 line-clamp-2 text-center text-[10px] font-medium leading-tight text-slate-500">
+            <p className="mt-0.5 line-clamp-1 w-full text-center text-[10px] font-medium text-slate-500">
               {formatCategoryLabel(biz)}
             </p>
           </div>
