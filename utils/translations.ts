@@ -78,7 +78,6 @@ const translations: Record<string, Record<string, string>> = {
       "Marketplace nearby": "Marketplace nearby",
       "Browse listings around you": "Browse listings around you",
       "Messages": "Messages",
-      "Notifications": "Notifications",
 
       "Go to messages": "Go to messages",
 
