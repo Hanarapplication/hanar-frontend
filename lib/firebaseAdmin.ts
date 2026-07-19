@@ -10,9 +10,11 @@
  * - Tray delivery when backgrounded/killed requires a `notification` object (not data-only),
  *   plus `data` for routing. Android uses `android.notification.channel_id` =
  *   `hanar_high_importance_channel` (must match the Flutter default channel).
- * - Web/PWA clients: expanded tray uses `notification.icon`; limited space uses `badge` (`data.badge`
- *   URL + `/icons/notification-status-badge.png`). Native Android status-bar glyph must still match a
- *   white-on-transparent drawable in the Flutter APK (`ic_launcher`/notification drawable); URLs do not replace that bitmap.
+ * - Do **not** set top-level `notification.icon` to an https URL — Android expects a drawable
+ *   resource name. Web icons go under `webpush.notification.icon` / `badge`.
+ * - Web/PWA clients: expanded tray uses `webpush.notification.icon`; limited space uses `badge`
+ *   (`/icons/notification-status-badge.png`). Native Android status-bar glyph must still match a
+ *   white-on-transparent drawable in the Flutter APK (`ic_notification_hanar`); URLs do not replace that bitmap.
  * - We do not set a global `collapse_key` for distinct DMs/alerts so FCM does not replace
  *   unrelated messages; omit per-message collapse unless product explicitly wants collapsing.
  */
@@ -230,11 +232,13 @@ export async function sendPushToTokens(
 
   for (let i = 0; i < tokens.length; i += batchSize) {
     const chunk = tokens.slice(i, i + batchSize);
+    // IMPORTANT: do not put an https URL on top-level `notification.icon`.
+    // Android treats `icon` as a drawable resource name; a URL can suppress tray
+    // display when the app is backgrounded/killed. Web icons belong under `webpush`.
     const result = await m.sendEachForMulticast({
       notification: {
         title: safeTitle,
         body: safeBody,
-        ...(largeIconAbs ? { icon: largeIconAbs } : {}),
       },
       data,
       tokens: chunk,
@@ -246,6 +250,7 @@ export async function sendPushToTokens(
           channelId: ANDROID_FCM_HIGH_CHANNEL_ID,
           title: safeTitle,
           body: safeBody,
+          // Omit icon here — Manifest `default_notification_icon` + Flutter drawable.
           ...(androidNotificationTag ? { tag: androidNotificationTag } : {}),
           defaultSound: true,
           defaultVibrateTimings: true,
@@ -253,6 +258,22 @@ export async function sendPushToTokens(
           // Client-side priority: heads-up / lock screen (channel must also be high importance in the app).
           priority: 'max',
         },
+      },
+      webpush: {
+        notification: {
+          title: safeTitle,
+          body: safeBody,
+          ...(largeIconAbs ? { icon: largeIconAbs } : {}),
+          ...(badgeAbs ? { badge: badgeAbs } : {}),
+          ...(linkAbs ? { data: { url: linkAbs } } : {}),
+        },
+        ...(linkAbs
+          ? {
+              fcmOptions: {
+                link: linkAbs,
+              },
+            }
+          : {}),
       },
       // Full alert + alert push type so iOS presents on lock screen / screen off (not only data-silent).
       apns: {
