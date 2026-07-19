@@ -654,8 +654,11 @@ export default function CreateCommunityPostClient({
                     ref={mediaInputRef}
                     id="post-media-upload"
                     type="file"
-                    accept="image/*,video/*"
-                    className="hidden"
+                    accept="image/*,video/*,image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,video/mp4,video/quicktime,video/webm,.jpg,.jpeg,.png,.gif,.webp,.heic,.mp4,.mov,.webm"
+                    // Avoid `hidden`/`display:none` — many mobile WebViews ignore label→input and block chooser.
+                    className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
+                    tabIndex={-1}
+                    aria-hidden
                     onChange={handleMediaChange}
                     disabled={videoReading || videoUploading || imageUploading || !!videoStudioFile}
                   />
@@ -682,23 +685,32 @@ export default function CreateCommunityPostClient({
                     )}
                   >
                       <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <label
-                          htmlFor="post-media-upload"
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const input = mediaInputRef.current;
+                            if (!input || input.disabled) return;
+                            // Reset so picking the same file again still fires change (WebView-friendly).
+                            input.value = '';
+                            input.click();
+                          }}
+                          disabled={videoReading || videoUploading || imageUploading || !!videoStudioFile}
                           className={cn(
                             'inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors',
                             'text-[#45bd62] hover:bg-[#45bd62]/10 dark:text-[#5fd47a] dark:hover:bg-[#45bd62]/15',
+                            '[-webkit-tap-highlight-color:transparent]',
                             (videoReading || videoUploading || imageUploading || !!videoStudioFile) &&
                               'pointer-events-none cursor-not-allowed opacity-40'
                           )}
                           title="Photo or video"
+                          aria-label="Add photo or video"
                         >
                           <ImageMediaIcon
                             className={cn(compact ? 'h-7 w-7' : 'h-8 w-8')}
                             strokeWidth={1.25}
                             aria-hidden
                           />
-                          <span className="sr-only">Add photo or video</span>
-                        </label>
+                        </button>
                         <button
                           type="button"
                           id="post-tags-toggle"

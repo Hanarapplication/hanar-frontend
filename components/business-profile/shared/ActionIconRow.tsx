@@ -3,7 +3,7 @@
 import { Phone, Mail, Globe, Share2 } from 'lucide-react';
 import { ContactHrefLink } from '@/components/ContactHrefLink';
 import { buildMailtoHref, buildTelHref } from '@/lib/openContactUrl';
-import { SiWhatsapp } from 'react-icons/si';
+import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
 import ReportButton from '@/components/ReportButton';
 import { useBusinessProfileTheme } from '../theme/ThemeProvider';
 import type { BusinessProfileData } from '../types';
@@ -49,9 +49,13 @@ export function ActionIconRow({ business, onShare }: ActionIconRowProps) {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="WhatsApp"
-          className={iconClass + ' bg-[#E8F5E9] text-[#25D366] hover:bg-[#25D366] hover:text-white'}
+          className={iconClass}
+          style={{
+            backgroundColor: `${theme.primary}20`,
+            color: theme.primary,
+          }}
         >
-          <SiWhatsapp size={22} />
+          <WhatsAppIcon className="h-5 w-5" strokeWidth={2.25} />
         </a>
       )}
       {business.email && (

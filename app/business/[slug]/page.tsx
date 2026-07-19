@@ -9,8 +9,7 @@ import toast from 'react-hot-toast';
 import {
     FaInstagram, FaFacebook, FaTiktok, FaGlobe,
     FaShareAlt, FaArrowLeft, FaArrowRight,
-    FaPhone, FaEnvelope, FaMapPin,
-    FaWhatsapp,
+    FaPhone, FaMapPin,
     FaHeart, FaRegHeart, FaCommentDots
 } from 'react-icons/fa'; // These imports remain as per your original code
 import { FaXTwitter } from 'react-icons/fa6';
@@ -18,17 +17,21 @@ import { motion } from 'framer-motion'; // This import remains as per your origi
 import Script from 'next/script'; // This import remains as per your original code
 import BusinessMap from '@/components/BusinessMap';
 import Image from 'next/image'; // Added for Image component
+import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
 
 import {
     Car, Calendar, Gauge, HeartHandshake,
     Store as StoreIcon,
     ClipboardList as ClipboardListIcon,
-    Home, MapPin,
+    Home, MapPin, Map as MapIcon, Phone, MessageCircle, Mail,
     X, DollarSign, Eye, ChevronLeft, ChevronRight, ChevronDown, Tag, QrCode, Copy, Check, Megaphone, Search,
 } from 'lucide-react'; // These imports remain as per your original code
 
 import { cn } from '@/lib/utils'; // This import remains as per your original code
 import { setBusinessesEnteredFromBusinessSlug } from '@/lib/businessesDirectoryNav';
+import { isDealershipCategory } from '@/utils/businessCategories';
+import DealershipBusinessProfile from '@/components/business-profile/DealershipBusinessProfile';
+import { isBusinessNameLongForHeader } from '@/components/business-profile/utils';
 import ReportButton from '@/components/ReportButton';
 import BusinessCommunityPostsModal, { type BusinessCommunityPostRow } from '@/components/BusinessCommunityPostsModal';
 import BusinessClaimModal, { type UserClaimInfo } from '@/components/BusinessClaimModal';
@@ -37,12 +40,40 @@ import { isClaimableBusiness, showBusinessClaimUi } from '@/lib/businessClaim';
 import { ContactHrefLink } from '@/components/ContactHrefLink';
 import { buildMailtoHref, buildTelHref } from '@/lib/openContactUrl';
 
-/** Contact strip on transparent bar (all business slug pages) */
-const CONTACT_STRIP_CHIP =
-  'flex items-center justify-center h-10 px-4 rounded-xl bg-transparent text-slate-700 ring-1 ring-slate-300/70 transition-colors duration-200 hover:bg-white/40 active:scale-[0.98] dark:text-slate-200 dark:ring-slate-600 dark:hover:bg-white/5';
+/** Soft elevated contact capsule on retail profiles */
+const RETAIL_CONTACT_CHIP =
+  'inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-700 transition hover:bg-slate-100 active:scale-[0.96] dark:text-slate-200 dark:hover:bg-slate-800';
 
 const CONTACT_REPORT_BUTTON_CLASS =
-  'flex items-center justify-center h-10 w-10 rounded-xl bg-transparent !text-slate-600 ring-1 ring-slate-300/70 transition !rounded-xl hover:bg-white/40 hover:!text-red-600 dark:!text-slate-200 dark:ring-slate-600 dark:hover:bg-white/5 dark:hover:!text-red-400 [&_svg]:stroke-current';
+  'inline-flex h-9 w-9 items-center justify-center rounded-full !text-slate-600 transition hover:bg-slate-100 hover:!text-red-600 dark:!text-slate-300 dark:hover:bg-slate-800 dark:hover:!text-red-400 [&_svg]:stroke-current';
+
+/** Elevated circular actions — soft 3D lift */
+const RETAIL_ACTION_BTN =
+  'flex flex-col items-center gap-2 min-w-[4.5rem] active:scale-[0.96] transition [-webkit-tap-highlight-color:transparent]';
+const RETAIL_ACTION_CIRCLE =
+  'flex h-[3.75rem] w-[3.75rem] items-center justify-center rounded-full text-white ring-1 ring-white/25';
+
+const RETAIL_HEADER_CHROME =
+  'bg-slate-900/60 ring-1 ring-white/20 backdrop-blur-md shadow-sm';
+
+const RETAIL_HEADER_BTN =
+  `inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white ${RETAIL_HEADER_CHROME} transition hover:bg-slate-900/75 active:scale-[0.96]`;
+
+const RETAIL_HEADER_NAME =
+  `flex min-w-0 max-w-full items-center gap-2 rounded-full py-1 pl-1 pr-3.5 text-white ${RETAIL_HEADER_CHROME}`;
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+function retailElevatedShadow(hex: string, alpha = 0.38): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return '0 10px 22px rgba(15, 23, 42, 0.22)';
+  return `0 8px 18px rgba(${rgb.r},${rgb.g},${rgb.b},${alpha}), 0 2px 6px rgba(15,23,42,0.12)`;
+}
 
 /** Grey share button with blue icon — menu & listing item rows */
 const ITEM_SHARE_BUTTON_CLASS =
@@ -105,6 +136,7 @@ interface BusinessType {
     slug_retail_search_accent_color?: string | null;
     slug_view_detail_button_color?: string | null;
     slug_sidebar_menu_button_color?: string | null;
+    slug_contact_action_color?: string | null;
     isrestaurant?: boolean | null;
 }
 
@@ -292,43 +324,48 @@ function RetailItemsGrid({
     onShare: (name: string) => void;
 }) {
     return (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+        <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 sm:gap-5">
             {items.slice(0, visibleCount).map((item) => (
                 <div
                     key={item.id}
-                    className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-slate-600 dark:bg-gray-800"
+                    className="group flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0_10px_28px_rgba(15,23,42,0.12),0_2px_8px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/70 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15,23,42,0.16),0_4px_12px_rgba(15,23,42,0.08)] dark:bg-gray-800 dark:ring-slate-600/60 dark:shadow-[0_10px_28px_rgba(0,0,0,0.35)]"
                 >
                     {item.images?.[0] ? (
-                        <div className="relative mb-2 h-28 w-full flex-shrink-0 sm:h-32">
+                        <div className="relative h-28 w-full shrink-0 overflow-hidden sm:h-36">
                             <img
                                 src={item.images[0]}
                                 alt={item.name}
-                                className="h-full w-full object-cover"
+                                className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
                                 onError={(e) => {
                                     e.currentTarget.src = 'https://placehold.co/300x200/cccccc/333333?text=Retail+Item';
                                     e.currentTarget.onerror = null;
                                 }}
                             />
+                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
                         </div>
-                    ) : null}
-                    <div className="flex flex-grow flex-col p-2.5">
-                        <h3 className="line-clamp-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{item.name}</h3>
+                    ) : (
+                        <div className="flex h-28 w-full shrink-0 items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 sm:h-36">
+                            <StoreIcon className="h-8 w-8 text-slate-400 dark:text-slate-500" aria-hidden />
+                        </div>
+                    )}
+                    <div className="flex flex-grow flex-col p-3">
+                        <h3 className="line-clamp-1 text-sm font-bold text-slate-900 dark:text-slate-100">{item.name}</h3>
                         <p className="mt-1 text-sm font-bold text-red-600 dark:text-red-300">
                             {formatPriceWithCurrency(item.price)}
                         </p>
                         {item.category ? (
-                            <div className="mt-1.5 inline-flex w-fit rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] text-slate-600 dark:border-slate-600 dark:bg-slate-700/60 dark:text-slate-200">
+                            <div className="mt-2 inline-flex w-fit rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-700/70 dark:text-slate-200 dark:ring-slate-600">
                                 {item.category}
                             </div>
                         ) : null}
                         {item.description ? (
-                            <p className="mt-1.5 line-clamp-2 text-[11px] text-slate-600 dark:text-slate-300">{item.description}</p>
+                            <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-slate-600 dark:text-slate-300">{item.description}</p>
                         ) : null}
-                        <div className="mt-auto flex gap-1.5 pt-2">
+                        <div className="mt-auto flex gap-2 pt-3">
                             <button
                                 type="button"
                                 onClick={() => onDetails(item)}
-                                className="flex-1 rounded-md px-2.5 py-1.5 text-xs font-semibold text-white transition hover:brightness-110"
+                                className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl px-2.5 py-2 text-xs font-semibold text-white shadow-[0_6px_14px_rgba(15,23,42,0.2)] transition hover:brightness-110 active:scale-[0.97]"
                                 style={viewDetailButtonStyle}
                             >
                                 <Eye size={14} />
@@ -337,7 +374,8 @@ function RetailItemsGrid({
                             <button
                                 type="button"
                                 onClick={() => onShare(item.name)}
-                                className={cn(ITEM_SHARE_BUTTON_CLASS, 'px-2 py-1.5')}
+                                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-[#2563eb] shadow-[0_4px_10px_rgba(15,23,42,0.08)] transition hover:bg-white hover:shadow-[0_6px_14px_rgba(15,23,42,0.12)] active:scale-[0.97] dark:border-slate-600 dark:bg-slate-700 dark:text-[#3b82f6]"
+                                aria-label="Share item"
                             >
                                 <FaShareAlt size={13} />
                             </button>
@@ -535,7 +573,9 @@ function BusinessesDirectoryLink({ className }: { className?: string }) {
             href="/businesses"
             onClick={() => setBusinessesEnteredFromBusinessSlug()}
             className={cn(
-                'inline-flex h-9 shrink-0 items-center gap-1 rounded-lg bg-white/10 px-2 text-white ring-1 ring-white/25 transition hover:bg-white/20 sm:h-10 sm:gap-1.5 sm:px-2.5',
+                'inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-2 text-white sm:h-10 sm:gap-1.5 sm:px-2.5',
+                RETAIL_HEADER_CHROME,
+                'transition hover:bg-slate-900/75',
                 className
             )}
             aria-label="Browse all businesses"
@@ -584,6 +624,7 @@ const BusinessProfilePage = () => {
     const [storeCategoryFilter, setStoreCategoryFilter] = useState('');
     const [carSearchQuery, setCarSearchQuery] = useState('');
     const [carSort, setCarSort] = useState<CarInventorySort>('default');
+    const [carConditionFilter, setCarConditionFilter] = useState('');
 
     const ITEMS_PER_BATCH = 6;
     const [visibleMenuCount, setVisibleMenuCount] = useState(ITEMS_PER_BATCH);
@@ -595,6 +636,9 @@ const BusinessProfilePage = () => {
     const loadMoreTimerRef = useRef<number | null>(null);
     const touchStartXRef = useRef<number | null>(null);
     const touchEndXRef = useRef<number | null>(null);
+    const galleryInteractingRef = useRef(false);
+    const [typedDescription, setTypedDescription] = useState('');
+    const [descriptionTypingDone, setDescriptionTypingDone] = useState(false);
     // Add new state for detailed view of individual item cards
     const [selectedItemForDetails, setSelectedItemForDetails] = useState<{
         type: 'menu' | 'car' | 'retail' | 'real_estate';
@@ -646,6 +690,11 @@ const BusinessProfilePage = () => {
     const filteredCarListings = useMemo(() => {
         let list = carListings;
 
+        if (carConditionFilter) {
+            const target = carConditionFilter.toLowerCase();
+            list = list.filter((car) => String(car.condition || '').trim().toLowerCase() === target);
+        }
+
         const q = carSearchQuery.trim().toLowerCase();
         if (q) {
             list = list.filter(
@@ -685,7 +734,21 @@ const BusinessProfilePage = () => {
             }
         });
         return sorted;
-    }, [carListings, carSearchQuery, carSort]);
+    }, [carListings, carSearchQuery, carSort, carConditionFilter]);
+
+    const carConditionOptions = useMemo(() => {
+        const seen = new Set<string>();
+        const options: string[] = [];
+        for (const car of carListings) {
+            const condition = String(car.condition || '').trim();
+            if (!condition) continue;
+            const key = condition.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            options.push(condition);
+        }
+        return options.sort((a, b) => a.localeCompare(b));
+    }, [carListings]);
 
     useEffect(() => {
         setVisibleMenuCount(ITEMS_PER_BATCH);
@@ -701,7 +764,7 @@ const BusinessProfilePage = () => {
 
     useEffect(() => {
         setVisibleCarCount(ITEMS_PER_BATCH);
-    }, [carSearchQuery, carSort]);
+    }, [carSearchQuery, carSort, carConditionFilter]);
 
     useEffect(() => {
         if (!storeCategoryFilter) return;
@@ -751,7 +814,7 @@ const BusinessProfilePage = () => {
         );
         observer.observe(loadMoreRef.current);
         return () => observer.disconnect();
-    }, [hasMoreItems, menu.length, filteredCarListings.length, filteredRetailItems.length, realEstateListings.length, visibleMenuCount, visibleCarCount, visibleRetailCount, showMenu, storeSearchQuery, storeCategoryFilter, carSearchQuery, carSort]);
+    }, [hasMoreItems, menu.length, filteredCarListings.length, filteredRetailItems.length, realEstateListings.length, visibleMenuCount, visibleCarCount, visibleRetailCount, showMenu, storeSearchQuery, storeCategoryFilter, carSearchQuery, carSort, carConditionFilter]);
 
     useEffect(() => {
         if (!business?.slug) return;
@@ -1180,16 +1243,22 @@ const BusinessProfilePage = () => {
         || mainCat === 'food'
         || (business?.category || '').toLowerCase().includes('restaurant')
         || (business?.category || '').toLowerCase().includes('food');
+    const isDealership = isDealershipCategory(business?.category);
+    const nameIsLong = isBusinessNameLongForHeader(business?.business_name);
+    const showAnnouncementInHeader = !nameIsLong;
+    const showAnnouncementInContact = nameIsLong;
     const menuLoadMoreActive = showMenu && visibleMenuCount < menu.length;
     const retailLoadMoreActive = visibleRetailCount < filteredRetailItems.length;
     const carLoadMoreActive = visibleCarCount < filteredCarListings.length;
     const displayCategory = formatBusinessCategory(business?.subcategory || business?.category);
 
     // Carousel handlers for main business gallery
-    const nextImage = () => setSelectedIndex((prevIndex) => (prevIndex + 1) % (business?.images?.length || 1));
+    const galleryImageCount = business?.images?.length || 0;
+    const nextImage = () => setSelectedIndex((prevIndex) => (prevIndex + 1) % (galleryImageCount || 1));
     const prevImage = () =>
-        setSelectedIndex((prevIndex) => (prevIndex - 1 + (business?.images?.length || 1)) % (business?.images?.length || 1));
+        setSelectedIndex((prevIndex) => (prevIndex - 1 + (galleryImageCount || 1)) % (galleryImageCount || 1));
     const handleGalleryTouchStart = (event: React.TouchEvent) => {
+        galleryInteractingRef.current = true;
         touchStartXRef.current = event.touches[0]?.clientX ?? null;
         touchEndXRef.current = touchStartXRef.current;
     };
@@ -1197,7 +1266,10 @@ const BusinessProfilePage = () => {
         touchEndXRef.current = event.touches[0]?.clientX ?? touchEndXRef.current;
     };
     const handleGalleryTouchEnd = () => {
-        if (touchStartXRef.current === null || touchEndXRef.current === null) return;
+        if (touchStartXRef.current === null || touchEndXRef.current === null) {
+            galleryInteractingRef.current = false;
+            return;
+        }
         const deltaX = touchStartXRef.current - touchEndXRef.current;
         if (Math.abs(deltaX) > 50) {
             if (deltaX > 0) {
@@ -1208,7 +1280,50 @@ const BusinessProfilePage = () => {
         }
         touchStartXRef.current = null;
         touchEndXRef.current = null;
+        galleryInteractingRef.current = false;
     };
+
+    useEffect(() => {
+        if (galleryImageCount <= 1) return;
+        const timer = window.setInterval(() => {
+            if (galleryInteractingRef.current) return;
+            setSelectedIndex((prev) => (prev + 1) % galleryImageCount);
+        }, 2000);
+        return () => window.clearInterval(timer);
+    }, [galleryImageCount]);
+
+    const fullDescription = useMemo(
+        () => (business?.description || '').trim().replace(/\s+/g, ' '),
+        [business?.description]
+    );
+
+    useEffect(() => {
+        if (isDealershipCategory(business?.category) || !fullDescription) {
+            setTypedDescription('');
+            setDescriptionTypingDone(false);
+            return;
+        }
+
+        let cancelled = false;
+        let index = 0;
+        setTypedDescription('');
+        setDescriptionTypingDone(false);
+
+        const timer = window.setInterval(() => {
+            if (cancelled) return;
+            index += 1;
+            setTypedDescription(fullDescription.slice(0, index));
+            if (index >= fullDescription.length) {
+                window.clearInterval(timer);
+                setDescriptionTypingDone(true);
+            }
+        }, 65);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+        };
+    }, [fullDescription, business?.category]);
     const toggleFavorite = async () => {
         if (!business) return;
         try {
@@ -1360,6 +1475,10 @@ const BusinessProfilePage = () => {
     const slugSecondaryColor = sanitizeHexColor(business.slug_secondary_color, '#6b1515');
     const slugUseGradient = business.slug_use_gradient !== false;
     const slugBrandBackground = buildSlugBackground(slugPrimaryColor, slugSecondaryColor, slugUseGradient);
+    const contactActionColor = sanitizeHexColor(
+        business.slug_contact_action_color || business.slug_primary_color,
+        '#0c1f3c'
+    );
     const viewDetailButtonStyle: { background: string } = business.slug_view_detail_button_color
         ? { background: sanitizeHexColor(business.slug_view_detail_button_color, '#0c1f3c') }
         : { background: slugBrandBackground };
@@ -1369,7 +1488,10 @@ const BusinessProfilePage = () => {
             initial="hidden"
             animate="visible"
             className={cn(
-                'relative px-0 pt-0 pb-[max(1rem,env(safe-area-inset-bottom,0px))] min-h-screen overflow-x-clip lg:mx-auto lg:max-w-5xl font-inter bg-gray-100 dark:bg-gray-900'
+                'relative px-0 pt-0 pb-[max(1rem,env(safe-area-inset-bottom,0px))] min-h-screen overflow-x-clip font-inter',
+                isDealership
+                    ? 'bg-white lg:mx-auto lg:max-w-3xl'
+                    : 'bg-gray-100 dark:bg-gray-900 lg:mx-auto lg:max-w-5xl'
             )}
         >
             <svg width={0} height={0} className="pointer-events-none absolute overflow-hidden opacity-0" aria-hidden>
@@ -1407,64 +1529,43 @@ const BusinessProfilePage = () => {
                     </div>
                 </div>
             )}
-            {/* Directory link + business name */}
-            <div className="sticky top-0 z-30 mb-0 flex flex-col">
-                <div className="min-h-[env(safe-area-inset-top,0px)] w-full shrink-0" aria-hidden />
-                <div
-                    className="border-b border-white/15 px-4 py-3 shadow-[inset_0_1px_0_rgba(130,170,230,0.22)] backdrop-blur-sm dark:border-white/10 dark:shadow-[inset_0_1px_0_rgba(180,70,80,0.16)]"
-                    style={{ background: slugBrandBackground }}
-                >
-                <div className="flex items-center justify-between gap-3 min-w-0">
-                    <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                        <BusinessesDirectoryLink />
-                        {business.logo_url ? (
-                            <img
-                                src={business.logo_url}
-                                alt={`${business.business_name} logo`}
-                                className="h-8 w-8 shrink-0 rounded-sm object-cover"
-                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                            />
-                        ) : null}
-                        <span className="min-w-0 flex-1 break-words text-sm sm:text-base font-semibold text-white" data-no-translate>
-                            {business.business_name}
-                        </span>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2.5 sm:gap-4">
-                        {!communityPostsLoading && communityPosts.length > 0 && (
-                            <button
-                                type="button"
-                                onClick={() => setShowCommunityModal(true)}
-                                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white ring-1 ring-white/25 transition hover:bg-white/20"
-                                aria-label="Community announcements"
-                            >
-                                <Megaphone size={18} aria-hidden />
-                            </button>
-                        )}
-                        <button
-                            type="button"
-                            onClick={toggleFavorite}
-                            className={cn(
-                                'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/25 transition hover:bg-white/20',
-                                isFavorited ? 'text-rose-300' : 'text-white'
-                            )}
-                            aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-                        >
-                            {isFavorited ? <FaHeart size={18} /> : <FaRegHeart size={18} />}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setShowQrModal(true)}
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white ring-1 ring-white/25 transition hover:bg-white/20"
-                            aria-label="Show business QR code"
-                        >
-                            <QrCode size={18} />
-                        </button>
+            {isDealership ? (
+                <>
+                    {business.moderation_status !== 'active' && business.owner_id ? (
+                        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                            Your business is currently pending approval. You can still view and edit your business profile and online
+                            shop, but it will not be visible to other users until it has been approved.
+                        </div>
+                    ) : null}
+                    <DealershipBusinessProfile
+                    business={business}
+                    cars={filteredCarListings}
+                    carSearchQuery={carSearchQuery}
+                    onCarSearchQueryChange={setCarSearchQuery}
+                    carSort={carSort}
+                    onCarSortChange={(value) => setCarSort(value as CarInventorySort)}
+                    sortOptions={CAR_INVENTORY_SORT_OPTIONS}
+                    conditionFilter={carConditionFilter}
+                    onConditionFilterChange={setCarConditionFilter}
+                    conditionOptions={carConditionOptions}
+                    visibleCarCount={visibleCarCount}
+                    accentColor={slugPrimaryColor}
+                    contactActionColor={contactActionColor}
+                    isFavorited={isFavorited}
+                    onToggleFavorite={toggleFavorite}
+                    onShare={handleShare}
+                    onOpenQr={() => setShowQrModal(true)}
+                    onOpenCommunity={() => setShowCommunityModal(true)}
+                    onCarDetails={(car) => setSelectedItemForDetails({ type: 'car', item: car })}
+                    onCarShare={handleItemShare}
+                    formatPrice={formatPriceWithCurrency}
+                    loadMoreRef={loadMoreRef}
+                    isLoadingMore={isLoadingMore}
+                    carLoadMoreActive={carLoadMoreActive}
+                />
+                </>
+            ) : null}
 
-                    </div>
-                </div>
-                </div>
-            </div>
-            
             {showCommunityModal && business && (
                 <BusinessCommunityPostsModal
                     open={showCommunityModal}
@@ -1494,63 +1595,102 @@ const BusinessProfilePage = () => {
 
             {showQrModal && (
                 <div
-                    className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/70 p-4 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-md sm:p-6 sm:pt-[max(1.25rem,env(safe-area-inset-top))]"
+                    className="hanar-qr-modal-backdrop fixed inset-0 z-[9999] flex items-start justify-center bg-black/80 p-4 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-md sm:items-center sm:p-6 sm:pt-6"
                     onClick={() => setShowQrModal(false)}
                     role="dialog"
                     aria-modal="true"
                     aria-label="Business QR code"
                 >
                     <div
-                        className="relative z-[1] w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-gray-900"
+                        className="hanar-qr-modal-panel relative z-[1] w-full max-w-[22rem] overflow-hidden rounded-[1.35rem] bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] shadow-[0_24px_60px_rgba(0,0,0,0.55)] ring-1 ring-white/10"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="mb-3 flex items-center justify-between">
-                            <h3 className="text-base font-semibold text-slate-900 dark:text-white">Scan to open this business</h3>
-                            <button
-                                type="button"
-                                onClick={() => setShowQrModal(false)}
-                                className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-                                aria-label="Close QR"
-                            >
-                                <X size={18} />
-                            </button>
-                        </div>
-                        <div className="mx-auto w-full max-w-[16rem] rounded-xl border border-slate-200 bg-white p-2 dark:border-slate-700 dark:bg-gray-800">
-                            {qrImageUrl ? (
-                                <img src={qrImageUrl} alt="Business QR code" className="h-full w-full object-contain" />
-                            ) : (
-                                <div className="flex h-64 items-center justify-center text-sm text-slate-500 dark:text-slate-400">
-                                    QR unavailable
+                        <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/[0.04]" aria-hidden />
+                        <div className="pointer-events-none absolute -bottom-14 -left-8 h-40 w-40 rounded-full bg-black/40" aria-hidden />
+
+                        <div className="relative px-4 pb-2 pt-3.5">
+                            <div className="mb-4 flex items-start justify-between gap-3">
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                    {business.logo_url ? (
+                                        <img
+                                            src={business.logo_url}
+                                            alt=""
+                                            className="h-11 w-11 shrink-0 rounded-xl object-cover ring-2 ring-white/15"
+                                            onError={(e) => {
+                                                e.currentTarget.style.display = 'none';
+                                            }}
+                                        />
+                                    ) : (
+                                        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#2a2a2a] text-white ring-1 ring-white/15">
+                                            <QrCode size={20} aria-hidden />
+                                        </span>
+                                    )}
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                                            Business QR
+                                        </p>
+                                        <h3
+                                            className="truncate text-[15px] font-bold leading-tight text-white sm:text-base"
+                                            data-no-translate
+                                        >
+                                            {business.business_name}
+                                        </h3>
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                        <p className="mt-3 text-xs text-slate-600 dark:text-slate-300">
-                            Scanning opens this business page link in browser. If your device has the app with app links enabled, it should open in-app.
-                        </p>
-                        <div className="mt-3 flex gap-2">
-                            <button
-                                type="button"
-                                onClick={async () => {
-                                    if (!qrTargetUrl) return;
-                                    try {
-                                        await navigator.clipboard.writeText(qrTargetUrl);
-                                        setQrCopied(true);
-                                        window.setTimeout(() => setQrCopied(false), 1500);
-                                    } catch {}
-                                }}
-                                className="inline-flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-gray-800"
-                            >
-                                {qrCopied ? <Check size={15} /> : <Copy size={15} />}
-                                {qrCopied ? 'Copied' : 'Copy link'}
-                            </button>
-                            <a
-                                href={qrTargetUrl || '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex flex-1 items-center justify-center rounded-lg bg-gradient-to-r from-[#0c1f3c] to-[#6b1515] px-3 py-2 text-sm font-semibold text-white transition hover:from-[#0a192f] hover:to-[#5a1212]"
-                            >
-                                Open link
-                            </a>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowQrModal(false)}
+                                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2a2a2a] text-zinc-300 ring-1 ring-white/10 transition hover:bg-[#333] hover:text-white"
+                                    aria-label="Close QR"
+                                >
+                                    <X size={17} />
+                                </button>
+                            </div>
+
+                            <div className="rounded-2xl bg-[#141414] p-3.5 ring-1 ring-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                                <div className="mx-auto w-full max-w-[15.5rem] overflow-hidden rounded-xl bg-[#1f1f1f] p-2.5 ring-1 ring-white/8">
+                                    {qrImageUrl ? (
+                                        <img
+                                            src={qrImageUrl}
+                                            alt="Business QR code"
+                                            className="hanar-qr-modal-code h-full w-full origin-center rounded-lg bg-white object-contain p-1 will-change-[opacity,transform,filter]"
+                                        />
+                                    ) : (
+                                        <div className="flex h-56 items-center justify-center text-sm text-zinc-500">
+                                            QR unavailable
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="mt-3 text-center text-[12px] font-medium leading-snug text-zinc-400">
+                                    Scan to open this business page instantly
+                                </p>
+                            </div>
+
+                            <div className="mt-3.5 flex gap-2.5 pb-1.5">
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        if (!qrTargetUrl) return;
+                                        try {
+                                            await navigator.clipboard.writeText(qrTargetUrl);
+                                            setQrCopied(true);
+                                            window.setTimeout(() => setQrCopied(false), 1500);
+                                        } catch {}
+                                    }}
+                                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#2a2a2a] px-3 py-2.5 text-sm font-semibold text-zinc-100 ring-1 ring-white/10 transition hover:bg-[#333]"
+                                >
+                                    {qrCopied ? <Check size={15} /> : <Copy size={15} />}
+                                    {qrCopied ? 'Copied' : 'Copy link'}
+                                </button>
+                                <a
+                                    href={qrTargetUrl || '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex flex-1 items-center justify-center rounded-xl bg-white px-3 py-2.5 text-sm font-bold text-black shadow-sm transition hover:bg-zinc-200"
+                                >
+                                    Open link
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1684,18 +1824,19 @@ const BusinessProfilePage = () => {
                 />
             )}
 
-            <div className="w-full space-y-0 bg-gray-100 dark:bg-slate-900/80 backdrop-blur lg:px-6 lg:pt-4">
+            {!isDealership ? (
+            <div className="w-full space-y-0 bg-gray-100 dark:bg-slate-900/80 backdrop-blur lg:px-6">
                 {business.moderation_status !== 'active' && business.owner_id && (
                     <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                         Your business is currently pending approval. You can still view and edit your business profile and online
                         shop, but it will not be visible to other users until it has been approved.
                     </div>
                 )}
-                {/* Gallery + action bar - full width, buttons directly under gallery */}
+                {/* Gallery flush to top — elevated navy chrome + soft 3D sheet */}
                 <div className="relative left-1/2 -translate-x-1/2 w-screen max-w-none lg:static lg:left-0 lg:translate-x-0 lg:w-full lg:overflow-hidden">
                     {business.images?.length ? (
                         <div
-                            className="relative overflow-hidden w-full aspect-video lg:aspect-auto lg:h-[420px] flex items-center justify-center group bg-black/5 dark:bg-black/20"
+                            className="relative h-[42vh] min-h-[16rem] max-h-[26rem] w-full overflow-hidden bg-slate-900 sm:h-[48vh]"
                             onTouchStart={handleGalleryTouchStart}
                             onTouchMove={handleGalleryTouchMove}
                             onTouchEnd={handleGalleryTouchEnd}
@@ -1703,108 +1844,379 @@ const BusinessProfilePage = () => {
                             <img
                                 src={business.images[selectedIndex]}
                                 alt={`Slide ${selectedIndex + 1}`}
-                                className="w-full h-full object-cover transition-transform duration-500"
+                                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500"
                                 onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400/cccccc/333333?text=Image+Not+Available'; e.currentTarget.onerror = null; }}
                             />
-                            <button
-                                type="button"
-                                onClick={handleShare}
-                                aria-label="Share"
-                                className="absolute top-3 right-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-black/45 text-white ring-1 ring-white/30 backdrop-blur-sm transition hover:bg-black/55"
-                            >
-                                <FaShareAlt size={18} />
-                            </button>
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/10 to-black/40" />
+
+                            <div className="absolute inset-x-0 top-0 z-20 px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-4">
+                                <header className="flex items-center justify-between gap-3">
+                                    <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                                        <Link
+                                            href="/businesses"
+                                            onClick={() => setBusinessesEnteredFromBusinessSlug()}
+                                            className={RETAIL_HEADER_BTN}
+                                            aria-label="Back to businesses"
+                                        >
+                                            <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+                                        </Link>
+                                        <div className={RETAIL_HEADER_NAME}>
+                                            {business.logo_url ? (
+                                                <img
+                                                    src={business.logo_url}
+                                                    alt=""
+                                                    className="h-8 w-8 shrink-0 rounded-full object-cover ring-2 ring-white/25"
+                                                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                />
+                                            ) : null}
+                                            <h1
+                                                className="min-w-0 truncate text-[14px] font-bold tracking-tight sm:text-[15px]"
+                                                data-no-translate
+                                            >
+                                                {business.business_name}
+                                            </h1>
+                                        </div>
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-2">
+                                        {showAnnouncementInHeader ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowCommunityModal(true)}
+                                                className={RETAIL_HEADER_BTN}
+                                                aria-label="Announcements"
+                                            >
+                                                <Megaphone size={18} />
+                                            </button>
+                                        ) : null}
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowQrModal(true)}
+                                            className={RETAIL_HEADER_BTN}
+                                            aria-label="Show business QR code"
+                                        >
+                                            <QrCode size={18} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={toggleFavorite}
+                                            className={cn(RETAIL_HEADER_BTN, isFavorited ? 'text-rose-200' : 'text-white')}
+                                            aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                                        >
+                                            {isFavorited ? <FaHeart size={18} /> : <FaRegHeart size={18} />}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleShare}
+                                            aria-label="Share"
+                                            className={RETAIL_HEADER_BTN}
+                                        >
+                                            <FaShareAlt size={16} />
+                                        </button>
+                                    </div>
+                                </header>
+
+                                {fullDescription ? (
+                                    <div className="mt-2.5 rounded-2xl bg-slate-900/60 p-3.5 shadow-[0_10px_28px_rgba(0,0,0,0.28)] ring-1 ring-white/20 backdrop-blur-md">
+                                        {descriptionTypingDone ? (
+                                            <BusinessDescriptionText
+                                                text={fullDescription}
+                                                className="text-[13px] font-normal leading-relaxed text-white whitespace-pre-line [text-shadow:0_1px_2px_rgba(0,0,0,0.55)]"
+                                                toggleClassName="text-white hover:text-white/85 dark:text-white dark:hover:text-white/85"
+                                            />
+                                        ) : (
+                                            <p className="text-[13px] font-normal leading-relaxed text-white whitespace-pre-line [text-shadow:0_1px_2px_rgba(0,0,0,0.55)]">
+                                                {typedDescription}
+                                                <span
+                                                    className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] bg-white align-baseline animate-pulse"
+                                                    aria-hidden
+                                                />
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : null}
+                            </div>
+
                             {business.images.length > 1 && (<>
-                                <button onClick={prevImage} className="absolute top-1/2 left-4 transform -translate-y-1/2 bg-white/50 dark:bg-gray-800/50 hover:bg-white/70 dark:hover:bg-gray-700/70 text-gray-800 dark:text-gray-200 rounded-full shadow p-2 opacity-0 group-hover:opacity-100 transition-opacity"><FaArrowLeft size={20} /></button>
-                                <button onClick={nextImage} className="absolute top-1/2 right-4 transform -translate-y-1/2 bg-white/50 dark:bg-gray-800/50 hover:bg-white/70 dark:hover:bg-gray-700/70 text-gray-800 dark:text-gray-200 rounded-full shadow p-2 opacity-0 group-hover:opacity-100 transition-opacity"><FaArrowRight size={20} /></button>
-                                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={prevImage}
+                                    aria-label="Previous image"
+                                    className="absolute top-1/2 left-3 z-10 -translate-y-1/2 rounded-full bg-slate-700/70 p-2.5 text-white shadow-[0_8px_20px_rgba(0,0,0,0.35)] ring-1 ring-white/25 backdrop-blur-sm transition hover:bg-slate-600/80 sm:left-4"
+                                >
+                                    <FaArrowLeft size={16} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={nextImage}
+                                    aria-label="Next image"
+                                    className="absolute top-1/2 right-3 z-10 -translate-y-1/2 rounded-full bg-slate-700/70 p-2.5 text-white shadow-[0_8px_20px_rgba(0,0,0,0.35)] ring-1 ring-white/25 backdrop-blur-sm transition hover:bg-slate-600/80 sm:right-4"
+                                >
+                                    <FaArrowRight size={16} />
+                                </button>
+                                <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-2 sm:bottom-4">
                                     {business.images.map((_, index) => (
-                                        <div key={index} className={cn(
-                                            "w-3 h-3 rounded-full transition-colors duration-300 cursor-pointer",
-                                            selectedIndex === index
-                                                ? "bg-[#b91c1c] dark:bg-red-500"
-                                                : "bg-gray-300 dark:bg-gray-600"
-                                        )} onClick={() => setSelectedIndex(index)} />
+                                        <button
+                                            key={index}
+                                            type="button"
+                                            aria-label={`Go to image ${index + 1}`}
+                                            className={cn(
+                                                'h-2.5 w-2.5 rounded-full shadow-sm transition-colors duration-300',
+                                                selectedIndex === index
+                                                    ? 'bg-white'
+                                                    : 'bg-white/45 hover:bg-white/70'
+                                            )}
+                                            onClick={() => setSelectedIndex(index)}
+                                        />
                                     ))}
                                 </div>
                             </>)}
                         </div>
-                    ) : null}
-                    {/* Action bar - transparent contact strip */}
-                    <div className="flex flex-wrap items-center justify-center gap-2 border-t border-slate-200/70 bg-transparent px-4 py-3 dark:border-slate-600/60">
-                        {business.phone && (
-                            <ContactHrefLink href={buildTelHref(business.phone)} ariaLabel="Call" className={CONTACT_STRIP_CHIP}>
-                                <FaPhone size={18} className="shrink-0" />
-                            </ContactHrefLink>
-                        )}
-                        {business.whatsapp && (
-                            <a href={`https://wa.me/${business.whatsapp}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className={CONTACT_STRIP_CHIP}>
-                                <FaWhatsapp size={20} className="shrink-0" />
-                            </a>
-                        )}
-                        {business.email && (
-                            <ContactHrefLink href={buildMailtoHref(business.email)} ariaLabel="Email" className={CONTACT_STRIP_CHIP}>
-                                <FaEnvelope size={18} className="shrink-0" />
-                            </ContactHrefLink>
-                        )}
-                        {business.website && (
-                            <a href={business.website} target="_blank" rel="noopener noreferrer" aria-label="External link" className={CONTACT_STRIP_CHIP}>
-                                <FaGlobe size={18} className="shrink-0" />
-                            </a>
-                        )}
-                        {business.owner_id && (
-                            <Link
-                                href={`/messages?targetType=business&targetId=${encodeURIComponent(business.id)}`}
-                                aria-label="Message business"
-                                className={CONTACT_STRIP_CHIP}
-                            >
-                                <FaCommentDots size={18} className="shrink-0" />
-                            </Link>
-                        )}
-                        {business && (
-                            <ReportButton
-                                entityType="business"
-                                entityId={business.id}
-                                entityTitle={business.business_name}
-                                variant="icon"
-                                className={CONTACT_REPORT_BUTTON_CLASS}
-                            />
-                        )}
-                    </div>
-                </div>
-                {/* Name + Description - scrolls away with page */}
-                <div className="border-t border-b border-slate-300 bg-transparent dark:border-slate-600">
-                    <div className="bg-transparent p-4 sm:p-6">
-                        <div className="flex w-full items-center gap-4">
-                            {business.logo_url && (
-                                <div className="w-24 sm:w-28 h-24 sm:h-28 flex-shrink-0 overflow-hidden shadow-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-gray-900">
-                                    <img
-                                        src={business.logo_url}
-                                        alt="Business Logo"
-                                        className="object-contain w-full h-full p-2"
-                                        onError={(e) => { e.currentTarget.src = 'https://placehold.co/120x120/cccccc/333333?text=Logo'; e.currentTarget.onerror = null; }}
-                                    />
+                    ) : (
+                        <div
+                            className="relative w-full px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-4"
+                            style={{ background: slugBrandBackground }}
+                        >
+                            <header className="flex items-center justify-between gap-3">
+                                <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                                    <BusinessesDirectoryLink />
+                                    <div className={cn(RETAIL_HEADER_NAME, 'min-w-0 flex-1')}>
+                                        {business.logo_url ? (
+                                            <img
+                                                src={business.logo_url}
+                                                alt=""
+                                                className="h-8 w-8 shrink-0 rounded-full object-cover ring-2 ring-white/25"
+                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                            />
+                                        ) : null}
+                                        <span className="min-w-0 flex-1 break-words text-sm font-semibold text-white sm:text-base" data-no-translate>
+                                            {business.business_name}
+                                        </span>
+                                    </div>
                                 </div>
-                            )}
-                            <div className="min-w-0 flex-1 text-left">
-                                <h1
-                                    className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100"
-                                    data-no-translate
+                                <div className="flex shrink-0 items-center gap-2">
+                                    {showAnnouncementInHeader ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowCommunityModal(true)}
+                                            className={RETAIL_HEADER_BTN}
+                                            aria-label="Announcements"
+                                        >
+                                            <Megaphone size={18} />
+                                        </button>
+                                    ) : null}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowQrModal(true)}
+                                        className={RETAIL_HEADER_BTN}
+                                        aria-label="Show business QR code"
+                                    >
+                                        <QrCode size={18} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={toggleFavorite}
+                                        className={cn(RETAIL_HEADER_BTN, isFavorited ? 'text-rose-200' : 'text-white')}
+                                        aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                                    >
+                                        {isFavorited ? <FaHeart size={18} /> : <FaRegHeart size={18} />}
+                                    </button>
+                                </div>
+                            </header>
+                        </div>
+                    )}
+
+                    {/* Raised white sheet with 3D action + contact capsule */}
+                    <div
+                        className={cn(
+                            'relative z-10 rounded-t-[1.75rem] bg-white px-3 pb-4 shadow-[0_-12px_36px_rgba(15,23,42,0.14)] dark:bg-gray-900 sm:px-5',
+                            business.images?.length ? '-mt-5 pt-6' : 'mt-2 pt-5'
+                        )}
+                    >
+                        <div className="flex items-start justify-around gap-1 sm:justify-center sm:gap-8">
+                            {business.phone ? (
+                                <ContactHrefLink href={buildTelHref(business.phone)} ariaLabel="Call" className={RETAIL_ACTION_BTN}>
+                                    <span
+                                        className={RETAIL_ACTION_CIRCLE}
+                                        style={{
+                                            backgroundColor: contactActionColor,
+                                            boxShadow: retailElevatedShadow(contactActionColor, 0.45),
+                                        }}
+                                    >
+                                        <Phone className="h-6 w-6" strokeWidth={2.25} />
+                                    </span>
+                                    <span className="text-[12px] font-semibold text-slate-800 dark:text-slate-100">Call</span>
+                                </ContactHrefLink>
+                            ) : null}
+
+                            {business.whatsapp ? (
+                                <a
+                                    href={`https://wa.me/${business.whatsapp.replace(/[^\d+]/g, '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={RETAIL_ACTION_BTN}
+                                    aria-label="WhatsApp"
                                 >
-                                    {business.business_name}
-                                </h1>
-                                {displayCategory ? (
-                                  <p className="text-sm font-normal text-gray-500 dark:text-gray-400 italic">{displayCategory}</p>
+                                    <span
+                                        className={RETAIL_ACTION_CIRCLE}
+                                        style={{
+                                            backgroundColor: contactActionColor,
+                                            boxShadow: retailElevatedShadow(contactActionColor, 0.45),
+                                        }}
+                                    >
+                                        <WhatsAppIcon className="h-6 w-6" strokeWidth={2.25} />
+                                    </span>
+                                    <span className="text-[12px] font-semibold text-slate-800 dark:text-slate-100">WhatsApp</span>
+                                </a>
+                            ) : null}
+
+                            {business.owner_id ? (
+                                <Link
+                                    href={`/messages?targetType=business&targetId=${encodeURIComponent(business.id)}`}
+                                    className={RETAIL_ACTION_BTN}
+                                    aria-label="Message"
+                                >
+                                    <span
+                                        className={RETAIL_ACTION_CIRCLE}
+                                        style={{
+                                            backgroundColor: contactActionColor,
+                                            boxShadow: retailElevatedShadow(contactActionColor, 0.45),
+                                        }}
+                                    >
+                                        <MessageCircle className="h-6 w-6" strokeWidth={2.25} />
+                                    </span>
+                                    <span className="text-[12px] font-semibold text-slate-800 dark:text-slate-100">Message</span>
+                                </Link>
+                            ) : null}
+
+                            {business.address?.street ? (
+                                <a
+                                    href={getMapUrl(business.address)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={RETAIL_ACTION_BTN}
+                                    aria-label="Map"
+                                >
+                                    <span
+                                        className={RETAIL_ACTION_CIRCLE}
+                                        style={{
+                                            backgroundColor: contactActionColor,
+                                            boxShadow: retailElevatedShadow(contactActionColor, 0.45),
+                                        }}
+                                    >
+                                        <MapIcon className="h-6 w-6" strokeWidth={2.25} />
+                                    </span>
+                                    <span className="text-[12px] font-semibold text-slate-800 dark:text-slate-100">Map</span>
+                                </a>
+                            ) : null}
+                        </div>
+
+                        <div className="mt-4 flex justify-center">
+                            <div className="inline-flex items-center gap-0.5 rounded-full bg-white px-2 py-1.5 shadow-[0_10px_28px_rgba(15,23,42,0.14),0_2px_8px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/80 dark:bg-gray-800 dark:ring-slate-600/70">
+                                {business.email ? (
+                                    <>
+                                        <ContactHrefLink
+                                            href={buildMailtoHref(business.email)}
+                                            ariaLabel="Email"
+                                            className={RETAIL_CONTACT_CHIP}
+                                        >
+                                            <Mail className="h-4 w-4 shrink-0" strokeWidth={2.25} />
+                                        </ContactHrefLink>
+                                        <span className="mx-0.5 h-5 w-px shrink-0 bg-slate-200 dark:bg-slate-600" aria-hidden />
+                                    </>
                                 ) : null}
+                                {showAnnouncementInContact ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowCommunityModal(true)}
+                                            aria-label="Announcements"
+                                            className={cn(RETAIL_CONTACT_CHIP, 'text-red-600 hover:text-red-700 dark:text-red-400')}
+                                        >
+                                            <Megaphone className="h-4 w-4 shrink-0" strokeWidth={2.25} />
+                                        </button>
+                                        <span className="mx-0.5 h-5 w-px shrink-0 bg-slate-200 dark:bg-slate-600" aria-hidden />
+                                    </>
+                                ) : null}
+                                {business.website ? (
+                                    <>
+                                        <a
+                                            href={business.website.startsWith('http') ? business.website : `https://${business.website}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            aria-label="Website"
+                                            className={RETAIL_CONTACT_CHIP}
+                                        >
+                                            <FaGlobe size={15} className="shrink-0" />
+                                        </a>
+                                        <span className="mx-0.5 h-5 w-px shrink-0 bg-slate-200 dark:bg-slate-600" aria-hidden />
+                                    </>
+                                ) : null}
+                                <ReportButton
+                                    entityType="business"
+                                    entityId={business.id}
+                                    entityTitle={business.business_name}
+                                    variant="icon"
+                                    className={CONTACT_REPORT_BUTTON_CLASS}
+                                />
                             </div>
                         </div>
-                        <BusinessDescriptionText
-                            text={business.description}
-                            className="mt-2 font-normal text-[#444] dark:text-gray-300 leading-relaxed whitespace-pre-line"
-                        />
+                    </div>
+                </div>
+                {/* Hours / socials */}
+                <div className="bg-white dark:bg-gray-900">
+                    <div className="p-4 sm:p-6">
+                        {!business.images?.length ? (
+                            <>
+                                <div className="flex w-full items-center gap-4">
+                                    {business.logo_url && (
+                                        <div className="w-24 sm:w-28 h-24 sm:h-28 flex-shrink-0 overflow-hidden shadow-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-gray-900">
+                                            <img
+                                                src={business.logo_url}
+                                                alt="Business Logo"
+                                                className="object-contain w-full h-full p-2"
+                                                onError={(e) => { e.currentTarget.src = 'https://placehold.co/120x120/cccccc/333333?text=Logo'; e.currentTarget.onerror = null; }}
+                                            />
+                                        </div>
+                                    )}
+                                    <div className="min-w-0 flex-1 text-left">
+                                        <h1
+                                            className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100"
+                                            data-no-translate
+                                        >
+                                            {business.business_name}
+                                        </h1>
+                                        {displayCategory ? (
+                                          <p className="text-sm font-normal text-gray-500 dark:text-gray-400 italic">{displayCategory}</p>
+                                        ) : null}
+                                    </div>
+                                </div>
+                                {(business.description || '').trim() ? (
+                                    <div className="mt-3 rounded-2xl bg-slate-900/60 p-3 ring-1 ring-white/20 backdrop-blur-md">
+                                        {descriptionTypingDone ? (
+                                            <BusinessDescriptionText
+                                                text={fullDescription}
+                                                className="text-[13px] font-normal leading-relaxed text-white whitespace-pre-line [text-shadow:0_1px_2px_rgba(0,0,0,0.85),0_0_10px_rgba(0,0,0,0.45)]"
+                                                toggleClassName="text-white hover:text-white/85 dark:text-white dark:hover:text-white/85 [text-shadow:0_1px_2px_rgba(0,0,0,0.85)]"
+                                            />
+                                        ) : (
+                                            <p className="text-[13px] font-normal leading-relaxed text-white whitespace-pre-line [text-shadow:0_1px_2px_rgba(0,0,0,0.85),0_0_10px_rgba(0,0,0,0.45)]">
+                                                {typedDescription}
+                                                <span
+                                                    className="ml-0.5 inline-block h-[1em] w-[2px] translate-y-[2px] bg-white align-baseline animate-pulse"
+                                                    aria-hidden
+                                                />
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : null}
+                            </>
+                        ) : null}
                         {(hasHours || hasSocials) && (
                             <>
-                            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600 flex flex-wrap items-center gap-2">
+                            <div className={cn(
+                                'flex flex-wrap items-center gap-2',
+                                !business.images?.length ? 'mt-4 pt-4 border-t border-slate-200 dark:border-slate-600' : ''
+                            )}>
                                 {hasHours && (
                                     <>
                                         <span className="inline-flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-200">
@@ -1933,11 +2345,14 @@ const BusinessProfilePage = () => {
                     </div>
                 )}
                 {retailItems.length > 0 && (
-                    <div className="border-b border-slate-300 bg-white px-4 py-4 dark:border-slate-600 dark:bg-gray-800 sm:p-6">
-                        <h2 className="mb-3 flex items-center gap-2 text-xl font-semibold text-[#333] dark:text-gray-100">
-                            <StoreIcon size={20} /> Our Store
+                    <div className="bg-white px-4 py-5 dark:bg-gray-900 sm:px-6 sm:py-6">
+                        <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-gray-100">
+                            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 shadow-sm ring-1 ring-slate-200/80 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-600">
+                                <StoreIcon size={18} />
+                            </span>
+                            Our Store
                         </h2>
-                        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                        <div className="mb-5 flex flex-col gap-2.5 sm:flex-row sm:items-stretch">
                             {storeCategoryOptions.length > 0 ? (
                                 <div className="sm:w-44 sm:shrink-0">
                                     <label htmlFor="store-category-filter" className="sr-only">
@@ -1947,7 +2362,7 @@ const BusinessProfilePage = () => {
                                         id="store-category-filter"
                                         value={storeCategoryFilter}
                                         onChange={(e) => setStoreCategoryFilter(e.target.value)}
-                                        className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-3 pr-8 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/80 dark:border-slate-600 dark:bg-gray-900 dark:text-slate-100 dark:focus:border-indigo-500 dark:focus:ring-indigo-900/50"
+                                        className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-3.5 pr-8 text-sm font-medium text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.08)] outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-200/80 dark:border-slate-600 dark:bg-gray-800 dark:text-slate-100 dark:shadow-[0_6px_16px_rgba(0,0,0,0.25)]"
                                     >
                                         <option value="">All categories</option>
                                         {storeCategoryOptions.map((category) => (
@@ -1960,7 +2375,7 @@ const BusinessProfilePage = () => {
                             ) : null}
                             <div className="relative min-w-0 flex-1">
                             <Search
-                                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500"
+                                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-orange-500"
                                 aria-hidden
                             />
                             <input
@@ -1968,14 +2383,14 @@ const BusinessProfilePage = () => {
                                 value={storeSearchQuery}
                                 onChange={(e) => setStoreSearchQuery(e.target.value)}
                                 placeholder="Search items in our store..."
-                                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/80 dark:border-slate-600 dark:bg-gray-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-900/50"
+                                className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 shadow-[0_6px_16px_rgba(15,23,42,0.08)] outline-none transition placeholder:text-slate-400 focus:border-slate-300 focus:ring-2 focus:ring-slate-200/80 dark:border-slate-600 dark:bg-gray-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:shadow-[0_6px_16px_rgba(0,0,0,0.25)]"
                                 aria-label="Search items in our store"
                             />
                             {storeSearchQuery ? (
                                 <button
                                     type="button"
                                     onClick={() => setStoreSearchQuery('')}
-                                    className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                                    className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                                     aria-label="Clear search"
                                 >
                                     <X size={16} />
@@ -2069,7 +2484,41 @@ const BusinessProfilePage = () => {
                             ) : null}
                             </div>
                         </div>
-                        {carSearchQuery.trim() ? (
+                        {carConditionOptions.length > 0 ? (
+                            <div className="mb-3 flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setCarConditionFilter('')}
+                                    className={cn(
+                                        'rounded-full px-3 py-1 text-xs font-semibold transition',
+                                        !carConditionFilter
+                                            ? 'bg-[#0c1f3c] text-white'
+                                            : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:ring-slate-600'
+                                    )}
+                                >
+                                    All conditions
+                                </button>
+                                {carConditionOptions.map((condition) => {
+                                    const active = carConditionFilter === condition;
+                                    return (
+                                        <button
+                                            key={condition}
+                                            type="button"
+                                            onClick={() => setCarConditionFilter(active ? '' : condition)}
+                                            className={cn(
+                                                'rounded-full px-3 py-1 text-xs font-semibold transition',
+                                                active
+                                                    ? 'bg-[#0c1f3c] text-white'
+                                                    : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-700 dark:text-slate-200 dark:ring-slate-600'
+                                            )}
+                                        >
+                                            {condition}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ) : null}
+                        {carSearchQuery.trim() || carConditionFilter ? (
                             <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
                                 {filteredCarListings.length}{' '}
                                 {filteredCarListings.length === 1 ? 'car' : 'cars'} found
@@ -2306,6 +2755,7 @@ const BusinessProfilePage = () => {
                     </div>
                 )}
             </div>
+            ) : null}
             
 
         </motion.div>

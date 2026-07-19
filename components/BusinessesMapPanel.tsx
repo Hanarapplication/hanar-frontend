@@ -534,7 +534,9 @@ export default function BusinessesMapPanel({
   const userOverlayRef = useRef<UserPinOverlayHandle | null>(null);
   const viewportAnimTimersRef = useRef<number[]>([]);
   const lastLocationViewportKeyRef = useRef<string | null>(null);
-  const [scriptReady, setScriptReady] = useState(false);
+  const [scriptReady, setScriptReady] = useState(
+    () => typeof window !== 'undefined' && Boolean(window.google?.maps)
+  );
   const [mapError, setMapError] = useState<string | null>(null);
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -902,12 +904,59 @@ export default function BusinessesMapPanel({
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
     window.initBusinessesMapPanel = () => setScriptReady(true);
-    if (window.google?.maps) setScriptReady(true);
+    if (window.google?.maps) {
+      setScriptReady(true);
+    }
+
     return () => {
       delete window.initBusinessesMapPanel;
+      pinOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
+      pinOverlaysRef.current.clear();
+      knownPinIdsRef.current.clear();
+      if (userOverlayRef.current) {
+        userOverlayRef.current.setMap(null);
+        userOverlayRef.current = null;
+      }
+      if (circleRef.current) {
+        circleRef.current.setMap(null);
+        circleRef.current = null;
+      }
+      if (areaHighlightRef.current) {
+        clearAreaHighlight(areaHighlightRef.current);
+        areaHighlightRef.current = null;
+      }
+      cancelViewportAnimation();
+      clearMapListeners();
+      mapInstanceRef.current = null;
+      lastViewportKeyRef.current = '';
+      lastLocationViewportKeyRef.current = null;
     };
-  }, []);
+  }, [cancelViewportAnimation, clearMapListeners]);
+
+  const syncPinsRef = useRef(syncPins);
+  syncPinsRef.current = syncPins;
+  const applyViewportRef = useRef(applyViewport);
+  applyViewportRef.current = applyViewport;
+
+  /** Soft-nav remount: Google script is already present, so force map + pins to rebuild. */
+  useEffect(() => {
+    if (!expanded || !scriptReady || !apiKey) return;
+    const map = ensureMap();
+    if (!map) return;
+    const redraw = window.setTimeout(() => {
+      window.google?.maps?.event?.trigger(map, 'resize');
+      // Use refs so we don't re-apply a stale first-paint viewport (often USA)
+      // after location scope has already restored from localStorage.
+      syncPinsRef.current();
+      applyViewportRef.current(map, false);
+      requestPinRedraw();
+    }, 80);
+    return () => window.clearTimeout(redraw);
+    // Only recover on mount / maps-ready — avoid tying to syncPins identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, scriptReady, apiKey]);
 
   const resolvingLocations =
     geocoding || (matchingCount > 0 && businesses.length === 0 && pendingGeocodeCount > 0);
@@ -956,7 +1005,7 @@ export default function BusinessesMapPanel({
             mapInteractionLocked && 'pointer-events-none'
           )}
         >
-          {apiKey && expanded && (
+          {apiKey && expanded && !scriptReady ? (
             <Script
               src={`https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initBusinessesMapPanel`}
               strategy="afterInteractive"
@@ -964,7 +1013,7 @@ export default function BusinessesMapPanel({
               defer
               onError={() => setMapError('Map failed to load')}
             />
-          )}
+          ) : null}
 
           {showMapSurface ? (
             <div ref={mapRef} className="hanar-businesses-map-surface absolute inset-0" />

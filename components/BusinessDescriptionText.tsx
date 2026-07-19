@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 type BusinessDescriptionTextProps = {
   text?: string | null;
   className?: string;
+  toggleClassName?: string;
   style?: CSSProperties;
   fallback?: string;
   readMoreLabel?: string;
@@ -16,6 +17,7 @@ type BusinessDescriptionTextProps = {
 export function BusinessDescriptionText({
   text,
   className,
+  toggleClassName,
   style,
   fallback,
   readMoreLabel = 'Read more',
@@ -64,7 +66,10 @@ export function BusinessDescriptionText({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+          className={cn(
+            'mt-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300',
+            toggleClassName
+          )}
         >
           {expanded ? readLessLabel : readMoreLabel}
         </button>

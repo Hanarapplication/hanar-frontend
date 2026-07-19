@@ -23,3 +23,11 @@ export function formatBusinessCategory(raw?: string | null): string | null {
     .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ''))
     .join(' ');
 }
+
+/** Names at/above this length crowd the hero header icon row. */
+export const BUSINESS_NAME_HEADER_LONG_THRESHOLD = 13;
+
+/** When true, relocate announcement (etc.) from the header into the contact row. */
+export function isBusinessNameLongForHeader(name: string | null | undefined): boolean {
+  return String(name || '').trim().length >= BUSINESS_NAME_HEADER_LONG_THRESHOLD;
+}

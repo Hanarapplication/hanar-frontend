@@ -49,6 +49,13 @@ import {
   businessesDirectorySearchPath,
   readBusinessesDirectorySearchQuery,
 } from '@/lib/businessesDirectorySearch';
+import {
+  defaultMapCenterFromSnapshot,
+  hasSavedBusinessesMapLocation,
+  readBusinessesMapLocation,
+  writeBusinessesMapLocation,
+  type BusinessesMapLocationSnapshot,
+} from '@/lib/businessesMapLocationPersist';
 import { BUSINESS_CATEGORIES, getBusinessCategoryIcon } from '@/utils/businessCategories';
 
 const BusinessesMapPanel = dynamic(() => import('@/components/BusinessesMapPanel'), {
@@ -77,6 +84,23 @@ const QUICK_FILTER_LABELS = [
   'Health & Beauty',
   'More',
 ];
+
+/** Read last-saved map area for this mount (client only). */
+function bootMapLocation(): BusinessesMapLocationSnapshot | null {
+  if (typeof window === 'undefined') return null;
+  return readBusinessesMapLocation(readSavedSearchRadiusMiles(40));
+}
+
+function locationAreaQueryFromScope(scope: MarketplaceLocationScope): string | null {
+  if (scope.mode === 'country' && scope.country.trim()) return scope.country.trim();
+  if (scope.mode === 'state' && scope.state.trim()) {
+    return [scope.state, scope.country].filter(Boolean).join(', ');
+  }
+  if (scope.mode === 'city_radius' && scope.city.trim()) {
+    return [scope.city, scope.state, scope.country].filter(Boolean).join(', ');
+  }
+  return null;
+}
 
 function readBusinessesCache(): { ts: number; businesses: Business[] } | null {
   try {
@@ -234,24 +258,38 @@ function BusinessesPageContent() {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [relatedBusinessIds, setRelatedBusinessIds] = useState<Set<string>>(new Set());
-  const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
-  const [locationLabel, setLocationLabel] = useState<string | null>(null);
-  const [radius, setRadius] = useState(() => readSavedSearchRadiusMiles(40));
+  const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(
+    () => bootMapLocation()?.userCoords ?? null
+  );
+  const [locationLabel, setLocationLabel] = useState<string | null>(
+    () => bootMapLocation()?.label ?? null
+  );
+  const [radius, setRadius] = useState(
+    () => bootMapLocation()?.radiusMiles ?? readSavedSearchRadiusMiles(40)
+  );
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
-  const [locationSearchValue, setLocationSearchValue] = useState('');
-  const [locationScope, setLocationScope] = useState<MarketplaceLocationScope>({ mode: 'none' });
+  const [locationSearchValue, setLocationSearchValue] = useState(
+    () => bootMapLocation()?.searchText ?? ''
+  );
+  const [locationScope, setLocationScope] = useState<MarketplaceLocationScope>(
+    () => bootMapLocation()?.scope ?? { mode: 'none' }
+  );
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(6);
   const [selectedMapBusinessId, setSelectedMapBusinessId] = useState<string | null>(null);
   const [listLayout, setListLayout] = useState<'list' | 'cards'>('list');
   const [mapExpanded, setMapExpanded] = useState(true);
-  const [geocodeCache, setGeocodeCache] = useState<GeocodeCache>(() =>
-    typeof window !== 'undefined' ? readGeocodeCache() : {}
-  );
+  const [geocodeCache, setGeocodeCache] = useState<GeocodeCache>({});
   const [mapGeocoding, setMapGeocoding] = useState(false);
-  const [mapViewCenter, setMapViewCenter] = useState(USA_MAP_CENTER);
-  const [locationAreaBounds, setLocationAreaBounds] = useState<MapAreaBounds | null>(null);
-  const [locationAreaRings, setLocationAreaRings] = useState<MapAreaRing[] | null>(null);
+  const [mapViewCenter, setMapViewCenter] = useState(() =>
+    defaultMapCenterFromSnapshot(bootMapLocation())
+  );
+  const [locationAreaBounds, setLocationAreaBounds] = useState<MapAreaBounds | null>(
+    () => bootMapLocation()?.bounds ?? null
+  );
+  const [locationAreaRings, setLocationAreaRings] = useState<MapAreaRing[] | null>(
+    () => bootMapLocation()?.rings ?? null
+  );
   const [myMapLocation, setMyMapLocation] = useState<{ lat: number; lon: number } | null>(() =>
     typeof window !== 'undefined' ? readStoredCoords([MAP_MY_LOCATION_KEY, 'userCoords']) : null
   );
@@ -260,7 +298,20 @@ function BusinessesPageContent() {
   const [businessesRefreshing, setBusinessesRefreshing] = useState(false);
   const triedAutoLocationRef = useRef(false);
   const triedAutoMapLocationRef = useRef(false);
-  const lastGeocodedCityQueryRef = useRef<string | null>(null);
+  const lastGeocodedCityQueryRef = useRef<string | null>(
+    (() => {
+      const saved = bootMapLocation();
+      if (!saved) return null;
+      if (saved.userCoords && saved.scope.mode === 'city_radius' && !saved.scope.city.trim()) {
+        return null;
+      }
+      const query =
+        locationAreaQueryFromScope(saved.scope) ||
+        (saved.searchText.trim() ? saved.searchText.trim() : null);
+      if (!query) return hasSavedBusinessesMapLocation(saved) ? null : '__usa__';
+      return saved.bounds || saved.center ? query : null;
+    })()
+  );
   const geocodeFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
@@ -319,6 +370,10 @@ function BusinessesPageContent() {
     const cache = readBusinessesCache();
     if (cache) {
       setBusinesses(cache.businesses);
+    }
+    const storedGeocode = readGeocodeCache();
+    if (Object.keys(storedGeocode).length > 0) {
+      setGeocodeCache(storedGeocode);
     }
     void fetchBusinesses();
   }, [fetchBusinesses]);
@@ -419,13 +474,69 @@ function BusinessesPageContent() {
     }
   }, []);
 
+  const locationPersistRef = useRef({
+    searchText: '',
+    label: null as string | null,
+    scope: { mode: 'none' } as MarketplaceLocationScope,
+    center: null as { lat: number; lon: number } | null,
+    bounds: null as MapAreaBounds | null,
+    rings: null as MapAreaRing[] | null,
+    userCoords: null as { lat: number; lon: number } | null,
+    radiusMiles: 40,
+  });
+  locationPersistRef.current = {
+    searchText: locationSearchValue,
+    label: locationLabel,
+    scope: locationScope,
+    center: mapViewCenter,
+    bounds: locationAreaBounds,
+    rings: locationAreaRings,
+    userCoords,
+    radiusMiles: radius,
+  };
+
+  const persistLastMapLocation = useCallback(
+    (
+      patch?: Partial<{
+        searchText: string;
+        label: string | null;
+        scope: MarketplaceLocationScope;
+        center: { lat: number; lon: number } | null;
+        bounds: MapAreaBounds | null;
+        rings: MapAreaRing[] | null;
+        userCoords: { lat: number; lon: number } | null;
+        radiusMiles: number;
+      }>
+    ) => {
+      const cur = locationPersistRef.current;
+      const next = {
+        searchText: patch?.searchText ?? cur.searchText,
+        label: patch?.label !== undefined ? patch.label : cur.label,
+        scope: patch?.scope ?? cur.scope,
+        center: patch?.center !== undefined ? patch.center : cur.center,
+        bounds: patch?.bounds !== undefined ? patch.bounds : cur.bounds,
+        rings: patch?.rings !== undefined ? patch.rings : cur.rings,
+        userCoords: patch?.userCoords !== undefined ? patch.userCoords : cur.userCoords,
+        radiusMiles: patch?.radiusMiles ?? cur.radiusMiles,
+      };
+      locationPersistRef.current = next;
+      writeBusinessesMapLocation(next);
+    },
+    []
+  );
+
   useEffect(() => {
+    // Already hydrated from bootMapLocation(); keep legacy center key warm if present.
     try {
       const savedCenter = localStorage.getItem(MAP_VIEW_CENTER_KEY);
       if (savedCenter) {
         const parsed = JSON.parse(savedCenter) as { lat?: number; lon?: number };
         if (parsed?.lat != null && parsed?.lon != null) {
-          setMapViewCenter({ lat: parsed.lat, lon: parsed.lon });
+          setMapViewCenter((prev) =>
+            prev.lat === parsed.lat && prev.lon === parsed.lon
+              ? prev
+              : { lat: parsed.lat!, lon: parsed.lon! }
+          );
         }
       }
     } catch {
@@ -446,9 +557,6 @@ function BusinessesPageContent() {
   const handleLocationSelect = (result: AddressResult) => {
     const scope = scopeFromAddressResult(result);
     setLocationScope(scope);
-    try {
-      localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(scope));
-    } catch {}
 
     const label =
       [result.city, result.state, result.country].filter(Boolean).join(', ') ||
@@ -456,39 +564,18 @@ function BusinessesPageContent() {
       t(effectiveLang, 'Selected location');
     setLocationLabel(label);
     setLocationSearchValue(label);
-    try {
-      if (label) localStorage.setItem('userLocationLabel', label);
-    } catch {}
 
     const isCityPick = scope.mode === 'city_radius' && Boolean(scope.city.trim());
     const isCountryOrState = scope.mode === 'country' || scope.mode === 'state';
 
+    let nextUserCoords: { lat: number; lon: number } | null = null;
     if (result.lat != null && result.lng != null && !isCityPick && !isCountryOrState) {
-      const coords = { lat: result.lat, lon: result.lng };
-      setUserCoords(coords);
-      try {
-        localStorage.setItem('userCoords', JSON.stringify(coords));
-      } catch {}
+      nextUserCoords = { lat: result.lat, lon: result.lng };
+      setUserCoords(nextUserCoords);
       window.dispatchEvent(
         new CustomEvent('location:updated', {
           detail: {
-            ...coords,
-            label,
-            city: result.city,
-            state: result.state,
-            country: result.country,
-            zip: result.zip,
-          },
-        })
-      );
-    } else if (isCityPick || isCountryOrState) {
-      setUserCoords(null);
-      try {
-        localStorage.removeItem('userCoords');
-      } catch {}
-      window.dispatchEvent(
-        new CustomEvent('location:updated', {
-          detail: {
+            ...nextUserCoords,
             label,
             city: result.city,
             state: result.state,
@@ -501,7 +588,9 @@ function BusinessesPageContent() {
       setUserCoords(null);
       try {
         localStorage.removeItem('userCoords');
-      } catch {}
+      } catch {
+        /* ignore */
+      }
       window.dispatchEvent(
         new CustomEvent('location:updated', {
           detail: {
@@ -515,13 +604,26 @@ function BusinessesPageContent() {
       );
     }
 
-    if (result.lat != null && result.lng != null) {
-      const center = { lat: result.lat, lon: result.lng };
-      setMapViewCenter(center);
-      try {
-        localStorage.setItem(MAP_VIEW_CENTER_KEY, JSON.stringify(center));
-      } catch {}
-    }
+    const center =
+      result.lat != null && result.lng != null
+        ? { lat: result.lat, lon: result.lng }
+        : null;
+    if (center) setMapViewCenter(center);
+
+    setLocationAreaBounds(null);
+    setLocationAreaRings(null);
+    lastGeocodedCityQueryRef.current = null;
+
+    persistLastMapLocation({
+      searchText: label,
+      label,
+      scope,
+      center,
+      bounds: null,
+      rings: null,
+      userCoords: nextUserCoords,
+    });
+
     setVisibleCount(6);
     setMapExpanded(true);
     window.requestAnimationFrame(() => {
@@ -534,20 +636,46 @@ function BusinessesPageContent() {
   };
 
   const handleUseMyLocation = () => {
+    const applyMyLocation = (
+      coords: { lat: number; lon: number },
+      label: string
+    ) => {
+      const geoScope: MarketplaceLocationScope = {
+        mode: 'city_radius',
+        country: '',
+        state: '',
+        city: '',
+      };
+      setUserCoords(coords);
+      persistMyMapLocation(coords);
+      setLocationLabel(label);
+      setLocationSearchValue(label);
+      setLocationScope(geoScope);
+      setMapViewCenter(coords);
+      setLocationAreaBounds(null);
+      setLocationAreaRings(null);
+      lastGeocodedCityQueryRef.current = null;
+      persistLastMapLocation({
+        searchText: label,
+        label,
+        scope: geoScope,
+        center: coords,
+        bounds: null,
+        rings: null,
+        userCoords: coords,
+      });
+      setVisibleCount(6);
+    };
+
     const stored = localStorage.getItem('userCoords');
     if (stored) {
       try {
         const { lat, lon } = JSON.parse(stored);
-        const coords = { lat, lon };
-        setUserCoords(coords);
-        persistMyMapLocation(coords);
-        setLocationLabel(t(effectiveLang, 'Your location'));
-        const geoScope: MarketplaceLocationScope = { mode: 'city_radius', country: '', state: '', city: '' };
-        setLocationScope(geoScope);
-        localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(geoScope));
-        setVisibleCount(6);
+        applyMyLocation({ lat, lon }, t(effectiveLang, 'Your location'));
         return;
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -578,23 +706,12 @@ function BusinessesPageContent() {
             // keep fallback label
           }
 
-          setUserCoords(coords);
-          persistMyMapLocation(coords);
-          setLocationLabel(label);
-          setLocationSearchValue(label);
-          const geoScope: MarketplaceLocationScope = { mode: 'city_radius', country: '', state: '', city: '' };
-          setLocationScope(geoScope);
-          try {
-            localStorage.setItem('userCoords', JSON.stringify(coords));
-            if (label) localStorage.setItem('userLocationLabel', label);
-            localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(geoScope));
-          } catch {}
+          applyMyLocation(coords, label);
           window.dispatchEvent(
             new CustomEvent('location:updated', {
               detail: { ...coords, label, city, state, country, radiusMiles: radius },
             })
           );
-          setVisibleCount(6);
         })();
       },
       () => toast.error(t(effectiveLang, 'Could not get your location.'))
@@ -602,43 +719,6 @@ function BusinessesPageContent() {
   };
 
   useEffect(() => {
-    const saved = localStorage.getItem('userCoords');
-    let savedLabel: string | null = null;
-    try { savedLabel = localStorage.getItem('userLocationLabel'); } catch {}
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as { lat: number; lon: number };
-        if (parsed?.lat != null && parsed?.lon != null) {
-          setUserCoords(parsed);
-          setLocationLabel(savedLabel || t(effectiveLang, 'Your location'));
-        }
-      } catch { /* ignore */ }
-    }
-    try {
-      const rawScope = localStorage.getItem(USER_LOCATION_SCOPE_KEY);
-      if (rawScope) {
-        const scope = JSON.parse(rawScope) as MarketplaceLocationScope;
-        setLocationScope(scope);
-        if (!savedLabel) {
-          let derived = '';
-          if (scope.mode === 'country' && scope.country.trim()) {
-            derived = scope.country.trim();
-          } else if (scope.mode === 'state' && scope.state.trim()) {
-            derived = [scope.state, scope.country].filter(Boolean).join(', ');
-          } else if (scope.mode === 'city_radius' && scope.city.trim()) {
-            derived = [scope.city, scope.state, scope.country].filter(Boolean).join(', ');
-          }
-          if (derived) {
-            setLocationLabel(derived);
-            setLocationSearchValue(derived);
-          }
-        }
-      } else if (saved) {
-        setLocationScope({ mode: 'city_radius', country: '', state: '', city: '' });
-      }
-    } catch {
-      /* ignore */
-    }
     const handleLocationUpdated = (e: Event) => {
       const detail = (e as CustomEvent).detail as {
         lat?: number;
@@ -649,57 +729,64 @@ function BusinessesPageContent() {
         country?: string;
         radiusMiles?: number;
       } | undefined;
-      if (detail?.lat != null && detail?.lon != null) {
-        const coords = { lat: detail.lat, lon: detail.lon };
-        setUserCoords(coords);
-        setMyMapLocation((prev) => prev ?? coords);
-        if (detail.label) {
-          setLocationLabel(detail.label);
-          setLocationSearchValue(detail.label);
-        } else {
-          const composed = [detail.city, detail.state, detail.country].filter(Boolean).join(', ');
-          if (composed) {
-            setLocationLabel(composed);
-            setLocationSearchValue(composed);
-          } else {
-            setLocationLabel((prev) => prev ?? t(effectiveLang, 'Your location'));
-          }
-        }
+      if (!detail) return;
+
+      const nextLabel =
+        detail.label?.trim() ||
+        [detail.city, detail.state, detail.country].filter(Boolean).join(', ') ||
+        null;
+      const nextCoords =
+        detail.lat != null && detail.lon != null
+          ? { lat: detail.lat, lon: detail.lon }
+          : null;
+      const nextScope =
+        detail.city != null || detail.state != null || detail.country != null
+          ? scopeFromAddressResult({
+              city: detail.city,
+              state: detail.state,
+              country: detail.country,
+            })
+          : undefined;
+
+      if (nextCoords) {
+        setUserCoords(nextCoords);
+        setMyMapLocation((prev) => prev ?? nextCoords);
+        setMapViewCenter(nextCoords);
       }
-      if (detail?.radiusMiles != null) {
-        setRadius(detail.radiusMiles);
+      if (nextLabel) {
+        setLocationLabel(nextLabel);
+        setLocationSearchValue(nextLabel);
+      } else if (nextCoords) {
+        setLocationLabel((prev) => prev ?? t(effectiveLang, 'Your location'));
       }
-      if (detail && (detail.city != null || detail.state != null || detail.country != null)) {
-        const next = scopeFromAddressResult({
-          city: detail.city,
-          state: detail.state,
-          country: detail.country,
-        });
-        setLocationScope(next);
-        try {
-          localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(next));
-        } catch {
-          /* ignore */
-        }
+      if (detail.radiusMiles != null) setRadius(detail.radiusMiles);
+      if (nextScope) setLocationScope(nextScope);
+
+      // Sync ref before write so we don't persist stale coords from this page's prior selection.
+      const cur = locationPersistRef.current;
+      if (nextLabel) {
+        cur.searchText = nextLabel;
+        cur.label = nextLabel;
       }
+      if (nextCoords) {
+        cur.userCoords = nextCoords;
+        cur.center = nextCoords;
+        cur.bounds = null;
+        cur.rings = null;
+      }
+      if (nextScope) cur.scope = nextScope;
+      if (detail.radiusMiles != null) cur.radiusMiles = detail.radiusMiles;
+      writeBusinessesMapLocation({ ...cur });
     };
     window.addEventListener('location:updated', handleLocationUpdated);
     return () => window.removeEventListener('location:updated', handleLocationUpdated);
-  }, []);
+  }, [effectiveLang]);
 
   useEffect(() => {
     if (triedAutoLocationRef.current) return;
     triedAutoLocationRef.current = true;
 
-    let hasSavedCoords = false;
-    let hasSavedScope = false;
-    try {
-      hasSavedCoords = Boolean(localStorage.getItem('userCoords'));
-      hasSavedScope = Boolean(localStorage.getItem(USER_LOCATION_SCOPE_KEY));
-    } catch {
-      /* ignore */
-    }
-    if (hasSavedCoords || hasSavedScope) return;
+    if (hasSavedBusinessesMapLocation(bootMapLocation())) return;
     if (!navigator.geolocation) return;
 
     navigator.geolocation.getCurrentPosition(
@@ -726,19 +813,27 @@ function BusinessesPageContent() {
             /* keep fallback label */
           }
 
+          const geoScope: MarketplaceLocationScope = {
+            mode: 'city_radius',
+            country: '',
+            state: '',
+            city: '',
+          };
           setUserCoords(coords);
           persistMyMapLocation(coords);
           setLocationLabel(label);
           setLocationSearchValue(label);
-          const geoScope: MarketplaceLocationScope = { mode: 'city_radius', country: '', state: '', city: '' };
           setLocationScope(geoScope);
-          try {
-            localStorage.setItem('userCoords', JSON.stringify(coords));
-            if (label) localStorage.setItem('userLocationLabel', label);
-            localStorage.setItem(USER_LOCATION_SCOPE_KEY, JSON.stringify(geoScope));
-          } catch {
-            /* ignore */
-          }
+          setMapViewCenter(coords);
+          persistLastMapLocation({
+            searchText: label,
+            label,
+            scope: geoScope,
+            center: coords,
+            bounds: null,
+            rings: null,
+            userCoords: coords,
+          });
         })();
       },
       () => {
@@ -746,7 +841,7 @@ function BusinessesPageContent() {
       },
       { enableHighAccuracy: false, timeout: 12000, maximumAge: 300_000 }
     );
-  }, [effectiveLang, persistMyMapLocation]);
+  }, [effectiveLang, persistMyMapLocation, persistLastMapLocation]);
 
   useEffect(() => {
     const term = query.trim().toLowerCase();
@@ -1333,10 +1428,13 @@ function BusinessesPageContent() {
       return;
     }
     if (!locationAreaQuery) {
-      setMapViewCenter(USA_MAP_CENTER);
-      setLocationAreaBounds(null);
-      setLocationAreaRings(null);
-      lastGeocodedCityQueryRef.current = '__usa__';
+      // Only fall back to continental USA when there is no saved map location.
+      if (!hasSavedBusinessesMapLocation(bootMapLocation())) {
+        setMapViewCenter(USA_MAP_CENTER);
+        setLocationAreaBounds(null);
+        setLocationAreaRings(null);
+        lastGeocodedCityQueryRef.current = '__usa__';
+      }
       return;
     }
     if (lastGeocodedCityQueryRef.current === locationAreaQuery) return;
@@ -1361,9 +1459,19 @@ function BusinessesPageContent() {
           ) {
             if (cancelled) return;
             lastGeocodedCityQueryRef.current = locationAreaQuery;
-            setMapViewCenter({ lat: cached.lat, lon: cached.lon });
+            const center = { lat: cached.lat, lon: cached.lon };
+            const rings = hasValidAreaRings(cached.rings) ? cached.rings : null;
+            setMapViewCenter(center);
             setLocationAreaBounds(cached.bounds!);
-            setLocationAreaRings(hasValidAreaRings(cached.rings) ? cached.rings : null);
+            setLocationAreaRings(rings);
+            persistLastMapLocation({
+              searchText: locationAreaQuery,
+              label: locationAreaQuery,
+              center,
+              bounds: cached.bounds!,
+              rings,
+              userCoords: null,
+            });
             return;
           }
         }
@@ -1374,29 +1482,30 @@ function BusinessesPageContent() {
       const area = await geocodeLocationAreaQuery(locationAreaQuery, locationAreaScopeLevel);
       if (cancelled || !area) return;
       lastGeocodedCityQueryRef.current = locationAreaQuery;
-      setMapViewCenter({ lat: area.lat, lon: area.lon });
+      const center = { lat: area.lat, lon: area.lon };
+      const rings = hasValidAreaRings(area.rings) ? area.rings : null;
+      setMapViewCenter(center);
       setLocationAreaBounds(area.bounds);
-      setLocationAreaRings(hasValidAreaRings(area.rings) ? area.rings : null);
-      try {
-        localStorage.setItem(MAP_VIEW_CENTER_KEY, JSON.stringify({ lat: area.lat, lon: area.lon }));
-        localStorage.setItem(
-          MAP_AREA_BOUNDS_CACHE_KEY,
-          JSON.stringify({
-            query: locationAreaQuery,
-            lat: area.lat,
-            lon: area.lon,
-            bounds: area.bounds,
-            rings: area.rings,
-          })
-        );
-      } catch {
-        /* ignore */
-      }
+      setLocationAreaRings(rings);
+      persistLastMapLocation({
+        searchText: locationAreaQuery,
+        label: locationAreaQuery,
+        center,
+        bounds: area.bounds,
+        rings,
+        userCoords: null,
+      });
     })();
     return () => {
       cancelled = true;
     };
-  }, [isRadiusLocationMode, userCoords, locationAreaQuery, locationAreaScopeLevel]);
+  }, [
+    isRadiusLocationMode,
+    userCoords,
+    locationAreaQuery,
+    locationAreaScopeLevel,
+    persistLastMapLocation,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1587,7 +1696,8 @@ function BusinessesPageContent() {
   const handleMapRadiusChange = useCallback((miles: number) => {
     setRadius(miles);
     writeSavedSearchRadiusMiles(miles);
-  }, []);
+    persistLastMapLocation({ radiusMiles: miles });
+  }, [persistLastMapLocation]);
 
   const handleShareMapLocation = useCallback(() => {
     const applyCoords = (

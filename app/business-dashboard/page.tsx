@@ -226,6 +226,7 @@ function BusinessDashboardContent() {
     slug_retail_search_accent_color?: string | null;
     slug_view_detail_button_color?: string | null;
     slug_sidebar_menu_button_color?: string | null;
+    slug_contact_action_color?: string | null;
   } | null>(null);
   const [favorites, setFavorites] = useState<FavoriteBusiness[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(true);
@@ -285,6 +286,7 @@ function BusinessDashboardContent() {
   const [retailSearchAccentInput, setRetailSearchAccentInput] = useState(DEFAULT_RETAIL_SEARCH_ACCENT);
   const [viewDetailButtonColorInput, setViewDetailButtonColorInput] = useState('');
   const [sidebarMenuButtonColorInput, setSidebarMenuButtonColorInput] = useState('');
+  const [contactActionColorInput, setContactActionColorInput] = useState('');
   const [myPostsExpanded, setMyPostsExpanded] = useState(false);
   const [businessPosts, setBusinessPosts] = useState<BusinessCommunityPost[]>([]);
   const [businessPostCommentCounts, setBusinessPostCommentCounts] = useState<Record<string, number>>({});
@@ -368,7 +370,7 @@ function BusinessDashboardContent() {
         const { data, error } = await supabase
           .from('businesses')
           .select(
-            'id, business_name, slug, moderation_status, lifecycle_status, is_archived, plan, plan_selected_at, trial_end, plan_expires_at, logo_url, lat, lon, profile_template, theme, accent_color, slug_primary_color, slug_secondary_color, slug_use_gradient, slug_retail_search_accent_color, slug_view_detail_button_color, slug_sidebar_menu_button_color'
+            'id, business_name, slug, moderation_status, lifecycle_status, is_archived, plan, plan_selected_at, trial_end, plan_expires_at, logo_url, lat, lon, profile_template, theme, accent_color, slug_primary_color, slug_secondary_color, slug_use_gradient, slug_retail_search_accent_color, slug_view_detail_button_color, slug_sidebar_menu_button_color, slug_contact_action_color'
           )
           .eq('owner_id', userId)
           .maybeSingle();
@@ -406,6 +408,9 @@ function BusinessDashboardContent() {
             slug_view_detail_button_color: data.slug_view_detail_button_color ? String(data.slug_view_detail_button_color) : null,
             slug_sidebar_menu_button_color: data.slug_sidebar_menu_button_color
               ? String(data.slug_sidebar_menu_button_color)
+              : null,
+            slug_contact_action_color: data.slug_contact_action_color
+              ? String(data.slug_contact_action_color)
               : null,
           });
         }
@@ -472,6 +477,9 @@ function BusinessDashboardContent() {
     setSidebarMenuButtonColorInput(
       business.slug_sidebar_menu_button_color ? sanitizeHexColor(business.slug_sidebar_menu_button_color, DEFAULT_SLUG_PRIMARY) : ''
     );
+    setContactActionColorInput(
+      business.slug_contact_action_color ? sanitizeHexColor(business.slug_contact_action_color, DEFAULT_SLUG_PRIMARY) : ''
+    );
   }, [
     business?.id,
     business?.slug_primary_color,
@@ -480,6 +488,7 @@ function BusinessDashboardContent() {
     business?.slug_retail_search_accent_color,
     business?.slug_view_detail_button_color,
     business?.slug_sidebar_menu_button_color,
+    business?.slug_contact_action_color,
   ]);
 
   useEffect(() => {
@@ -735,8 +744,10 @@ function BusinessDashboardContent() {
     const retailSearch = sanitizeHexColor(retailSearchAccentInput, DEFAULT_RETAIL_SEARCH_ACCENT);
     const viewDetailTrim = viewDetailButtonColorInput.trim();
     const sidebarTrim = sidebarMenuButtonColorInput.trim();
+    const contactActionTrim = contactActionColorInput.trim();
     const viewDetailSaved = viewDetailTrim ? sanitizeHexColor(viewDetailTrim, primary) : null;
     const sidebarSaved = sidebarTrim ? sanitizeHexColor(sidebarTrim, primary) : null;
+    const contactActionSaved = contactActionTrim ? sanitizeHexColor(contactActionTrim, primary) : null;
     try {
       setSavingPageColors(true);
       const { error } = await supabase
@@ -748,6 +759,7 @@ function BusinessDashboardContent() {
           slug_retail_search_accent_color: retailSearch,
           slug_view_detail_button_color: viewDetailSaved,
           slug_sidebar_menu_button_color: sidebarSaved,
+          slug_contact_action_color: contactActionSaved,
         })
         .eq('id', business.id);
       if (error) throw error;
@@ -761,6 +773,7 @@ function BusinessDashboardContent() {
               slug_retail_search_accent_color: retailSearch,
               slug_view_detail_button_color: viewDetailSaved,
               slug_sidebar_menu_button_color: sidebarSaved,
+              slug_contact_action_color: contactActionSaved,
             }
           : prev
       );
@@ -791,6 +804,7 @@ function BusinessDashboardContent() {
     setRetailSearchAccentInput(DEFAULT_RETAIL_SEARCH_ACCENT);
     setViewDetailButtonColorInput('');
     setSidebarMenuButtonColorInput('');
+    setContactActionColorInput('');
   };
 
   useEffect(() => {
@@ -1097,6 +1111,9 @@ function BusinessDashboardContent() {
   const sidebarMenuPreviewBackground = sidebarMenuButtonColorInput.trim()
     ? sanitizeHexColor(sidebarMenuButtonColorInput, DEFAULT_SLUG_PRIMARY)
     : pagePreviewBackground;
+  const contactActionPreviewColor = contactActionColorInput.trim()
+    ? sanitizeHexColor(contactActionColorInput, DEFAULT_SLUG_PRIMARY)
+    : sanitizeHexColor(slugPrimaryColorInput, DEFAULT_SLUG_PRIMARY);
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-slate-50 pb-12 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900">
@@ -1854,7 +1871,7 @@ function BusinessDashboardContent() {
                         <div>
                           <h3 id="business-page-colors-title" className="text-lg font-semibold text-slate-900 dark:text-gray-100">{t(effectiveLang, 'Business Page Colors')}</h3>
                           <p className="mt-1 text-sm text-slate-600 dark:text-gray-300">
-                            Set your brand colors below, then optionally override the retail header/search strip, “View details” buttons, and burger menu actions.
+                            Set your brand colors below, then optionally override contact action icons, retail header/search, “View details” buttons, and burger menu actions.
                           </p>
                         </div>
                         <button
@@ -1870,6 +1887,9 @@ function BusinessDashboardContent() {
                       <div className="mt-4 grid gap-4 sm:grid-cols-2">
                         <label className="block">
                           <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Primary color')}</span>
+                          <p className="mt-0.5 text-xs text-slate-500 dark:text-gray-400">
+                            Default color for contact action icons (Call, WhatsApp, Message, Map) unless overridden below.
+                          </p>
                           <div className="mt-1.5 flex items-center gap-2">
                             <input
                               type="color"
@@ -1970,10 +1990,34 @@ function BusinessDashboardContent() {
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Button overrides')}</p>
                           <p className="mt-1 text-sm text-slate-600 dark:text-gray-300">
-                            Leave blank to use the brand colors above. Set a solid color only for “View details” (and similar) or burger menu actions when you want them different from the header strip.
+                            Leave blank to use the brand colors above. Set a solid color for contact icons (Call, WhatsApp, Message, Map), “View details”, or burger menu actions when you want them different from primary.
                           </p>
                         </div>
                         <div className="grid gap-4 sm:grid-cols-2">
+                          <label className="block sm:col-span-2">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'Contact action icons')}</span>
+                            <p className="mt-0.5 text-xs text-slate-500 dark:text-gray-400">
+                              Call, WhatsApp, Message, and Map circles on your business page. Blank uses primary color.
+                            </p>
+                            <div className="mt-1.5 flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={sanitizeHexColor(
+                                  contactActionColorInput || slugPrimaryColorInput,
+                                  DEFAULT_SLUG_PRIMARY
+                                )}
+                                onChange={(e) => setContactActionColorInput(e.target.value)}
+                                className="h-10 w-14 cursor-pointer rounded border border-slate-300 bg-white p-1"
+                              />
+                              <input
+                                type="text"
+                                value={contactActionColorInput}
+                                onChange={(e) => setContactActionColorInput(e.target.value)}
+                                className="h-10 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                                placeholder={t(effectiveLang, 'Default (primary color)')}
+                              />
+                            </div>
+                          </label>
                           <label className="block">
                             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">{t(effectiveLang, 'View details & CTAs')}</span>
                             <div className="mt-1.5 flex items-center gap-2">
@@ -2053,6 +2097,19 @@ function BusinessDashboardContent() {
                             style={{ background: pagePreviewBackground }}
                           >
                             Contact / info strip preview
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3">
+                            {['Call', 'WhatsApp', 'Message', 'Map'].map((label) => (
+                              <div key={label} className="flex flex-col items-center gap-1">
+                                <span
+                                  className="inline-flex h-10 w-10 items-center justify-center rounded-full text-[9px] font-bold text-white shadow-sm"
+                                  style={{ backgroundColor: contactActionPreviewColor }}
+                                >
+                                  {label.slice(0, 1)}
+                                </span>
+                                <span className="text-[10px] font-medium text-slate-600 dark:text-gray-300">{label}</span>
+                              </div>
+                            ))}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
                             <div

@@ -48,9 +48,11 @@ export default function ConditionalAppShell({
   }, [pathname]);
 
   if (isBusinessSlugPage || isAuthPage || isAdminRoute) {
-    /** Auth/admin: skip route enter animation so fixed full-screen pages are never opacity-0. */
-    const shellClass =
-      isAuthPage || isAdminRoute
+    /** Auth/admin: skip route enter animation so fixed full-screen pages are never opacity-0.
+     * Business slug pages: no top padding so the gallery/hero is flush to the top. */
+    const shellClass = isBusinessSlugPage
+      ? 'animate-route-swap-soft pt-0'
+      : isAuthPage || isAdminRoute
         ? 'pt-2 sm:pt-3'
         : 'animate-route-swap-soft pt-2 sm:pt-3';
     return (

@@ -407,3 +407,59 @@ html.dark .dashboard-following-orgs .following-orgs-empty * {
   }
 }
 
+@keyframes hanar-dealership-menu-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes hanar-qr-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes hanar-qr-panel-open {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes hanar-qr-code-reveal {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+[role="dialog"].hanar-qr-modal-backdrop {
+  animation: hanar-qr-fade-in 0.35s ease-out both;
+}
+
+.hanar-qr-modal-panel {
+  animation: hanar-qr-panel-open 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hanar-qr-modal-code {
+  animation: hanar-qr-code-reveal 2.4s cubic-bezier(0.22, 1, 0.36, 1) 0.65s both;
+}
+

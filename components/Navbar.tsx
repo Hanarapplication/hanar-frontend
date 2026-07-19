@@ -585,7 +585,8 @@ export default function Navbar({
   /** Home bottom bar — destination CTAs (not tab chrome). */
   const homeBottomBarCta =
     'relative flex min-h-[4.75rem] w-full items-center gap-2 overflow-hidden rounded-2xl px-2.5 py-2.5 text-left transition active:scale-[0.98] sm:min-h-[5rem] sm:gap-3 sm:px-3.5 sm:py-3 [-webkit-tap-highlight-color:transparent]';
-  const homeBottomBarCtaSplash = 'ring-2 ring-pink-400/70';
+  /** Neutral splash — avoid pink so these never read as “you are on Businesses”. */
+  const homeBottomBarCtaSplash = 'ring-2 ring-slate-400/60';
   const homeBottomBarIconClass = 'h-6 w-6 shrink-0 text-slate-700';
 
   const goToQuickAction = (href: string) => {
@@ -914,14 +915,14 @@ export default function Navbar({
               }}
               className={cn(
                 homeBottomBarCta,
-                'border border-pink-200/80 bg-gradient-to-br from-pink-50 via-white to-rose-50 shadow-sm ring-1 ring-pink-100/80',
-                'hover:border-pink-300 hover:shadow-md',
+                'border border-teal-200/80 bg-gradient-to-br from-teal-50 via-white to-cyan-50/70 shadow-sm ring-1 ring-teal-100/70',
+                'hover:border-teal-300 hover:shadow-md',
                 homeBottomBarSplash === 'businesses' && homeBottomBarCtaSplash
               )}
             >
-              <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-pink-500 text-white shadow-[0_6px_16px_rgba(236,72,153,0.35)] sm:h-12 sm:w-12 sm:rounded-2xl">
+              <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white shadow-[0_6px_16px_rgba(13,148,136,0.32)] sm:h-12 sm:w-12 sm:rounded-2xl">
                 <Store className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.25} aria-hidden />
-                <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-pink-600 shadow-sm ring-1 ring-pink-200">
+                <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-teal-700 shadow-sm ring-1 ring-teal-200">
                   <MapPin className="h-3 w-3" strokeWidth={2.5} aria-hidden />
                 </span>
               </span>
@@ -944,14 +945,14 @@ export default function Navbar({
               }}
               className={cn(
                 homeBottomBarCta,
-                'border border-slate-200/90 bg-gradient-to-br from-slate-50 via-white to-indigo-50/60 shadow-sm ring-1 ring-slate-100',
-                'hover:border-slate-300 hover:shadow-md',
+                'border border-pink-200/80 bg-gradient-to-br from-pink-50 via-white to-rose-50 shadow-sm ring-1 ring-pink-100/80',
+                'hover:border-pink-300 hover:shadow-md',
                 homeBottomBarSplash === 'marketplace' && homeBottomBarCtaSplash
               )}
             >
-              <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-white shadow-[0_6px_16px_rgba(15,23,42,0.28)] sm:h-12 sm:w-12 sm:rounded-2xl">
+              <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-pink-500 text-white shadow-[0_6px_16px_rgba(236,72,153,0.35)] sm:h-12 sm:w-12 sm:rounded-2xl">
                 <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.25} aria-hidden />
-                <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm ring-1 ring-slate-200">
+                <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-pink-600 shadow-sm ring-1 ring-pink-200">
                   <MapPin className="h-3 w-3" strokeWidth={2.5} aria-hidden />
                 </span>
               </span>
